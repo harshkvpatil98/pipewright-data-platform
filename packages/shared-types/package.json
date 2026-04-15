@@ -1,0 +1,13 @@
+{
+  "name": "@platform/shared-types",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json --noEmit",
+    "lint": "echo 'shared-types uses app-level linting'",
+    "test": "echo 'shared-types has no standalone tests yet'"
+  }
+}

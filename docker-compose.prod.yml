@@ -1,0 +1,66 @@
+# Production-oriented Compose stack (single-host reference layout).
+#
+# Before running:
+#   1. cp apps/api-gateway/.env.production.example apps/api-gateway/.env
+#   2. cp apps/web/.env.production.example apps/web/.env
+#   3. Set real secrets, DATABASE_URL, CORS, JWT secret, and NEXT_PUBLIC_API_BASE_URL
+#      (browser-reachable API URL — often your public gateway URL + /api/v1).
+#   4. Set root .env or export NEXT_PUBLIC_* for the web image build args below.
+#
+# Build web with public API URL baked in:
+#   NEXT_PUBLIC_API_BASE_URL=https://api.example.com/api/v1 docker compose -f docker-compose.prod.yml build web
+#
+# Not a substitute for managed DB, secrets vault, TLS termination, or multi-AZ scheduling.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-platform}
+      POSTGRES_USER: ${POSTGRES_USER:-platform}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-platform}
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: apps/api-gateway/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - ./apps/api-gateway/.env
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-platform}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-platform}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    command: sh -c "alembic -c alembic.ini upgrade head && uvicorn api_gateway.main:app --host 0.0.0.0 --port 8000"
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile.prod
+      args:
+        NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-Intelligent Data Platform}
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000/api/v1}
+        NEXT_PUBLIC_MAX_UPLOAD_SIZE_BYTES: ${NEXT_PUBLIC_MAX_UPLOAD_SIZE_BYTES:-26214400}
+    restart: unless-stopped
+    depends_on:
+      - api-gateway
+    env_file:
+      - ./apps/web/.env
+    environment:
+      API_INTERNAL_BASE_URL: http://api-gateway:8000/api/v1
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+
+volumes:
+  postgres_data_prod:

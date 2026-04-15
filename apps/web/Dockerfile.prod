@@ -1,0 +1,33 @@
+# Production-oriented Next.js image (standalone monorepo workspace build).
+# Build args bake NEXT_PUBLIC_* at build time.
+
+FROM node:22-alpine
+
+WORKDIR /repo
+
+ARG NEXT_PUBLIC_APP_NAME=Intelligent Data Platform
+ARG NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
+ARG NEXT_PUBLIC_MAX_UPLOAD_SIZE_BYTES=26214400
+
+ENV NEXT_PUBLIC_APP_NAME=$NEXT_PUBLIC_APP_NAME
+ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
+ENV NEXT_PUBLIC_MAX_UPLOAD_SIZE_BYTES=$NEXT_PUBLIC_MAX_UPLOAD_SIZE_BYTES
+ENV NODE_ENV=production
+
+COPY package.json package-lock.json /repo/
+COPY apps/web/package.json /repo/apps/web/
+COPY packages/shared-types/package.json /repo/packages/shared-types/
+COPY packages/shared-ui/package.json /repo/packages/shared-ui/
+COPY packages/config/package.json /repo/packages/config/
+
+RUN npm ci
+
+COPY apps/web /repo/apps/web
+COPY packages /repo/packages
+
+RUN npm run build --workspace @platform/web
+
+EXPOSE 3000
+
+# Listen on all interfaces inside the container (same flags as `next start --help`).
+CMD ["npm", "run", "start", "--workspace", "@platform/web", "--", "--hostname", "0.0.0.0", "--port", "3000"]

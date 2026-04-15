@@ -1,0 +1,30 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/rush/v5/rush.schema.json",
+  "rushVersion": "5.162.0",
+  "npmVersion": "10.9.2",
+  "nodeSupportedVersionRange": ">=22.0.0 <23.0.0",
+  "projectFolderMinDepth": 2,
+  "projectFolderMaxDepth": 3,
+  "projects": [
+    {
+      "packageName": "@platform/web",
+      "projectFolder": "apps/web",
+      "reviewCategory": "production"
+    },
+    {
+      "packageName": "@platform/shared-types",
+      "projectFolder": "packages/shared-types",
+      "reviewCategory": "production"
+    },
+    {
+      "packageName": "@platform/shared-ui",
+      "projectFolder": "packages/shared-ui",
+      "reviewCategory": "production"
+    },
+    {
+      "packageName": "@platform/config",
+      "projectFolder": "packages/config",
+      "reviewCategory": "production"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "service-ingestion"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115,<1.0",
+  "openpyxl>=3.1,<4.0",
+  "pandas>=2.2,<3.0",
+  "python-multipart>=0.0.20,<1.0",
+  "pydantic>=2.9,<3.0",
+  "shared-python>=0.1.0",
+  "service-auth>=0.1.0",
+  "service-datasets>=0.1.0",
+  "service-pipeline-runs>=0.1.0",
+  "service-projects>=0.1.0"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]

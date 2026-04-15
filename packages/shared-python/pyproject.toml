@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "shared-python"
+version = "0.1.0"
+description = "Shared Python platform utilities for the Intelligent Data Platform"
+requires-python = ">=3.11"
+dependencies = [
+  "cryptography>=43,<45",
+  "fastapi>=0.115,<1.0",
+  "pydantic>=2.9,<3.0",
+  "pydantic-settings>=2.8,<3.0",
+  "pyjwt>=2.10,<3.0",
+  "sqlalchemy>=2.0,<3.0"
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3,<9.0"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,27 @@
+{
+  "name": "intelligent-data-platform-monorepo",
+  "private": true,
+  "workspaces": [
+    "apps/web",
+    "packages/shared-types",
+    "packages/shared-ui",
+    "packages/config"
+  ],
+  "scripts": {
+    "setup": "bash ./scripts/setup.sh",
+    "dev": "bash ./scripts/dev.sh",
+    "test": "bash ./scripts/test.sh",
+    "verify": "bash ./scripts/verify-release.sh",
+    "smoke": "bash ./scripts/smoke-test.sh",
+    "ci-verify": "bash ./scripts/ci-bootstrap-python-venv.sh && bash ./scripts/verify-release.sh",
+    "rush": "bash ./scripts/rush.sh",
+    "setup:js": "bash ./scripts/rush.sh install",
+    "build:web": "bash ./scripts/rush.sh build --to @platform/web",
+    "lint:web": "bash ./scripts/rush.sh lint --to @platform/web",
+    "test:web": "bash ./scripts/rush.sh test --to @platform/web"
+  },
+  "devDependencies": {
+    "@microsoft/rush": "^5.162.0",
+    "next": "16.2.2"
+  }
+}

@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "service-schedules"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+  "croniter>=2.0,<4.0",
+  "fastapi>=0.115,<1.0",
+  "pydantic>=2.9,<3.0",
+  "sqlalchemy>=2.0,<3.0",
+  "shared-python>=0.1.0",
+  "service-auth>=0.1.0",
+  "service-projects>=0.1.0",
+  "service-datasets>=0.1.0",
+  "service-destinations>=0.1.0",
+  "service-transformations>=0.1.0",
+  "service-pipeline-runs>=0.1.0",
+  "service-notifications>=0.1.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3,<9.0",
+]

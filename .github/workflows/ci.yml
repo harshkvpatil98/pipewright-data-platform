@@ -1,0 +1,36 @@
+# Continuous integration — mirrors local `make verify` after a Python venv bootstrap.
+# Uses scripts/verify-release.sh (ruff, pytest bundle, ESLint, tsc, next build).
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Bootstrap Python venv (editable installs)
+        run: bash ./scripts/ci-bootstrap-python-venv.sh
+
+      - name: Verify (ruff, tests, lint, typecheck, web build)
+        run: bash ./scripts/verify-release.sh

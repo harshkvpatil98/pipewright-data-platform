@@ -1,0 +1,14 @@
+{
+  "name": "@platform/config",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "eslint-config-next": "16.2.2",
+    "eslint-config-prettier": "10.1.8"
+  },
+  "exports": {
+    "./eslint/next": "./eslint/next.mjs",
+    "./tsconfig.base": "./tsconfig.base.json"
+  }
+}

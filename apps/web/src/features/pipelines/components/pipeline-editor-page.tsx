@@ -123,14 +123,14 @@ export function PipelineEditorPageView({
     <>
       <Link
         href={baseDatasetId ? `/projects/${project.id}/datasets/${baseDatasetId}` : `/projects/${project.id}/pipelines`}
-        className="inline-flex h-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] px-4 text-sm font-medium text-slate-100 transition hover:border-white/20 hover:bg-white/[0.09]"
+        className="inline-flex h-11 items-center justify-center rounded-xl border border-line bg-surface-2 px-4 text-sm font-medium text-ink transition hover:border-line-strong hover:bg-surface-2"
       >
         {baseDatasetId ? "Back to dataset" : "Back to pipelines"}
       </Link>
       {pipeline ? (
         <Link
           href={`/projects/${project.id}/schedules?new=1&type=transformation_pipeline_run&pipelineId=${pipeline.id}`}
-          className="inline-flex h-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] px-4 text-sm font-medium text-slate-100 transition hover:border-white/20 hover:bg-white/[0.09]"
+          className="inline-flex h-11 items-center justify-center rounded-xl border border-line bg-surface-2 px-4 text-sm font-medium text-ink transition hover:border-line-strong hover:bg-surface-2"
         >
           Schedule
         </Link>
@@ -318,12 +318,12 @@ export function PipelineEditorPageView({
         <>
           <StatusBadge value={status} />
           {hasUnsavedChanges ? (
-            <span className="rounded-full border border-amber-400/25 bg-amber-500/10 px-3 py-1 text-xs uppercase tracking-[0.18em] text-amber-200">
+            <span className="rounded-full border border-warning-line bg-warning-soft px-3 py-1 text-xs uppercase tracking-[0.18em] text-warning">
               Unsaved changes
             </span>
           ) : null}
           {selectedDataset ? (
-            <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs uppercase tracking-[0.18em] text-slate-300">
+            <span className="rounded-full border border-line bg-surface px-3 py-1 text-xs uppercase tracking-[0.18em] text-ink-2">
               {selectedDataset.name}
             </span>
           ) : null}
@@ -331,12 +331,12 @@ export function PipelineEditorPageView({
       }
     >
       {formError ? (
-        <div className="rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-4 text-sm text-rose-200 shadow-[0_12px_30px_rgba(127,29,29,0.12)]">
+        <div className="rounded-2xl border border-danger-line bg-danger-soft px-4 py-4 text-sm text-danger shadow-[var(--shadow-md)]">
           {formError}
         </div>
       ) : null}
       {successMessage ? (
-        <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-4 text-sm text-emerald-200 shadow-[0_12px_30px_rgba(6,78,59,0.14)]">
+        <div className="rounded-2xl border border-success-line bg-success-soft px-4 py-4 text-sm text-success shadow-[var(--shadow-md)]">
           {successMessage}
         </div>
       ) : null}
@@ -378,20 +378,20 @@ export function PipelineEditorPageView({
             </div>
 
             {selectedDataset ? (
-              <div className="rounded-2xl border border-white/8 bg-black/10 px-4 py-4 text-sm text-slate-300">
-                <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Base dataset</div>
+              <div className="rounded-2xl border border-line bg-sunken px-4 py-4 text-sm text-ink-2">
+                <div className="text-[11px] uppercase tracking-[0.18em] text-muted">Base dataset</div>
                 <div className="mt-2">
-                  <Link href={`/projects/${project.id}/datasets/${selectedDataset.id}`} className="text-indigo-300 hover:text-indigo-200">
+                  <Link href={`/projects/${project.id}/datasets/${selectedDataset.id}`} className="text-accent hover:text-accent">
                     {selectedDataset.name}
                   </Link>
                 </div>
               </div>
             ) : null}
             {editorHref ? (
-              <div className="rounded-2xl border border-white/8 bg-black/10 px-4 py-4 text-sm text-slate-300">
-                <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Editor route</div>
+              <div className="rounded-2xl border border-line bg-sunken px-4 py-4 text-sm text-ink-2">
+                <div className="text-[11px] uppercase tracking-[0.18em] text-muted">Editor route</div>
                 <div className="mt-2 break-all">
-                  <Link href={editorHref} className="text-indigo-300 hover:text-indigo-200">
+                  <Link href={editorHref} className="text-accent hover:text-accent">
                     {editorHref}
                   </Link>
                 </div>
@@ -436,13 +436,13 @@ export function PipelineEditorPageView({
 
       <SectionPanel title="Run behavior" description="Preview never persists data. Save persists the pipeline definition. Run executes only the last saved version and creates a derived dataset.">
         <div className="grid gap-3 md:grid-cols-3">
-          <div className="rounded-2xl border border-white/8 bg-black/10 px-4 py-4 text-sm leading-6 text-slate-300">
+          <div className="rounded-2xl border border-line bg-sunken px-4 py-4 text-sm leading-6 text-ink-2">
             Preview the current draft on demand before saving.
           </div>
-          <div className="rounded-2xl border border-white/8 bg-black/10 px-4 py-4 text-sm leading-6 text-slate-300">
+          <div className="rounded-2xl border border-line bg-sunken px-4 py-4 text-sm leading-6 text-ink-2">
             Save writes `name`, `description`, `status`, and `steps_json` through the existing pipeline CRUD API.
           </div>
-          <div className="rounded-2xl border border-white/8 bg-black/10 px-4 py-4 text-sm leading-6 text-slate-300">
+          <div className="rounded-2xl border border-line bg-sunken px-4 py-4 text-sm leading-6 text-ink-2">
             Run is enabled only for saved pipelines with no unsaved changes.
           </div>
         </div>

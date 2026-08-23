@@ -122,25 +122,25 @@ export function PublishDatasetModal({ open, onClose, projectId, datasetId }: Pub
     >
       <div className="flex flex-col gap-4">
         {writeMode === "replace" ? (
-          <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100/90">
+          <p className="rounded-xl border border-warning-line bg-warning-soft px-3 py-2 text-xs text-warning">
             Replace mode overwrites the target table (drop and recreate). Use with care on shared databases.
           </p>
         ) : null}
         {loadingList ? (
-          <p className="text-sm text-slate-400">Loading destinations…</p>
+          <p className="text-sm text-ink-3">Loading destinations…</p>
         ) : destinations.length === 0 ? (
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-ink-3">
             No active PostgreSQL destinations.{" "}
-            <Link href={`/projects/${projectId}/destinations`} className="text-indigo-300 underline">
+            <Link href={`/projects/${projectId}/destinations`} className="text-accent underline">
               Create one
             </Link>{" "}
             first.
           </p>
         ) : (
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
             Destination
             <select
-              className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+              className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
               value={destinationId}
               onChange={(e) => setDestinationId(e.target.value)}
             >
@@ -152,20 +152,20 @@ export function PublishDatasetModal({ open, onClose, projectId, datasetId }: Pub
             </select>
           </label>
         )}
-        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
           Target table name
           <input
-            className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 font-mono text-sm text-slate-100"
+            className="rounded-xl border border-line bg-surface px-3 py-2 font-mono text-sm text-ink"
             value={tableName}
             onChange={(e) => setTableName(e.target.value)}
             placeholder="e.g. clean_customers"
             autoComplete="off"
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
           Write mode
           <select
-            className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+            className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
             value={writeMode}
             onChange={(e) => setWriteMode(e.target.value as "replace" | "append")}
           >
@@ -173,29 +173,29 @@ export function PublishDatasetModal({ open, onClose, projectId, datasetId }: Pub
             <option value="replace">Replace (overwrite table)</option>
           </select>
         </label>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-muted">
           <Link
             href={`/projects/${projectId}/schedules?new=1&type=postgres_publish&datasetId=${datasetId}`}
-            className="text-indigo-300 underline"
+            className="text-accent underline"
           >
             Schedule publish
           </Link>{" "}
           saves this dataset and target as a recurring job. Runs fire on the cron you set when the due-schedule executor is running (see README / system status).
         </p>
         {error ? (
-          <p className="text-sm text-rose-300" role="alert">
+          <p className="text-sm text-danger" role="alert">
             {error}
           </p>
         ) : null}
         {result ? (
-          <div className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-3 text-sm text-slate-200">
-            <p className={result.success ? "text-emerald-200/90" : "text-rose-200/90"}>{result.message}</p>
+          <div className="rounded-xl border border-line bg-surface px-3 py-3 text-sm text-ink">
+            <p className={result.success ? "text-success" : "text-danger"}>{result.message}</p>
             {result.row_count_written != null ? (
-              <p className="mt-1 text-xs text-slate-400">Rows written: {result.row_count_written}</p>
+              <p className="mt-1 text-xs text-ink-3">Rows written: {result.row_count_written}</p>
             ) : null}
             <Link
               href={`/projects/${projectId}/runs/${result.run.id}/audit`}
-              className="mt-2 inline-block text-xs text-indigo-300 underline"
+              className="mt-2 inline-block text-xs text-accent underline"
             >
               View run audit
             </Link>

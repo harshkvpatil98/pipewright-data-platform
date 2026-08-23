@@ -3,6 +3,8 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -20,6 +22,11 @@ class UserRead(BaseModel):
     is_active: bool
     created_at: datetime
     updated_at: datetime
+    # Which tenant this person belongs to. None on a single-tenant install.
+    organisation_id: uuid.UUID | None = None
+    # Included here so the shell can render the right theme on first paint
+    # rather than fetching it and flashing the wrong one.
+    preferences: "PreferencesRead" = Field(default_factory=lambda: PreferencesRead())
 
 
 class TokenResponse(BaseModel):
@@ -33,3 +40,46 @@ class BootstrapUserRequest(BaseModel):
     username: str = Field(min_length=3, max_length=80)
     password: str = Field(min_length=8, max_length=128)
     role: str = Field(default="admin", pattern=r"^(admin|operator|viewer)$")
+
+
+class UserListResponse(BaseModel):
+    """Everyone with an account, for pickers and administration."""
+
+    items: list[UserRead]
+
+
+class UserCreateRequest(BaseModel):
+    """Create a colleague an account.
+
+    The platform-wide role here is not the same thing as what someone may do
+    inside a project -- that is project membership. This only says whether they
+    can administer the platform itself.
+    """
+
+    username: str = Field(min_length=3, max_length=80)
+    password: str = Field(min_length=8, max_length=128)
+    role: str = Field(default="viewer", pattern=r"^(admin|operator|viewer)$")
+
+
+# "system" is the default and the only value that stays correct when someone
+# changes their OS appearance setting, so it is not merely a third option.
+Theme = Literal["light", "dark", "system"]
+Density = Literal["comfortable", "compact", "dense"]
+
+
+class PreferencesRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    theme: Theme = "system"
+    density: Density = "comfortable"
+
+
+class PreferencesUpdate(BaseModel):
+    """Partial update: omitting a field leaves it alone.
+
+    `None` and "absent" have to mean the same thing here, because a client
+    saving only the theme must not silently reset the density.
+    """
+
+    theme: Theme | None = None
+    density: Density | None = None

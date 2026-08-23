@@ -245,66 +245,66 @@ export function DestinationsPageView({ currentUser, projectId, initialItems }: D
     if (t === "postgres") {
       return (
         <div className="flex flex-col gap-3">
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
             Host
             <input
-              className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+              className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
               value={fields.host}
               onChange={(e) => set("host", e.target.value)}
               autoComplete="off"
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
             Port
             <input
-              className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+              className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
               value={fields.port}
               onChange={(e) => set("port", e.target.value)}
               autoComplete="off"
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
             Database
             <input
-              className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+              className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
               value={fields.database}
               onChange={(e) => set("database", e.target.value)}
               autoComplete="off"
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
             Username
             <input
-              className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+              className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
               value={fields.username}
               onChange={(e) => set("username", e.target.value)}
               autoComplete="off"
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
             Password
             <input
               type="password"
-              className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+              className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
               value={fields.password}
               onChange={(e) => set("password", e.target.value)}
               placeholder={isEdit ? "Leave blank to keep stored secret" : ""}
               autoComplete="new-password"
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
             Schema (optional)
             <input
-              className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+              className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
               value={fields.schema}
               onChange={(e) => set("schema", e.target.value)}
               autoComplete="off"
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
             SSL mode
             <select
-              className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+              className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
               value={fields.ssl_mode}
               onChange={(e) => set("ssl_mode", e.target.value)}
             >
@@ -321,48 +321,48 @@ export function DestinationsPageView({ currentUser, projectId, initialItems }: D
     if (t === "s3") {
       return (
         <div className="flex flex-col gap-3">
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
             Bucket
             <input
-              className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+              className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
               value={fields.bucket}
               onChange={(e) => set("bucket", e.target.value)}
               autoComplete="off"
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
             Region (optional)
             <input
-              className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+              className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
               value={fields.region}
               onChange={(e) => set("region", e.target.value)}
               autoComplete="off"
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
             Access key ID
             <input
-              className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+              className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
               value={fields.access_key_id}
               onChange={(e) => set("access_key_id", e.target.value)}
               autoComplete="off"
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
             Secret access key
             <input
               type="password"
-              className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+              className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
               value={fields.secret_access_key}
               onChange={(e) => set("secret_access_key", e.target.value)}
               placeholder={isEdit ? "Leave blank to keep stored secret" : ""}
               autoComplete="new-password"
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
             Prefix (optional)
             <input
-              className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+              className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
               value={fields.prefix}
               onChange={(e) => set("prefix", e.target.value)}
               autoComplete="off"
@@ -372,10 +372,10 @@ export function DestinationsPageView({ currentUser, projectId, initialItems }: D
       );
     }
     return (
-      <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+      <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
         Directory path
         <input
-          className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+          className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
           value={fields.path}
           onChange={(e) => set("path", e.target.value)}
           autoComplete="off"
@@ -394,7 +394,7 @@ export function DestinationsPageView({ currentUser, projectId, initialItems }: D
         <div className="flex flex-wrap gap-2">
           <Link
             href={`/projects/${projectId}`}
-            className="rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-slate-200 hover:border-white/20"
+            className="rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:border-line-strong"
           >
             Back to project
           </Link>
@@ -403,13 +403,13 @@ export function DestinationsPageView({ currentUser, projectId, initialItems }: D
       }
     >
       {error ? (
-        <p className="mb-4 text-sm text-rose-300" role="alert">
+        <p className="mb-4 text-sm text-danger" role="alert">
           {error}
         </p>
       ) : null}
       {testResult ? (
         <SectionPanel title="Last connection test" description="From the most recent test on this page.">
-          <p className={`text-sm ${testResult.success ? "text-emerald-200/90" : "text-rose-200/90"}`}>
+          <p className={`text-sm ${testResult.success ? "text-success" : "text-danger"}`}>
             {testResult.success ? "Success" : "Failed"} · {testResult.message}
             {testResult.latency_ms != null ? ` · ${testResult.latency_ms.toFixed(0)} ms` : ""}
           </p>
@@ -421,14 +421,14 @@ export function DestinationsPageView({ currentUser, projectId, initialItems }: D
         description="PostgreSQL is fully supported for save and test. S3 and local directory configs can be saved and tested; publishing comes later."
       >
         {items.length === 0 ? (
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-ink-3">
             No delivery destinations yet. Add a PostgreSQL, S3, or local export target to publish or export pipeline outputs.
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] border-collapse text-left text-sm text-slate-200">
+            <table className="w-full min-w-[720px] border-collapse text-left text-sm text-ink">
               <thead>
-                <tr className="border-b border-white/10 text-xs uppercase tracking-[0.14em] text-slate-500">
+                <tr className="border-b border-line text-xs uppercase tracking-[0.14em] text-muted">
                   <th className="py-2 pr-4 font-medium">Name</th>
                   <th className="py-2 pr-4 font-medium">Type</th>
                   <th className="py-2 pr-4 font-medium">Status</th>
@@ -438,11 +438,11 @@ export function DestinationsPageView({ currentUser, projectId, initialItems }: D
               </thead>
               <tbody>
                 {items.map((row) => (
-                  <tr key={row.id} className="border-b border-white/[0.06]">
-                    <td className="py-3 pr-4 font-medium text-white">{row.name}</td>
-                    <td className="py-3 pr-4 font-mono text-xs text-slate-300">{titleCase(row.destination_type)}</td>
-                    <td className="py-3 pr-4 text-xs text-slate-400">{row.status}</td>
-                    <td className="py-3 pr-4 text-xs text-slate-400">{formatDate(row.updated_at)}</td>
+                  <tr key={row.id} className="border-b border-line">
+                    <td className="py-3 pr-4 font-medium text-ink">{row.name}</td>
+                    <td className="py-3 pr-4 font-mono text-xs text-ink-2">{titleCase(row.destination_type)}</td>
+                    <td className="py-3 pr-4 text-xs text-ink-3">{row.status}</td>
+                    <td className="py-3 pr-4 text-xs text-ink-3">{formatDate(row.updated_at)}</td>
                     <td className="py-3">
                       <div className="flex flex-wrap gap-2">
                         <Button variant="secondary" size="sm" onClick={() => openEdit(row)}>
@@ -486,19 +486,19 @@ export function DestinationsPageView({ currentUser, projectId, initialItems }: D
         }
       >
         <div className="flex flex-col gap-4">
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
             Name
             <input
-              className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+              className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               autoComplete="off"
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
             Type
             <select
-              className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+              className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
               value={newType}
               onChange={(e) => setNewType(e.target.value as DestinationType)}
             >
@@ -529,17 +529,17 @@ export function DestinationsPageView({ currentUser, projectId, initialItems }: D
       >
         {editDestination ? (
           <div className="flex flex-col gap-4">
-            <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+            <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
               Name
               <input
-                className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+                className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
                 value={editDestination.name}
                 onChange={(e) => setEditDestination({ ...editDestination, name: e.target.value })}
                 autoComplete="off"
               />
             </label>
-            <p className="text-xs text-slate-500">
-              Type: <span className="font-mono text-slate-300">{editDestination.destination_type}</span> (cannot be
+            <p className="text-xs text-muted">
+              Type: <span className="font-mono text-ink-2">{editDestination.destination_type}</span> (cannot be
               changed)
             </p>
             {renderConfigForm(editDestination.destination_type, editFields, setEditFields, true)}

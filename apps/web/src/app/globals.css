@@ -1,16 +1,459 @@
 @import "tailwindcss";
 
+/*
+ * Pipewright design tokens.
+ *
+ * THREE theme states, not two. A viewer either picks light, picks dark, or
+ * leaves the default — and the default stamps nothing on <html>, so only
+ * prefers-color-scheme separates light from dark there. The pattern below
+ * covers all three:
+ *
+ *   :root                                     complete LIGHT palette
+ *   @media (prefers-color-scheme: dark)
+ *     :root:not([data-theme="light"])         dark, unless light was chosen
+ *   :root[data-theme="dark"]                  dark, chosen explicitly
+ *
+ * Rule enforced by apps/web/src/lib/theme/tokens.test.ts: a component may
+ * never declare a colour except through a token. A colour whose only
+ * definition lives inside a media query renders one theme's text on the
+ * other theme's ground.
+ */
+
 :root {
-  --background: #071018;
-  --foreground: #e5edf7;
-  --panel: rgba(15, 23, 42, 0.72);
-  --panel-strong: rgba(11, 18, 32, 0.94);
-  --sidebar: rgba(7, 12, 22, 0.92);
-  --accent: #4f46e5;
-  --accent-soft: rgba(99, 102, 241, 0.22);
-  --accent-faint: rgba(99, 102, 241, 0.12);
-  --accent-muted: #a5b4fc;
-  --border: rgba(148, 163, 184, 0.12);
+  color-scheme: light;
+
+  /* ---- surfaces ----------------------------------------------------- */
+  --canvas: #fafbfa;
+  --surface: #ffffff;
+  --surface-2: #f4f7f6;
+  --sunken: #eff3f2;
+  --sidebar: #f4f7f6;
+
+  /* Legacy aliases. The --background/--panel names predate the design
+     system and are referenced via arbitrary Tailwind values across the app;
+     they are kept pointing at the new tokens so nothing dangles. */
+  --background: var(--canvas);
+  --foreground: var(--ink);
+  --panel: var(--surface);
+  --panel-strong: var(--surface);
+  --surface-raised: var(--surface-2);
+  --surface-sunken: var(--sunken);
+
+  /* ---- text --------------------------------------------------------- */
+  /* Neutrals carry a slight green-cyan bias so they read as chosen rather
+     than inherited, and leave the blue end of the spectrum for data series. */
+  --ink: #12171a;
+  --ink-2: #3f4a4e;
+  --ink-3: #566268;
+  --muted: #616f74;
+  --faint: #818c90;
+
+  /* ---- lines -------------------------------------------------------- */
+  --line: #dde4e3;
+  --line-strong: #c6d1cf;
+  --line-soft: #eaefee;
+  --border: var(--line);
+  --border-strong: var(--line-strong);
+
+  /* ---- accent ------------------------------------------------------- */
+  /* Quiet chrome, loud data: saturated colour is reserved for meaning, so
+     the accent is the ONLY hue the interface itself spends. */
+  --accent: #0d7983;
+  --accent-strong: #095e66;
+  --accent-hover: #095e66;
+  --accent-soft: rgba(13, 121, 131, 0.12);
+  --accent-faint: rgba(13, 121, 131, 0.06);
+  --accent-muted: #34767d;
+  --accent-ink: #ffffff;
+  --accent-line: rgba(13, 121, 131, 0.26);
+  --scrim: rgba(9, 13, 15, 0.55);
+
+  /* ---- chart series ---------------------------------------------------- */
+  /* Okabe & Ito (2008), the standard colour-blind-safe qualitative palette,
+     ordered so the longest possible PREFIX stays separable: a 3-series chart
+     uses the three most distinct hues, not the first three declared.
+     Only --series-2 differs from the published values: #F0E442 is 1.32:1 on
+     white, effectively invisible, so light mode darkens it.
+     Verified under protanopia/deuteranopia/tritanopia by series.test.ts.
+     Hue alone is trustworthy to 5 series here; beyond that a chart must add a
+     second channel (dash pattern or marker shape). */
+  --series-1: #0072b2;
+  --series-2: #bab200;
+  --series-3: #999999;
+  --series-4: #56b4e9;
+  --series-5: #009e73;
+  --series-6: #d55e00;
+  --series-7: #e69f00;
+  --series-8: #cc79a7;
+
+  /* The single warm note: active edits, highlights, structural markers. */
+  --copper: #b15108;
+  --copper-soft: rgba(177, 81, 8, 0.12);
+  --copper-ink: #ffffff;
+
+  --brand-gradient-from: #0d7983;
+  --brand-gradient-to: #095e66;
+  --brand-junction-core: #ffffff;
+
+  /* ---- semantic state ------------------------------------------------ */
+  /* A separate axis from the accent, so "interactive" and "failing" can
+     never be confused. Every state also carries a non-colour cue at the
+     component level, so the UI survives deuteranopia and greyscale. */
+  --success: #0b7a54;
+  --success-soft: rgba(11, 122, 84, 0.12);
+  --success-line: rgba(11, 122, 84, 0.28);
+  --success-ink: #ffffff;
+
+  --warning: #9c5f06;
+  --warning-soft: rgba(156, 95, 6, 0.12);
+  --warning-line: rgba(156, 95, 6, 0.28);
+  --warning-ink: #ffffff;
+
+  --danger: #c2413c;
+  --danger-soft: rgba(194, 65, 60, 0.1);
+  --danger-line: rgba(194, 65, 60, 0.26);
+  --danger-ink: #ffffff;
+
+  --info: #0369a1;
+  --info-soft: rgba(3, 105, 161, 0.1);
+  --info-line: rgba(3, 105, 161, 0.26);
+  --info-ink: #ffffff;
+
+  /* ---- pipeline stages ----------------------------------------------- */
+  /* Hues follow the direction of flow: cool at the source, warming toward
+     delivery, so a glance at the canvas reads left to right. */
+  --flow-extract: #0369a1;
+  --flow-transform: #5b53c7;
+  --flow-quality: #0b7a54;
+  --flow-publish: #9c5f06;
+  --flow-notify: #7c4dbd;
+
+  /* Edge conditions are semantic, not decorative. */
+  --edge-success: #0d7983;
+  --edge-failure: #c2413c;
+  --edge-always: #616f74;
+
+  /* ---- elevation ------------------------------------------------------ */
+  --shadow-sm: 0 1px 2px rgba(18, 23, 26, 0.06);
+  --shadow-md: 0 8px 24px rgba(18, 23, 26, 0.08);
+  --shadow-lg: 0 20px 56px rgba(18, 23, 26, 0.12);
+  --shadow-glow: 0 10px 28px rgba(13, 121, 131, 0.14);
+
+  /* ---- radius --------------------------------------------------------- */
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-pill: 999px;
+
+  /* ---- motion --------------------------------------------------------- */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 380ms;
+
+  /* ---- density -------------------------------------------------------- */
+  /* Comfortable by default. An analyst with 40 columns needs dense; it is
+     not a nice-to-have, it is the difference between usable and not. */
+  --density-row-height: 40px;
+  --density-cell-y: 0.625rem;
+  --density-cell-x: 0.875rem;
+  --density-gap: 1rem;
+  --density-font: 13px;
+  --density-section-y: 1.5rem;
+}
+
+/* Dark, when the OS asks for it and the user has not overridden to light. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --canvas: #0d1113;
+    --surface: #151a1d;
+    --surface-2: #1c2225;
+    --sunken: #0a0d0f;
+    --sidebar: #101416;
+
+    --ink: #e6eae9;
+    --ink-2: #aab6b7;
+    --ink-3: #8d9a9c;
+    --muted: #869394;
+    --faint: #626f71;
+
+    --line: #242c2f;
+    --line-strong: #35403f;
+    --line-soft: #1b2225;
+
+    --accent: #2dd4bf;
+    --accent-strong: #5eead4;
+    --accent-hover: #5eead4;
+    --accent-soft: rgba(45, 212, 191, 0.16);
+    --accent-faint: rgba(45, 212, 191, 0.08);
+    --accent-muted: #7fd8cc;
+    --accent-ink: #04211e;
+    --accent-line: rgba(45, 212, 191, 0.32);
+    --scrim: rgba(2, 4, 5, 0.72);
+
+    /* Okabe-Ito, unmodified: every entry already clears 3:1 on the dark
+       ground, so nothing needs adjusting. Safe to 6 series here. */
+    --series-1: #0072b2;
+    --series-2: #f0e442;
+    --series-3: #999999;
+    --series-4: #d55e00;
+    --series-5: #56b4e9;
+    --series-6: #e69f00;
+    --series-7: #009e73;
+    --series-8: #cc79a7;
+
+    --copper: #f59e0b;
+    --copper-soft: rgba(245, 158, 11, 0.16);
+    --copper-ink: #1a1204;
+
+    --brand-gradient-from: #2dd4bf;
+    --brand-gradient-to: #5eead4;
+    --brand-junction-core: #0d1113;
+
+    --success: #34d399;
+    --success-soft: rgba(52, 211, 153, 0.14);
+    --success-line: rgba(52, 211, 153, 0.3);
+    --success-ink: #04211a;
+
+    --warning: #fbbf24;
+    --warning-soft: rgba(251, 191, 36, 0.14);
+    --warning-line: rgba(251, 191, 36, 0.3);
+    --warning-ink: #201603;
+
+    --danger: #f87171;
+    --danger-soft: rgba(248, 113, 113, 0.14);
+    --danger-line: rgba(248, 113, 113, 0.3);
+    --danger-ink: #240a0a;
+
+    --info: #38bdf8;
+    --info-soft: rgba(56, 189, 248, 0.14);
+    --info-line: rgba(56, 189, 248, 0.3);
+    --info-ink: #04202b;
+
+    --flow-extract: #38bdf8;
+    --flow-transform: #818cf8;
+    --flow-quality: #34d399;
+    --flow-publish: #fbbf24;
+    --flow-notify: #a78bfa;
+
+    --edge-success: #2dd4bf;
+    --edge-failure: #f87171;
+    --edge-always: #869394;
+
+    --shadow-sm: 0 1px 2px rgba(2, 6, 8, 0.4);
+    --shadow-md: 0 12px 30px rgba(2, 6, 8, 0.35);
+    --shadow-lg: 0 24px 70px rgba(2, 6, 8, 0.45);
+    --shadow-glow: 0 12px 34px rgba(45, 212, 191, 0.16);
+  }
+}
+
+/* Dark, chosen explicitly. Repeated rather than shared with the media query
+   so an explicit choice beats the OS in BOTH directions. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --canvas: #0d1113;
+  --surface: #151a1d;
+  --surface-2: #1c2225;
+  --sunken: #0a0d0f;
+  --sidebar: #101416;
+
+  --ink: #e6eae9;
+  --ink-2: #aab6b7;
+  --ink-3: #8d9a9c;
+  --muted: #869394;
+  --faint: #626f71;
+
+  --line: #242c2f;
+  --line-strong: #35403f;
+  --line-soft: #1b2225;
+
+  --accent: #2dd4bf;
+  --accent-strong: #5eead4;
+  --accent-hover: #5eead4;
+  --accent-soft: rgba(45, 212, 191, 0.16);
+  --accent-faint: rgba(45, 212, 191, 0.08);
+  --accent-muted: #7fd8cc;
+  --accent-ink: #04211e;
+  --accent-line: rgba(45, 212, 191, 0.32);
+  --scrim: rgba(2, 4, 5, 0.72);
+
+  /* Okabe-Ito, unmodified: every entry already clears 3:1 on the dark
+     ground, so nothing needs adjusting. Safe to 6 series here. */
+  --series-1: #0072b2;
+  --series-2: #f0e442;
+  --series-3: #999999;
+  --series-4: #d55e00;
+  --series-5: #56b4e9;
+  --series-6: #e69f00;
+  --series-7: #009e73;
+  --series-8: #cc79a7;
+
+  --copper: #f59e0b;
+  --copper-soft: rgba(245, 158, 11, 0.16);
+  --copper-ink: #1a1204;
+
+  --brand-gradient-from: #2dd4bf;
+  --brand-gradient-to: #5eead4;
+  --brand-junction-core: #0d1113;
+
+  --success: #34d399;
+  --success-soft: rgba(52, 211, 153, 0.14);
+  --success-line: rgba(52, 211, 153, 0.3);
+  --success-ink: #04211a;
+
+  --warning: #fbbf24;
+  --warning-soft: rgba(251, 191, 36, 0.14);
+  --warning-line: rgba(251, 191, 36, 0.3);
+  --warning-ink: #201603;
+
+  --danger: #f87171;
+  --danger-soft: rgba(248, 113, 113, 0.14);
+  --danger-line: rgba(248, 113, 113, 0.3);
+  --danger-ink: #240a0a;
+
+  --info: #38bdf8;
+  --info-soft: rgba(56, 189, 248, 0.14);
+  --info-line: rgba(56, 189, 248, 0.3);
+  --info-ink: #04202b;
+
+  --flow-extract: #38bdf8;
+  --flow-transform: #818cf8;
+  --flow-quality: #34d399;
+  --flow-publish: #fbbf24;
+  --flow-notify: #a78bfa;
+
+  --edge-success: #2dd4bf;
+  --edge-failure: #f87171;
+  --edge-always: #869394;
+
+  --shadow-sm: 0 1px 2px rgba(2, 6, 8, 0.4);
+  --shadow-md: 0 12px 30px rgba(2, 6, 8, 0.35);
+  --shadow-lg: 0 24px 70px rgba(2, 6, 8, 0.45);
+  --shadow-glow: 0 12px 34px rgba(45, 212, 191, 0.16);
+}
+
+/* Light, chosen explicitly. The bare :root block above is already light, so
+   this only needs to reassert color-scheme against a dark OS. */
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+/* ---- density modes ---------------------------------------------------- */
+:root[data-density="compact"] {
+  --density-row-height: 32px;
+  --density-cell-y: 0.4375rem;
+  --density-cell-x: 0.6875rem;
+  --density-gap: 0.75rem;
+  --density-font: 12.5px;
+  --density-section-y: 1.125rem;
+}
+
+:root[data-density="dense"] {
+  --density-row-height: 26px;
+  --density-cell-y: 0.25rem;
+  --density-cell-x: 0.5rem;
+  --density-gap: 0.5rem;
+  --density-font: 12px;
+  --density-section-y: 0.75rem;
+}
+
+/*
+ * Semantic Tailwind utilities. `inline` keeps the var() reference live in the
+ * generated CSS instead of resolving it at build time, which is what makes
+ * `text-ink` flip with the theme rather than baking in the light value.
+ */
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-sunken: var(--sunken);
+  --color-sidebar: var(--sidebar);
+
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-line-soft: var(--line-soft);
+
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-faint: var(--accent-faint);
+  --color-accent-muted: var(--accent-muted);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-line: var(--accent-line);
+  --color-scrim: var(--scrim);
+  --color-series-1: var(--series-1);
+  --color-series-2: var(--series-2);
+  --color-series-3: var(--series-3);
+  --color-series-4: var(--series-4);
+  --color-series-5: var(--series-5);
+  --color-series-6: var(--series-6);
+  --color-series-7: var(--series-7);
+  --color-series-8: var(--series-8);
+
+  --color-copper: var(--copper);
+  --color-copper-soft: var(--copper-soft);
+  --color-copper-ink: var(--copper-ink);
+
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-success-line: var(--success-line);
+  --color-success-ink: var(--success-ink);
+
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-line: var(--warning-line);
+  --color-warning-ink: var(--warning-ink);
+
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-line: var(--danger-line);
+  --color-danger-ink: var(--danger-ink);
+
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-info-line: var(--info-line);
+  --color-info-ink: var(--info-ink);
+
+  --color-flow-extract: var(--flow-extract);
+  --color-flow-transform: var(--flow-transform);
+  --color-flow-quality: var(--flow-quality);
+  --color-flow-publish: var(--flow-publish);
+  --color-flow-notify: var(--flow-notify);
+}
+
+/*
+ * Density utilities.
+ *
+ * Tailwind's own padding utilities are classes, so a zero-specificity
+ * `:where(td, th)` rule loses to them and density would silently do nothing.
+ * These are real utilities that replace the padding classes on cells, which is
+ * what makes the setting take effect rather than merely be stored.
+ */
+@utility cell-pad {
+  padding-block: var(--density-cell-y);
+  padding-inline: var(--density-cell-x);
+}
+
+@utility cell-pad-x {
+  padding-inline: var(--density-cell-x);
+}
+
+@utility row-h {
+  height: var(--density-row-height);
+}
+
+@utility density-gap {
+  gap: var(--density-gap);
 }
 
 * {
@@ -18,19 +461,20 @@
 }
 
 html {
-  color-scheme: dark;
   scroll-behavior: smooth;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
-  background:
-    radial-gradient(circle at top, rgba(99, 102, 241, 0.12), transparent 24%),
-    linear-gradient(180deg, #020617 0%, #071018 38%, #0b1220 100%);
-  color: var(--foreground);
+  /* An explicit token background. The host paints its own ground behind the
+     page, so a transparent body silently borrows the wrong theme. */
+  background: var(--canvas);
+  color: var(--ink);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
 }
 
 button,
@@ -46,6 +490,98 @@ a {
 }
 
 ::selection {
-  background: rgba(99, 102, 241, 0.35);
-  color: white;
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+
+/* Numeric data should align in columns and not shift while live-updating. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Consistent keyboard focus across every interactive surface. The Studio is
+   keyboard-first, and invisible focus makes that impossible. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Scrollbars: visible enough to find, quiet enough to ignore. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--line-strong);
+  border: 3px solid transparent;
+  border-radius: var(--radius-pill);
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--faint);
+}
+
+/* Shared motion primitives for panels and streamed content. */
+@keyframes pw-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pw-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@keyframes pw-flow {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.animate-fade-up {
+  animation: pw-fade-up var(--duration-slow) var(--ease-out) both;
+}
+
+.animate-live {
+  animation: pw-pulse 2s var(--ease-in-out) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

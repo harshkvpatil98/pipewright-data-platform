@@ -12,20 +12,39 @@ from pandas.api.types import (
     is_string_dtype,
 )
 
+from shared_python.types import infer_pw_type
+
 from service_transformations.schemas import TransformationPreviewSchema
 
 
 def build_schema_summary(dataframe: pd.DataFrame) -> TransformationPreviewSchema:
+    """Describe a frame's columns.
+
+    Two type answers travel together, deliberately. ``inferred_type`` is the
+    seven-word vocabulary the API, the stored dataset schemas and two dozen call
+    sites already speak. ``canonical_type`` is the same column read into the
+    lattice, where the answer can carry precision, timezone awareness and
+    exactness -- and can say "unknown" rather than guessing.
+
+    Callers migrate to the canonical answer at their own pace; a differential
+    test asserts the two never disagree.
+    """
     ordered_columns = [str(column) for column in dataframe.columns]
-    return TransformationPreviewSchema(
-        ordered_columns=ordered_columns,
-        columns=[
+    columns: list[dict[str, Any]] = []
+    for column in ordered_columns:
+        series = dataframe[column]
+        canonical = infer_pw_type(series)
+        columns.append(
             {
                 "name": column,
-                "inferred_type": infer_series_type(dataframe[column]),
+                "inferred_type": infer_series_type(series),
+                "canonical_type": str(canonical),
+                "nullable": canonical.nullable,
             }
-            for column in ordered_columns
-        ],
+        )
+    return TransformationPreviewSchema(
+        ordered_columns=ordered_columns,
+        columns=columns,
     )
 
 

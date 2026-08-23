@@ -9,7 +9,7 @@ from service_notifications.senders.smtp_settings import get_smtp_settings, smtp_
 
 def send_email_test_message(*, config: dict[str, Any]) -> tuple[bool, str]:
     subject = "Platform notification test"
-    body = "This is a test message from the Intelligent Data Platform external notification target."
+    body = "This is a test message from the Pipewright external notification target."
     return _send_email(config=config, subject=subject, body=body)
 
 

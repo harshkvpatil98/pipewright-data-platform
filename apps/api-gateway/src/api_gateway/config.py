@@ -23,7 +23,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    app_name: str = "Intelligent Data Platform API Gateway"
+    app_name: str = "Pipewright API Gateway"
     app_version: str = "0.2.0"
     app_env: Literal["development", "staging", "production", "test"] = "development"
     app_host: str = "0.0.0.0"
@@ -32,8 +32,21 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     api_v1_prefix: str = "/api/v1"
     database_url: str = "postgresql+psycopg://platform:platform@localhost:5432/platform"
+    # Connection pool sizing. Total connections per process is pool_size + max_overflow,
+    # so keep (replicas x that sum) below the database's max_connections.
+    db_pool_size: int = Field(default=10, ge=1, le=100)
+    db_max_overflow: int = Field(default=10, ge=0, le=100)
+    db_pool_recycle_seconds: int = Field(default=1800, ge=60, le=86400)
+    db_pool_timeout_seconds: int = Field(default=30, ge=1, le=300)
+    # Responses at or above this size are gzipped. JSON previews and profiles
+    # compress well; below this the CPU cost outweighs the transfer saving.
+    gzip_minimum_size_bytes: int = Field(default=1024, ge=0)
     backend_cors_origins: list[str] = ["http://localhost:3000"]
     auth_jwt_secret: str = "change-this-for-production"
+    # Deliberately still the pre-rebrand name. These two are *validated* on
+    # every token decode, so changing them invalidates every issued token --
+    # signing out every user of any deployment that did not override them.
+    # A cosmetic rename is not worth that; both can be overridden per deployment.
     auth_jwt_issuer: str = "intelligent-data-platform"
     auth_jwt_audience: str = "intelligent-data-platform-web"
     auth_access_token_exp_minutes: int = 60
@@ -43,6 +56,11 @@ class Settings(BaseSettings):
     allowed_upload_extensions: Annotated[list[str], NoDecode] = ["csv", "xlsx", "json"]
     preview_row_limit: int = 50
     profile_sample_value_limit: int = 5
+    # Single sign-on. Unset means the platform's own login is the only way in.
+    oidc_issuer: str | None = None
+    oidc_client_id: str | None = None
+    oidc_client_secret: str | None = None
+    oidc_redirect_uri: str | None = None
     # Shared secret for POST /internal/schedules/* (due-schedule executor). If unset, internal routes return 503.
     scheduler_internal_token: str | None = None
     # Stable id for this scheduler worker process (set per replica for lease ownership in multi-instance deploys).

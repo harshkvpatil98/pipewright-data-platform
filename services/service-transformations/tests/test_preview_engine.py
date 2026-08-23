@@ -253,3 +253,73 @@ def test_preview_endpoint_unauthenticated() -> None:
         json={"steps": []},
     )
     assert response.status_code == 401
+
+
+class TestStepOutcomes:
+    """Each step reports what it did, from the pass that already happens.
+
+    Without this the Studio would have to re-run the pipeline once per prefix to
+    show "12,400 -> 9,881" beside a step, which is N requests for information
+    the first one already had.
+    """
+
+    FRAME = pd.DataFrame({"a": [1, 2, 3, 4, 5], "b": ["x", "y", "x", "y", "z"]})
+
+    def test_reports_one_outcome_per_step_in_order(self) -> None:
+        from service_transformations.executor import apply_transformation_steps_with_outcomes
+
+        steps = [
+            {"step_type": "filter_rows", "config": {"conditions": [
+                {"column": "a", "operator": "greater_than", "value": 1}]}},
+            {"step_type": "drop_columns", "config": {"columns": ["b"]}},
+        ]
+        _, _, outcomes = apply_transformation_steps_with_outcomes(self.FRAME, steps)
+        assert [o.index for o in outcomes] == [0, 1]
+        assert [o.step_type for o in outcomes] == ["filter_rows", "drop_columns"]
+
+    def test_reports_the_rows_a_filter_removed(self) -> None:
+        from service_transformations.executor import apply_transformation_steps_with_outcomes
+
+        steps = [{"step_type": "filter_rows", "config": {"conditions": [
+            {"column": "a", "operator": "greater_than", "value": 3}]}}]
+        _, _, outcomes = apply_transformation_steps_with_outcomes(self.FRAME, steps)
+        assert outcomes[0].rows_before == 5
+        assert outcomes[0].rows_after == 2
+        assert outcomes[0].row_delta == -3
+
+    def test_reports_the_columns_a_step_removed(self) -> None:
+        from service_transformations.executor import apply_transformation_steps_with_outcomes
+
+        steps = [{"step_type": "drop_columns", "config": {"columns": ["b"]}}]
+        _, _, outcomes = apply_transformation_steps_with_outcomes(self.FRAME, steps)
+        assert outcomes[0].column_delta == -1
+
+    def test_each_step_sees_what_the_previous_one_produced(self) -> None:
+        # The second step's "before" must be the first step's "after", or the
+        # panel shows each step acting on the original data.
+        from service_transformations.executor import apply_transformation_steps_with_outcomes
+
+        steps = [
+            {"step_type": "filter_rows", "config": {"conditions": [
+                {"column": "a", "operator": "greater_than", "value": 1}]}},
+            {"step_type": "filter_rows", "config": {"conditions": [
+                {"column": "a", "operator": "greater_than", "value": 3}]}},
+        ]
+        _, _, outcomes = apply_transformation_steps_with_outcomes(self.FRAME, steps)
+        assert outcomes[0].rows_after == outcomes[1].rows_before == 4
+
+    def test_reports_nothing_for_an_empty_pipeline(self) -> None:
+        from service_transformations.executor import apply_transformation_steps_with_outcomes
+
+        _, _, outcomes = apply_transformation_steps_with_outcomes(self.FRAME, [])
+        assert outcomes == []
+
+    def test_the_old_signature_still_works(self) -> None:
+        # Two dozen call sites use it; adding outcomes must not break them.
+        from service_transformations.executor import apply_transformation_steps
+
+        result, warnings = apply_transformation_steps(
+            self.FRAME, [{"step_type": "drop_columns", "config": {"columns": ["b"]}}]
+        )
+        assert list(result.columns) == ["a"]
+        assert isinstance(warnings, list)

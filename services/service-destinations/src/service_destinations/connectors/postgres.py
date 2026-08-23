@@ -48,7 +48,7 @@ def check_postgres_connection(config: dict[str, Any]) -> tuple[bool, str, float 
     except ProgrammingError as exc:
         msg = str(exc).splitlines()[0][:500]
         return False, f"Database error: {msg}", None, warnings
-    except Exception as exc:  # noqa: BLE001
+    except Exception:  # noqa: BLE001
         return False, "Connection failed.", None, warnings
 
     latency_ms = (time.perf_counter() - start) * 1000.0

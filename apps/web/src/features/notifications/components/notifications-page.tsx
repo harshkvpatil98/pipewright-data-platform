@@ -7,7 +7,7 @@ import type { AuthUser, UserNotificationListResponse, UserNotificationRecord } f
 import { Button, SectionPanel } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
-import { OperationalEmpty, OperationalError, OperationalLoading } from "@/components/operational/operational-messages";
+import { OperationalEmpty, OperationalLoading } from "@/components/operational/operational-messages";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { formatDate } from "@/lib/format";
@@ -20,13 +20,13 @@ type NotificationsPageProps = {
 function levelBadgeClass(level: string): string {
   switch (level) {
     case "error":
-      return "border-rose-400/30 bg-rose-500/10 text-rose-100";
+      return "border-danger-line bg-danger-soft text-danger";
     case "warning":
-      return "border-amber-400/25 bg-amber-500/10 text-amber-100";
+      return "border-warning-line bg-warning-soft text-warning";
     case "success":
-      return "border-emerald-400/25 bg-emerald-500/10 text-emerald-100";
+      return "border-success-line bg-success-soft text-success";
     default:
-      return "border-slate-500/25 bg-slate-500/10 text-slate-200";
+      return "border-line bg-surface-2 text-ink";
   }
 }
 
@@ -102,7 +102,7 @@ export function NotificationsPage({ currentUser }: NotificationsPageProps) {
       }
     >
       {error ? (
-        <div className="rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">{error}</div>
+        <div className="rounded-2xl border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger">{error}</div>
       ) : null}
 
       <SectionPanel
@@ -111,15 +111,15 @@ export function NotificationsPage({ currentUser }: NotificationsPageProps) {
       >
         {data ? (
           <div className="mb-5 grid gap-3 md:grid-cols-3">
-            <div className="rounded-2xl border border-white/8 bg-black/10 px-4 py-4 text-sm text-slate-300">
-              <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Unread</div>
-              <div className="mt-2 text-2xl font-semibold text-white">{data.unread_count}</div>
+            <div className="rounded-2xl border border-line bg-sunken px-4 py-4 text-sm text-ink-2">
+              <div className="text-[11px] uppercase tracking-[0.18em] text-muted">Unread</div>
+              <div className="mt-2 text-2xl font-semibold text-ink">{data.unread_count}</div>
             </div>
-            <div className="rounded-2xl border border-white/8 bg-black/10 px-4 py-4 text-sm text-slate-300">
-              <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Visible in feed</div>
-              <div className="mt-2 text-2xl font-semibold text-white">{data.items.length}</div>
+            <div className="rounded-2xl border border-line bg-sunken px-4 py-4 text-sm text-ink-2">
+              <div className="text-[11px] uppercase tracking-[0.18em] text-muted">Visible in feed</div>
+              <div className="mt-2 text-2xl font-semibold text-ink">{data.items.length}</div>
             </div>
-            <div className="rounded-2xl border border-white/8 bg-black/10 px-4 py-4 text-sm leading-6 text-slate-400">
+            <div className="rounded-2xl border border-line bg-sunken px-4 py-4 text-sm leading-6 text-ink-3">
               Notifications link back to related runs, schedules, datasets, or pipelines when context is available.
             </div>
           </div>
@@ -135,8 +135,8 @@ export function NotificationsPage({ currentUser }: NotificationsPageProps) {
               return (
                 <li
                   key={n.id}
-                  className={`flex flex-col gap-3 rounded-2xl border px-4 py-4 text-sm shadow-[0_12px_30px_rgba(2,6,23,0.14)] sm:flex-row sm:items-start sm:justify-between ${
-                    n.is_read ? "border-white/[0.06] bg-white/[0.02]" : "border-indigo-400/15 bg-indigo-500/[0.06]"
+                  className={`flex flex-col gap-3 rounded-2xl border px-4 py-4 text-sm shadow-[var(--shadow-md)] sm:flex-row sm:items-start sm:justify-between ${
+                    n.is_read ? "border-line bg-surface" : "border-accent-line bg-accent-soft"
                   }`}
                 >
                   <div className="min-w-0 flex-1 space-y-1">
@@ -146,15 +146,15 @@ export function NotificationsPage({ currentUser }: NotificationsPageProps) {
                       >
                         {n.level}
                       </span>
-                      <span className="rounded border border-white/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-slate-400">
+                      <span className="rounded border border-line px-2 py-0.5 text-[10px] uppercase tracking-wide text-ink-3">
                         {formatNotificationEventLabel(n.type)}
                       </span>
-                      <span className="font-medium leading-6 text-slate-100">{n.title}</span>
+                      <span className="font-medium leading-6 text-ink">{n.title}</span>
                     </div>
-                    <p className="leading-6 text-slate-300">{n.message}</p>
-                    <div className="text-xs text-slate-500">{formatDate(n.created_at)}</div>
+                    <p className="leading-6 text-ink-2">{n.message}</p>
+                    <div className="text-xs text-muted">{formatDate(n.created_at)}</div>
                     {href ? (
-                      <Link href={href} className="inline-flex text-xs font-medium text-indigo-200 underline underline-offset-4">
+                      <Link href={href} className="inline-flex text-xs font-medium text-accent underline underline-offset-4">
                         Open related page
                       </Link>
                     ) : null}
@@ -171,7 +171,7 @@ export function NotificationsPage({ currentUser }: NotificationsPageProps) {
                       {busyId === n.id ? "…" : "Mark read"}
                     </Button>
                   ) : (
-                    <span className="shrink-0 text-xs uppercase tracking-wide text-slate-500">Read</span>
+                    <span className="shrink-0 text-xs uppercase tracking-wide text-muted">Read</span>
                   )}
                 </li>
               );

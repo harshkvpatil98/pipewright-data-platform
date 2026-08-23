@@ -57,7 +57,51 @@ class TransformationPreviewRequest(BaseModel):
 
 class TransformationPreviewSchemaColumn(BaseModel):
     name: str
+    #: The seven-word vocabulary the API has always spoken. Kept because stored
+    #: dataset schemas and two dozen call sites still read it.
     inferred_type: str
+    #: The same column read into the canonical lattice, where the answer can
+    #: carry precision, timezone awareness and exactness. Optional so responses
+    #: written before the lattice existed still validate.
+    canonical_type: str | None = None
+    nullable: bool | None = None
+
+
+class TransformationStepOutcome(BaseModel):
+    """What one step did, so the Studio can show its effect beside it."""
+
+    index: int
+    step_type: str
+    rows_before: int
+    rows_after: int
+    columns_before: int
+    columns_after: int
+
+
+class ExecutionStepPlacement(BaseModel):
+    """Where one step would run, and why."""
+
+    node: str
+    pushed: bool
+    reason: str
+
+
+class ExecutionPlanRead(BaseModel):
+    """Where the work would happen on a full run against this dataset's source.
+
+    Reported honestly and labelled: a preview always reads the materialised
+    file, so what it describes is the *run*, not the preview. Saying "nothing
+    pushed down, because this dataset is a stored file" is useful information --
+    it is the reason a pipeline over a hundred million rows would be slow.
+    """
+
+    source_type: str
+    surface: str
+    pushed_steps: int
+    local_steps: int
+    sql: str | None = None
+    placements: list[ExecutionStepPlacement] = []
+    note: str = ""
 
 
 class TransformationPreviewSchema(BaseModel):
@@ -75,8 +119,70 @@ class TransformationPreviewResponse(BaseModel):
     schema_before: TransformationPreviewSchema
     schema_after: TransformationPreviewSchema
     warnings: list[str]
+    #: One entry per applied step, in order. Empty when there are no steps.
+    step_outcomes: list[TransformationStepOutcome] = []
+    #: Where the work would run on a full run. None when it cannot be determined.
+    execution_plan: ExecutionPlanRead | None = None
 
 
 class TransformationRunResponse(BaseModel):
     run: PipelineRunRead
     dataset: DatasetDetailRead
+
+
+# ------------------------------------------------------------- tool library
+
+
+class ToolParamRead(BaseModel):
+    key: str
+    label: str
+    kind: str
+    required: bool
+    default: Any = None
+    options: list[str] = Field(default_factory=list)
+    help: str = ""
+    placeholder: str = ""
+    minimum: float | None = None
+    maximum: float | None = None
+
+
+class ToolExampleRead(BaseModel):
+    rows: list[dict[str, Any]]
+    params: dict[str, Any]
+    column: str | None
+    output: str | None
+    expect: list[Any]
+    note: str = ""
+
+
+class ToolRead(BaseModel):
+    name: str
+    title: str
+    category: str
+    summary: str
+    synonyms: list[str]
+    accepts: str
+    column_scoped: bool
+    params: list[ToolParamRead]
+    example: ToolExampleRead
+
+
+class ToolCatalogueResponse(BaseModel):
+    categories: list[str]
+    items: list[ToolRead]
+
+
+class ToolPreviewRequest(BaseModel):
+    """Apply one tool to a handful of rows, to show what it would do."""
+
+    tool: str = Field(min_length=1, max_length=120)
+    column: str | None = Field(default=None, max_length=300)
+    into: str | None = Field(default=None, max_length=300)
+    params: dict[str, Any] = Field(default_factory=dict)
+    rows: list[dict[str, Any]] = Field(default_factory=list, max_length=200)
+
+
+class ToolPreviewResponse(BaseModel):
+    columns: list[str]
+    rows: list[dict[str, Any]]
+    warnings: list[str] = Field(default_factory=list)

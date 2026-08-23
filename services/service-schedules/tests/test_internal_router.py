@@ -5,7 +5,6 @@ from unittest.mock import patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from service_auth.schemas import UserRead
 from service_schedules.internal_router import build_internal_router
 from service_schedules.schemas import RunDueSchedulesSummary
 from shared_python.errors import register_exception_handlers

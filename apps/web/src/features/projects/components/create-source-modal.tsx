@@ -146,11 +146,11 @@ export function CreateSourceModal({ open, onClose, projectId }: CreateSourceModa
         >
           <Textarea id="source-config" value={configText} onChange={(event) => setConfigText(event.target.value)} className="font-mono text-[13px]" />
         </FormField>
-        <div className="rounded-2xl border border-white/8 bg-black/10 px-4 py-4">
-          <div className="text-xs uppercase tracking-[0.2em] text-slate-500">Suggested JSON</div>
-          <pre className="mt-3 overflow-x-auto text-xs leading-6 text-slate-300">{example}</pre>
+        <div className="rounded-2xl border border-line bg-sunken px-4 py-4">
+          <div className="text-xs uppercase tracking-[0.2em] text-muted">Suggested JSON</div>
+          <pre className="mt-3 overflow-x-auto text-xs leading-6 text-ink-2">{example}</pre>
         </div>
-        {error ? <div className="rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">{error}</div> : null}
+        {error ? <div className="rounded-2xl border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger">{error}</div> : null}
       </form>
     </Modal>
   );

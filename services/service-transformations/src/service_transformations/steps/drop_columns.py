@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import pandas as pd
+
 from shared_python.errors import BadRequestError
 
 from service_transformations.steps.common import ensure_columns_exist, ensure_config_keys, require_string_list

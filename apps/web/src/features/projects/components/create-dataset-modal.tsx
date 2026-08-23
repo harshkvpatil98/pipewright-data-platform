@@ -147,7 +147,7 @@ export function CreateDatasetModal({ open, onClose, projectId, sources }: Create
         <FormField label="Schema snapshot JSON" htmlFor="dataset-schema" description="Optional early snapshot of inferred fields or structural hints.">
           <Textarea id="dataset-schema" value={schemaText} onChange={(event) => setSchemaText(event.target.value)} className="font-mono text-[13px]" placeholder='{"columns": [{"name": "order_id", "type": "string"}]}' />
         </FormField>
-        {error ? <div className="rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">{error}</div> : null}
+        {error ? <div className="rounded-2xl border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger">{error}</div> : null}
       </form>
     </Modal>
   );

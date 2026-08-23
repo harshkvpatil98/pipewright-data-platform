@@ -2,6 +2,7 @@ export * from "./button";
 export * from "./empty-state";
 export * from "./form-field";
 export * from "./input";
+export * from "./logo";
 export * from "./modal";
 export * from "./page-header";
 export * from "./section-panel";

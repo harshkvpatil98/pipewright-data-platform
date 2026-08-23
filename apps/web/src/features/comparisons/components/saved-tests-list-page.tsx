@@ -46,7 +46,7 @@ export function SavedTestsListPageView({ currentUser, projectId, items }: SavedT
       actions={
         <Link
           href={`/projects/${projectId}`}
-          className="rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-slate-200 hover:border-white/20"
+          className="rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:border-line-strong"
         >
           Back to project
         </Link>
@@ -65,9 +65,9 @@ export function SavedTestsListPageView({ currentUser, projectId, items }: SavedT
           <OperationalEmpty description="No saved tests yet. Run a statistical test from a dataset comparison, then save the definition to list it here." />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] border-collapse text-left text-sm text-slate-200">
+            <table className="w-full min-w-[640px] border-collapse text-left text-sm text-ink">
               <thead>
-                <tr className="border-b border-white/10 text-xs uppercase tracking-[0.14em] text-slate-500">
+                <tr className="border-b border-line text-xs uppercase tracking-[0.14em] text-muted">
                   <th className="py-2 pr-4 font-medium">Name</th>
                   <th className="py-2 pr-4 font-medium">Type</th>
                   <th className="py-2 pr-4 font-medium">Column</th>
@@ -78,23 +78,23 @@ export function SavedTestsListPageView({ currentUser, projectId, items }: SavedT
               </thead>
               <tbody>
                 {items.map((row) => (
-                  <tr key={row.id} className="border-b border-white/[0.06]">
-                    <td className="py-3 pr-4 font-medium text-white">{row.name}</td>
-                    <td className="py-3 pr-4 font-mono text-xs text-slate-300">{titleCase(row.test_type.replace(/_/g, " "))}</td>
-                    <td className="py-3 pr-4 font-mono text-xs text-slate-300">{row.column_name}</td>
-                    <td className="py-3 pr-4 text-xs text-slate-400">
-                      <span className="text-slate-300">{row.left_dataset_name}</span>
-                      <span className="mx-1 text-slate-600">↔</span>
-                      <span className="text-slate-300">{row.right_dataset_name}</span>
+                  <tr key={row.id} className="border-b border-line">
+                    <td className="py-3 pr-4 font-medium text-ink">{row.name}</td>
+                    <td className="py-3 pr-4 font-mono text-xs text-ink-2">{titleCase(row.test_type.replace(/_/g, " "))}</td>
+                    <td className="py-3 pr-4 font-mono text-xs text-ink-2">{row.column_name}</td>
+                    <td className="py-3 pr-4 text-xs text-ink-3">
+                      <span className="text-ink-2">{row.left_dataset_name}</span>
+                      <span className="mx-1 text-muted">↔</span>
+                      <span className="text-ink-2">{row.right_dataset_name}</span>
                     </td>
-                    <td className="py-3 pr-4 text-xs text-slate-400">
+                    <td className="py-3 pr-4 text-xs text-ink-3">
                       {row.last_run_at ? formatDate(row.last_run_at) : "—"}
                     </td>
                     <td className="py-3">
                       <div className="flex flex-wrap gap-2">
                         <Link
                           href={`/projects/${projectId}/tests/saved/${row.id}`}
-                          className="rounded-lg border border-white/15 px-3 py-1.5 text-xs font-medium uppercase tracking-[0.12em] text-slate-200 hover:border-white/25"
+                          className="rounded-lg border border-line-strong px-3 py-1.5 text-xs font-medium uppercase tracking-[0.12em] text-ink hover:border-line-strong"
                         >
                           View
                         </Link>

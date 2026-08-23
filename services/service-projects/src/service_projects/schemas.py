@@ -27,6 +27,9 @@ class ProjectSummary(BaseModel):
     slug: str
     description: str | None
     status: str
+    environment: str = "development"
+    requires_approval: bool = False
+    promoted_from_project_id: uuid.UUID | None = None
     source_count: int = 0
     dataset_count: int = 0
     created_at: datetime

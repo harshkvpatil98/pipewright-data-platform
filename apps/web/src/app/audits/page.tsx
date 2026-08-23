@@ -1,5 +1,9 @@
-import { PlaceholderPage } from "@/components/common/placeholder-page";
+import { requireCurrentUser } from "@/lib/auth/server";
+import { redirectToProjectScope } from "@/lib/project-scope";
 
-export default function AuditCenterPage() {
-  return <PlaceholderPage title="Audit Center" description="Audit reporting, validation summaries, issue triage, and governance evidence trails will be centered in this section." />;
+export const dynamic = "force-dynamic";
+
+export default async function AuditsPage() {
+  await requireCurrentUser();
+  await redirectToProjectScope("");
 }

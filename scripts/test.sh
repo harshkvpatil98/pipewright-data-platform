@@ -15,6 +15,9 @@ pytest --import-mode=importlib \
   apps/api-gateway/tests \
   packages/shared-python/tests \
   services/service-auth/tests \
+  services/service-access/tests \
+  services/service-enterprise/tests \
+  services/service-governance/tests \
   services/service-projects/tests \
   services/service-sources/tests \
   services/service-datasets/tests \
@@ -23,6 +26,15 @@ pytest --import-mode=importlib \
   services/service-destinations/tests \
   services/service-ingestion/tests \
   services/service-transformations/tests \
+  services/service-quality/tests \
+  services/service-extraction/tests \
+  services/service-writeback/tests \
+  services/service-connectors/tests \
+  services/service-reporting/tests \
+  services/service-workflows/tests \
+  services/service-lineage/tests \
+  services/service-intelligence/tests \
+  services/service-observability/tests \
   services/service-schedules/tests \
   services/service-notifications/tests
 

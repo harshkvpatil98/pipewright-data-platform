@@ -46,4 +46,18 @@ describe("auth session storage", () => {
     clearAccessToken();
     expect(getAccessToken()).toBeNull();
   });
+
+  it("falls back to the cookie when localStorage was cleared independently", () => {
+    // Server components read the cookie, so a surviving cookie means the session
+    // is still valid even though localStorage lost its copy.
+    setAccessToken("token-value");
+    mockStorage = {};
+
+    expect(getAccessToken()).toBe("token-value");
+  });
+
+  it("treats an empty cookie value as no session", () => {
+    document.cookie = "idp_access_token=; path=/";
+    expect(getAccessToken()).toBeNull();
+  });
 });

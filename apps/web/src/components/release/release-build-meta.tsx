@@ -32,9 +32,9 @@ export function ReleaseBuildMeta({ className = "" }: ReleaseBuildMetaProps) {
   }
 
   return (
-    <div className={`flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] leading-4 text-slate-500 ${className}`}>
-      <span className="text-slate-600">Web UI</span>
-      <span className="font-mono text-slate-500">{line}</span>
+    <div className={`flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] leading-4 text-muted ${className}`}>
+      <span className="text-muted">Web UI</span>
+      <span className="font-mono text-muted">{line}</span>
       <button
         type="button"
         onClick={() => {
@@ -46,7 +46,7 @@ export function ReleaseBuildMeta({ className = "" }: ReleaseBuildMetaProps) {
             () => {},
           );
         }}
-        className="rounded border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[10px] text-slate-400 hover:border-white/20 hover:text-slate-300"
+        className="rounded border border-line bg-surface px-1.5 py-0.5 text-[10px] text-ink-3 hover:border-line-strong hover:text-ink-2"
       >
         {copied ? "Copied" : "Copy"}
       </button>

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
 from types import SimpleNamespace
 
 from service_comparisons.compare_runs import build_run_comparison_summary

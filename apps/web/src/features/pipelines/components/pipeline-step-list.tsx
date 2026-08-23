@@ -58,21 +58,21 @@ export function PipelineStepList({
                   className={[
                     "w-full rounded-2xl border px-4 py-4 text-left transition",
                     isSelected
-                      ? "border-indigo-400/40 bg-indigo-500/10"
+                      ? "border-accent-line bg-accent-soft"
                       : stepError
-                        ? "border-rose-400/30 bg-rose-500/5 hover:bg-rose-500/[0.07]"
-                        : "border-white/8 bg-black/10 hover:bg-white/[0.03]",
+                        ? "border-danger-line bg-danger-soft hover:bg-danger-soft"
+                        : "border-line bg-sunken hover:bg-surface",
                   ].join(" ")}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="text-xs uppercase tracking-[0.18em] text-slate-500">
+                      <div className="text-xs uppercase tracking-[0.18em] text-muted">
                         Step {index + 1}
                       </div>
-                      <div className="mt-2 font-medium text-white">{labelForStepType(step.step_type)}</div>
-                      <div className="mt-1 text-sm text-slate-400">{summarizeStep(step)}</div>
+                      <div className="mt-2 font-medium text-ink">{labelForStepType(step.step_type)}</div>
+                      <div className="mt-1 text-sm text-ink-3">{summarizeStep(step)}</div>
                       {stepError ? (
-                        <div className="mt-2 text-sm text-rose-300">{stepError}</div>
+                        <div className="mt-2 text-sm text-danger">{stepError}</div>
                       ) : null}
                     </div>
                     <div className="flex items-center gap-1">
@@ -128,7 +128,7 @@ function StepAddAction({
   const [stepType, setStepType] = useState<(typeof STEP_TYPE_OPTIONS)[number]["value"]>("rename_columns");
 
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-white/8 bg-black/10 p-3">
+    <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-sunken p-3">
       <Select
         value={stepType}
         onChange={(event) => setStepType(event.target.value as (typeof STEP_TYPE_OPTIONS)[number]["value"])}
@@ -142,7 +142,7 @@ function StepAddAction({
       <Button variant="secondary" size="sm" onClick={() => onAdd(stepType)}>
         Add step
       </Button>
-      <div className="text-xs text-slate-500">Steps run from top to bottom in this order.</div>
+      <div className="text-xs text-muted">Steps run from top to bottom in this order.</div>
     </div>
   );
 }

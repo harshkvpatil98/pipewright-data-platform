@@ -134,6 +134,11 @@ export type ProjectSummary = {
   slug: string;
   description: string | null;
   status: ProjectStatus;
+  /** Which copy of the world this project is; environments are separate projects. */
+  environment: "development" | "staging" | "production";
+  /** When true, definition edits must be proposed for review instead of saved. */
+  requires_approval: boolean;
+  promoted_from_project_id: string | null;
   source_count: number;
   dataset_count: number;
   created_at: string;
@@ -671,7 +676,49 @@ export type TransformationPipelineUpdatePayload = {
 
 export type TransformationPreviewSchemaColumn = {
   name: string;
+  /** The seven-word vocabulary the API has always spoken. */
   inferred_type: string;
+  /**
+   * The same column read into the canonical type lattice, e.g. "decimal(38,10)"
+   * or "timestamp(6,tz)". Optional because responses produced before the
+   * lattice existed do not carry it.
+   */
+  canonical_type?: string | null;
+  nullable?: boolean | null;
+};
+
+/** Where one step would run on a full run against the source, and why. */
+export type ExecutionStepPlacement = {
+  node: string;
+  pushed: boolean;
+  reason: string;
+};
+
+/**
+ * Where a pipeline's work would happen.
+ *
+ * Describes the RUN, not the preview: a preview always reads the materialised
+ * file. "Nothing pushes down, because this is a stored file" is the useful
+ * answer, and it is invisible otherwise.
+ */
+export type ExecutionPlanRead = {
+  source_type: string;
+  surface: string;
+  pushed_steps: number;
+  local_steps: number;
+  sql?: string | null;
+  placements: ExecutionStepPlacement[];
+  note?: string;
+};
+
+/** What one applied step did to the frame, from the pass that already ran. */
+export type TransformationStepOutcome = {
+  index: number;
+  step_type: string;
+  rows_before: number;
+  rows_after: number;
+  columns_before: number;
+  columns_after: number;
 };
 
 export type TransformationPreviewSchema = {

@@ -4,14 +4,24 @@ from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
+from service_access.status import get_service_status as get_access_status
 from service_auth.status import get_service_status as get_auth_status
 from service_comparisons.status import get_service_status as get_comparisons_status
+from service_connectors.status import get_service_status as get_connectors_status
 from service_datasets.status import get_service_status as get_datasets_status
 from service_destinations.status import get_service_status as get_destinations_status
+from service_enterprise.status import get_service_status as get_enterprise_status
+from service_extraction.status import get_service_status as get_extraction_status
+from service_governance.status import get_service_status as get_governance_status
 from service_ingestion.status import get_service_status as get_ingestion_status
+from service_intelligence.status import get_service_status as get_intelligence_status
+from service_lineage.status import get_service_status as get_lineage_status
 from service_notifications.status import get_service_status as get_notifications_status
+from service_observability.status import get_service_status as get_observability_status
 from service_pipeline_runs.status import get_service_status as get_pipeline_runs_status
 from service_projects.status import get_service_status as get_projects_status
+from service_quality.status import get_service_status as get_quality_status
+from service_reporting.status import get_service_status as get_reporting_status
 from service_schedules.due import (
     count_all_schedules,
     count_due_schedules,
@@ -21,6 +31,8 @@ from service_schedules.due import (
 from service_schedules.status import get_service_status as get_schedules_status
 from service_sources.status import get_service_status as get_sources_status
 from service_transformations.status import get_service_status as get_transformations_status
+from service_workflows.status import get_service_status as get_workflows_status
+from service_writeback.status import get_service_status as get_writeback_status
 from shared_python.db.health import is_database_ready
 from shared_python.status import PlatformStatus, SchedulerOperationalSnapshot, ServiceStatus
 from shared_python.status_redaction import redact_details
@@ -30,12 +42,24 @@ def collect_service_statuses(db: Session) -> list[ServiceStatus]:
     return [
         get_auth_status(db),
         get_projects_status(db),
+        get_access_status(db),
+        get_enterprise_status(db),
+        get_governance_status(db),
         get_sources_status(db),
+        get_connectors_status(db),
         get_datasets_status(db),
         get_destinations_status(db),
         get_ingestion_status(db),
+        get_extraction_status(db),
+        get_quality_status(db),
         get_pipeline_runs_status(db),
         get_transformations_status(db),
+        get_workflows_status(db),
+        get_writeback_status(db),
+        get_lineage_status(db),
+        get_intelligence_status(db),
+        get_observability_status(db),
+        get_reporting_status(db),
         get_comparisons_status(db),
         get_schedules_status(db),
         get_notifications_status(db),

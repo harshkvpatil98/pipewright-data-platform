@@ -1,6 +1,8 @@
-# Intelligent Data Platform
+# Pipewright
 
-Intelligent Data Platform is a production-style ETL and data operations application built for local demos, technical review, and portfolio presentation. It combines a Next.js frontend, a FastAPI gateway, PostgreSQL persistence, and modular Python domain services so users can move from raw dataset upload to transformation, testing, publishing, scheduling, and operational review inside one project-scoped workflow.
+Pipewright is a production-style data pipeline platform. It combines a Next.js frontend, a FastAPI gateway, PostgreSQL persistence, and modular Python domain services so users can move from source database or file all the way through transformation, quality enforcement, publishing, scheduling, and operational review inside one project-scoped workflow.
+
+The name is *pipe* + *-wright* (a maker, as in shipwright or wheelwright): the craft of building data pipelines.
 
 ## Why this project matters
 
@@ -9,10 +11,14 @@ Most portfolio apps stop at CRUD. This repo goes further by modeling the operati
 ## What the platform does
 
 - Authenticates users and scopes data to owned projects.
+- **Extracts from PostgreSQL, MySQL, and SQLite** with connection testing, schema/table discovery, and bounded query preview.
+- **Loads incrementally** — full refresh, append, or key-based merge (upsert) with a persisted watermark per job.
 - Uploads `csv`, `xlsx`, and `json` datasets.
 - Persists schema, preview, profile, lineage, and run history.
-- Supports saved transformation pipelines with preview and run execution.
+- Runs **20 transformation step types**, including joins across datasets, unions, aggregations, pivot/unpivot, and safe derived-column expressions.
 - Creates derived datasets from saved pipeline runs.
+- **Enforces data quality rules** with error/warning severity and quarantines failing rows into their own dataset.
+- **Detects schema drift** automatically on every extraction and grades it breaking / risky / compatible.
 - Exposes audit, comparison, and saved statistical testing workflows.
 - Publishes datasets to PostgreSQL and supports Power BI and Tableau publish flows.
 - Supports schedules, manual triggers, retries, notifications, and status visibility.
@@ -25,17 +31,33 @@ Most portfolio apps stop at CRUD. This repo goes further by modeling the operati
 - Project-scoped sources, datasets, runs, destinations, BI connections, schedules, and notifications
 - Shared TypeScript contracts between frontend and backend
 
-### Ingestion and profiling
+### Extraction and ingestion
 
+- Database extraction for PostgreSQL, MySQL, and SQLite over one SQLAlchemy code path
+- Saved connections with credentials encrypted at rest and redacted in every API response
+- Connection testing (latency + server version), table/view discovery, column inspection, bounded preview
+- Operator-authored SQL is enforced read-only: single-statement, `SELECT`/`WITH` only, with data-modifying CTEs rejected
+- Chunked reads with a row cap so wide tables cannot exhaust memory
+- Incremental loading: `full_refresh`, `incremental_append`, `incremental_merge`, with watermark tracking and reset
 - File upload ingestion for `csv`, `xlsx`, and `json`
 - Stored dataset preview, schema, profile, and parser metadata
-- Dataset detail views with preview, profile insights, lineage context, and suggested transformations
 
 ### Transformation workflows
 
-- Saved pipelines with a structured editor
-- In-memory preview before persistence
+- 20 step types across column shaping, value cleaning, row selection, and reshaping
+- Multi-dataset steps: `join_datasets` (inner/left/right/outer, composite keys, many-to-many guard) and `union_datasets`
+- Reshaping: `aggregate` (11 functions), `pivot`, `unpivot`
+- `derive_column` with a sandboxed expression evaluator — AST allowlist, no `eval`, vectorised over pandas
+- Saved pipelines with a structured editor and in-memory preview before persistence
 - Pipeline execution that creates derived datasets and tracked `pipeline_runs`
+
+### Data quality and schema governance
+
+- Eight rule types: `not_null`, `unique`, `allowed_values`, `range`, `regex_match`, `expression`, `row_count`, `freshness`
+- `error` severity quarantines failing rows and fails the evaluation; `warning` reports without blocking
+- Quarantined rows are materialised as their own dataset for inspection and replay
+- A misconfigured rule is recorded as a failure of that rule rather than aborting the whole evaluation
+- Schema drift detected automatically on every extraction, graded breaking / risky / compatible, with acknowledgement
 
 ### Review and quality
 
@@ -55,7 +77,7 @@ Most portfolio apps stop at CRUD. This repo goes further by modeling the operati
 
 ## Architecture summary
 
-The repo uses a modular monolith shape. `apps/web` is the Next.js frontend, `apps/api-gateway` is the only public backend deployable, and domain behavior lives in `services/service-*` packages for auth, projects, datasets, ingestion, transformations, destinations, schedules, notifications, comparisons, and pipeline runs. Shared backend infrastructure lives in `packages/shared-python`, while `packages/shared-types` and `packages/shared-ui` keep contracts and UI primitives aligned across the stack.
+The repo uses a modular monolith shape. `apps/web` is the Next.js frontend, `apps/api-gateway` is the only public backend deployable, and domain behavior lives in `services/service-*` packages for auth, projects, datasets, ingestion, extraction, transformations, quality, destinations, schedules, notifications, comparisons, and pipeline runs. Shared backend infrastructure lives in `packages/shared-python`, while `packages/shared-types` and `packages/shared-ui` keep contracts and UI primitives aligned across the stack.
 
 This is stronger than a typical CRUD app because workflow state is persisted across uploads, lineage, runs, audits, schedules, publish outcomes, and notifications. The project also includes migrations, env templates, Docker Compose, smoke checks, and CI parity verification, which gives reviewers a more realistic engineering handoff story.
 
@@ -64,6 +86,7 @@ This is stronger than a typical CRUD app because workflow state is persisted acr
 - Frontend: Next.js App Router, React, TypeScript
 - Backend: FastAPI, SQLAlchemy, Alembic, Uvicorn
 - Data services: Python service packages by domain
+- Source connectivity: SQLAlchemy engines (psycopg, PyMySQL, SQLite)
 - Database: PostgreSQL
 - Tooling: npm workspaces, Rush, Docker Compose, pytest, Ruff, ESLint, Vitest
 
@@ -131,6 +154,9 @@ The step-by-step version lives in `docs/demo-guide.md`.
 
 - `/projects`
 - `/projects/[projectId]`
+- `/projects/[projectId]/extraction`
+- `/projects/[projectId]/data-quality`
+- `/projects/[projectId]/schema-drift`
 - `/projects/[projectId]/datasets/[datasetId]`
 - `/projects/[projectId]/datasets/[datasetId]/audit`
 - `/projects/[projectId]/runs/[runId]/audit`
@@ -180,10 +206,13 @@ See `docs/deployment-guide.md` and `docs/release-checklist.md` for details.
 
 ## Current limitations
 
-- Ingestion runs synchronously in-process.
+- Ingestion and extraction run synchronously in-process; there is no separate worker tier.
 - Schedules use Postgres-backed lease claims, not a full distributed job system.
 - External notifications are best-effort email and Slack webhook fan-out.
 - S3 and local-export destinations can be saved and tested, but dataset publish is only implemented for PostgreSQL.
+- Extraction supports PostgreSQL, MySQL, and SQLite. Other engines (SQL Server, Oracle, Snowflake, BigQuery) are not implemented.
+- Data quality rules are evaluated on demand; they are not yet wired as an automatic gate inside scheduled pipeline runs.
+- Schema drift is detected and recorded, but it does not automatically halt a run.
 - BI publishing is practical first-path support, not full semantic model or workbook lifecycle automation.
 - Secrets for saved integrations are encrypted at rest in the application database, but external KMS or Vault integration is not included.
 

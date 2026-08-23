@@ -4,11 +4,12 @@ import re
 import uuid
 from unicodedata import normalize
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from service_auth.schemas import UserRead
 from service_projects.contracts import (
+    shared_project_ids,
     count_project_datasets,
     count_project_sources,
     ensure_owned_project,
@@ -40,6 +41,9 @@ def _serialize_summary(project: Project, source_count: int, dataset_count: int) 
         slug=project.slug,
         description=project.description,
         status=project.status,
+        environment=project.environment,
+        requires_approval=project.requires_approval,
+        promoted_from_project_id=project.promoted_from_project_id,
         source_count=source_count,
         dataset_count=dataset_count,
         created_at=project.created_at,
@@ -48,9 +52,16 @@ def _serialize_summary(project: Project, source_count: int, dataset_count: int) 
 
 
 def list_projects(db: Session, current_user: UserRead) -> ProjectListResponse:
+    # Projects someone shared with you belong in this list too, otherwise being
+    # given access to a project leaves you with no way to reach it.
+    shared_ids = shared_project_ids(db, current_user.id)
+    condition = Project.owner_user_id == current_user.id
+    if shared_ids:
+        condition = or_(condition, Project.id.in_(shared_ids))
+
     projects = db.scalars(
         select(Project)
-        .where(Project.owner_user_id == current_user.id)
+        .where(condition)
         .order_by(Project.updated_at.desc(), Project.created_at.desc())
     ).all()
     return ProjectListResponse(
@@ -84,6 +95,10 @@ def create_project(db: Session, payload: ProjectCreate, current_user: UserRead) 
         slug=_unique_slug(db, base_slug),
         description=payload.description.strip() if payload.description else None,
         status=payload.status,
+        # A project belongs to the tenant of whoever created it. Without this a
+        # user in an organisation creates a project with no organisation, and
+        # the tenancy boundary refuses them access to their own new project.
+        organisation_id=getattr(current_user, "organisation_id", None),
     )
     db.add(project)
     db.commit()

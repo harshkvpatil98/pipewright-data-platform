@@ -161,26 +161,26 @@ export function PublishTableauModal({ open, onClose, projectId, datasetId }: Pub
     >
       <div className="flex flex-col gap-4">
         {writeMode === "replace" ? (
-          <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100/90">
+          <p className="rounded-xl border border-warning-line bg-warning-soft px-3 py-2 text-xs text-warning">
             Replace overwrites the published datasource if Tableau accepts the overwrite flag. Use with care on shared
             projects.
           </p>
         ) : null}
         {loadingList ? (
-          <p className="text-sm text-slate-400">Loading Tableau connections…</p>
+          <p className="text-sm text-ink-3">Loading Tableau connections…</p>
         ) : connections.length === 0 ? (
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-ink-3">
             No active Tableau connections.{" "}
-            <Link href={`/projects/${projectId}/bi-connections`} className="text-indigo-300 underline">
+            <Link href={`/projects/${projectId}/bi-connections`} className="text-accent underline">
               Create one
             </Link>{" "}
             first.
           </p>
         ) : (
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
             Tableau connection
             <select
-              className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+              className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
               value={connectionId}
               onChange={(e) => {
                 setConnectionId(e.target.value);
@@ -202,10 +202,10 @@ export function PublishTableauModal({ open, onClose, projectId, datasetId }: Pub
           </Button>
         </div>
         {projects.length > 0 ? (
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
             Project (from discovery)
             <select
-              className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+              className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
               value={tableauProjectId}
               onChange={(e) => setTableauProjectId(e.target.value)}
             >
@@ -217,30 +217,30 @@ export function PublishTableauModal({ open, onClose, projectId, datasetId }: Pub
             </select>
           </label>
         ) : null}
-        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
           Tableau project ID (UUID)
           <input
-            className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 font-mono text-sm text-slate-100"
+            className="rounded-xl border border-line bg-surface px-3 py-2 font-mono text-sm text-ink"
             value={tableauProjectId}
             onChange={(e) => setTableauProjectId(e.target.value)}
             placeholder="From Tableau REST / discovery"
             autoComplete="off"
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
           Datasource name
           <input
-            className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+            className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
             value={datasourceName}
             onChange={(e) => setDatasourceName(e.target.value)}
             placeholder="e.g. ETL Customers"
             autoComplete="off"
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
           Write mode
           <select
-            className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+            className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
             value={writeMode}
             onChange={(e) => setWriteMode(e.target.value as "replace" | "create_only")}
           >
@@ -249,22 +249,22 @@ export function PublishTableauModal({ open, onClose, projectId, datasetId }: Pub
           </select>
         </label>
         {error ? (
-          <p className="text-sm text-rose-300" role="alert">
+          <p className="text-sm text-danger" role="alert">
             {error}
           </p>
         ) : null}
         {result ? (
-          <div className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-3 text-sm text-slate-200">
-            <p className={result.success ? "text-emerald-200/90" : "text-rose-200/90"}>{result.message}</p>
+          <div className="rounded-xl border border-line bg-surface px-3 py-3 text-sm text-ink">
+            <p className={result.success ? "text-success" : "text-danger"}>{result.message}</p>
             {result.row_count_published != null ? (
-              <p className="mt-1 text-xs text-slate-400">Rows published: {result.row_count_published}</p>
+              <p className="mt-1 text-xs text-ink-3">Rows published: {result.row_count_published}</p>
             ) : null}
             {result.tableau_datasource_id ? (
-              <p className="mt-1 text-xs text-slate-500">Datasource id: {result.tableau_datasource_id}</p>
+              <p className="mt-1 text-xs text-muted">Datasource id: {result.tableau_datasource_id}</p>
             ) : null}
             <Link
               href={`/projects/${projectId}/runs/${result.run.id}/audit`}
-              className="mt-2 inline-block text-xs text-indigo-300 underline"
+              className="mt-2 inline-block text-xs text-accent underline"
             >
               View run audit
             </Link>

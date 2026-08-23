@@ -5,7 +5,7 @@ import { Button, EmptyState, SectionPanel, StatusBadge } from "@platform/shared-
 
 import { AppShell } from "@/components/layout/app-shell";
 import { RunPipelineButton } from "@/features/pipelines/components/run-pipeline-button";
-import { formatDate, titleCase } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 
 type PipelineListPageViewProps = {
   currentUser: AuthUser;
@@ -31,13 +31,13 @@ export function PipelineListPageView({ currentUser, project, pipelines, datasets
         <>
           <Link
             href={`/projects/${project.id}`}
-            className="inline-flex h-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] px-4 text-sm font-medium text-slate-100 transition hover:border-white/20 hover:bg-white/[0.09]"
+            className="inline-flex h-11 items-center justify-center rounded-xl border border-line bg-surface-2 px-4 text-sm font-medium text-ink transition hover:border-line-strong hover:bg-surface-2"
           >
             Back to project
           </Link>
           <Link
             href={createHref}
-            className="inline-flex h-11 items-center justify-center rounded-xl bg-[color:var(--accent)] px-4 text-sm font-medium text-white shadow-[0_12px_32px_rgba(79,70,229,0.22)] transition hover:brightness-110"
+            className="inline-flex h-11 items-center justify-center rounded-xl bg-[color:var(--accent)] px-4 text-sm font-medium text-accent-ink shadow-[var(--shadow-glow)] transition hover:brightness-110"
           >
             Create pipeline
           </Link>
@@ -45,11 +45,11 @@ export function PipelineListPageView({ currentUser, project, pipelines, datasets
       }
       meta={
         <>
-          <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs uppercase tracking-[0.18em] text-slate-300">
+          <span className="rounded-full border border-line bg-surface px-3 py-1 text-xs uppercase tracking-[0.18em] text-ink-2">
             {pipelines.length} pipelines
           </span>
           {activeDatasetId ? (
-            <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs uppercase tracking-[0.18em] text-slate-300">
+            <span className="rounded-full border border-line bg-surface px-3 py-1 text-xs uppercase tracking-[0.18em] text-ink-2">
               Filtered by {datasetNameMap.get(activeDatasetId) ?? "dataset"}
             </span>
           ) : null}
@@ -64,38 +64,38 @@ export function PipelineListPageView({ currentUser, project, pipelines, datasets
             action={<Link href={createHref}><Button>Create pipeline</Button></Link>}
           />
         ) : (
-          <div className="overflow-hidden rounded-[24px] border border-white/8 bg-black/10">
+          <div className="overflow-hidden rounded-[24px] border border-line bg-sunken">
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-white/8 text-left text-sm">
-                <thead className="bg-white/[0.03] text-slate-400">
+              <table className="min-w-full divide-y divide-line text-left text-sm">
+                <thead className="bg-surface text-ink-3">
                   <tr>
-                    <th className="px-4 py-3 font-medium">Pipeline</th>
-                    <th className="px-4 py-3 font-medium">Base dataset</th>
-                    <th className="px-4 py-3 font-medium">Status</th>
-                    <th className="px-4 py-3 font-medium">Steps</th>
-                    <th className="px-4 py-3 font-medium">Created</th>
-                    <th className="px-4 py-3 font-medium text-right">Run</th>
+                    <th className="cell-pad font-medium">Pipeline</th>
+                    <th className="cell-pad font-medium">Base dataset</th>
+                    <th className="cell-pad font-medium">Status</th>
+                    <th className="cell-pad font-medium">Steps</th>
+                    <th className="cell-pad font-medium">Created</th>
+                    <th className="cell-pad font-medium text-right">Run</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/6">
+                <tbody className="divide-y divide-line">
                   {pipelines.map((pipeline) => (
-                    <tr key={pipeline.id} className="transition hover:bg-white/[0.03]">
-                      <td className="px-4 py-4 align-top">
+                    <tr key={pipeline.id} className="transition hover:bg-surface">
+                      <td className="cell-pad align-top">
                         <Link
                           href={`/projects/${project.id}/datasets/${pipeline.base_dataset_id}/pipelines/${pipeline.id}`}
-                          className="font-medium text-white hover:text-indigo-200"
+                          className="font-medium text-ink hover:text-accent"
                         >
                           {pipeline.name}
                         </Link>
-                        <div className="mt-1 max-w-sm text-slate-400">{pipeline.description ?? "No pipeline description provided."}</div>
+                        <div className="mt-1 max-w-sm text-ink-3">{pipeline.description ?? "No pipeline description provided."}</div>
                       </td>
-                      <td className="px-4 py-4 align-top text-slate-300">{datasetNameMap.get(pipeline.base_dataset_id) ?? pipeline.base_dataset_id}</td>
-                      <td className="px-4 py-4 align-top">
+                      <td className="cell-pad align-top text-ink-2">{datasetNameMap.get(pipeline.base_dataset_id) ?? pipeline.base_dataset_id}</td>
+                      <td className="cell-pad align-top">
                         <StatusBadge value={pipeline.status} />
                       </td>
-                      <td className="px-4 py-4 align-top text-slate-300">{pipeline.step_count}</td>
-                      <td className="px-4 py-4 align-top text-slate-400">{formatDate(pipeline.created_at)}</td>
-                      <td className="px-4 py-4 align-top">
+                      <td className="cell-pad align-top text-ink-2">{pipeline.step_count}</td>
+                      <td className="cell-pad align-top text-ink-3">{formatDate(pipeline.created_at)}</td>
+                      <td className="cell-pad align-top">
                         <div className="flex justify-end">
                           <RunPipelineButton projectId={project.id} pipelineId={pipeline.id} />
                         </div>

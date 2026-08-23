@@ -1,5 +1,9 @@
-import { PlaceholderPage } from "@/components/common/placeholder-page";
+import { requireCurrentUser } from "@/lib/auth/server";
+import { redirectToProjectScope } from "@/lib/project-scope";
 
-export default function DatasetsPage() {
-  return <PlaceholderPage title="Datasets" description="Dataset registration, ingestion monitoring, profiling snapshots, and source-to-schema visibility will be implemented in this area." />;
+export const dynamic = "force-dynamic";
+
+export default async function DatasetsPage() {
+  await requireCurrentUser();
+  await redirectToProjectScope("");
 }

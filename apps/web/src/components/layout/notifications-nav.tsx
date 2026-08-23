@@ -35,11 +35,11 @@ export function NotificationsNavLink() {
   const isActive = pathname === "/notifications" || pathname.startsWith("/notifications/");
   const badge =
     unread !== null && unread > 0 ? (
-      <span className="rounded-full bg-indigo-500/25 px-2 py-0.5 text-[10px] font-semibold text-indigo-100">
+      <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-semibold text-accent">
         {unread > 99 ? "99+" : unread}
       </span>
     ) : (
-      <span className="text-[11px] uppercase tracking-[0.18em] text-slate-500">In-app</span>
+      <span className="text-[11px] uppercase tracking-[0.18em] text-muted">In-app</span>
     );
 
   return (
@@ -48,8 +48,8 @@ export function NotificationsNavLink() {
       className={cx(
         "flex items-center justify-between rounded-2xl border px-4 py-3 text-sm transition",
         isActive
-          ? "border-[color:var(--accent-soft)] bg-[color:var(--accent-faint)] text-white shadow-[0_12px_30px_rgba(79,70,229,0.14)]"
-          : "border-white/5 text-slate-300 hover:border-white/12 hover:bg-white/[0.05] hover:text-white",
+          ? "border-[color:var(--accent-soft)] bg-[color:var(--accent-faint)] text-ink shadow-[var(--shadow-glow)]"
+          : "border-line text-ink-2 hover:border-line hover:bg-surface hover:text-ink",
       )}
     >
       <span>Notifications</span>

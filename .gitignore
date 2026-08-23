@@ -21,5 +21,32 @@ dist/
 build/
 coverage/
 postgres_data/
-data/uploads/
 *.log
+
+# Uploaded and derived files. The gateway writes these under its own working
+# directory, so the pattern has to match at any depth -- `data/uploads/` alone
+# is anchored to the repository root and missed `apps/api-gateway/data/`.
+**/data/uploads/
+apps/api-gateway/data/
+
+# Incremental TypeScript build state. Machine-specific, rewritten on every
+# build, and a guaranteed merge conflict on every branch.
+*.tsbuildinfo
+
+# Scratch databases left behind by workflow and extraction tests.
+*.sqlite
+*.sqlite3
+wf_source_*.db
+
+# Editor and OS leftovers.
+*.bak
+*.orig
+*.rej
+*.swp
+*~
+.idea/
+.vscode/
+Thumbs.db
+
+# Database dumps and file archives from scripts/backup.sh.
+backups/

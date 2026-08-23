@@ -279,48 +279,48 @@ export function BiConnectionsPageView({ currentUser, projectId, initialItems }: 
     const set = (patch: Partial<BiFields>) => onChange({ ...fields, ...patch });
     return (
       <div className="flex flex-col gap-3">
-        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
           Tenant ID
           <input
-            className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+            className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
             value={fields.tenant_id}
             onChange={(e) => set({ tenant_id: e.target.value })}
             autoComplete="off"
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
           Client ID
           <input
-            className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+            className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
             value={fields.client_id}
             onChange={(e) => set({ client_id: e.target.value })}
             autoComplete="off"
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
           Client secret
           <input
             type="password"
-            className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+            className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
             value={fields.client_secret}
             onChange={(e) => set({ client_secret: e.target.value })}
             placeholder={isEdit ? "Leave blank to keep stored secret" : ""}
             autoComplete="new-password"
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
           Workspace ID (optional)
           <input
-            className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+            className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
             value={fields.workspace_id}
             onChange={(e) => set({ workspace_id: e.target.value })}
             autoComplete="off"
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
           Authority URL (optional)
           <input
-            className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+            className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
             value={fields.authority_url}
             onChange={(e) => set({ authority_url: e.target.value })}
             placeholder="https://login.microsoftonline.com/…"
@@ -339,37 +339,37 @@ export function BiConnectionsPageView({ currentUser, projectId, initialItems }: 
     const set = (patch: Partial<BiFields>) => onChange({ ...fields, ...patch });
     return (
       <div className="flex flex-col gap-3">
-        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
           Server URL (https)
           <input
-            className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+            className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
             value={fields.server_url}
             onChange={(e) => set({ server_url: e.target.value })}
             autoComplete="off"
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
           Site / content URL (optional)
           <input
-            className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+            className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
             value={fields.site_name}
             onChange={(e) => set({ site_name: e.target.value })}
             autoComplete="off"
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
           REST API version
           <input
-            className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+            className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
             value={fields.api_version}
             onChange={(e) => set({ api_version: e.target.value })}
             autoComplete="off"
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
           Auth mode
           <select
-            className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+            className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
             value={fields.auth_mode}
             onChange={(e) =>
               set({ auth_mode: e.target.value === "personal_access_token" ? "personal_access_token" : "password" })
@@ -381,20 +381,20 @@ export function BiConnectionsPageView({ currentUser, projectId, initialItems }: 
         </label>
         {fields.auth_mode === "password" ? (
           <>
-            <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+            <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
               Username
               <input
-                className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+                className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
                 value={fields.username}
                 onChange={(e) => set({ username: e.target.value })}
                 autoComplete="off"
               />
             </label>
-            <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+            <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
               Password
               <input
                 type="password"
-                className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+                className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
                 value={fields.password}
                 onChange={(e) => set({ password: e.target.value })}
                 placeholder={isEdit ? "Leave blank to keep stored password" : ""}
@@ -404,20 +404,20 @@ export function BiConnectionsPageView({ currentUser, projectId, initialItems }: 
           </>
         ) : (
           <>
-            <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+            <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
               Token name
               <input
-                className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+                className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
                 value={fields.personal_access_token_name}
                 onChange={(e) => set({ personal_access_token_name: e.target.value })}
                 autoComplete="off"
               />
             </label>
-            <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+            <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
               Token secret
               <input
                 type="password"
-                className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+                className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
                 value={fields.personal_access_token_secret}
                 onChange={(e) => set({ personal_access_token_secret: e.target.value })}
                 placeholder={isEdit ? "Leave blank to keep stored secret" : ""}
@@ -441,7 +441,7 @@ export function BiConnectionsPageView({ currentUser, projectId, initialItems }: 
           <>
             <Link
               href={`/projects/${projectId}`}
-              className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-slate-200 hover:border-white/20"
+              className="inline-flex items-center rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:border-line-strong"
             >
               Back to project
             </Link>
@@ -462,8 +462,8 @@ export function BiConnectionsPageView({ currentUser, projectId, initialItems }: 
             <p
               className={`mb-4 rounded-xl border px-3 py-2 text-sm ${
                 testResult.success
-                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-100"
-                  : "border-amber-500/30 bg-amber-500/10 text-amber-100"
+                  ? "border-success-line bg-success-soft text-success"
+                  : "border-warning-line bg-warning-soft text-warning"
               }`}
             >
               {testResult.success ? "Test succeeded" : "Test failed"}: {testResult.message}
@@ -471,46 +471,46 @@ export function BiConnectionsPageView({ currentUser, projectId, initialItems }: 
             </p>
           ) : null}
           {metaResult ? (
-            <div className="mb-4 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-200">
-              <p className="mb-2 font-medium text-slate-100">
+            <div className="mb-4 rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink">
+              <p className="mb-2 font-medium text-ink">
                 {metaResult.metadata_kind.replace(/_/g, " ")} ({metaResult.items.length})
               </p>
-              <ul className="max-h-40 list-inside list-disc overflow-y-auto text-slate-300">
+              <ul className="max-h-40 list-inside list-disc overflow-y-auto text-ink-2">
                 {metaResult.items.slice(0, 50).map((it) => (
                   <li key={it.id}>
-                    {it.name} <span className="text-slate-500">({it.id})</span>
+                    {it.name} <span className="text-muted">({it.id})</span>
                   </li>
                 ))}
               </ul>
-              {metaResult.items.length > 50 ? <p className="mt-1 text-xs text-slate-500">Showing first 50.</p> : null}
+              {metaResult.items.length > 50 ? <p className="mt-1 text-xs text-muted">Showing first 50.</p> : null}
             </div>
           ) : null}
-          <div className="overflow-x-auto rounded-2xl border border-white/10">
-            <table className="min-w-full divide-y divide-white/10 text-left text-sm text-slate-200">
-              <thead className="bg-white/[0.03] text-xs uppercase tracking-[0.14em] text-slate-400">
+          <div className="overflow-x-auto rounded-2xl border border-line">
+            <table className="min-w-full divide-y divide-line text-left text-sm text-ink">
+              <thead className="bg-surface text-xs uppercase tracking-[0.14em] text-ink-3">
                 <tr>
-                  <th className="px-4 py-3">Name</th>
-                  <th className="px-4 py-3">Type</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Created</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
+                  <th className="cell-pad">Name</th>
+                  <th className="cell-pad">Type</th>
+                  <th className="cell-pad">Status</th>
+                  <th className="cell-pad">Created</th>
+                  <th className="cell-pad text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5">
+              <tbody className="divide-y divide-line">
                 {items.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
+                    <td colSpan={5} className="cell-pad text-center text-muted">
                       No BI connections yet. Create one to publish datasets to Power BI or Tableau from dataset detail.
                     </td>
                   </tr>
                 ) : (
                   items.map((row) => (
-                    <tr key={row.id} className="hover:bg-white/[0.02]">
-                      <td className="px-4 py-3 font-medium text-slate-100">{row.name}</td>
-                      <td className="px-4 py-3">{integrationLabel(row.integration_type)}</td>
-                      <td className="px-4 py-3">{titleCase(row.status)}</td>
-                      <td className="px-4 py-3 text-slate-400">{formatDate(row.created_at)}</td>
-                      <td className="px-4 py-3 text-right">
+                    <tr key={row.id} className="hover:bg-surface">
+                      <td className="cell-pad font-medium text-ink">{row.name}</td>
+                      <td className="cell-pad">{integrationLabel(row.integration_type)}</td>
+                      <td className="cell-pad">{titleCase(row.status)}</td>
+                      <td className="cell-pad text-ink-3">{formatDate(row.created_at)}</td>
+                      <td className="cell-pad text-right">
                         <div className="flex flex-wrap justify-end gap-2">
                           <Button variant="secondary" size="sm" onClick={() => openEdit(row)}>
                             Edit
@@ -559,10 +559,10 @@ export function BiConnectionsPageView({ currentUser, projectId, initialItems }: 
         }
       >
         <div className="flex flex-col gap-4">
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
             Name
             <input
-              className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+              className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
             />
@@ -601,13 +601,13 @@ export function BiConnectionsPageView({ currentUser, projectId, initialItems }: 
       >
         {editing ? (
           <div className="flex flex-col gap-4">
-            <p className="text-xs text-slate-500">
-              Type: <span className="text-slate-300">{integrationLabel(editing.integration_type)}</span>
+            <p className="text-xs text-muted">
+              Type: <span className="text-ink-2">{integrationLabel(editing.integration_type)}</span>
             </p>
-            <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+            <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
               Name
               <input
-                className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+                className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
                 value={editing.name}
                 onChange={(e) => setEditing({ ...editing, name: e.target.value })}
               />

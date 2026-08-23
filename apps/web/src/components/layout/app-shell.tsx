@@ -1,7 +1,14 @@
-import type { AuthUser } from "@platform/shared-types";
-import { PageHeader } from "@platform/shared-ui";
+"use client";
 
-import { AppSidebar } from "@/components/layout/app-sidebar";
+import { usePathname } from "next/navigation";
+import { useMemo } from "react";
+
+import type { AuthUser } from "@platform/shared-types";
+
+import { AppFrame } from "@/components/shell/app-frame";
+import type { Crumb } from "@/components/shell/top-bar";
+import type { RibbonGroup } from "@/components/shell/ribbon";
+import type { StatusItem } from "@/components/shell/status-bar";
 
 type AppShellProps = {
   title: string;
@@ -10,9 +17,19 @@ type AppShellProps = {
   actions?: React.ReactNode;
   meta?: React.ReactNode;
   currentUser?: AuthUser | null;
+  /** Optional contextual ribbon; pages without one simply get more canvas. */
+  ribbon?: RibbonGroup[];
+  statusItems?: StatusItem[];
   children: React.ReactNode;
 };
 
+/**
+ * Page wrapper on top of the product frame.
+ *
+ * Pages describe themselves with a title and subtitle; this derives the
+ * breadcrumb trail from the route so every screen gets consistent chrome
+ * without each page hand-maintaining its own crumbs.
+ */
 export function AppShell({
   title,
   subtitle,
@@ -20,23 +37,57 @@ export function AppShell({
   actions,
   meta,
   currentUser,
+  ribbon,
+  statusItems,
   children,
 }: AppShellProps) {
+  const pathname = usePathname();
+
+  const crumbs = useMemo<Crumb[]>(() => {
+    const segments = pathname.split("/").filter(Boolean);
+    if (segments.length === 0) return [{ label: "Home" }];
+
+    // /projects/<id>/<section> -> Projects / Workspace / <Title>
+    if (segments[0] === "projects" && segments.length >= 2) {
+      const projectId = segments[1];
+      const trail: Crumb[] = [
+        { label: "Projects", href: "/projects" },
+        { label: "Workspace", href: `/projects/${projectId}` },
+      ];
+      if (segments.length > 2) trail.push({ label: title });
+      else trail[1] = { label: title, href: `/projects/${projectId}` };
+      return trail;
+    }
+
+    return [{ label: title }];
+  }, [pathname, title]);
+
   return (
-    <div className="min-h-screen bg-transparent text-slate-100">
-      <div className="mx-auto grid min-h-screen max-w-[1680px] lg:grid-cols-[280px_1fr]">
-        <AppSidebar currentUser={currentUser ?? null} />
-        <main className="flex min-h-screen flex-col border-l border-white/8 bg-[radial-gradient(circle_at_top,_rgba(99,102,241,0.07),_transparent_26%),linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0))]">
-          <PageHeader
-            eyebrow={eyebrow}
-            title={title}
-            description={subtitle}
-            actions={actions}
-            meta={meta}
-          />
-          <div className="flex-1 space-y-7 px-6 py-6 lg:px-10 lg:py-8">{children}</div>
-        </main>
+    <AppFrame
+      currentUser={currentUser}
+      crumbs={crumbs}
+      ribbon={ribbon}
+      statusItems={statusItems}
+    >
+      <div className="px-6 py-6 lg:px-8">
+        <header className="mb-6 max-w-4xl">
+          {eyebrow ? (
+            <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.2em] text-[color:var(--accent-muted)]">
+              {eyebrow}
+            </div>
+          ) : null}
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0">
+              <h1 className="text-[26px] font-semibold tracking-tight text-ink">{title}</h1>
+              <p className="mt-2 text-[13px] leading-6 text-ink-3">{subtitle}</p>
+            </div>
+            {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+          </div>
+          {meta ? <div className="mt-4">{meta}</div> : null}
+        </header>
+
+        <div className="space-y-5">{children}</div>
       </div>
-    </div>
+    </AppFrame>
   );
 }

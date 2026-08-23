@@ -41,7 +41,7 @@ export function RunPipelineButton({ projectId, pipelineId, label = "Run" }: RunP
       <Button type="button" variant="secondary" size="sm" onClick={handleRun} disabled={loading}>
         {loading ? "Running…" : label}
       </Button>
-      {error ? <span className="max-w-[220px] text-right text-xs text-rose-300">{error}</span> : null}
+      {error ? <span className="max-w-[220px] text-right text-xs text-danger">{error}</span> : null}
     </div>
   );
 }

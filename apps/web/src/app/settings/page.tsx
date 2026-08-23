@@ -1,5 +1,9 @@
-import { PlaceholderPage } from "@/components/common/placeholder-page";
+import { SettingsPageView } from "@/features/settings/components/settings-page";
+import { requireCurrentUser } from "@/lib/auth/server";
 
-export default function SettingsPage() {
-  return <PlaceholderPage title="Settings" description="Platform-wide configuration, environment-level controls, access policies, and notification preferences will be managed here." />;
+export const metadata = { title: "Settings" };
+
+export default async function SettingsPage() {
+  const currentUser = await requireCurrentUser();
+  return <SettingsPageView currentUser={currentUser} />;
 }

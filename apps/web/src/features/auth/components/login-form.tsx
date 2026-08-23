@@ -3,11 +3,12 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { Button, FormField, Input, SectionPanel } from "@platform/shared-ui";
+import { Button, FormField, Input, LogoMark, SectionPanel } from "@platform/shared-ui";
 import type { AuthTokenResponse, LoginPayload } from "@platform/shared-types";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { setAccessToken } from "@/lib/auth/session";
+import { brand } from "@/lib/brand";
 
 export function LoginForm() {
   const router = useRouter();
@@ -40,9 +41,14 @@ export function LoginForm() {
   };
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-xl items-center px-6 py-10">
+    <main className="mx-auto flex min-h-screen max-w-xl flex-col justify-center px-6 py-10">
+      <div className="mb-8 flex flex-col items-center text-center animate-fade-up">
+        <LogoMark size={64} title={brand.name} />
+        <h1 className="mt-4 text-3xl font-semibold tracking-tight text-ink">{brand.name}</h1>
+        <p className="mt-2 text-sm text-ink-3">{brand.shortDescription}</p>
+      </div>
       <SectionPanel
-        title="Platform login"
+        title="Sign in"
         description="Authenticate with a bootstrapped platform user to access your owned projects and run history."
       >
         <form className="space-y-5" onSubmit={handleSubmit}>
@@ -52,7 +58,7 @@ export function LoginForm() {
           <FormField label="Password" htmlFor="password">
             <Input id="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
           </FormField>
-          {error ? <div className="rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">{error}</div> : null}
+          {error ? <div className="rounded-2xl border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger">{error}</div> : null}
           <Button type="submit" disabled={submitting || username.length < 3 || password.length < 8} className="w-full">
             {submitting ? "Signing in..." : "Sign in"}
           </Button>

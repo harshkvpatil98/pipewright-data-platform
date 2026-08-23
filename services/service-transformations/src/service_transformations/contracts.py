@@ -6,20 +6,12 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from service_transformations.models import TransformationPipeline
+from service_transformations.steps import ALL_STEP_TYPES
 from shared_python.errors import NotFoundError
 
-SUPPORTED_TRANSFORMATION_STEP_TYPES = [
-    'rename_columns',
-    'cast_column_types',
-    'trim_strings',
-    'drop_columns',
-    'select_columns',
-    'fill_nulls',
-    'drop_null_rows',
-    'remove_duplicates',
-    'filter_rows',
-    'parse_dates',
-]
+# Derived from the step registries so a new step cannot be implemented without
+# also becoming accepted by validation (and vice versa).
+SUPPORTED_TRANSFORMATION_STEP_TYPES = list(ALL_STEP_TYPES)
 
 
 def get_transformation_pipeline_for_project(db: Session, project_id: uuid.UUID, pipeline_id: uuid.UUID) -> TransformationPipeline:

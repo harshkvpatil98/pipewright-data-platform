@@ -68,6 +68,13 @@ def _schedule_row(sid: uuid.UUID, pid: uuid.UUID, stype: str, cfg: dict, *, uid:
     row.last_run_status = None
     row.last_error_message = None
     row.execution_count = 0
+    row.retry_count_current = 0
+    row.max_retries = 1
+    row.next_retry_at = None
+    row.last_failure_at = None
+    row.claim_owner_id = None
+    row.claim_acquired_at = None
+    row.claim_expires_at = None
     row.created_at = datetime.now(UTC)
     row.updated_at = datetime.now(UTC)
     return row
@@ -128,6 +135,13 @@ def test_create_persists(ensure_owned, _vcron, validate_target) -> None:
     fake.last_run_status = None
     fake.last_error_message = None
     fake.execution_count = 0
+    fake.retry_count_current = 0
+    fake.max_retries = 1
+    fake.next_retry_at = None
+    fake.last_failure_at = None
+    fake.claim_owner_id = None
+    fake.claim_acquired_at = None
+    fake.claim_expires_at = None
     fake.created_at = datetime.now(UTC)
     fake.updated_at = datetime.now(UTC)
 

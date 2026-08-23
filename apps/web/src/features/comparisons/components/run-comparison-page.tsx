@@ -26,13 +26,13 @@ export function RunComparisonPageView({ currentUser, projectId, comparison }: Ru
         <div className="flex flex-wrap gap-2">
           <Link
             href={`/projects/${projectId}/runs/${comparison.run_id}/audit`}
-            className="rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-slate-200 hover:border-white/20"
+            className="rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:border-line-strong"
           >
             Run audit
           </Link>
           <Link
             href={`/projects/${projectId}`}
-            className="rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-slate-200 hover:border-white/20"
+            className="rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:border-line-strong"
           >
             Project
           </Link>
@@ -41,11 +41,11 @@ export function RunComparisonPageView({ currentUser, projectId, comparison }: Ru
       meta={
         <>
           <StatusBadge value={comparison.status} />
-          <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs uppercase tracking-[0.18em] text-slate-300">
+          <span className="rounded-full border border-line bg-surface px-3 py-1 text-xs uppercase tracking-[0.18em] text-ink-2">
             {formatRunTypeLabel(comparison.run_type)}
           </span>
           {!comparison.summary_available ? (
-            <span className="rounded-full border border-amber-400/25 bg-amber-500/10 px-3 py-1 text-xs uppercase tracking-[0.18em] text-amber-200">
+            <span className="rounded-full border border-warning-line bg-warning-soft px-3 py-1 text-xs uppercase tracking-[0.18em] text-warning">
               Partial summary
             </span>
           ) : null}
@@ -77,16 +77,16 @@ export function RunComparisonPageView({ currentUser, projectId, comparison }: Ru
 
       <SectionPanel title="Comparison notes" description="Derived from run type and summary_json.">
         {comparison.comparison_notes.length === 0 ? (
-          <p className="text-sm text-slate-400">No notes.</p>
+          <p className="text-sm text-ink-3">No notes.</p>
         ) : (
-          <ul className="list-inside list-disc space-y-1 text-sm text-slate-200">
+          <ul className="list-inside list-disc space-y-1 text-sm text-ink">
             {comparison.comparison_notes.map((n) => (
               <li key={n}>{n}</li>
             ))}
           </ul>
         )}
         {!comparison.raw_summary_present ? (
-          <p className="mt-3 text-sm text-slate-500">No summary_json stored on this run.</p>
+          <p className="mt-3 text-sm text-muted">No summary_json stored on this run.</p>
         ) : null}
       </SectionPanel>
 
@@ -94,42 +94,42 @@ export function RunComparisonPageView({ currentUser, projectId, comparison }: Ru
         <SectionPanel title="Linked datasets" description="IDs from transformation summary when present.">
           <dl className="space-y-3 text-sm">
             <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-slate-500">Base dataset</dt>
+              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Base dataset</dt>
               <dd className="mt-1">
                 {comparison.base_dataset ? (
                   <Link
                     href={`/projects/${projectId}/datasets/${comparison.base_dataset.id}`}
-                    className="text-indigo-300 hover:text-indigo-200"
+                    className="text-accent hover:text-accent"
                   >
                     {comparison.base_dataset.name || comparison.base_dataset.id}
                   </Link>
                 ) : (
-                  <span className="text-slate-400">—</span>
+                  <span className="text-ink-3">—</span>
                 )}
               </dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-slate-500">Derived dataset</dt>
+              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Derived dataset</dt>
               <dd className="mt-1">
                 {comparison.derived_dataset ? (
                   <Link
                     href={`/projects/${projectId}/datasets/${comparison.derived_dataset.id}`}
-                    className="text-indigo-300 hover:text-indigo-200"
+                    className="text-accent hover:text-accent"
                   >
                     {comparison.derived_dataset.name || comparison.derived_dataset.id}
                   </Link>
                 ) : (
-                  <span className="text-slate-400">—</span>
+                  <span className="text-ink-3">—</span>
                 )}
               </dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-slate-500">Pipeline id</dt>
-              <dd className="mt-1 font-mono text-xs text-slate-300">
+              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Pipeline id</dt>
+              <dd className="mt-1 font-mono text-xs text-ink-2">
                 {comparison.pipeline_id ? (
                   <Link
                     href={`/projects/${projectId}/pipelines/${comparison.pipeline_id}`}
-                    className="text-indigo-300 hover:text-indigo-200"
+                    className="text-accent hover:text-accent"
                   >
                     {comparison.pipeline_id}
                   </Link>
@@ -139,20 +139,20 @@ export function RunComparisonPageView({ currentUser, projectId, comparison }: Ru
               </dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-slate-500">Steps (summary)</dt>
-              <dd className="mt-1 text-slate-200">{formatNumber(comparison.step_count)}</dd>
+              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Steps (summary)</dt>
+              <dd className="mt-1 text-ink">{formatNumber(comparison.step_count)}</dd>
             </div>
           </dl>
         </SectionPanel>
 
         <SectionPanel title="Summary availability" description="Whether before/after metrics are complete.">
-          <p className="text-sm text-slate-300">
+          <p className="text-sm text-ink-2">
             Full transformation before/after:{" "}
-            <span className={comparison.summary_available ? "text-emerald-300" : "text-slate-500"}>
+            <span className={comparison.summary_available ? "text-success" : "text-muted"}>
               {comparison.summary_available ? "Yes" : "No"}
             </span>
           </p>
-          <p className="mt-2 text-xs text-slate-500">
+          <p className="mt-2 text-xs text-muted">
             Statistical significance testing is not part of this view; this is persisted metadata only.
           </p>
         </SectionPanel>

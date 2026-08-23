@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "api-gateway"
 version = "0.1.0"
-description = "API gateway for the Intelligent Data Platform"
+description = "API gateway for Pipewright"
 requires-python = ">=3.11"
 dependencies = [
   "alembic>=1.16,<2.0",
@@ -16,11 +16,14 @@ dependencies = [
   "service-auth>=0.1.0",
   "service-comparisons>=0.1.0",
   "service-destinations>=0.1.0",
+  "service-extraction>=0.1.0",
   "service-datasets>=0.1.0",
   "service-ingestion>=0.1.0",
   "service-notifications>=0.1.0",
   "service-pipeline-runs>=0.1.0",
   "service-projects>=0.1.0",
+  "service-quality>=0.1.0",
+  "service-workflows>=0.1.0",
   "service-schedules>=0.1.0",
   "service-sources>=0.1.0",
   "service-transformations>=0.1.0",
@@ -33,11 +36,14 @@ dependencies = [
 dev = [
   "httpx>=0.28,<1.0",
   "pytest>=8.3,<9.0",
-  "ruff>=0.11,<1.0"
+  # Pinned to a minor series: ruff expands its default rule set between minors,
+  # so an open range makes `make verify` fail on unrelated new lint rules.
+  "ruff>=0.11,<0.12"
 ]
 
 [project.scripts]
 platform-bootstrap-user = "api_gateway.scripts.bootstrap_user:main"
+platform-workflow-worker = "api_gateway.scripts.workflow_worker:main"
 run-due-schedules = "api_gateway.scripts.run_due_schedules:main"
 
 [tool.setuptools.packages.find]

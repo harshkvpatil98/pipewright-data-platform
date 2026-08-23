@@ -9,7 +9,9 @@ import pandas as pd
 import pytest
 
 from service_auth.schemas import UserRead
+from service_datasets.schemas import DatasetDetailRead
 from service_ingestion.schemas import IngestionUpload
+from service_pipeline_runs.schemas import PipelineRunRead
 from service_ingestion.service import ingest_project_file
 from shared_python.errors import BadRequestError, NotFoundError
 
@@ -28,6 +30,55 @@ class FakeStorage:
 
     def delete(self, relative_path: str) -> None:
         self.deleted = True
+
+
+def _dataset_detail(dataset_id: uuid.UUID, project_id: uuid.UUID) -> DatasetDetailRead:
+    now = datetime.now(UTC)
+    return DatasetDetailRead(
+        id=dataset_id,
+        project_id=project_id,
+        source_id=None,
+        uploaded_by_user_id=None,
+        pipeline_run_id=None,
+        parent_dataset_id=None,
+        created_from_pipeline_id=None,
+        name="orders",
+        original_filename="orders.csv",
+        file_name="orders.csv",
+        file_type="csv",
+        file_size_bytes=21,
+        is_derived=False,
+        status="ready",
+        ingestion_status="succeeded",
+        row_count=1,
+        column_count=2,
+        created_at=now,
+        updated_at=now,
+        schema_snapshot=None,
+        schema_json=None,
+        profile_json=None,
+        preview_json=None,
+        ingestion_error=None,
+        last_profiled_at=None,
+    )
+
+
+def _run_detail(project_id: uuid.UUID, user_id: uuid.UUID) -> PipelineRunRead:
+    now = datetime.now(UTC)
+    return PipelineRunRead(
+        id=uuid.uuid4(),
+        project_id=project_id,
+        triggered_by_user_id=user_id,
+        pipeline_id=None,
+        run_type="dataset_upload",
+        status="succeeded",
+        started_at=now,
+        completed_at=now,
+        summary_json=None,
+        logs_json=None,
+        created_at=now,
+        updated_at=now,
+    )
 
 
 @patch("service_ingestion.service.ensure_owned_project")
@@ -62,13 +113,14 @@ def test_ingest_project_file_supported_upload_success(
     create_pipeline_run.return_value = SimpleNamespace(id=uuid.uuid4())
     dataset = SimpleNamespace(id=uuid.uuid4(), name="orders")
     create_uploaded_dataset_placeholder.return_value = dataset
-    dataset_detail = SimpleNamespace(id=dataset.id, ingestion_status="succeeded")
-    run_detail = SimpleNamespace(id=uuid.uuid4(), status="succeeded")
+    current_user_id = uuid.uuid4()
+    dataset_detail = _dataset_detail(dataset.id, project.id)
+    run_detail = _run_detail(project.id, current_user_id)
     finalize_dataset_ingestion_success.return_value = dataset_detail
     mark_pipeline_run_succeeded.return_value = run_detail
 
     current_user = UserRead(
-        id=uuid.uuid4(),
+        id=current_user_id,
         username="platform-admin",
         role="admin",
         is_active=True,
@@ -174,7 +226,9 @@ def test_ingest_project_file_marks_failed_run_on_parse_errors(
     ensure_owned_project.return_value = project
     create_pipeline_run.return_value = SimpleNamespace(id=uuid.uuid4())
     create_uploaded_dataset_placeholder.return_value = SimpleNamespace(id=uuid.uuid4(), name="broken-json")
-    finalize_dataset_ingestion_failure.return_value = SimpleNamespace(ingestion_error="Unable to parse JSON file")
+    finalize_dataset_ingestion_failure.return_value = SimpleNamespace(
+        ingestion_error="Unable to parse JSON file", ingestion_status="failed"
+    )
     current_user = UserRead(
         id=uuid.uuid4(),
         username="platform-admin",

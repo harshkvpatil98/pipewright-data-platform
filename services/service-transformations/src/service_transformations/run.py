@@ -26,6 +26,7 @@ from service_pipeline_runs.service import (
 )
 from service_projects.contracts import ensure_owned_project
 from service_transformations.contracts import get_transformation_pipeline_for_project
+from service_transformations.dataset_access import build_step_context
 from service_transformations.executor import apply_single_step
 from service_transformations.schemas import TransformationRunResponse
 from service_transformations.validators import validate_steps_json
@@ -121,6 +122,12 @@ def run_saved_transformation_pipeline(
         steps = validate_steps_json(pipeline.steps_json)
         working = source_frame.copy()
         warnings: list[str] = []
+        step_context = build_step_context(
+            db,
+            project_id=project_id,
+            storage_backend=storage_backend,
+            max_bytes=settings.max_upload_size_bytes,
+        )
 
         for index, step in enumerate(steps, start=1):
             current_stage = f"apply_step_{index}"
@@ -132,7 +139,7 @@ def run_saved_transformation_pipeline(
                 )
             )
             mark_pipeline_run_running(db, run=run, logs_json=_build_log_events(log_events))
-            working, step_warnings = apply_single_step(working, step)
+            working, step_warnings = apply_single_step(working, step, step_context)
             warnings.extend(step_warnings)
 
         row_count_after = int(len(working))

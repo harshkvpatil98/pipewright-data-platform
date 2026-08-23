@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for contributing to the Intelligent Data Platform.
+Thanks for contributing to Pipewright.
 
 ## Before opening a PR
 

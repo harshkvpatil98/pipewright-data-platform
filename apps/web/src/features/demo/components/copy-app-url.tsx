@@ -20,7 +20,7 @@ export function CopyAppUrl({ label, path }: CopyAppUrlProps) {
 
   if (full === null) {
     return (
-      <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3 text-xs text-slate-500">
+      <div className="rounded-xl border border-line bg-surface px-3 py-3 text-xs text-muted">
         {label} — preparing link…
       </div>
     );

@@ -27,12 +27,12 @@ type DatasetSuggestedTransformationsProps = {
 
 function confidenceClass(confidence: TransformationSuggestion["confidence"]): string {
   if (confidence === "high") {
-    return "border-emerald-400/30 bg-emerald-500/10 text-emerald-200";
+    return "border-success-line bg-success-soft text-success";
   }
   if (confidence === "medium") {
-    return "border-amber-400/30 bg-amber-500/10 text-amber-200";
+    return "border-warning-line bg-warning-soft text-warning";
   }
-  return "border-white/15 bg-white/[0.05] text-slate-300";
+  return "border-line-strong bg-surface text-ink-2";
 }
 
 export function DatasetSuggestedTransformations({
@@ -107,7 +107,7 @@ export function DatasetSuggestedTransformations({
         title="Suggested transformations"
         description="Rule-based recommendations from your dataset profile and schema. None apply for this dataset yet."
       >
-        <p className="text-sm text-slate-400">
+        <p className="text-sm text-ink-3">
           No suggestions right now. After ingestion profiles the columns, refresh this page to re-evaluate.
         </p>
       </SectionPanel>
@@ -120,11 +120,11 @@ export function DatasetSuggestedTransformations({
         title="Suggested transformations"
         description="Deterministic, explainable steps derived from schema, profile, and preview metadata. Suggestions are not applied automatically."
       >
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/10 px-4 py-3">
-          <div className="text-sm text-slate-300">
-            <span className="font-medium text-white">{selectedCount}</span> selected
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-sunken px-4 py-3">
+          <div className="text-sm text-ink-2">
+            <span className="font-medium text-ink">{selectedCount}</span> selected
             {selectedSuggestions.length > 0 ? (
-              <span className="text-slate-400">
+              <span className="text-ink-3">
                 {" "}
                 · {selectedSuggestions.map((suggestion) => suggestion.step_type).join(", ")}
               </span>
@@ -175,8 +175,8 @@ export function DatasetSuggestedTransformations({
                 className={[
                   "flex flex-col gap-3 rounded-2xl border p-4 transition md:flex-row md:items-start md:justify-between",
                   isSelected
-                    ? "border-indigo-400/40 bg-indigo-500/10"
-                    : "border-white/10 bg-black/10 hover:border-white/20 hover:bg-white/[0.03]",
+                    ? "border-accent-line bg-accent-soft"
+                    : "border-line bg-sunken hover:border-line-strong hover:bg-surface",
                 ].join(" ")}
               >
                 <div className="min-w-0 space-y-2">
@@ -185,14 +185,14 @@ export function DatasetSuggestedTransformations({
                       className={[
                         "inline-flex h-5 w-5 items-center justify-center rounded border text-[11px] font-semibold",
                         isSelected
-                          ? "border-indigo-300/60 bg-indigo-400/20 text-indigo-100"
-                          : "border-white/15 bg-transparent text-transparent",
+                          ? "border-accent-line bg-accent-soft text-accent"
+                          : "border-line-strong bg-transparent text-transparent",
                       ].join(" ")}
                     >
                       ✓
                     </span>
-                    <span className="font-medium text-white">{s.title}</span>
-                    <span className="rounded-full border border-white/10 px-2 py-0.5 font-mono text-[11px] uppercase tracking-wide text-slate-400">
+                    <span className="font-medium text-ink">{s.title}</span>
+                    <span className="rounded-full border border-line px-2 py-0.5 font-mono text-[11px] uppercase tracking-wide text-ink-3">
                       {s.step_type}
                     </span>
                     <span
@@ -201,8 +201,8 @@ export function DatasetSuggestedTransformations({
                       {s.confidence} confidence
                     </span>
                   </div>
-                  <p className="text-sm leading-6 text-slate-400">{s.explanation}</p>
-                  <pre className="max-h-28 overflow-auto rounded-xl border border-white/8 bg-black/20 p-3 font-mono text-[11px] text-slate-300">
+                  <p className="text-sm leading-6 text-ink-3">{s.explanation}</p>
+                  <pre className="max-h-28 overflow-auto rounded-xl border border-line bg-sunken p-3 font-mono text-[11px] text-ink-2">
                     {JSON.stringify(s.config, null, 2)}
                   </pre>
                 </div>
@@ -294,13 +294,13 @@ export function DatasetSuggestedTransformations({
             />
           </FormField>
 
-          <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-4 text-sm text-slate-300">
-            Creating a draft pipeline with <span className="font-medium text-white">{selectedCount}</span>{" "}
+          <div className="rounded-2xl border border-line bg-sunken px-4 py-4 text-sm text-ink-2">
+            Creating a draft pipeline with <span className="font-medium text-ink">{selectedCount}</span>{" "}
             step{selectedCount === 1 ? "" : "s"}, in the same order shown above.
           </div>
 
           {createError ? (
-            <div className="rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">
+            <div className="rounded-2xl border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger">
               {createError}
             </div>
           ) : null}
@@ -319,7 +319,7 @@ export function DatasetSuggestedTransformations({
         }
       >
         {jsonModal ? (
-          <pre className="max-h-[320px] overflow-auto rounded-xl border border-white/10 bg-black/30 p-3 font-mono text-[12px] leading-5 text-slate-200">
+          <pre className="max-h-[320px] overflow-auto rounded-xl border border-line bg-sunken p-3 font-mono text-[12px] leading-5 text-ink">
             {JSON.stringify({ step_type: jsonModal.step_type, config: jsonModal.config }, null, 2)}
           </pre>
         ) : null}

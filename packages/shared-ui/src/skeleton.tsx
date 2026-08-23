@@ -5,5 +5,5 @@ type SkeletonProps = {
 };
 
 export function Skeleton({ className }: SkeletonProps) {
-  return <div className={cx("animate-pulse rounded-2xl bg-white/[0.06]", className)} />;
+  return <div className={cx("animate-pulse rounded-2xl bg-surface-2", className)} />;
 }

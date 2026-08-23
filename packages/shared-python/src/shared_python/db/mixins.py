@@ -4,7 +4,11 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import DateTime, func
-from sqlalchemy.dialects.postgresql import UUID
+# `Uuid`, not the postgresql-specific `UUID`: the dialect type declares a bare
+# UUID column, which SQLite gives NUMERIC affinity, so an identifier that
+# happens to be all decimal digits is silently converted to a float and comes
+# back corrupted. `Uuid` renders native on Postgres and CHAR(32) elsewhere.
+from sqlalchemy import Uuid as UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 

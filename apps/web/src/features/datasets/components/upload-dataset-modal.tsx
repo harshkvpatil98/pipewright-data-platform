@@ -137,8 +137,8 @@ export function UploadDatasetModal({ open, onClose, projectId }: UploadDatasetMo
         </FormField>
 
         <div>
-          <div className="mb-2 text-sm font-medium text-slate-100">Source file</div>
-          <p className="mb-3 text-xs leading-5 text-slate-400">
+          <div className="mb-2 text-sm font-medium text-ink">Source file</div>
+          <p className="mb-3 text-xs leading-5 text-ink-3">
             Supported formats: csv, xlsx, json. Maximum size: {formatBytes(appConfig.maxUploadSizeBytes)}.
             Uploads are stored through the platform storage layer and immediately profiled.
           </p>
@@ -159,13 +159,13 @@ export function UploadDatasetModal({ open, onClose, projectId }: UploadDatasetMo
               "flex min-h-[180px] w-full flex-col items-center justify-center rounded-[24px] border border-dashed px-6 py-8 text-center transition",
               dragActive
                 ? "border-[color:var(--accent)] bg-[color:var(--accent-faint)]"
-                : "border-white/12 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.05]",
+                : "border-line bg-surface hover:border-line-strong hover:bg-surface",
             ].join(" ")}
           >
-            <div className="text-sm font-medium text-white">
+            <div className="text-sm font-medium text-ink">
               {file ? file.name : "Drag and drop a file here"}
             </div>
-            <div className="mt-2 text-sm text-slate-400">
+            <div className="mt-2 text-sm text-ink-3">
               {file ? `${Math.round(file.size / 1024)} KB selected` : "or click to browse your local files"}
             </div>
           </button>
@@ -179,12 +179,12 @@ export function UploadDatasetModal({ open, onClose, projectId }: UploadDatasetMo
         </div>
 
         {error ? (
-          <div className="rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">
+          <div className="rounded-2xl border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger">
             {error}
           </div>
         ) : null}
         {submitting ? (
-          <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-slate-300">
+          <div className="rounded-2xl border border-line bg-surface px-4 py-3 text-sm text-ink-2">
             Validating the upload, storing the file, and generating the initial schema, preview, and profile.
           </div>
         ) : null}

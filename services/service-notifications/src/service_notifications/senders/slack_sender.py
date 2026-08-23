@@ -17,7 +17,7 @@ def _payload_text(*, title: str, message: str, level: str, event_type: str | Non
 
 
 def send_slack_test_message(*, config: dict[str, Any]) -> tuple[bool, str]:
-    text = "Test notification from the Intelligent Data Platform (external target)."
+    text = "Test notification from the Pipewright (external target)."
     return _post_webhook(config=config, text=text)
 
 

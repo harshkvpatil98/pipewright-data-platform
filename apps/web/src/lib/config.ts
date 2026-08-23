@@ -9,7 +9,7 @@ const trim = (v: string | undefined) => (v ?? "").trim();
 
 /** Optional build-time labels for reviewer demos (Docker/CI can inject). */
 export const appConfig = {
-  appName: process.env.NEXT_PUBLIC_APP_NAME ?? "Intelligent Data Platform",
+  appName: process.env.NEXT_PUBLIC_APP_NAME ?? "Pipewright",
   apiBaseUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/v1",
   internalApiBaseUrl:
     process.env.API_INTERNAL_BASE_URL ??

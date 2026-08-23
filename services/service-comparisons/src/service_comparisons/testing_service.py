@@ -11,7 +11,7 @@ from service_datasets.models import Dataset
 from service_datasets.service import get_dataset_model_for_project
 from service_ingestion.parsers import parse_tabular_file
 from service_projects.contracts import ensure_owned_project
-from shared_python.errors import BadRequestError
+from shared_python.errors import BadRequestError, NotFoundError
 
 from service_comparisons.schemas import (
     DatasetStatisticalTestRequest,
@@ -50,7 +50,9 @@ def _load_dataframe(dataset: Dataset, storage_backend: Any) -> pd.DataFrame:
     try:
         file_bytes = storage_backend.read_bytes(dataset.file_path)
     except FileNotFoundError as exc:
-        raise BadRequestError("Stored dataset file was not found.") from exc
+        raise NotFoundError(
+            "This dataset's stored file is missing. The dataset record still exists, so re-uploading the file restores it."
+        ) from exc
     except OSError as exc:
         raise BadRequestError(f"Unable to read dataset file: {exc}") from exc
     parsed = parse_tabular_file(file_bytes=file_bytes, file_type=dataset.file_type)

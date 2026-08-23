@@ -2,7 +2,7 @@
 
 ## One-paragraph summary
 
-Intelligent Data Platform is a browser-based ETL and data operations product designed to show what a serious internal data tool can look like when it is packaged like a real engineering project. The application supports project-scoped ingestion, profiling, transformation, lineage, audit, testing, downstream publishing, scheduling, notifications, and system status through a cohesive Next.js frontend and a modular FastAPI plus Python service backend.
+Pipewright is a browser-based ETL and data operations product designed to show what a serious internal data tool can look like when it is packaged like a real engineering project. The application supports project-scoped ingestion, profiling, transformation, lineage, audit, testing, downstream publishing, scheduling, notifications, and system status through a cohesive Next.js frontend and a modular FastAPI plus Python service backend.
 
 ## Problem this project solves
 

@@ -171,25 +171,25 @@ export function PublishPowerBiModal({ open, onClose, projectId, datasetId }: Pub
     >
       <div className="flex flex-col gap-4">
         {writeMode === "replace" ? (
-          <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100/90">
+          <p className="rounded-xl border border-warning-line bg-warning-soft px-3 py-2 text-xs text-warning">
             Replace removes an existing push dataset with the same name in that workspace, then recreates it. Consumers of the old dataset id may need updates in Power BI.
           </p>
         ) : null}
         {loadingList ? (
-          <p className="text-sm text-slate-400">Loading Power BI connections…</p>
+          <p className="text-sm text-ink-3">Loading Power BI connections…</p>
         ) : connections.length === 0 ? (
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-ink-3">
             No active Power BI connections.{" "}
-            <Link href={`/projects/${projectId}/bi-connections`} className="text-indigo-300 underline">
+            <Link href={`/projects/${projectId}/bi-connections`} className="text-accent underline">
               Create one
             </Link>{" "}
             first.
           </p>
         ) : (
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
             Power BI connection
             <select
-              className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+              className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
               value={connectionId}
               onChange={(e) => {
                 setConnectionId(e.target.value);
@@ -211,10 +211,10 @@ export function PublishPowerBiModal({ open, onClose, projectId, datasetId }: Pub
           </Button>
         </div>
         {workspaces.length > 0 ? (
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
             Workspace (from discovery)
             <select
-              className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+              className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
               value={workspaceId}
               onChange={(e) => setWorkspaceId(e.target.value)}
             >
@@ -226,40 +226,40 @@ export function PublishPowerBiModal({ open, onClose, projectId, datasetId }: Pub
             </select>
           </label>
         ) : null}
-        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
           Workspace ID (paste UUID if not using discovery)
           <input
-            className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 font-mono text-sm text-slate-100"
+            className="rounded-xl border border-line bg-surface px-3 py-2 font-mono text-sm text-ink"
             value={workspaceId}
             onChange={(e) => setWorkspaceId(e.target.value)}
             placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
             autoComplete="off"
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
           Target dataset name
           <input
-            className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+            className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
             value={targetDatasetName}
             onChange={(e) => setTargetDatasetName(e.target.value)}
             placeholder="e.g. Sales from ETL"
             autoComplete="off"
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
           Target table name
           <input
-            className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 font-mono text-sm text-slate-100"
+            className="rounded-xl border border-line bg-surface px-3 py-2 font-mono text-sm text-ink"
             value={targetTableName}
             onChange={(e) => setTargetTableName(e.target.value)}
             placeholder="PublishedData"
             autoComplete="off"
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
           Write mode
           <select
-            className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+            className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
             value={writeMode}
             onChange={(e) => setWriteMode(e.target.value as "replace" | "append")}
           >
@@ -268,22 +268,22 @@ export function PublishPowerBiModal({ open, onClose, projectId, datasetId }: Pub
           </select>
         </label>
         {error ? (
-          <p className="text-sm text-rose-300" role="alert">
+          <p className="text-sm text-danger" role="alert">
             {error}
           </p>
         ) : null}
         {result ? (
-          <div className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-3 text-sm text-slate-200">
-            <p className={result.success ? "text-emerald-200/90" : "text-rose-200/90"}>{result.message}</p>
+          <div className="rounded-xl border border-line bg-surface px-3 py-3 text-sm text-ink">
+            <p className={result.success ? "text-success" : "text-danger"}>{result.message}</p>
             {result.row_count_published != null ? (
-              <p className="mt-1 text-xs text-slate-400">Rows published: {result.row_count_published}</p>
+              <p className="mt-1 text-xs text-ink-3">Rows published: {result.row_count_published}</p>
             ) : null}
             {result.power_bi_dataset_id ? (
-              <p className="mt-1 text-xs text-slate-500">Power BI dataset id: {result.power_bi_dataset_id}</p>
+              <p className="mt-1 text-xs text-muted">Power BI dataset id: {result.power_bi_dataset_id}</p>
             ) : null}
             <Link
               href={`/projects/${projectId}/runs/${result.run.id}/audit`}
-              className="mt-2 inline-block text-xs text-indigo-300 underline"
+              className="mt-2 inline-block text-xs text-accent underline"
             >
               View run audit
             </Link>

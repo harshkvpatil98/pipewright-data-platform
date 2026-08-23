@@ -138,12 +138,12 @@ export function DemoOverviewPage() {
         <div className="flex flex-wrap gap-2">
           <Link
             href="/projects"
-            className="rounded-xl border border-indigo-400/30 bg-indigo-500/10 px-4 py-2 text-sm font-medium text-indigo-100 hover:border-indigo-400/50"
+            className="rounded-xl border border-accent-line bg-accent-soft px-4 py-2 text-sm font-medium text-accent hover:border-accent-line"
           >
             1. Projects
           </Link>
-          <span className="self-center text-slate-600">→</span>
-          <span className="self-center text-sm text-slate-400">Upload dataset → pipeline → compare → audit → publish → schedules</span>
+          <span className="self-center text-muted">→</span>
+          <span className="self-center text-sm text-ink-3">Upload dataset → pipeline → compare → audit → publish → schedules</span>
         </div>
       </SectionPanel>
 
@@ -151,28 +151,28 @@ export function DemoOverviewPage() {
         title="What this platform does"
         description="Production-style modular ETL operations in the browser: ingestion through delivery, with runs, audits, and light-weight testing."
       >
-        <ul className="list-inside list-disc space-y-2 text-sm text-slate-300">
+        <ul className="list-inside list-disc space-y-2 text-sm text-ink-2">
           <li>Orchestrated actions persist as pipeline runs with structured summaries and logs.</li>
           <li>Project-scoped security: owned datasets, destinations, schedules, and BI configs.</li>
           <li>Operational surfaces: notifications, system status, and schedule execution hooks.</li>
         </ul>
-        <p className="mt-4 text-xs text-slate-500">
-          Repository walkthrough for reviewers: <code className="rounded bg-black/30 px-1">docs/demo-guide.md</code> · Deploy and
-          CI: <code className="rounded bg-black/30 px-1">docs/deployment-guide.md</code> · Release checklist:{" "}
-          <code className="rounded bg-black/30 px-1">docs/release-checklist.md</code> · Quick acceptance:{" "}
-          <code className="rounded bg-black/30 px-1">./scripts/smoke-test.sh</code> or <code className="rounded bg-black/30 px-1">make smoke</code>
+        <p className="mt-4 text-xs text-muted">
+          Repository walkthrough for reviewers: <code className="rounded bg-sunken px-1">docs/demo-guide.md</code> · Deploy and
+          CI: <code className="rounded bg-sunken px-1">docs/deployment-guide.md</code> · Release checklist:{" "}
+          <code className="rounded bg-sunken px-1">docs/release-checklist.md</code> · Quick acceptance:{" "}
+          <code className="rounded bg-sunken px-1">./scripts/smoke-test.sh</code> or <code className="rounded bg-sunken px-1">make smoke</code>
         </p>
       </SectionPanel>
 
       <SectionPanel title="Capability map" description="Implemented modules grouped for quick scanning.">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {capabilityCategories.map((cat) => (
-            <div key={cat.title} className="h-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4">
-              <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">{cat.title}</div>
-              <ul className="mt-3 space-y-2 text-sm text-slate-300">
+            <div key={cat.title} className="h-full rounded-2xl border border-line bg-surface px-4 py-4">
+              <div className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-3">{cat.title}</div>
+              <ul className="mt-3 space-y-2 text-sm text-ink-2">
                 {cat.items.map((item) => (
                   <li key={item} className="flex gap-2">
-                    <span className="text-emerald-400/90" aria-hidden>
+                    <span className="text-success" aria-hidden>
                       ·
                     </span>
                     <span>{item}</span>
@@ -192,29 +192,29 @@ export function DemoOverviewPage() {
           {walkthroughSteps.map((step, i) => (
             <li
               key={step.title}
-              className="flex flex-col gap-3 rounded-2xl border border-white/[0.08] bg-black/20 px-4 py-4 transition hover:border-white/12 sm:flex-row sm:items-start sm:justify-between"
+              className="flex flex-col gap-3 rounded-2xl border border-line bg-sunken px-4 py-4 transition hover:border-line sm:flex-row sm:items-start sm:justify-between"
             >
               <div className="flex gap-3">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.06] text-xs font-semibold text-slate-200">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-line bg-surface-2 text-xs font-semibold text-ink">
                   {i + 1}
                 </span>
                 <div>
-                  <div className="font-medium text-white">{step.title}</div>
-                  <p className="mt-1 text-sm text-slate-400">{step.detail}</p>
-                  <span className="mt-2 inline-block text-[10px] uppercase tracking-[0.14em] text-slate-500">{step.cta}</span>
+                  <div className="font-medium text-ink">{step.title}</div>
+                  <p className="mt-1 text-sm text-ink-3">{step.detail}</p>
+                  <span className="mt-2 inline-block text-[10px] uppercase tracking-[0.14em] text-muted">{step.cta}</span>
                 </div>
               </div>
               <Link
                 href={step.href}
-                className="shrink-0 self-start rounded-lg border border-white/15 px-3 py-1.5 text-xs font-medium text-slate-200 hover:border-white/25 sm:self-center"
+                className="shrink-0 self-start rounded-lg border border-line-strong px-3 py-1.5 text-xs font-medium text-ink hover:border-line-strong sm:self-center"
               >
                 Open
               </Link>
             </li>
           ))}
         </ol>
-        <p className="mt-4 text-xs text-slate-500">
-          Use <Link href="/notifications" className="text-indigo-300 underline">Notifications</Link> from the sidebar for in-app alerts (step 12 focuses on system status).
+        <p className="mt-4 text-xs text-muted">
+          Use <Link href="/notifications" className="text-accent underline">Notifications</Link> from the sidebar for in-app alerts (step 12 focuses on system status).
         </p>
       </SectionPanel>
 
@@ -231,7 +231,7 @@ export function DemoOverviewPage() {
         </div>
       </SectionPanel>
 
-      <div className="mt-2 border-t border-white/[0.06] pt-4">
+      <div className="mt-2 border-t border-line pt-4">
         <ReleaseBuildMeta />
       </div>
     </AppShell>

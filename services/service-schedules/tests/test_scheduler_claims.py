@@ -117,7 +117,6 @@ def test_run_due_preserves_retry_after_claim_flow() -> None:
     """Failure path still increments retry_count via finalize (claim does not change retry logic)."""
     sid = uuid.uuid4()
     pid = uuid.uuid4()
-    now = datetime.now(UTC)
     row = MagicMock(spec=ScheduledOperation)
     row.id = sid
     row.project_id = pid

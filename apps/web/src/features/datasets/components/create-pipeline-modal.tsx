@@ -173,7 +173,7 @@ export function CreatePipelineModal({ open, onClose, projectId, datasetId }: Cre
         </FormField>
 
         {error ? (
-          <div className="rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">
+          <div className="rounded-2xl border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger">
             {error}
           </div>
         ) : null}

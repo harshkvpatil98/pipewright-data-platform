@@ -386,7 +386,7 @@ function FilterRowsForm({ step, onChange, fieldErrors }: StepFormProps) {
   return (
     <div className="space-y-4">
       {fieldErrors?.conditions ? (
-        <div className="rounded-xl border border-rose-400/20 bg-rose-400/10 px-3 py-2 text-sm text-rose-200">
+        <div className="rounded-xl border border-danger-line bg-danger-soft px-3 py-2 text-sm text-danger">
           {fieldErrors.conditions}
         </div>
       ) : null}

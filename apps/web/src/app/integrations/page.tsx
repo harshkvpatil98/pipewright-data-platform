@@ -1,5 +1,9 @@
-import { PlaceholderPage } from "@/components/common/placeholder-page";
+import { requireCurrentUser } from "@/lib/auth/server";
+import { redirectToProjectScope } from "@/lib/project-scope";
 
-export default function IntegrationHubPage() {
-  return <PlaceholderPage title="Integration Hub" description="External sources, destinations, BI tooling, and cloud integration configuration will be managed from here." />;
+export const dynamic = "force-dynamic";
+
+export default async function IntegrationsPage() {
+  await requireCurrentUser();
+  await redirectToProjectScope("/destinations");
 }

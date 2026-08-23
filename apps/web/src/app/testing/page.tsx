@@ -1,5 +1,9 @@
-import { PlaceholderPage } from "@/components/common/placeholder-page";
+import { requireCurrentUser } from "@/lib/auth/server";
+import { redirectToProjectScope } from "@/lib/project-scope";
 
-export default function TestingLabPage() {
-  return <PlaceholderPage title="Testing Lab" description="A/B tests, before-versus-after evaluations, and statistical confidence workflows will live in this module." />;
+export const dynamic = "force-dynamic";
+
+export default async function TestingPage() {
+  await requireCurrentUser();
+  await redirectToProjectScope("/tests/saved");
 }

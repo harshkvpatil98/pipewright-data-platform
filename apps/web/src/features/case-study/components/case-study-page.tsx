@@ -143,20 +143,20 @@ export function CaseStudyPage() {
         description="This platform is a browser-based internal data operations product for project-scoped ETL work: upload data, profile it, transform it, validate outcomes, publish downstream, and operate recurring workflows."
       >
         <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="h-full rounded-2xl border border-indigo-400/20 bg-indigo-500/[0.07] px-5 py-4 text-sm text-slate-200">
-            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-200">Problem solved</div>
-            <p className="mt-3 leading-6 text-slate-200">
+          <div className="h-full rounded-2xl border border-accent-line bg-accent-soft px-5 py-4 text-sm text-ink">
+            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Problem solved</div>
+            <p className="mt-3 leading-6 text-ink">
               Data teams often end up stitching together file uploads, ad hoc transformation scripts, one-off QA checks, manual publishes,
               and scattered operational follow-up. This project brings those concerns into one modular platform with shared run tracking,
               ownership enforcement, and reviewer-visible operational surfaces.
             </p>
           </div>
-          <div className="h-full rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-4">
-            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">What it does today</div>
-            <ul className="mt-3 space-y-2 text-sm text-slate-300">
+          <div className="h-full rounded-2xl border border-line bg-surface px-5 py-4">
+            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-3">What it does today</div>
+            <ul className="mt-3 space-y-2 text-sm text-ink-2">
               {moduleHighlights.map((item) => (
                 <li key={item} className="flex gap-2">
-                  <span className="text-emerald-400" aria-hidden>
+                  <span className="text-success" aria-hidden>
                     ·
                   </span>
                   <span>{item}</span>
@@ -172,18 +172,18 @@ export function CaseStudyPage() {
         description="A concise showcase layer for interviews and portfolio reviews: what it is, why it is stronger than CRUD, and how features map to business value."
       >
         <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
-          <div className="rounded-2xl border border-indigo-400/20 bg-indigo-500/[0.06] px-5 py-4">
-            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-200">Technical elevator pitch</div>
-            <p className="mt-3 text-sm leading-6 text-slate-200">
+          <div className="rounded-2xl border border-accent-line bg-accent-soft px-5 py-4">
+            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Technical elevator pitch</div>
+            <p className="mt-3 text-sm leading-6 text-ink">
               This is a modular ETL operations platform, not a single-page CRUD demo. It covers ingestion, profiling, transformation,
               audit, testing, downstream publishing, scheduling, notifications, BI integration, and operational status through one
               reviewer-friendly product shell backed by service-oriented Python packages and typed frontend contracts.
             </p>
-            <div className="mt-4 text-xs uppercase tracking-[0.16em] text-slate-500">Interviewer talking points</div>
-            <ul className="mt-3 space-y-2 text-sm text-slate-300">
+            <div className="mt-4 text-xs uppercase tracking-[0.16em] text-muted">Interviewer talking points</div>
+            <ul className="mt-3 space-y-2 text-sm text-ink-2">
               {showcaseTalkingPoints.map((item) => (
                 <li key={item} className="flex gap-2">
-                  <span className="text-emerald-400" aria-hidden>
+                  <span className="text-success" aria-hidden>
                     ·
                   </span>
                   <span>{item}</span>
@@ -191,13 +191,13 @@ export function CaseStudyPage() {
               ))}
             </ul>
           </div>
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-4">
-            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Feature to business value</div>
+          <div className="rounded-2xl border border-line bg-surface px-5 py-4">
+            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-3">Feature to business value</div>
             <div className="mt-3 space-y-3">
               {showcaseValueMap.map((row) => (
-                <div key={row.feature} className="rounded-2xl border border-white/[0.08] bg-black/20 px-4 py-3">
-                  <div className="text-sm font-medium text-white">{row.feature}</div>
-                  <p className="mt-1 text-sm leading-6 text-slate-400">{row.value}</p>
+                <div key={row.feature} className="rounded-2xl border border-line bg-sunken px-4 py-3">
+                  <div className="text-sm font-medium text-ink">{row.feature}</div>
+                  <p className="mt-1 text-sm leading-6 text-ink-3">{row.value}</p>
                 </div>
               ))}
             </div>
@@ -210,21 +210,21 @@ export function CaseStudyPage() {
         description="The project is organized like a real internal platform: one web app, one public gateway, explicit domain packages, shared contracts, and persistent run state."
       >
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4">
-            <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Frontend</div>
-            <p className="mt-3 text-sm text-slate-300">Next.js App Router UI with project workspaces, review pages, operational controls, and typed fetch helpers.</p>
+          <div className="rounded-2xl border border-line bg-surface px-4 py-4">
+            <div className="text-xs uppercase tracking-[0.16em] text-muted">Frontend</div>
+            <p className="mt-3 text-sm text-ink-2">Next.js App Router UI with project workspaces, review pages, operational controls, and typed fetch helpers.</p>
           </div>
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4">
-            <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Gateway</div>
-            <p className="mt-3 text-sm text-slate-300">FastAPI gateway exposing one versioned API surface while delegating domain logic to service packages.</p>
+          <div className="rounded-2xl border border-line bg-surface px-4 py-4">
+            <div className="text-xs uppercase tracking-[0.16em] text-muted">Gateway</div>
+            <p className="mt-3 text-sm text-ink-2">FastAPI gateway exposing one versioned API surface while delegating domain logic to service packages.</p>
           </div>
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4">
-            <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Domain services</div>
-            <p className="mt-3 text-sm text-slate-300">Separate service packages for datasets, ingestion, pipeline runs, comparisons, destinations, schedules, notifications, and more.</p>
+          <div className="rounded-2xl border border-line bg-surface px-4 py-4">
+            <div className="text-xs uppercase tracking-[0.16em] text-muted">Domain services</div>
+            <p className="mt-3 text-sm text-ink-2">Separate service packages for datasets, ingestion, pipeline runs, comparisons, destinations, schedules, notifications, and more.</p>
           </div>
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4">
-            <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Persistence and storage</div>
-            <p className="mt-3 text-sm text-slate-300">PostgreSQL via SQLAlchemy/Alembic plus file storage abstraction for dataset artifacts and derived outputs.</p>
+          <div className="rounded-2xl border border-line bg-surface px-4 py-4">
+            <div className="text-xs uppercase tracking-[0.16em] text-muted">Persistence and storage</div>
+            <p className="mt-3 text-sm text-ink-2">PostgreSQL via SQLAlchemy/Alembic plus file storage abstraction for dataset artifacts and derived outputs.</p>
           </div>
         </div>
       </SectionPanel>
@@ -235,12 +235,12 @@ export function CaseStudyPage() {
       >
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {platformCapabilities.map((group) => (
-            <div key={group.title} className="h-full rounded-2xl border border-white/10 bg-black/20 px-4 py-4">
-              <div className="text-sm font-semibold text-white">{group.title}</div>
-              <ul className="mt-3 space-y-2 text-sm text-slate-300">
+            <div key={group.title} className="h-full rounded-2xl border border-line bg-sunken px-4 py-4">
+              <div className="text-sm font-semibold text-ink">{group.title}</div>
+              <ul className="mt-3 space-y-2 text-sm text-ink-2">
                 {group.items.map((item) => (
                   <li key={item} className="flex gap-2">
-                    <span className="text-indigo-300" aria-hidden>
+                    <span className="text-accent" aria-hidden>
                       ·
                     </span>
                     <span>{item}</span>
@@ -258,11 +258,11 @@ export function CaseStudyPage() {
       >
         <ol className="grid gap-3 lg:grid-cols-2">
           {endToEndFlow.map((step, index) => (
-            <li key={step} className="flex gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.03] px-4 py-4">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.06] text-xs font-semibold text-slate-200">
+            <li key={step} className="flex gap-3 rounded-2xl border border-line bg-surface px-4 py-4">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-line bg-surface-2 text-xs font-semibold text-ink">
                 {index + 1}
               </span>
-              <span className="pt-1 text-sm text-slate-300">{step}</span>
+              <span className="pt-1 text-sm text-ink-2">{step}</span>
             </li>
           ))}
         </ol>
@@ -273,9 +273,9 @@ export function CaseStudyPage() {
           title="Business value"
           description="This platform is useful because it consolidates recurring data operations work into a controlled, reviewable workflow."
         >
-          <ul className="space-y-3 text-sm text-slate-300">
+          <ul className="space-y-3 text-sm text-ink-2">
             {businessValue.map((item) => (
-              <li key={item} className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 leading-6">
+              <li key={item} className="rounded-2xl border border-line bg-surface px-4 py-3 leading-6">
                 {item}
               </li>
             ))}
@@ -286,9 +286,9 @@ export function CaseStudyPage() {
           title="Technical highlights"
           description="The engineering depth comes from orchestration, modularity, persistence, and operations support rather than from isolated UI polish."
         >
-          <ul className="space-y-3 text-sm text-slate-300">
+          <ul className="space-y-3 text-sm text-ink-2">
             {technicalHighlights.map((item) => (
-              <li key={item} className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 leading-6">
+              <li key={item} className="rounded-2xl border border-line bg-surface px-4 py-3 leading-6">
                 {item}
               </li>
             ))}
@@ -301,17 +301,17 @@ export function CaseStudyPage() {
         description="The value for reviewers is not just that multiple pages exist, but that the platform demonstrates real software engineering concerns."
       >
         <div className="grid gap-4 md:grid-cols-2">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-4">
-            <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Production-oriented posture</div>
-            <p className="mt-3 text-sm leading-6 text-slate-300">
+          <div className="rounded-2xl border border-line bg-surface px-5 py-4">
+            <div className="text-xs uppercase tracking-[0.16em] text-muted">Production-oriented posture</div>
+            <p className="mt-3 text-sm leading-6 text-ink-2">
               The repo includes migrations, shared contracts, env templates, Docker-based local runtime, release verification scripts, CI parity,
               status aggregation, redacted config handling, and operational notifications. That makes it substantially more representative than a
               basic CRUD portfolio project.
             </p>
           </div>
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-4">
-            <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Multi-step workflow depth</div>
-            <p className="mt-3 text-sm leading-6 text-slate-300">
+          <div className="rounded-2xl border border-line bg-surface px-5 py-4">
+            <div className="text-xs uppercase tracking-[0.16em] text-muted">Multi-step workflow depth</div>
+            <p className="mt-3 text-sm leading-6 text-ink-2">
               Users can move from ingestion to transformation, lineage, audit, testing, publishing, scheduling, and notification review within one
               coherent platform. That end-to-end flow shows orchestration and state management complexity beyond isolated forms and tables.
             </p>
@@ -323,19 +323,19 @@ export function CaseStudyPage() {
         title="How to talk about this project"
         description="Use these points in a recruiter screen, portfolio walkthrough, or technical interview."
       >
-        <ul className="space-y-3 text-sm text-slate-300">
+        <ul className="space-y-3 text-sm text-ink-2">
           {reviewerSummary.map((item) => (
-            <li key={item} className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+            <li key={item} className="rounded-2xl border border-line bg-sunken px-4 py-3">
               {item}
             </li>
           ))}
         </ul>
-        <div className="mt-4 flex flex-wrap gap-2 text-xs text-slate-500">
-          <span className="rounded-full border border-white/10 px-3 py-1">Internal tooling</span>
-          <span className="rounded-full border border-white/10 px-3 py-1">Modular backend</span>
-          <span className="rounded-full border border-white/10 px-3 py-1">ETL operations</span>
-          <span className="rounded-full border border-white/10 px-3 py-1">Auditability</span>
-          <span className="rounded-full border border-white/10 px-3 py-1">Operational workflows</span>
+        <div className="mt-4 flex flex-wrap gap-2 text-xs text-muted">
+          <span className="rounded-full border border-line px-3 py-1">Internal tooling</span>
+          <span className="rounded-full border border-line px-3 py-1">Modular backend</span>
+          <span className="rounded-full border border-line px-3 py-1">ETL operations</span>
+          <span className="rounded-full border border-line px-3 py-1">Auditability</span>
+          <span className="rounded-full border border-line px-3 py-1">Operational workflows</span>
         </div>
       </SectionPanel>
 
@@ -344,17 +344,17 @@ export function CaseStudyPage() {
         description="Use the page below depending on whether someone wants a quick product summary, a guided click path, or detailed documentation."
       >
         <div className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4">
-            <div className="text-sm font-semibold text-white">Case study</div>
-            <p className="mt-2 text-sm text-slate-400">This page: concise business and technical framing for recruiters and reviewers.</p>
+          <div className="rounded-2xl border border-line bg-surface px-4 py-4">
+            <div className="text-sm font-semibold text-ink">Case study</div>
+            <p className="mt-2 text-sm text-ink-3">This page: concise business and technical framing for recruiters and reviewers.</p>
           </div>
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4">
-            <div className="text-sm font-semibold text-white">Demo guide</div>
-            <p className="mt-2 text-sm text-slate-400">Use `/demo` for the click path and `docs/demo-guide.md` for setup plus verification details.</p>
+          <div className="rounded-2xl border border-line bg-surface px-4 py-4">
+            <div className="text-sm font-semibold text-ink">Demo guide</div>
+            <p className="mt-2 text-sm text-ink-3">Use `/demo` for the click path and `docs/demo-guide.md` for setup plus verification details.</p>
           </div>
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4">
-            <div className="text-sm font-semibold text-white">Architecture docs</div>
-            <p className="mt-2 text-sm text-slate-400">Use `README.md`, `docs/architecture.md`, and `docs/agent-context.md` for deeper technical detail.</p>
+          <div className="rounded-2xl border border-line bg-surface px-4 py-4">
+            <div className="text-sm font-semibold text-ink">Architecture docs</div>
+            <p className="mt-2 text-sm text-ink-3">Use `README.md`, `docs/architecture.md`, and `docs/agent-context.md` for deeper technical detail.</p>
           </div>
         </div>
       </SectionPanel>
@@ -363,31 +363,31 @@ export function CaseStudyPage() {
         title={"Release candidate & known limitations"}
         description="Honest scope for handoff. This is a repo-contained platform, not a full cloud control plane."
       >
-        <ul className="space-y-2 text-sm text-slate-300">
+        <ul className="space-y-2 text-sm text-ink-2">
           <li>
-            <strong className="font-medium text-slate-200">Ready-for-review flow:</strong> follow <code className="rounded bg-black/30 px-1 text-xs">docs/release-checklist.md</code>, run{" "}
-            <code className="rounded bg-black/30 px-1 text-xs">make verify</code> for full CI-parity checks, and{" "}
-            <code className="rounded bg-black/30 px-1 text-xs">make smoke</code> (or <code className="rounded bg-black/30 px-1 text-xs">./scripts/smoke-test.sh</code>) with the gateway up for a quick API sanity check.
+            <strong className="font-medium text-ink">Ready-for-review flow:</strong> follow <code className="rounded bg-sunken px-1 text-xs">docs/release-checklist.md</code>, run{" "}
+            <code className="rounded bg-sunken px-1 text-xs">make verify</code> for full CI-parity checks, and{" "}
+            <code className="rounded bg-sunken px-1 text-xs">make smoke</code> (or <code className="rounded bg-sunken px-1 text-xs">./scripts/smoke-test.sh</code>) with the gateway up for a quick API sanity check.
           </li>
           <li>
-            Scheduler execution uses <strong className="font-medium text-slate-200">Postgres-backed leases</strong> for safer multi-poller setups; it is not equivalent to a distributed job platform, Redis locks, or leader election.
+            Scheduler execution uses <strong className="font-medium text-ink">Postgres-backed leases</strong> for safer multi-poller setups; it is not equivalent to a distributed job platform, Redis locks, or leader election.
           </li>
           <li>
-            Sensitive integration fields use <strong className="font-medium text-slate-200">app-level Fernet encryption</strong> in the database; external KMS/Vault is not bundled.
+            Sensitive integration fields use <strong className="font-medium text-ink">app-level Fernet encryption</strong> in the database; external KMS/Vault is not bundled.
           </li>
           <li>
-            <strong className="font-medium text-slate-200">BI publishing</strong> covers practical push/Hyper flows—not full semantic modeling, workbook automation, or hosted BI administration.
+            <strong className="font-medium text-ink">BI publishing</strong> covers practical push/Hyper flows—not full semantic modeling, workbook automation, or hosted BI administration.
           </li>
           <li>
-            <strong className="font-medium text-slate-200">External notifications</strong> (email, Slack webhook) are best-effort fan-out from the same events as in-app notifications.
+            <strong className="font-medium text-ink">External notifications</strong> (email, Slack webhook) are best-effort fan-out from the same events as in-app notifications.
           </li>
           <li>
-            <strong className="font-medium text-slate-200">Packaging</strong> is Compose/Dockerfile-centric; production IaC, multi-region, and managed observability are out of scope for this repository.
+            <strong className="font-medium text-ink">Packaging</strong> is Compose/Dockerfile-centric; production IaC, multi-region, and managed observability are out of scope for this repository.
           </li>
         </ul>
       </SectionPanel>
 
-      <div className="mt-2 border-t border-white/[0.06] pt-4">
+      <div className="mt-2 border-t border-line pt-4">
         <ReleaseBuildMeta />
       </div>
     </AppShell>

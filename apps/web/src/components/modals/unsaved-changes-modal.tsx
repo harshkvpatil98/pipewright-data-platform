@@ -37,7 +37,7 @@ export function UnsavedChangesModal({
         </div>
       }
     >
-      <div className="rounded-2xl border border-amber-400/20 bg-amber-500/10 px-4 py-4 text-sm leading-6 text-amber-100">
+      <div className="rounded-2xl border border-warning-line bg-warning-soft px-4 py-4 text-sm leading-6 text-warning">
         Unsaved edits in this editor will be discarded if you continue.
       </div>
     </Modal>

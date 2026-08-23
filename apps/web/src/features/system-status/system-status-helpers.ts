@@ -15,12 +15,12 @@ export function serviceHealthTone(status: ServiceHealthStatus): StatusTone {
 export function toneClasses(tone: StatusTone): string {
   switch (tone) {
     case "success":
-      return "border-emerald-400/30 bg-emerald-500/10 text-emerald-100";
+      return "border-success-line bg-success-soft text-success";
     case "warning":
-      return "border-amber-400/30 bg-amber-500/10 text-amber-100";
+      return "border-warning-line bg-warning-soft text-warning";
     case "danger":
-      return "border-rose-400/30 bg-rose-500/10 text-rose-100";
+      return "border-danger-line bg-danger-soft text-danger";
     default:
-      return "border-slate-500/30 bg-slate-500/10 text-slate-200";
+      return "border-line bg-surface-2 text-ink";
   }
 }

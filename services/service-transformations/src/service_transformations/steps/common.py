@@ -74,7 +74,7 @@ def require_mapping(value: Any, *, field_name: str, allow_empty: bool = False) -
 
 
 def infer_series_type(series: pd.Series) -> str:
-    from pandas.api.types import is_bool_dtype, is_integer_dtype, is_numeric_dtype, is_string_dtype
+    from pandas.api.types import is_bool_dtype, is_integer_dtype, is_string_dtype
 
     non_null = series.dropna()
     if non_null.empty:

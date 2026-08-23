@@ -312,7 +312,7 @@ export function SchedulesPageView({
           <>
             <Link
               href={`/projects/${projectId}`}
-              className="inline-flex h-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] px-4 text-sm font-medium text-slate-100 transition hover:border-white/20 hover:bg-white/[0.09]"
+              className="inline-flex h-11 items-center justify-center rounded-xl border border-line bg-surface-2 px-4 text-sm font-medium text-ink transition hover:border-line-strong hover:bg-surface-2"
             >
               Back to project
             </Link>
@@ -328,12 +328,12 @@ export function SchedulesPageView({
           </div>
         ) : null}
         {triggerMessage ? (
-          <div className="mb-4 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-4 text-sm text-emerald-200 shadow-[0_12px_30px_rgba(6,78,59,0.16)]">
+          <div className="mb-4 rounded-2xl border border-success-line bg-success-soft px-4 py-4 text-sm text-success shadow-[var(--shadow-md)]">
             <p>{triggerMessage}</p>
             {triggerRunId ? (
               <Link
                 href={`/projects/${projectId}/runs/${triggerRunId}/audit`}
-                className="mt-2 inline-block text-xs font-medium text-indigo-200 underline underline-offset-4"
+                className="mt-2 inline-block text-xs font-medium text-accent underline underline-offset-4"
               >
                 View run audit
               </Link>
@@ -348,10 +348,10 @@ export function SchedulesPageView({
           {items.length === 0 ? (
             <OperationalEmpty description="No schedules yet. Create one to run a transformation pipeline or PostgreSQL publish on a cron; ensure the due-schedule executor runs for automatic execution." />
           ) : (
-            <div className="overflow-hidden rounded-[24px] border border-white/8 bg-black/10">
+            <div className="overflow-hidden rounded-[24px] border border-line bg-sunken">
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[1100px] border-collapse text-left text-sm text-slate-200">
-                  <thead className="border-b border-white/10 text-xs uppercase tracking-[0.14em] text-slate-500">
+                <table className="w-full min-w-[1100px] border-collapse text-left text-sm text-ink">
+                  <thead className="border-b border-line text-xs uppercase tracking-[0.14em] text-muted">
                     <tr>
                       <th className="py-2 pr-3 font-medium">Name</th>
                       <th className="py-2 pr-3 font-medium">Type</th>
@@ -370,46 +370,46 @@ export function SchedulesPageView({
                   </thead>
                   <tbody>
                     {items.map((row) => (
-                      <tr key={row.id} className="border-b border-white/[0.06] transition hover:bg-white/[0.025]">
-                        <td className="py-2 pr-3 font-medium text-slate-100">{row.name}</td>
-                        <td className="py-2 pr-3 text-slate-400">{scheduleTypeLabel(row.schedule_type)}</td>
-                        <td className="py-2 pr-3 font-mono text-xs text-slate-300">{row.cron_expression}</td>
+                      <tr key={row.id} className="border-b border-line transition hover:bg-surface">
+                        <td className="py-2 pr-3 font-medium text-ink">{row.name}</td>
+                        <td className="py-2 pr-3 text-ink-3">{scheduleTypeLabel(row.schedule_type)}</td>
+                        <td className="py-2 pr-3 font-mono text-xs text-ink-2">{row.cron_expression}</td>
                         <td className="py-2 pr-3">
                           <span
                             className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${
                               row.enabled
-                                ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-200"
-                                : "border-slate-500/20 bg-slate-500/10 text-slate-300"
+                                ? "border-success-line bg-success-soft text-success"
+                                : "border-line bg-surface-2 text-ink-2"
                             }`}
                           >
                             {row.enabled ? "Enabled" : "Disabled"}
                           </span>
                         </td>
-                        <td className="py-2 pr-3 text-slate-400">
+                        <td className="py-2 pr-3 text-ink-3">
                           {row.next_run_at ? formatDate(row.next_run_at) : "—"}
                         </td>
-                        <td className="py-2 pr-3 font-mono text-xs text-slate-400">
+                        <td className="py-2 pr-3 font-mono text-xs text-ink-3">
                           {row.retry_count_current}/{row.max_retries}
                         </td>
-                        <td className="py-2 pr-3 text-slate-400">
+                        <td className="py-2 pr-3 text-ink-3">
                           {row.next_retry_at ? formatDate(row.next_retry_at) : "—"}
                         </td>
-                        <td className="py-2 pr-3 text-slate-400" title={row.claim_expires_at ?? undefined}>
+                        <td className="py-2 pr-3 text-ink-3" title={row.claim_expires_at ?? undefined}>
                           <span className="text-xs">{scheduleLeaseLabel(row)}</span>
                           {row.claim_expires_at ? (
-                            <div className="mt-0.5 font-mono text-[11px] text-slate-500">
+                            <div className="mt-0.5 font-mono text-[11px] text-muted">
                               until {formatDate(row.claim_expires_at)}
                             </div>
                           ) : null}
                         </td>
-                        <td className="py-2 pr-3 text-slate-400">
+                        <td className="py-2 pr-3 text-ink-3">
                           {row.last_failure_at ? formatDate(row.last_failure_at) : "—"}
                         </td>
-                        <td className="py-2 pr-3 text-slate-300">{formatRunStatusLabel(row.last_run_status)}</td>
-                        <td className="py-2 pr-3 text-slate-400">
+                        <td className="py-2 pr-3 text-ink-2">{formatRunStatusLabel(row.last_run_status)}</td>
+                        <td className="py-2 pr-3 text-ink-3">
                           {row.last_run_finished_at ? formatDate(row.last_run_finished_at) : "—"}
                         </td>
-                        <td className="py-2 pr-3 text-slate-400">
+                        <td className="py-2 pr-3 text-ink-3">
                           {row.last_triggered_at ? formatDate(row.last_triggered_at) : "—"}
                         </td>
                         <td className="py-2 text-right">
@@ -548,12 +548,12 @@ export function SchedulesPageView({
                 </Select>
               </FormField>
               {writeMode === "replace" ? (
-                <p className="text-xs text-amber-200/90">Replace mode overwrites the target table when triggered.</p>
+                <p className="text-xs text-warning">Replace mode overwrites the target table when triggered.</p>
               ) : null}
             </>
           )}
 
-          {formError ? <p className="text-sm text-rose-300">{formError}</p> : null}
+          {formError ? <p className="text-sm text-danger">{formError}</p> : null}
 
           <div className="flex justify-end gap-2 pt-2">
             <Button

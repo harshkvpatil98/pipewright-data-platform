@@ -44,10 +44,10 @@ export function ProjectsPageView({ currentUser, projects }: ProjectsPageViewProp
         actions={<Button onClick={() => setIsCreateOpen(true)}>New project</Button>}
         meta={
           <>
-            <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs uppercase tracking-[0.18em] text-slate-300">
+            <span className="rounded-full border border-line bg-surface px-3 py-1 text-xs uppercase tracking-[0.18em] text-ink-2">
               User-owned scope
             </span>
-            <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs uppercase tracking-[0.18em] text-slate-300">
+            <span className="rounded-full border border-line bg-surface px-3 py-1 text-xs uppercase tracking-[0.18em] text-ink-2">
               Signed in as {currentUser.username}
             </span>
           </>

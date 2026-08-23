@@ -10,10 +10,10 @@ export function FormField({ label, htmlFor, description, error, children }: Form
   return (
     <label htmlFor={htmlFor} className="block space-y-2">
       <div className="flex items-center justify-between gap-3">
-        <span className="text-sm font-medium text-slate-100">{label}</span>
-        {error ? <span className="text-xs text-rose-300">{error}</span> : null}
+        <span className="text-sm font-medium text-ink">{label}</span>
+        {error ? <span className="text-xs text-danger">{error}</span> : null}
       </div>
-      {description ? <p className="text-xs leading-5 text-slate-400">{description}</p> : null}
+      {description ? <p className="text-xs leading-5 text-ink-3">{description}</p> : null}
       {children}
     </label>
   );

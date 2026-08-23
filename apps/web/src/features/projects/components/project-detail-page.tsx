@@ -60,11 +60,6 @@ export function ProjectDetailPageView({
     () => datasets.filter((dataset) => dataset.source_id !== null).length,
     [datasets],
   );
-  const sourceNameMap = useMemo(
-    () => new Map(sources.map((source) => [source.id, source.name])),
-    [sources],
-  );
-
   const triggerSampleRun = async () => {
     setRunSubmitting(true);
     setRunError(null);
@@ -96,32 +91,62 @@ export function ProjectDetailPageView({
         actions={
           <>
             <Link
+              href={`/projects/${project.id}/studio`}
+              className="inline-flex items-center rounded-full border border-[color:var(--accent-soft)] bg-[color:var(--accent-faint)] px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:brightness-110"
+            >
+              Open Studio
+            </Link>
+            <Link
+              href={`/projects/${project.id}/table-editor`}
+              className="inline-flex items-center rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:border-line-strong"
+            >
+              Table editor
+            </Link>
+            <Link
+              href={`/projects/${project.id}/extraction`}
+              className="inline-flex items-center rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:border-line-strong"
+            >
+              Extraction
+            </Link>
+            <Link
+              href={`/projects/${project.id}/data-quality`}
+              className="inline-flex items-center rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:border-line-strong"
+            >
+              Data quality
+            </Link>
+            <Link
+              href={`/projects/${project.id}/schema-drift`}
+              className="inline-flex items-center rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:border-line-strong"
+            >
+              Schema drift
+            </Link>
+            <Link
               href={`/projects/${project.id}/destinations`}
-              className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-slate-200 hover:border-white/20"
+              className="inline-flex items-center rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:border-line-strong"
             >
               Destinations
             </Link>
             <Link
               href={`/projects/${project.id}/bi-connections`}
-              className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-slate-200 hover:border-white/20"
+              className="inline-flex items-center rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:border-line-strong"
             >
               BI connections
             </Link>
             <Link
               href={`/projects/${project.id}/schedules`}
-              className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-slate-200 hover:border-white/20"
+              className="inline-flex items-center rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:border-line-strong"
             >
               Schedules
             </Link>
             <Link
               href={`/projects/${project.id}/notification-targets`}
-              className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-slate-200 hover:border-white/20"
+              className="inline-flex items-center rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:border-line-strong"
             >
               Notification targets
             </Link>
             <Link
               href={`/projects/${project.id}/tests/saved`}
-              className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-slate-200 hover:border-white/20"
+              className="inline-flex items-center rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:border-line-strong"
             >
               Saved tests
             </Link>
@@ -137,10 +162,10 @@ export function ProjectDetailPageView({
         meta={
           <>
             <StatusBadge value={project.status} />
-            <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs uppercase tracking-[0.18em] text-slate-300">
+            <span className="rounded-full border border-line bg-surface px-3 py-1 text-xs uppercase tracking-[0.18em] text-ink-2">
               {project.slug}
             </span>
-            <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs uppercase tracking-[0.18em] text-slate-300">
+            <span className="rounded-full border border-line bg-surface px-3 py-1 text-xs uppercase tracking-[0.18em] text-ink-2">
               Owned by {currentUser.username}
             </span>
           </>
@@ -159,15 +184,15 @@ export function ProjectDetailPageView({
           description="Move between owned project overview, sources, datasets, and orchestration run history without losing context."
           actions={
             <div className="flex flex-wrap items-center gap-3">
-              <div className="inline-flex rounded-2xl border border-white/10 bg-black/10 p-1">
+              <div className="inline-flex rounded-2xl border border-line bg-sunken p-1">
                 {tabOptions.map((tab) => (
                   <button
                     key={tab.key}
                     className={[
                       "rounded-xl px-4 py-2 text-sm font-medium transition",
                       activeTab === tab.key
-                        ? "bg-[color:var(--accent)] text-white shadow-[0_12px_24px_rgba(79,70,229,0.18)]"
-                        : "text-slate-400 hover:text-white",
+                        ? "bg-[color:var(--accent)] text-accent-ink shadow-[var(--shadow-glow)]"
+                        : "text-ink-3 hover:text-ink",
                     ].join(" ")}
                     onClick={() => setActiveTab(tab.key)}
                   >
@@ -188,12 +213,12 @@ export function ProjectDetailPageView({
           contentClassName="space-y-5 px-5 py-5 lg:px-6"
         >
           {runFeedback ? (
-            <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200">
+            <div className="rounded-2xl border border-success-line bg-success-soft px-4 py-3 text-sm text-success">
               {runFeedback}
             </div>
           ) : null}
           {runError ? (
-            <div className="rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">
+            <div className="rounded-2xl border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger">
               {runError}
             </div>
           ) : null}
@@ -201,26 +226,26 @@ export function ProjectDetailPageView({
           {activeTab === "overview" ? (
             <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
               <div className="space-y-5">
-                <div className="rounded-[24px] border border-white/8 bg-black/10 p-5">
-                  <div className="text-xs uppercase tracking-[0.2em] text-slate-500">Project summary</div>
+                <div className="rounded-[24px] border border-line bg-sunken p-5">
+                  <div className="text-xs uppercase tracking-[0.2em] text-muted">Project summary</div>
                   <div className="mt-4 grid gap-4 md:grid-cols-2">
                     <div>
-                      <div className="text-sm text-slate-500">Description</div>
-                      <div className="mt-2 text-sm leading-6 text-slate-200">
+                      <div className="text-sm text-muted">Description</div>
+                      <div className="mt-2 text-sm leading-6 text-ink">
                         {project.description ?? "No project description has been recorded yet."}
                       </div>
                     </div>
                     <div>
-                      <div className="text-sm text-slate-500">Operational posture</div>
+                      <div className="text-sm text-muted">Operational posture</div>
                       <div className="mt-2 flex flex-wrap gap-2">
                         <StatusBadge value={project.status} />
-                        <span className="rounded-full border border-white/10 px-3 py-1 text-xs uppercase tracking-[0.18em] text-slate-300">
+                        <span className="rounded-full border border-line px-3 py-1 text-xs uppercase tracking-[0.18em] text-ink-2">
                           {sources.length} sources
                         </span>
-                        <span className="rounded-full border border-white/10 px-3 py-1 text-xs uppercase tracking-[0.18em] text-slate-300">
+                        <span className="rounded-full border border-line px-3 py-1 text-xs uppercase tracking-[0.18em] text-ink-2">
                           {datasets.length} datasets
                         </span>
-                        <span className="rounded-full border border-white/10 px-3 py-1 text-xs uppercase tracking-[0.18em] text-slate-300">
+                        <span className="rounded-full border border-line px-3 py-1 text-xs uppercase tracking-[0.18em] text-ink-2">
                           {runs.length} runs
                         </span>
                       </div>
@@ -228,11 +253,11 @@ export function ProjectDetailPageView({
                   </div>
                 </div>
 
-                <div className="rounded-[24px] border border-white/8 bg-black/10 p-5">
+                <div className="rounded-[24px] border border-line bg-sunken p-5">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <div className="text-xs uppercase tracking-[0.2em] text-slate-500">Recent sources</div>
-                      <div className="mt-2 text-lg font-semibold text-white">Connection registrations</div>
+                      <div className="text-xs uppercase tracking-[0.2em] text-muted">Recent sources</div>
+                      <div className="mt-2 text-lg font-semibold text-ink">Connection registrations</div>
                     </div>
                     <Button variant="secondary" size="sm" onClick={() => setSourceModalOpen(true)}>
                       Add source
@@ -240,17 +265,17 @@ export function ProjectDetailPageView({
                   </div>
                   <div className="mt-4 space-y-3">
                     {sources.slice(0, 3).map((source) => (
-                      <div key={source.id} className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3">
+                      <div key={source.id} className="rounded-2xl border border-line bg-surface px-4 py-3">
                         <div className="flex items-center justify-between gap-3">
                           <div>
-                            <div className="font-medium text-white">{source.name}</div>
-                            <div className="mt-1 text-sm text-slate-400">
+                            <div className="font-medium text-ink">{source.name}</div>
+                            <div className="mt-1 text-sm text-ink-3">
                               {source.description ?? `${titleCase(source.source_type)} registration`}
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
                             <StatusBadge value={source.status} />
-                            <span className="rounded-full border border-white/10 px-2.5 py-1 text-[11px] uppercase tracking-[0.18em] text-slate-300">
+                            <span className="rounded-full border border-line px-2.5 py-1 text-[11px] uppercase tracking-[0.18em] text-ink-2">
                               {titleCase(source.source_type)}
                             </span>
                           </div>
@@ -268,11 +293,11 @@ export function ProjectDetailPageView({
                 </div>
               </div>
 
-              <div className="rounded-[24px] border border-white/8 bg-black/10 p-5">
+              <div className="rounded-[24px] border border-line bg-sunken p-5">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <div className="text-xs uppercase tracking-[0.2em] text-slate-500">Recent runs</div>
-                    <div className="mt-2 text-lg font-semibold text-white">Owned orchestration history</div>
+                    <div className="text-xs uppercase tracking-[0.2em] text-muted">Recent runs</div>
+                    <div className="mt-2 text-lg font-semibold text-ink">Owned orchestration history</div>
                   </div>
                   <Button size="sm" onClick={triggerSampleRun} disabled={runSubmitting}>
                     {runSubmitting ? "Running..." : "Run sample"}
@@ -280,19 +305,19 @@ export function ProjectDetailPageView({
                 </div>
                 <div className="mt-4 space-y-3">
                   {runs.slice(0, 4).map((run) => (
-                    <div key={run.id} className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3">
+                    <div key={run.id} className="rounded-2xl border border-line bg-surface px-4 py-3">
                       <div className="flex items-center justify-between gap-3">
                         <div>
-                          <Link href={`/projects/${project.id}/runs/${run.id}/audit`} className="font-medium text-white hover:text-indigo-200">
+                          <Link href={`/projects/${project.id}/runs/${run.id}/audit`} className="font-medium text-ink hover:text-accent">
                             {formatRunTypeLabel(run.run_type)}
                           </Link>
-                          <div className="mt-1 text-sm text-slate-400">
+                          <div className="mt-1 text-sm text-ink-3">
                             Triggered by {run.triggered_by_username ?? "current user"}
                           </div>
                         </div>
                         <StatusBadge value={run.status} />
                       </div>
-                      <div className="mt-3 flex flex-wrap gap-3 text-xs uppercase tracking-[0.18em] text-slate-500">
+                      <div className="mt-3 flex flex-wrap gap-3 text-xs uppercase tracking-[0.18em] text-muted">
                         <span>Created {formatDate(run.created_at)}</span>
                         <span>{run.completed_at ? `Completed ${formatDate(run.completed_at)}` : "Not completed"}</span>
                       </div>
@@ -318,29 +343,29 @@ export function ProjectDetailPageView({
                 action={<Button onClick={() => setSourceModalOpen(true)}>Add source</Button>}
               />
             ) : (
-              <div className="overflow-hidden rounded-[24px] border border-white/8 bg-black/10">
+              <div className="overflow-hidden rounded-[24px] border border-line bg-sunken">
                 <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-white/8 text-left text-sm">
-                    <thead className="bg-white/[0.03] text-slate-400">
+                  <table className="min-w-full divide-y divide-line text-left text-sm">
+                    <thead className="bg-surface text-ink-3">
                       <tr>
-                        <th className="px-4 py-3 font-medium">Source</th>
-                        <th className="px-4 py-3 font-medium">Type</th>
-                        <th className="px-4 py-3 font-medium">Status</th>
-                        <th className="px-4 py-3 font-medium">Config keys</th>
-                        <th className="px-4 py-3 font-medium">Updated</th>
+                        <th className="cell-pad font-medium">Source</th>
+                        <th className="cell-pad font-medium">Type</th>
+                        <th className="cell-pad font-medium">Status</th>
+                        <th className="cell-pad font-medium">Config keys</th>
+                        <th className="cell-pad font-medium">Updated</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-white/6">
+                    <tbody className="divide-y divide-line">
                       {sources.map((source) => (
-                        <tr key={source.id} className="transition hover:bg-white/[0.03]">
-                          <td className="px-4 py-4 align-top">
-                            <div className="font-medium text-white">{source.name}</div>
-                            <div className="mt-1 max-w-sm text-slate-400">{source.description ?? "No source description provided."}</div>
+                        <tr key={source.id} className="transition hover:bg-surface">
+                          <td className="cell-pad align-top">
+                            <div className="font-medium text-ink">{source.name}</div>
+                            <div className="mt-1 max-w-sm text-ink-3">{source.description ?? "No source description provided."}</div>
                           </td>
-                          <td className="px-4 py-4 align-top text-slate-300">{titleCase(source.source_type)}</td>
-                          <td className="px-4 py-4 align-top"><StatusBadge value={source.status} /></td>
-                          <td className="px-4 py-4 align-top text-slate-300">{Object.keys(source.config_json ?? {}).length}</td>
-                          <td className="px-4 py-4 align-top text-slate-400">{formatDate(source.updated_at)}</td>
+                          <td className="cell-pad align-top text-ink-2">{titleCase(source.source_type)}</td>
+                          <td className="cell-pad align-top"><StatusBadge value={source.status} /></td>
+                          <td className="cell-pad align-top text-ink-2">{Object.keys(source.config_json ?? {}).length}</td>
+                          <td className="cell-pad align-top text-ink-3">{formatDate(source.updated_at)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -358,42 +383,42 @@ export function ProjectDetailPageView({
                 action={<Button onClick={() => setUploadModalOpen(true)}>Upload dataset</Button>}
               />
             ) : (
-              <div className="overflow-hidden rounded-[24px] border border-white/8 bg-black/10">
+              <div className="overflow-hidden rounded-[24px] border border-line bg-sunken">
                 <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-white/8 text-left text-sm">
-                    <thead className="bg-white/[0.03] text-slate-400">
+                  <table className="min-w-full divide-y divide-line text-left text-sm">
+                    <thead className="bg-surface text-ink-3">
                       <tr>
-                        <th className="px-4 py-3 font-medium">Dataset</th>
-                        <th className="px-4 py-3 font-medium">File type</th>
-                        <th className="px-4 py-3 font-medium">Ingestion</th>
-                        <th className="px-4 py-3 font-medium">Rows</th>
-                        <th className="px-4 py-3 font-medium">Columns</th>
-                        <th className="px-4 py-3 font-medium">Uploaded</th>
+                        <th className="cell-pad font-medium">Dataset</th>
+                        <th className="cell-pad font-medium">File type</th>
+                        <th className="cell-pad font-medium">Ingestion</th>
+                        <th className="cell-pad font-medium">Rows</th>
+                        <th className="cell-pad font-medium">Columns</th>
+                        <th className="cell-pad font-medium">Uploaded</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-white/6">
+                    <tbody className="divide-y divide-line">
                       {datasets.map((dataset) => (
-                        <tr key={dataset.id} className="transition hover:bg-white/[0.03]">
-                          <td className="px-4 py-4 align-top">
-                            <Link href={`/projects/${project.id}/datasets/${dataset.id}`} className="font-medium text-white hover:text-indigo-200">
+                        <tr key={dataset.id} className="transition hover:bg-surface">
+                          <td className="cell-pad align-top">
+                            <Link href={`/projects/${project.id}/datasets/${dataset.id}`} className="font-medium text-ink hover:text-accent">
                               {dataset.name}
                             </Link>
-                            <div className="mt-1 text-slate-400">
+                            <div className="mt-1 text-ink-3">
                               {dataset.original_filename ?? dataset.file_name ?? "No file metadata"}
                             </div>
                           </td>
-                          <td className="px-4 py-4 align-top text-slate-300">{dataset.file_type ? titleCase(dataset.file_type) : "--"}</td>
-                          <td className="px-4 py-4 align-top">
+                          <td className="cell-pad align-top text-ink-2">{dataset.file_type ? titleCase(dataset.file_type) : "--"}</td>
+                          <td className="cell-pad align-top">
                             <div className="flex flex-col gap-2">
                               <StatusBadge value={dataset.ingestion_status} />
-                              <span className="text-xs text-slate-500">
+                              <span className="text-xs text-muted">
                                 {dataset.pipeline_run_id ? `Linked run ${dataset.pipeline_run_id.slice(0, 8)}` : "No run linked"}
                               </span>
                             </div>
                           </td>
-                          <td className="px-4 py-4 align-top text-slate-300">{formatNumber(dataset.row_count)}</td>
-                          <td className="px-4 py-4 align-top text-slate-300">{formatNumber(dataset.column_count)}</td>
-                          <td className="px-4 py-4 align-top text-slate-400">{formatDate(dataset.created_at)}</td>
+                          <td className="cell-pad align-top text-ink-2">{formatNumber(dataset.row_count)}</td>
+                          <td className="cell-pad align-top text-ink-2">{formatNumber(dataset.column_count)}</td>
+                          <td className="cell-pad align-top text-ink-3">{formatDate(dataset.created_at)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -411,45 +436,45 @@ export function ProjectDetailPageView({
                 action={<Button onClick={triggerSampleRun} disabled={runSubmitting}>{runSubmitting ? "Running..." : "Trigger sample run"}</Button>}
               />
             ) : (
-              <div className="overflow-hidden rounded-[24px] border border-white/8 bg-black/10">
+              <div className="overflow-hidden rounded-[24px] border border-line bg-sunken">
                 <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-white/8 text-left text-sm">
-                    <thead className="bg-white/[0.03] text-slate-400">
+                  <table className="min-w-full divide-y divide-line text-left text-sm">
+                    <thead className="bg-surface text-ink-3">
                       <tr>
-                        <th className="px-4 py-3 font-medium">Run type</th>
-                        <th className="px-4 py-3 font-medium">Triggered by</th>
-                        <th className="px-4 py-3 font-medium">Status</th>
-                        <th className="px-4 py-3 font-medium">Started</th>
-                        <th className="px-4 py-3 font-medium">Completed</th>
-                        <th className="px-4 py-3 font-medium">Created</th>
+                        <th className="cell-pad font-medium">Run type</th>
+                        <th className="cell-pad font-medium">Triggered by</th>
+                        <th className="cell-pad font-medium">Status</th>
+                        <th className="cell-pad font-medium">Started</th>
+                        <th className="cell-pad font-medium">Completed</th>
+                        <th className="cell-pad font-medium">Created</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-white/6">
+                    <tbody className="divide-y divide-line">
                       {runs.map((run) => (
-                        <tr key={run.id} className="transition hover:bg-white/[0.03]">
-                          <td className="px-4 py-4 align-top">
+                        <tr key={run.id} className="transition hover:bg-surface">
+                          <td className="cell-pad align-top">
                             <Link
                               href={`/projects/${project.id}/runs/${run.id}/audit`}
-                              className="font-medium text-white hover:text-indigo-200"
+                              className="font-medium text-ink hover:text-accent"
                             >
                               {formatRunTypeLabel(run.run_type)}
                             </Link>
-                            <div className="mt-1 max-w-sm text-slate-400">
+                            <div className="mt-1 max-w-sm text-ink-3">
                               {getPipelineRunSecondaryText(run)}
                             </div>
                             {isDatasetIngestionRunSummary(run.summary_json) ? (
-                              <div className="mt-2 text-xs text-slate-500">
+                              <div className="mt-2 text-xs text-muted">
                                 {run.summary_json.failure_stage
                                   ? `Failed during ${titleCase(run.summary_json.failure_stage)}`
                                   : `${formatNumber(run.summary_json.dataset.row_count)} rows · ${formatNumber(run.summary_json.dataset.column_count)} columns`}
                               </div>
                             ) : null}
                           </td>
-                          <td className="px-4 py-4 align-top text-slate-300">{run.triggered_by_username ?? currentUser.username}</td>
-                          <td className="px-4 py-4 align-top"><StatusBadge value={run.status} /></td>
-                          <td className="px-4 py-4 align-top text-slate-300">{run.started_at ? formatDate(run.started_at) : "--"}</td>
-                          <td className="px-4 py-4 align-top text-slate-300">{run.completed_at ? formatDate(run.completed_at) : "--"}</td>
-                          <td className="px-4 py-4 align-top text-slate-400">{formatDate(run.created_at)}</td>
+                          <td className="cell-pad align-top text-ink-2">{run.triggered_by_username ?? currentUser.username}</td>
+                          <td className="cell-pad align-top"><StatusBadge value={run.status} /></td>
+                          <td className="cell-pad align-top text-ink-2">{run.started_at ? formatDate(run.started_at) : "--"}</td>
+                          <td className="cell-pad align-top text-ink-2">{run.completed_at ? formatDate(run.completed_at) : "--"}</td>
+                          <td className="cell-pad align-top text-ink-3">{formatDate(run.created_at)}</td>
                         </tr>
                       ))}
                     </tbody>

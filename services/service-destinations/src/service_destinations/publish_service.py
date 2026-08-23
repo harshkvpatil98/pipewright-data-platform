@@ -19,7 +19,7 @@ from service_pipeline_runs.service import (
     mark_pipeline_run_succeeded,
 )
 from service_projects.contracts import ensure_owned_project
-from shared_python.errors import BadRequestError, MisconfiguredEnvironmentError
+from shared_python.errors import BadRequestError, MisconfiguredEnvironmentError, NotFoundError
 
 from service_destinations.at_rest_config import destination_config_for_internal_use
 from service_destinations.postgres_writer import validate_table_identifier, write_dataframe_to_postgres
@@ -52,7 +52,9 @@ def _load_dataframe(dataset: Dataset, storage_backend: Any) -> pd.DataFrame:
     try:
         file_bytes = storage_backend.read_bytes(dataset.file_path)
     except FileNotFoundError as exc:
-        raise BadRequestError("Stored dataset file was not found.") from exc
+        raise NotFoundError(
+            "This dataset's stored file is missing. The dataset record still exists, so re-uploading the file restores it."
+        ) from exc
     except OSError as exc:
         raise BadRequestError(f"Unable to read dataset file: {exc}") from exc
     parsed = parse_tabular_file(file_bytes=file_bytes, file_type=dataset.file_type)

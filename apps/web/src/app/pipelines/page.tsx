@@ -1,5 +1,9 @@
-import { PlaceholderPage } from "@/components/common/placeholder-page";
+import { requireCurrentUser } from "@/lib/auth/server";
+import { redirectToProjectScope } from "@/lib/project-scope";
 
-export default function PipelineBuilderPage() {
-  return <PlaceholderPage title="Pipeline Builder" description="Transformation design, reusable pipeline templates, execution plans, and run histories will be exposed here." />;
+export const dynamic = "force-dynamic";
+
+export default async function PipelinesPage() {
+  await requireCurrentUser();
+  await redirectToProjectScope("/studio");
 }

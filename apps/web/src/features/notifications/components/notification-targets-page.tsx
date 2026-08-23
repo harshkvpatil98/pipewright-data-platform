@@ -210,7 +210,7 @@ export function NotificationTargetsPageView({
           <>
             <Link
               href={`/projects/${projectId}`}
-              className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-slate-200 hover:border-white/20"
+              className="inline-flex items-center rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:border-line-strong"
             >
               Back to project
             </Link>
@@ -221,7 +221,7 @@ export function NotificationTargetsPageView({
         }
       >
         {testMessage ? (
-          <div className="mb-4 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-slate-200">
+          <div className="mb-4 rounded-2xl border border-line bg-surface px-4 py-3 text-sm text-ink">
             {testMessage}
           </div>
         ) : null}
@@ -231,11 +231,11 @@ export function NotificationTargetsPageView({
           description="Each target subscribes to event types. When a matching in-app notification is created, the gateway attempts delivery (failures are logged; they do not fail the pipeline run)."
         >
           {items.length === 0 ? (
-            <p className="text-sm text-slate-400">No external targets yet. Create one to forward alerts outside the app.</p>
+            <p className="text-sm text-ink-3">No external targets yet. Create one to forward alerts outside the app.</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] border-collapse text-left text-sm text-slate-200">
-                <thead className="border-b border-white/10 text-xs uppercase tracking-[0.14em] text-slate-500">
+              <table className="w-full min-w-[720px] border-collapse text-left text-sm text-ink">
+                <thead className="border-b border-line text-xs uppercase tracking-[0.14em] text-muted">
                   <tr>
                     <th className="py-2 pr-4 font-medium">Name</th>
                     <th className="py-2 pr-4 font-medium">Type</th>
@@ -247,12 +247,12 @@ export function NotificationTargetsPageView({
                 </thead>
                 <tbody>
                   {items.map((row) => (
-                    <tr key={row.id} className="border-b border-white/[0.06]">
-                      <td className="py-3 pr-4 font-medium text-white">{row.name}</td>
-                      <td className="py-3 pr-4 text-slate-400">{titleCase(row.target_type.replace(/_/g, " "))}</td>
-                      <td className="py-3 pr-4 text-slate-400">{row.enabled ? "Yes" : "No"}</td>
-                      <td className="py-3 pr-4 text-slate-400">{row.subscribed_event_types.length}</td>
-                      <td className="py-3 pr-4 text-xs text-slate-500">{formatDate(row.updated_at)}</td>
+                    <tr key={row.id} className="border-b border-line">
+                      <td className="py-3 pr-4 font-medium text-ink">{row.name}</td>
+                      <td className="py-3 pr-4 text-ink-3">{titleCase(row.target_type.replace(/_/g, " "))}</td>
+                      <td className="py-3 pr-4 text-ink-3">{row.enabled ? "Yes" : "No"}</td>
+                      <td className="py-3 pr-4 text-ink-3">{row.subscribed_event_types.length}</td>
+                      <td className="py-3 pr-4 text-xs text-muted">{formatDate(row.updated_at)}</td>
                       <td className="py-3">
                         <div className="flex flex-wrap gap-2">
                           <Button variant="secondary" size="sm" type="button" onClick={() => openEdit(row)}>
@@ -295,11 +295,11 @@ export function NotificationTargetsPageView({
         }
       >
         <div className="flex flex-col gap-4">
-          {formError ? <p className="text-sm text-rose-300">{formError}</p> : null}
+          {formError ? <p className="text-sm text-danger">{formError}</p> : null}
           <FormField label="Name" htmlFor="nt-name">
             <Input id="nt-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Ops email" />
           </FormField>
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
             Target type
             <Select
               value={targetType}
@@ -310,7 +310,7 @@ export function NotificationTargetsPageView({
               <option value="slack_webhook">Slack webhook</option>
             </Select>
           </label>
-          <label className="flex items-center gap-2 text-sm text-slate-300">
+          <label className="flex items-center gap-2 text-sm text-ink-2">
             <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
             Enabled
           </label>
@@ -375,10 +375,10 @@ export function NotificationTargetsPageView({
           )}
 
           <div>
-            <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Subscribed events</div>
+            <div className="text-xs uppercase tracking-[0.16em] text-muted">Subscribed events</div>
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
               {EXTERNAL_NOTIFICATION_EVENT_TYPES.map((ev) => (
-                <label key={ev} className="flex items-center gap-2 text-sm text-slate-300">
+                <label key={ev} className="flex items-center gap-2 text-sm text-ink-2">
                   <input type="checkbox" checked={selectedEvents.has(ev)} onChange={() => toggleEvent(ev)} />
                   {EVENT_LABELS[ev] ?? ev}
                 </label>

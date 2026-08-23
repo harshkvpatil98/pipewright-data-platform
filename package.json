@@ -1,5 +1,5 @@
 {
-  "name": "intelligent-data-platform-monorepo",
+  "name": "pipewright-monorepo",
   "private": true,
   "workspaces": [
     "apps/web",

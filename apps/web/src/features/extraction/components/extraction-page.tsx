@@ -1,10 +1,12 @@
 "use client";
 
-import { useCallback, useId, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useState } from "react";
 
 import type {
   AuthUser,
   ConnectionTestResponse,
+  ConnectorCatalogResponse,
+  ConnectorSpec,
   ConnectorType,
   DiscoveredTablesResponse,
   ExtractionConnection,
@@ -34,6 +36,37 @@ const CONNECTOR_LABELS: Record<ConnectorType, string> = {
   sqlite: "SQLite",
 };
 
+/**
+ * How a connector's tier reads beside a connection.
+ *
+ * The catalogue page shows this on every card, but the catalogue is not where
+ * somebody decides to trust a source — this page is, and a run's numbers are
+ * read long after either. Same glyph and same word as the catalogue, so the
+ * badge means one thing across the product.
+ */
+const TIER_STYLE: Record<number, string> = {
+  1: "border-success-line bg-success-soft text-success",
+  2: "border-success-line bg-success-soft text-success",
+  3: "border-line bg-surface-2 text-ink-3",
+  4: "border-warning-line bg-warning-soft text-warning",
+};
+
+function TierBadge({ spec }: { spec: ConnectorSpec | undefined }) {
+  if (!spec) return null;
+  return (
+    <span
+      title={spec.tier_explanation}
+      className={cx(
+        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px]",
+        TIER_STYLE[spec.tier] ?? TIER_STYLE[4],
+      )}
+    >
+      <span aria-hidden="true">{spec.tier_badge}</span>
+      {spec.tier_label}
+    </span>
+  );
+}
+
 const LOAD_MODE_LABELS: Record<LoadMode, string> = {
   full_refresh: "Full refresh",
   incremental_append: "Incremental · append",
@@ -60,6 +93,17 @@ export function ExtractionPageView({
   const [busy, setBusy] = useState<string | null>(null);
 
   const [connectorType, setConnectorType] = useState<ConnectorType>("postgresql");
+  const [catalogue, setCatalogue] = useState<Map<string, ConnectorSpec>>(new Map());
+
+  useEffect(() => {
+    apiFetch<ConnectorCatalogResponse>("/connectors")
+      .then((response) =>
+        setCatalogue(new Map(response.items.map((spec) => [spec.type, spec]))),
+      )
+      // The tier is an annotation, not a prerequisite: a catalogue that will
+      // not load must not stop somebody creating a connection.
+      .catch(() => setCatalogue(new Map()));
+  }, []);
   const [connectionForm, setConnectionForm] = useState({
     name: "",
     host: "",
@@ -314,6 +358,16 @@ export function ExtractionPageView({
                   </option>
                 ))}
               </Select>
+              {catalogue.get(connectorType) && !catalogue.get(connectorType)!.verified ? (
+                <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted">
+                  <TierBadge spec={catalogue.get(connectorType)} />
+                  {catalogue.get(connectorType)!.tier_explanation}
+                </p>
+              ) : (
+                <p className="mt-1.5">
+                  <TierBadge spec={catalogue.get(connectorType)} />
+                </p>
+              )}
             </FormField>
 
             {isSqlite ? (
@@ -413,6 +467,7 @@ export function ExtractionPageView({
                         <span className="rounded-full border border-line px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-ink-3">
                           {CONNECTOR_LABELS[connection.connector_type]}
                         </span>
+                        <TierBadge spec={catalogue.get(connection.connector_type)} />
                         {connection.last_test_status ? (
                           <StatusBadge
                             value={connection.last_test_status === "succeeded" ? "succeeded" : "failed"}

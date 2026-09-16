@@ -1,0 +1,29 @@
+key: copper
+label: Copper
+category: saas
+description: Read people, companies, and opportunities from Copper.
+docs_url: https://developer.copper.com/
+base_url: https://api.copper.com/developer_api/v1
+auth:
+  kind: api_key
+  placement: header
+  header: X-PW-AccessToken
+  template: '{token}'
+streams:
+  - name: people
+    path: /people/search
+    primary_key: id
+    pagination: &id001
+      kind: page
+      page_param: page
+      size_param: per_page
+      page_size: 100
+  - name: companies
+    path: /companies/search
+    primary_key: id
+    pagination: *id001
+  - name: opportunities
+    path: /opportunities/search
+    primary_key: id
+    pagination: *id001
+tier: 4

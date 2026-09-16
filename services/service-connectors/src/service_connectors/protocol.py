@@ -25,6 +25,7 @@ than one per layer.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Any, Protocol, runtime_checkable
 
 # What a connector can do. Anything not declared is assumed absent.
@@ -37,7 +38,64 @@ CAPABILITIES = (
     "write",  # can push rows back (reverse ETL)
 )
 
-CATEGORIES = ("database", "warehouse", "api", "storage", "saas", "nosql", "file")
+CATEGORIES = (
+    "database", "warehouse", "api", "storage", "saas", "nosql", "file",
+    "timeseries", "streaming", "lakehouse",
+)
+
+
+class Tier(int, Enum):
+    """How much is actually known about whether a connector works.
+
+    With nineteen connectors, "five are unverified" is a footnote somebody reads.
+    With two hundred, an undifferentiated list is a lie by omission: it presents
+    a connector written from a vendor's documentation as though it carried the
+    same weight as one that runs against a real instance on every merge.
+
+    So every connector carries a tier, and the tier is shown wherever a
+    connector is chosen and in the output of any run that used it. This is the
+    Phase 04 rule -- a declared capability is what works *here*, not what was
+    designed -- applied to the catalogue as a whole.
+    """
+
+    #: Runs against a real instance in CI on every merge.
+    LIVE = 1
+    #: Runs against a container or a local fixture in CI.
+    CONTAINER = 2
+    #: Replays a captured real session; no live credentials involved.
+    RECORDED = 3
+    #: Written from vendor documentation and never executed. Usable, and said so.
+    SPEC_ONLY = 4
+
+    @property
+    def label(self) -> str:
+        return {
+            Tier.LIVE: "Verified",
+            Tier.CONTAINER: "Tested",
+            Tier.RECORDED: "Recorded",
+            Tier.SPEC_ONLY: "Unverified",
+        }[self]
+
+    @property
+    def badge(self) -> str:
+        return {Tier.LIVE: "✅", Tier.CONTAINER: "◑", Tier.RECORDED: "◔", Tier.SPEC_ONLY: "○"}[self]
+
+    @property
+    def explanation(self) -> str:
+        return {
+            Tier.LIVE: "Runs against a real instance in CI on every merge.",
+            Tier.CONTAINER: "Runs against a container or local fixture in CI on every merge.",
+            Tier.RECORDED: "Tested by replaying a captured real session. Never run live here.",
+            Tier.SPEC_ONLY: (
+                "Never executed against a real instance here. The configuration is as "
+                "the vendor documents it; treat your first run as the real test."
+            ),
+        }[self]
+
+    @property
+    def verified(self) -> bool:
+        """True when something actually executed this connector."""
+        return self is not Tier.SPEC_ONLY
 
 FIELD_KINDS = ("string", "secret", "number", "boolean", "select", "text")
 
@@ -96,6 +154,17 @@ class ConnectorSpec:
     # promises something a caller would only discover by trying it.
     available: bool = True
     unavailable_reason: str | None = None
+    # How much is known about whether this actually works. Defaults to the
+    # weakest claim, so a connector that forgets to say is described as
+    # unverified rather than silently promoted.
+    tier: Tier = Tier.SPEC_ONLY
+    # What backs a tier above 4. Names a test file, so the claim is a citation
+    # rather than an assertion -- `test_generators.py` checks the file exists
+    # and mentions this connector. A tier system nobody can audit is decoration.
+    verified_by: str | None = None
+    # Where the connector came from, for the health view: "handwritten",
+    # "manifest", "dialect", "matrix".
+    origin: str = "handwritten"
 
     def __post_init__(self) -> None:
         if self.category not in CATEGORIES:
@@ -103,6 +172,26 @@ class ConnectorSpec:
         unknown = self.capabilities - set(CAPABILITIES)
         if unknown:
             raise ValueError(f"Unknown capabilities on '{self.type}': {sorted(unknown)}")
+        if self.tier is not Tier.SPEC_ONLY and not self.verified_by:
+            # The invariant lives here rather than in each generator, so a
+            # hand-written connector cannot promote itself either.
+            raise ValueError(
+                f"'{self.type}' claims tier {int(self.tier)} but does not say what "
+                "verified it. Set verified_by to the test that exercises it, or "
+                "leave the tier at 4."
+            )
+
+    @property
+    def tier_caveat(self) -> str | None:
+        """The sentence an unverified connector attaches to what it produces.
+
+        None for tiers 1-3: a warning that appears regardless of tier is a
+        warning people stop reading, which costs the tier system the thing it
+        was built for.
+        """
+        if self.tier.verified:
+            return None
+        return f"{self.label} is {self.tier.label.lower()}: {self.tier.explanation}"
 
     @property
     def secret_fields(self) -> tuple[str, ...]:
@@ -129,7 +218,44 @@ class ConnectorSpec:
             "documentation_url": self.documentation_url,
             "available": self.available,
             "unavailable_reason": self.unavailable_reason,
+            "tier": int(self.tier),
+            "tier_label": self.tier.label,
+            "tier_badge": self.tier.badge,
+            "tier_explanation": self.tier.explanation,
+            "verified": self.tier.verified,
+            "verified_by": self.verified_by,
+            "origin": self.origin,
         }
+
+
+def with_tier_note(result: Any, spec: ConnectorSpec) -> Any:
+    """Attach the tier caveat to a result, when there is one to attach.
+
+    One function rather than the same sentence built in each connector: the
+    caveat has to read identically wherever it appears, and three copies of it
+    is three places for one of them to drift or to be forgotten. A connector
+    that forgets is the failure mode this exists to prevent -- the roadmap's
+    rule is that a run whose source is unverified says so in its *output*, not
+    only in the picker somebody saw an hour ago.
+
+    Returns the result: `TestResult` is frozen, so a note means a new one.
+    """
+    note = spec.tier_caveat
+    if note is None:
+        return result
+    if isinstance(result, TestResult):
+        if not result.success:
+            # A failed test has a reason of its own; the tier is not it.
+            return result
+        return TestResult(
+            success=result.success,
+            message=result.message,
+            latency_ms=result.latency_ms,
+            server_version=result.server_version,
+            warnings=[*result.warnings, note],
+        )
+    result.warnings.append(note)
+    return result
 
 
 @dataclass(frozen=True)

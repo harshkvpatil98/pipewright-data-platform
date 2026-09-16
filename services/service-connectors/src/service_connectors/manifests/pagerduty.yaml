@@ -1,0 +1,65 @@
+key: pagerduty
+label: PagerDuty
+category: saas
+description: Read incidents, services, and users from PagerDuty.
+docs_url: https://developer.pagerduty.com/api-reference/
+base_url: https://api.pagerduty.com
+auth:
+  kind: api_key
+  placement: header
+  header: Authorization
+  template: Token token={token}
+streams:
+  - name: incidents
+    path: /incidents
+    records_path: incidents
+    primary_key: id
+    pagination: &id001
+      kind: offset
+      offset_param: offset
+      page_size: 100
+    schema:
+      id:
+        type: STRING
+      incident_number:
+        type: INTEGER
+      title:
+        type: STRING
+      status:
+        type: STRING
+      urgency:
+        type: STRING
+      created_at:
+        type: TIMESTAMP
+        tz_aware: true
+  - name: services
+    path: /services
+    records_path: services
+    primary_key: id
+    pagination: *id001
+    schema:
+      id:
+        type: STRING
+      name:
+        type: STRING
+      status:
+        type: STRING
+      created_at:
+        type: TIMESTAMP
+        tz_aware: true
+  - name: users
+    path: /users
+    records_path: users
+    primary_key: id
+    pagination: *id001
+    schema:
+      id:
+        type: STRING
+      name:
+        type: STRING
+      email:
+        type: STRING
+      role:
+        type: STRING
+tier: 2
+verified_by: test_vendor_contracts.py

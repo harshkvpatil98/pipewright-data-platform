@@ -401,7 +401,7 @@ generators and hand-write only the ~15 that genuinely resist generation.
 
 ---
 
-## Phase 10 — Connector factory: 19 → 200+
+## Phase 10 — Connector factory: 19 → 200+ ✅ COMPLETE (2026-09-16)
 
 **The leverage already exists.** Phase 04 proved it: Stripe, HubSpot, Shopify, Salesforce and
 Google Sheets are ~40 lines each because they are presets over one tested REST connector. That
@@ -549,18 +549,111 @@ Zoom, Calendly, Google Calendar, Google Sheets·, Typeform, SurveyMonkey
 
 ### Done when
 
-- [ ] Manifest schema published; a malformed manifest fails the build
-- [ ] All three generators produce connectors that pass the existing conformance suite unchanged
-- [ ] Tier is displayed everywhere a connector is chosen, and in run output
-- [ ] ≥ 40 connectors at Tier 1–2 with containerised CI
-- [ ] Adding a documented REST SaaS takes < 30 minutes end to end
+- [x] Manifest schema published; a malformed manifest fails the build
+- [x] All three generators produce connectors that pass the existing conformance suite unchanged
+- [x] Tier is displayed everywhere a connector is chosen, and in run output
+- [x] ≥ 40 connectors at Tier 1–2 with containerised CI — **50**
+- [x] Adding a documented REST SaaS takes < 30 minutes end to end
 
 **Effort: very large, but highly parallel.** The generators are ~2 sessions; the manifests are
 mechanical and can be produced in batches by category.
 
+### What shipped
+
+**211 connectors**, 155 usable on this machine, **50 at tier 2** and the other 161
+honestly at tier 4. Four generators, not three: manifests (117), the dialect table
+(48), the object-store matrix (16), and a fourth for engines this platform cannot
+drive yet (9) — each of which names the interface it *can* read instead, because
+omitting Cassandra leaves somebody concluding their data is out of reach while
+listing it as working would be worse.
+
+**The tier is the phase.** Two hundred connectors without one is a lie by omission,
+and a tier nobody can audit is decoration. So `verified_by` names a test file, a
+test resolves the citation and checks the file actually drives that connector, and
+`ConnectorSpec.__post_init__` refuses a tier above 4 with no citation. Three
+things earn the fifty:
+
+- **`test_vendor_contracts.py` — 34 SaaS manifests.** Each contract states, from the
+  vendor's reference and independently of the shipped manifest, where the records
+  sit, how the next page is pointed at, what that pointer is called, which fields a
+  record carries and how the credential travels. The harness cross-checks the
+  manifest against it *and* runs the real `ManifestConnector` against a loopback
+  server that answers that way — two pages, so pagination has to actually advance.
+- **`test_containers.py` — PostgreSQL, MySQL, MariaDB.** Real servers in real
+  containers, wired into `ci.yml` as service containers with a pre-flight check
+  that fails the build if they are missing, because a skipped test is a green
+  build and the badge would be resting on nothing. `docker-compose.connectors.yml`
+  is the same thing for a laptop.
+- **`test_generators.py` — the S3 family and the store matrix.** Parametrised over
+  every S3-compatible store rather than the one somebody happened to write a test
+  for: each one's endpoint template, listing and read through the format registry.
+
+Nine PostgreSQL-wire dialects — CockroachDB, YugabyteDB, Greenplum, Neon, Supabase,
+Cloud SQL, Aurora, TimescaleDB, QuestDB — execute the exact code path
+`test_containers.py` exercises and are **deliberately not promoted**. "CockroachDB
+works" and "the PostgreSQL driver works" are different claims, and a test pins the
+distinction so nobody quietly closes it.
+
+**Two protocol connectors rather than two more manifests.** OData and JSON:API each
+specify the envelope, so one connector reads every service that implements it —
+every Dynamics, Business Central or SAP Gateway feed, every Ember or Rails API.
+OData's `discover` genuinely discovers, from the service document.
+
+**10.5 shipped whole.** The health view answers "what could this deployment reach"
+with no database, including which single package would unlock the most. The schema
+watch (`sweep.py`, migration 0029) walks a project's connections, remembers what it
+saw and files a **drift incident** through Phase 02 — recurrences collapse onto one
+incident by fingerprint, a schema that steadies closes it, and a source that cannot
+be read is reported as skipped rather than as a missing column, because otherwise a
+dropped VPN files a breaking incident. It runs on the platform's own scheduler as a
+`connector_schema_watch` schedule rather than a second cron nobody watches. Secrets
+can be references — `vault://database/prod#password` — resolved at the point of use
+with no fallback to plaintext, deliberately.
+
+### Five bugs this phase's own tests found
+
+The verification was not ceremony; every one of these was live in the catalogue.
+
+1. **Manifest pagination parameter names were read and then dropped.** `rest.py`
+   hard-coded `page`/`cursor`, so every manifest declaring `page[cursor]`,
+   `pageToken`, `$skiptoken` or `starting_after` — 37 of them — asked for page one
+   again and collected the same rows until `MAX_PAGES`. A row count never shows it.
+2. **Seven manifests treated a next-page *URL* as a token.** Zendesk, Klaviyo,
+   Bitbucket, Front, PostHog, Confluence and Recurly all return an address in the
+   body. Now a `next_url` strategy, with a same-origin guard: the credential is in
+   a header, and following a link to another host hands it over.
+3. **`httpx` `params=` replaces a URL's query rather than adding to it**, so an
+   empty dict threw away the page marker on every `Link`-header follow-up.
+4. **The hand-written SQL connector's `read()` had never worked** — `query=` where
+   the function takes `sql=`. Only a real database surfaced it.
+5. **A Basic-auth username could not contain `@`.** The URL-safety check scanned
+   the whole config instead of the placeholders the template names, so every
+   Basic-auth connection in the catalogue — Zendesk, Jira, Bitbucket — was
+   unconfigurable with the email address those vendors issue.
+
+Two more came out of the review rather than a test: the new watch routes did not
+assert project access (the gateway guard defers to the service by design, so
+"no access" reads as "not found"), and snapshots were keyed on a bare stream name,
+so `public.orders` and `analytics.orders` were compared against each other.
+
+### Deliberately not done
+
+- **Streaming, queues and CDC (13 sources).** The catalogue above already says
+  *see Phase 20*; Kafka and friends are a different execution model, not another
+  declaration.
+- **Inbound webhooks and gRPC.** A webhook is a receiver, not a puller — it needs
+  an endpoint, a store and a replay story, which is Phase 20's shape. gRPC needs
+  `grpcio` and reflection-based dynamic clients, which is a connector's worth of
+  work on its own.
+- **Tier 3 is empty, and stays empty.** "Recorded" means replaying a *captured real
+  session*, and no credentials exist on this machine for any of these vendors.
+  Fabricating a recording and calling it a capture would be the exact failure the
+  tier system was built to prevent, so the tier is declared, documented, shown in
+  the health view at zero, and left alone.
+
 ---
 
-## Phase 11 — Ingestion intelligence: upload anything, understand it
+## Phase 11 — Ingestion intelligence: upload anything, understand it ✅ COMPLETE (2026-09-16)
 
 **The ask:** a user uploads a file — Excel, CSV, JSON, a `.sql` dump — and it *works*, with
 transformations appropriate to what it actually is.
@@ -629,13 +722,98 @@ JSON and XML need operations tabular sources do not have — this is the concret
 
 ### Done when
 
-- [ ] A corpus of ~60 deliberately awful real-world files ingests correctly, each as a test
-- [ ] Ambiguous dates are **asked about**, never assumed — with a test proving it
-- [ ] `.sql` dumps yield the declared schema, not an inferred one
-- [ ] A 2GB CSV uploads, resumes after an interruption, and profiles without exhausting memory
-- [ ] Re-uploading a file reuses the stored `ingest_spec`
+- [x] A corpus of ~60 deliberately awful real-world files ingests correctly, each as a test — **72**
+- [x] Ambiguous dates are **asked about**, never assumed — with a test proving it
+- [x] `.sql` dumps yield the declared schema, not an inferred one
+- [x] A 2GB CSV uploads, resumes after an interruption, and profiles without exhausting memory
+- [x] Re-uploading a file reuses the stored `ingest_spec`
 
 **Effort: large.** 3 sessions. Mostly test corpus construction, which is also its value.
+
+### What shipped
+
+`service-ingestion` went from 823 lines to a sniffing pipeline, ten readers, a
+spec, a resumable upload and a streaming profiler. The old `parse_tabular_file`
+signature is unchanged, so every existing caller still holds; what changed is
+everything behind it.
+
+**Nothing guesses silently.** Every stage returns a `Finding` — the answer, a
+confidence, and the evidence it decided from. `Certainty.AMBIGUOUS` is a real
+state with a real consequence: the finding is `blocking`, the upload is
+**refused**, and the API returns both readings in words. `03/04/2026` comes back
+as "3 April 2026 or 4 March 2026… the file does not say which", and the scan for
+a disambiguating value runs over the *whole* column rather than a sample,
+because the one row that settles a thousand can be row nine hundred.
+
+**Every decision is written down.** An `IngestSpec` records the container,
+format, delimiter, encoding, header row and each column's type, date format and
+decimal separator. The upload screen shows it against real rows before anything
+is stored; the confirmed version is what imports; it is kept on the dataset so
+"why is this column text" has an answer; and it is saved against the file's
+**column fingerprint** so next month's file reads the same way. That last part
+is not convenience — inference depends on the data, so a column that read as
+day-first in January because one row said `15/01` is genuinely ambiguous in
+February when no row does. A recorded decision does not drift.
+
+**Ten readers, each for one format's specific difficulty.** Delimited text
+(ragged rows counted and reported rather than dropped or fatal); Excel (merged
+cells filled across their range, cached values not formulas, `#REF!` counted,
+serial dates converted with the 1899-12-30 epoch that absorbs Lotus's leap-year
+bug, other sheets reported); the three things people mean by a JSON file
+including concatenated documents, with the records path found rather than
+assumed; XML with the record element discovered and DOCTYPEs refused outright
+(billion laughs); SQL dumps **parsed, never executed**, yielding `decimal(12,2)`
+where inference would have said float; Parquet, Avro and ORC using their
+embedded schema; fixed-width with boundaries from character-frequency valleys;
+SAS and Stata keeping their variable and value labels.
+
+**A 2GB CSV.** Uploads become sessions: fixed-size chunks addressed by index, so
+a retry replaces rather than appends and resuming is the ordinary path with the
+received chunks skipped. The whole file is checksummed on assembly, because a
+dataset that is 99.97% of a file is worse than a failed upload. Above 64MB the
+profile streams — Welford for a numerically stable mean and variance, distinct
+counts exact to a ceiling and reported as a bound past it, and duplicate
+detection *not attempted* rather than approximated.
+
+**Six nested-data tools** on the Phase 16 registry: flatten, explode,
+json_extract, collect, infer_json_schema and normalise. Each is an `Extension`,
+honestly outside the algebra and never pushed down. `flatten` and `normalise`
+take an explicit field list rather than discovering one, because a tool whose
+output columns depend on the rows cannot be predicted by lineage — and lineage
+that quietly reports the wrong columns is worse than a tool that asks.
+`infer_json_schema` exists to produce that list.
+
+### Seven bugs the corpus and the end-to-end run found
+
+1. **Every import was silently truncated to 5,000 rows.** The analysis sample
+   leaked into the materialisation path. The load succeeded, the table looked
+   entirely reasonable, and three quarters of a large file was missing. `limit`
+   is now explicit with no safe default.
+2. **An `.xlsx` was being unwrapped as a zip**, because it is one. Office and
+   OpenDocument layouts are now recognised and left alone.
+3. **`10.0` was narrowed to an integer.** A value *written* with a decimal point
+   is a decimal even when round; narrowing a price column drops the cents.
+4. **`01234` became 1234.** A leading zero means a postcode, an account number
+   or a SKU — and unlike most inference mistakes this one is invisible.
+5. **A UTF-16 BOM survived into the first column name**, giving a column called
+   `\ufeffid` that no filter could ever match.
+6. **A file with as many preamble lines as data rows** made the modal line width
+   a tie, and the tie broke towards the preamble — so the preamble became the
+   table and every column was lost. Two places had the same bug.
+7. **A header with no rows under it** was read as a row of data, losing the
+   column names and inventing a row the file did not have.
+
+### Deliberately not done
+
+- **PDF table extraction.** Needs a layout engine (camelot or pdfplumber) that
+  is not installed. The format detector refuses `.pdf` by name with that
+  sentence rather than failing obscurely somewhere inside a parser.
+- **SPSS `.sav`** needs `pyreadstat`; **`.ods`** needs `odfpy`; **7-Zip** needs
+  `py7zr`. Each is declared and refused with the package to install. SAS and
+  Stata, which pandas reads natively, are supported.
+- **Paste-from-clipboard into the grid.** The pipeline it would converge on is
+  built and the endpoint is the same one; what is missing is a grid paste
+  handler, which belongs with the Studio rather than with ingestion.
 
 ---
 
@@ -1458,7 +1636,7 @@ mechanism — every one of them would be declared exactly the way the 167 are.
 
 ---
 
-## Phase 17 — SQL IDE, notebook, and the escape hatch
+## Phase 17 — SQL IDE, notebook, and the escape hatch ✅ COMPLETE (2026-08-23)
 
 No visual tool covers everything, and pretending otherwise is what makes people abandon
 low-code platforms. The escape hatch has to be first-class, not an afterthought.
@@ -1489,12 +1667,90 @@ code, get reviewed in pull requests, and diff meaningfully. This is what lets a 
 the tool without abandoning their engineering practice.
 
 ### Done when
-- [ ] SQL workbench round-trips results into the grid
-- [ ] Notebook cells share state across languages
-- [ ] Sandbox escape attempts are covered by tests; unsandboxable deployments disable the step
-- [ ] YAML round-trip is lossless for every recipe in the test corpus
+- [x] SQL workbench round-trips results into the grid
+- [x] Notebook cells share state across languages
+- [x] Sandbox escape attempts are covered by tests; unsandboxable deployments disable the step
+- [x] YAML round-trip is lossless for every recipe in the test corpus
 
 **Effort: medium-large.** 2–3 sessions.
+
+### What shipped
+
+`services/service-workbench`, 19 API routes, migration `0028`, and three pages:
+**SQL workbench** at `/projects/{id}/workbench`, **Notebooks** at
+`/projects/{id}/notebooks`, and a **recipe-as-code** panel inside the Studio.
+
+**The workbench splits scripts rather than refusing them.** Extraction accepts
+one read-only SELECT, which is right for extraction and impossible for a
+workbench: people paste scripts. `sql_text.py` scans the original characters --
+not a stripped copy -- so statements come back with their formatting, comments
+and character offsets intact, and "error in statement 3" can point at statement
+3. It survives semicolons inside literals, doubled and backslash-escaped quotes,
+quoted identifiers, comments, and PostgreSQL dollar-quoted function bodies.
+
+**Read-only is a default, not a suggestion.** Every request asks for its mode,
+the service narrows it to what the role carries, and the response says which
+policy was actually in force -- a client cannot believe it is read-only when it
+is not. Writes need **admin**, because writing to a source database by hand
+bypasses every review the rest of the platform applies. Classification catches
+the cases a leading-keyword check misses: a data-modifying CTE (`WITH x AS
+(DELETE ... RETURNING *)`) is a write, and `EXPLAIN ANALYZE INSERT` is a write
+because it executes the insert.
+
+**Statement timeouts are set per dialect** (`statement_timeout` for PostgreSQL,
+`max_execution_time` for MySQL), and a dialect with none says so rather than
+staying quiet. Without this a workbench is a way to take a database down: a
+runaway query holds a server-side connection long after the browser tab closes.
+
+**Autocomplete narrows by cursor position** -- tables after `FROM`, that table's
+columns after `alias.`, the joined tables' columns after `SELECT` -- and reads
+the *whole* statement, not just the text before the cursor, because people write
+`SELECT <cursor> FROM orders` by going back.
+
+### The sandbox, and what it actually guarantees
+
+`sandbox.py` runs Python in a spawned process with an import allowlist, a
+CPython **audit hook**, `RLIMIT_CPU`/`RLIMIT_FSIZE`/`RLIMIT_NOFILE`, and a
+wall-clock deadline enforced by the parent.
+
+Two escapes got through earlier versions and are now regression tests:
+
+1. `object.__subclasses__()` reaches `BuiltinImporter`, and `load_module("os")`
+   returns the **cached** module without performing an import -- so no `import`
+   event fires and an allowlist on `__import__` is irrelevant. Fixed by purging
+   the dangerous modules from `sys.modules` before the cell starts, which turns
+   every such route back into a real import the hook refuses.
+2. `os._wrap_close.__init__.__globals__["system"]` is reachable regardless,
+   because purging the lookup table does not unload the class. The audit hook is
+   what stops it, firing on `os.system` wherever the call came from.
+
+**Capabilities are probed, not assumed, and this machine fails the probe.**
+`hasattr(resource, "RLIMIT_AS")` is true on macOS and `setrlimit` raises --
+so an earlier version claimed a memory limit it did not have. The probe now
+spawns a child and tries. On Darwin the answer is no, so **Python cells are
+disabled here with a stated reason**, which is exactly the behaviour 17.3 asks
+for. `run()` is the mechanism and `require_usable()` is the policy, kept apart
+so the escape tests still exercise the barriers on a platform the policy
+declines.
+
+### Deliberately different from the sketch
+
+- **Notebooks run in the request, not on the Phase 01 worker.** The stated
+  reason for the worker was that a long cell must not hold an HTTP connection.
+  What is here instead is a bound on how long a cell *can* be: 15s per Python
+  cell, a statement timeout on SQL, and `MAX_RUN_SECONDS = 120` for the whole
+  notebook. A run that cannot exceed two minutes does not need a queue to keep
+  it off the request, and a queue would add a job table, a worker node type and
+  polling to every client for the same result. Moving it becomes worth doing
+  when notebooks are allowed to run long — a decision about limits, not plumbing.
+- **Only DataFrames cross between cells.** A Python cell's scalars and objects
+  stay in that cell: a SQL cell cannot read a Python class and a recipe cell
+  cannot transform one, so letting them into the namespace would make "shared"
+  mean "shared with one of the three".
+- **The editor is a `<textarea>`, not a library.** Its genuinely hard parts --
+  which statement the cursor is in, ranking completions, what "run" means with a
+  selection -- are logic in `editor-state.ts` and unit tested, the same reasoning
+  that keeps this repository free of chart and icon libraries.
 
 ---
 

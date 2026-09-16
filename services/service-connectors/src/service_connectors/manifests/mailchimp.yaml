@@ -1,0 +1,58 @@
+key: mailchimp
+label: Mailchimp
+category: saas
+description: Read audiences, campaigns, and reports from Mailchimp.
+docs_url: https://mailchimp.com/developer/marketing/api/
+base_url: https://{datacenter}.api.mailchimp.com/3.0
+auth:
+  kind: basic
+  template: Basic {token}
+streams:
+  - name: lists
+    path: /lists
+    records_path: lists
+    primary_key: id
+    pagination: &id001
+      kind: offset
+      offset_param: offset
+      page_size: 100
+    schema:
+      id:
+        type: STRING
+      name:
+        type: STRING
+      date_created:
+        type: TIMESTAMP
+        tz_aware: true
+      stats.member_count:
+        type: INTEGER
+        rename: member_count
+  - name: campaigns
+    path: /campaigns
+    records_path: campaigns
+    primary_key: id
+    pagination: *id001
+    schema:
+      id:
+        type: STRING
+      type:
+        type: STRING
+      status:
+        type: STRING
+      create_time:
+        type: TIMESTAMP
+        tz_aware: true
+      send_time:
+        type: TIMESTAMP
+        tz_aware: true
+  - name: reports
+    path: /reports
+    records_path: reports
+    primary_key: campaign_id
+    pagination: *id001
+tier: 2
+verified_by: test_vendor_contracts.py
+config_fields:
+  - name: datacenter
+    label: Data centre
+    help: The suffix on your API key, e.g. us14.

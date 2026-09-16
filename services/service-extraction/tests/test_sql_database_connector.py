@@ -164,3 +164,33 @@ def test_invalid_port_is_rejected() -> None:
         sql_database.build_url(
             "postgresql", {"host": "h", "database": "d", "username": "u", "port": 99999}
         )
+
+
+def test_the_connector_tier_reaches_a_run_and_a_test(tmp_path: Path) -> None:
+    """A run whose source is unverified says so in its output.
+
+    The extraction service predates the connector SDK and drives its databases
+    directly, so without this the tier would live only in the picker -- and by
+    the time somebody is looking at the numbers a run produced, the picker is
+    long gone.
+    """
+    import service_connectors  # noqa: F401  -- assembles the catalogue
+    from service_extraction.tiers import note_for
+
+    # SQLite is exercised end to end by this very file, so it carries a real
+    # tier and needs no note. A warning on every run regardless of tier is a
+    # warning people stop reading.
+    assert note_for("sqlite") is None
+
+    # A database nothing has run against here says so, once, in plain words.
+    note = note_for("teradata")
+    assert note is not None
+    assert "unverified" in note.lower()
+    assert "never executed" in note.lower()
+
+
+def test_an_unknown_connector_type_is_simply_not_annotated() -> None:
+    """Extraction working matters more than extraction knowing about tiers."""
+    from service_extraction.tiers import note_for
+
+    assert note_for("something-that-does-not-exist") is None

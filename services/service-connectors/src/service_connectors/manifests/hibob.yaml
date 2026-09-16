@@ -1,0 +1,22 @@
+key: hibob
+label: HiBob
+category: saas
+description: Read employees and time off from HiBob.
+docs_url: https://apidocs.hibob.com/
+base_url: https://api.hibob.com/v1
+auth:
+  kind: basic
+  template: Basic {token}
+streams:
+  - name: employees
+    path: /people
+    records_path: employees
+    primary_key: id
+    pagination: &id001
+      kind: none
+  - name: time_off
+    path: /timeoff/requests
+    records_path: requests
+    primary_key: id
+    pagination: *id001
+tier: 4

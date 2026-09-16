@@ -1,0 +1,24 @@
+key: personio
+label: Personio
+category: saas
+description: Read employees and absences from Personio.
+docs_url: https://developer.personio.de/reference
+base_url: https://api.personio.de/v1
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: employees
+    path: /company/employees
+    records_path: data
+    primary_key: id
+    pagination: &id001
+      kind: offset
+      offset_param: offset
+      page_size: 100
+  - name: absences
+    path: /company/time-offs
+    records_path: data
+    primary_key: id
+    pagination: *id001
+tier: 4

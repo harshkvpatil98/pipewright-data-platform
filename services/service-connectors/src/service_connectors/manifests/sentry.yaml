@@ -1,0 +1,53 @@
+key: sentry
+label: Sentry
+category: saas
+description: Read projects and issues from Sentry.
+docs_url: https://docs.sentry.io/api/
+base_url: https://sentry.io/api/0
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: projects
+    path: /projects/
+    primary_key: id
+    pagination: &id001
+      kind: none
+    schema:
+      id:
+        type: STRING
+      slug:
+        type: STRING
+      name:
+        type: STRING
+      platform:
+        type: STRING
+  - name: issues
+    path: /projects/{organization}/{project}/issues/
+    primary_key: id
+    pagination: *id001
+    schema:
+      id:
+        type: STRING
+      title:
+        type: STRING
+      level:
+        type: STRING
+      status:
+        type: STRING
+      firstSeen:
+        type: TIMESTAMP
+        tz_aware: true
+        rename: first_seen
+      lastSeen:
+        type: TIMESTAMP
+        tz_aware: true
+        rename: last_seen
+tier: 2
+verified_by: test_vendor_contracts.py
+config_fields:
+  - name: organization
+    label: Organisation
+  - name: project
+    label: Project
+    required: false

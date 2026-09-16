@@ -10,10 +10,15 @@ from sqlalchemy.orm import Session
 from service_destinations.postgres_writer import validate_table_identifier
 from service_destinations.service import get_destination_model
 from service_datasets.service import get_dataset_model_for_project
+from service_extraction.service import get_connection_for_project
 from service_transformations.contracts import get_transformation_pipeline_for_project
 from shared_python.errors import BadRequestError
 
-ScheduleType = Literal["transformation_pipeline_run", "postgres_publish"]
+ScheduleType = Literal[
+    "transformation_pipeline_run",
+    "postgres_publish",
+    "connector_schema_watch",
+]
 WRITE_MODES = frozenset({"replace", "append"})
 
 
@@ -81,5 +86,24 @@ def validate_and_normalize_target_config(
             "table_name": table_name,
             "write_mode": write_mode,
         }
+
+    if schedule_type == "connector_schema_watch":
+        # Nothing is required: the sweep covers the whole project by default,
+        # which is what a nightly watch should do. A connection id narrows it
+        # to one source for somebody debugging a single vendor.
+        extra = set(target.keys()) - {"connection_id"}
+        if extra:
+            raise BadRequestError(f"Unexpected keys in target_config: {sorted(extra)}.")
+        raw = target.get("connection_id")
+        if raw in (None, ""):
+            return {}
+        try:
+            connection_id = uuid.UUID(str(raw))
+        except (ValueError, TypeError) as exc:
+            raise BadRequestError("target_config.connection_id must be a UUID.") from exc
+        # Checked here rather than at run time, so a schedule that can never
+        # work is refused when it is created instead of failing nightly.
+        get_connection_for_project(db, project_id, connection_id)
+        return {"connection_id": str(connection_id)}
 
     raise BadRequestError("Unsupported schedule_type.")

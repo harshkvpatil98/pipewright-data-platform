@@ -1,0 +1,63 @@
+key: chargebee
+label: Chargebee
+category: saas
+description: Read customers, subscriptions, and invoices from Chargebee.
+docs_url: https://apidocs.chargebee.com/docs/api
+base_url: https://{site}.chargebee.com/api/v2
+auth:
+  kind: basic
+  template: Basic {token}
+streams:
+  - name: customers
+    path: /customers
+    records_path: list
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: offset
+      cursor_path: next_offset
+      page_size: 100
+    schema:
+      customer.id:
+        type: STRING
+        rename: id
+      customer.email:
+        type: STRING
+        rename: email
+      customer.created_at:
+        type: INTEGER
+        rename: created_at
+  - name: subscriptions
+    path: /subscriptions
+    records_path: list
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: offset
+      cursor_path: next_offset
+      page_size: 100
+    schema:
+      subscription.id:
+        type: STRING
+        rename: id
+      subscription.status:
+        type: STRING
+        rename: status
+      subscription.created_at:
+        type: INTEGER
+        rename: created_at
+  - name: invoices
+    path: /invoices
+    records_path: list
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: offset
+      cursor_path: next_offset
+      page_size: 100
+tier: 2
+verified_by: test_vendor_contracts.py
+config_fields:
+  - name: site
+    label: Site name
+    help: The part before .chargebee.com in your URL.

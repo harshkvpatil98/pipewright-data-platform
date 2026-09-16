@@ -1,0 +1,37 @@
+key: notion
+label: Notion
+category: saas
+description: Read pages, databases, and users from Notion.
+docs_url: https://developers.notion.com/reference/intro
+base_url: https://api.notion.com/v1
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: search
+    path: /search
+    records_path: results
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: start_cursor
+      cursor_path: next_cursor
+      page_size: 100
+  - name: users
+    path: /users
+    records_path: results
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: start_cursor
+      cursor_path: next_cursor
+      page_size: 100
+    schema:
+      id:
+        type: STRING
+      name:
+        type: STRING
+      type:
+        type: STRING
+tier: 2
+verified_by: test_vendor_contracts.py

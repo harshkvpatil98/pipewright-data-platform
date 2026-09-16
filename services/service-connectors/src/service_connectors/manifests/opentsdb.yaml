@@ -1,0 +1,20 @@
+key: opentsdb
+label: OpenTSDB
+category: timeseries
+description: Read metrics and metadata from OpenTSDB.
+docs_url: http://opentsdb.net/docs/build/html/api_http/index.html
+base_url: http://{host}/api
+auth:
+  kind: none
+streams:
+  - name: suggest
+    path: /suggest
+    pagination:
+      kind: none
+    params:
+      type: metrics
+tier: 4
+config_fields:
+  - name: host
+    label: Host
+    placeholder: metrics.internal:8086

@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from service_datasets.schemas import DatasetDetailRead
 from service_pipeline_runs.schemas import PipelineRunRead
@@ -70,3 +70,63 @@ class IngestionResult(BaseModel):
 class DatasetUploadResponse(BaseModel):
     dataset: DatasetDetailRead
     run: PipelineRunRead
+
+
+# ------------------------------------------------- Phase 11: analyse first
+
+
+class AnalyseResponse(BaseModel):
+    """What the sniff found, before anything is stored.
+
+    `questions` is the field that matters: it holds the decisions the file
+    genuinely does not settle -- an ambiguous date format, a separator that
+    could be decimal or thousands -- and an upload proceeds only once they are
+    answered. Everything else is inferred with a confidence the caller can see.
+    """
+
+    file_name: str
+    file_size_bytes: int
+    analysis: dict[str, Any]
+    spec: dict[str, Any]
+    preview: dict[str, Any]
+    conversion_notes: list[str] = Field(default_factory=list)
+    matched_spec: dict[str, Any] | None = None
+    questions: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class IngestSpecRead(BaseModel):
+    id: str
+    label: str
+    name_pattern: str
+    column_fingerprint: str
+    file_format: str
+    spec: dict[str, Any]
+    use_count: int
+    last_used_at: str | None = None
+    created_at: str | None = None
+
+
+class IngestSpecListResponse(BaseModel):
+    items: list[IngestSpecRead]
+
+
+class RememberSpecRequest(BaseModel):
+    label: str = Field(min_length=1, max_length=200)
+    file_name: str = Field(min_length=1, max_length=300)
+    spec: dict[str, Any]
+    #: The columns this spec was confirmed against, for the fingerprint.
+    columns: list[str] = Field(default_factory=list)
+
+
+class UploadSessionRead(BaseModel):
+    upload_id: str
+    file_name: str
+    total_bytes: int
+    chunk_bytes: int
+    expected_chunks: int
+    received_chunks: list[int]
+    missing_chunks: list[int]
+    received_bytes: int
+    complete: bool
+    completed: bool
+    expires_at: str

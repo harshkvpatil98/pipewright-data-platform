@@ -1,0 +1,32 @@
+key: snapchat_ads
+label: Snapchat Ads
+category: saas
+description: Read campaigns and ad squads from Snapchat Ads.
+docs_url: https://developers.snap.com/api/marketing-api/Ads-API/introduction
+base_url: https://adsapi.snapchat.com/v1/adaccounts/{ad_account_id}
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: campaigns
+    path: /campaigns
+    records_path: campaigns
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: cursor
+      cursor_path: paging.next_link
+      page_size: 100
+  - name: adsquads
+    path: /adsquads
+    records_path: adsquads
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: cursor
+      cursor_path: paging.next_link
+      page_size: 100
+tier: 4
+config_fields:
+  - name: ad_account_id
+    label: Ad account id

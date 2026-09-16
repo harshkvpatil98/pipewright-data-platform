@@ -1,0 +1,29 @@
+key: prometheus
+label: Prometheus
+category: timeseries
+description: Query series and metadata from Prometheus.
+docs_url: https://prometheus.io/docs/prometheus/latest/querying/api/
+base_url: http://{host}/api/v1
+auth:
+  kind: none
+streams:
+  - name: series
+    path: /series
+    records_path: data
+    pagination: &id001
+      kind: none
+    params:
+      match[]: '{__name__!=""}'
+  - name: labels
+    path: /labels
+    records_path: data
+    pagination: *id001
+  - name: targets
+    path: /targets
+    records_path: data.activeTargets
+    pagination: *id001
+tier: 4
+config_fields:
+  - name: host
+    label: Host
+    placeholder: metrics.internal:8086

@@ -1,0 +1,38 @@
+key: ramp
+label: Ramp
+category: saas
+description: Read transactions, cards, and users from Ramp.
+docs_url: https://docs.ramp.com/developer-api/v1/overview
+base_url: https://api.ramp.com/developer/v1
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: transactions
+    path: /transactions
+    records_path: data
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: start
+      cursor_path: page.next
+      page_size: 100
+  - name: cards
+    path: /cards
+    records_path: data
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: start
+      cursor_path: page.next
+      page_size: 100
+  - name: users
+    path: /users
+    records_path: data
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: start
+      cursor_path: page.next
+      page_size: 100
+tier: 4

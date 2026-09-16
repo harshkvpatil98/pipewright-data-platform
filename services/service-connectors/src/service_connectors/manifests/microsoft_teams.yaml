@@ -1,0 +1,29 @@
+key: microsoft_teams
+label: Microsoft Teams
+category: saas
+description: Read teams and users from Microsoft Graph.
+docs_url: https://learn.microsoft.com/en-us/graph/api/overview
+base_url: https://graph.microsoft.com/v1.0
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: teams
+    path: /me/joinedTeams
+    records_path: value
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: $skiptoken
+      cursor_path: '@odata.nextLink'
+      page_size: 100
+  - name: users
+    path: /users
+    records_path: value
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: $skiptoken
+      cursor_path: '@odata.nextLink'
+      page_size: 100
+tier: 4

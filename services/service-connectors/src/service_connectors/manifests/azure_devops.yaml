@@ -1,0 +1,25 @@
+key: azure_devops
+label: Azure DevOps
+category: saas
+description: Read work items and builds from Azure DevOps.
+docs_url: https://learn.microsoft.com/en-us/rest/api/azure/devops/
+base_url: https://dev.azure.com/{organization}/{project}/_apis
+auth:
+  kind: basic
+  template: Basic {token}
+streams:
+  - name: builds
+    path: /build/builds
+    records_path: value
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: cursor
+      cursor_path: continuationToken
+      page_size: 100
+tier: 4
+config_fields:
+  - name: organization
+    label: Organisation
+  - name: project
+    label: Project

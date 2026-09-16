@@ -1,0 +1,38 @@
+key: bamboohr
+label: BambooHR
+category: saas
+description: Read employees and time off from BambooHR.
+docs_url: https://documentation.bamboohr.com/docs
+base_url: https://api.bamboohr.com/api/gateway.php/{subdomain}/v1
+auth:
+  kind: basic
+  template: Basic {token}
+streams:
+  - name: employees
+    path: /employees/directory
+    records_path: employees
+    primary_key: id
+    pagination: &id001
+      kind: none
+    schema:
+      id:
+        type: STRING
+      displayName:
+        type: STRING
+        rename: display_name
+      workEmail:
+        type: STRING
+        rename: work_email
+      jobTitle:
+        type: STRING
+        rename: job_title
+  - name: time_off_requests
+    path: /time_off/requests
+    primary_key: id
+    pagination: *id001
+tier: 2
+verified_by: test_vendor_contracts.py
+config_fields:
+  - name: subdomain
+    label: Subdomain
+    help: The part before the vendor's domain in your account URL.

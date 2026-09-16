@@ -1,0 +1,27 @@
+key: customerio
+label: Customer.io
+category: saas
+description: Read campaigns, segments, and newsletters from Customer.io.
+docs_url: https://customer.io/docs/api/app/
+base_url: https://api.customer.io/v1
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: campaigns
+    path: /campaigns
+    records_path: campaigns
+    primary_key: id
+    pagination: &id001
+      kind: none
+  - name: segments
+    path: /segments
+    records_path: segments
+    primary_key: id
+    pagination: *id001
+  - name: newsletters
+    path: /newsletters
+    records_path: newsletters
+    primary_key: id
+    pagination: *id001
+tier: 4

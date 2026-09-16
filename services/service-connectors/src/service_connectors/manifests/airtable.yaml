@@ -1,0 +1,33 @@
+key: airtable
+label: Airtable
+category: saas
+description: Read records from an Airtable base.
+docs_url: https://airtable.com/developers/web/api/introduction
+base_url: https://api.airtable.com/v0/{base_id}
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: records
+    path: /{table_name}
+    records_path: records
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: offset
+      cursor_path: offset
+      page_size: 100
+    schema:
+      id:
+        type: STRING
+      createdTime:
+        type: TIMESTAMP
+        tz_aware: true
+        rename: created_at
+tier: 2
+verified_by: test_vendor_contracts.py
+config_fields:
+  - name: base_id
+    label: Base id
+  - name: table_name
+    label: Table name

@@ -1,0 +1,24 @@
+key: sendgrid
+label: SendGrid
+category: saas
+description: Read marketing lists and statistics from SendGrid.
+docs_url: https://docs.sendgrid.com/api-reference/
+base_url: https://api.sendgrid.com/v3
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: lists
+    path: /marketing/lists
+    records_path: result
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: page_token
+      cursor_path: _metadata.next
+      page_size: 100
+  - name: stats
+    path: /stats
+    pagination:
+      kind: none
+tier: 4

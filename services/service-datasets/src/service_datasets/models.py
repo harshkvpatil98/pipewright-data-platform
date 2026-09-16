@@ -71,6 +71,12 @@ class Dataset(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     preview_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     ingestion_error: Mapped[str | None] = mapped_column(Text, nullable=True)
     last_profiled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    #: How this file was read: the delimiter, the header row, every column's
+    #: type and date format. Kept with the dataset so "why is this column text"
+    #: has an answer, and so the same file can be re-read the same way.
+    #: Null for datasets ingested before Phase 11 -- inventing one would be a
+    #: claim about how they were read.
+    ingest_spec_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
 
     project: Mapped[Project] = relationship(back_populates="datasets")
     source: Mapped[Source | None] = relationship(back_populates="datasets")

@@ -1,0 +1,29 @@
+key: segment
+label: Segment
+category: saas
+description: Read sources and destinations from Segment.
+docs_url: https://docs.segmentapis.com/
+base_url: https://api.segmentapis.com
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: sources
+    path: /sources
+    records_path: data.sources
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: pagination.cursor
+      cursor_path: data.pagination.next
+      page_size: 100
+  - name: destinations
+    path: /destinations
+    records_path: data.destinations
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: pagination.cursor
+      cursor_path: data.pagination.next
+      page_size: 100
+tier: 4

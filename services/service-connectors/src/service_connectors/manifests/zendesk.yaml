@@ -1,0 +1,89 @@
+key: zendesk
+label: Zendesk Support
+category: saas
+description: Read tickets, users, and organisations from Zendesk.
+docs_url: https://developer.zendesk.com/api-reference/
+base_url: https://{subdomain}.zendesk.com/api/v2
+auth:
+  kind: basic
+  template: Basic {token}
+streams:
+  - name: tickets
+    path: /tickets
+    records_path: tickets
+    primary_key: id
+    pagination:
+      kind: next_url
+      cursor_path: links.next
+      page_size: 100
+    incremental:
+      cursor_field: updated_at
+      param: start_time
+      template: '{value}'
+    schema:
+      id:
+        type: INTEGER
+      subject:
+        type: STRING
+      status:
+        type: STRING
+      priority:
+        type: STRING
+      requester_id:
+        type: INTEGER
+      assignee_id:
+        type: INTEGER
+      created_at:
+        type: TIMESTAMP
+        tz_aware: true
+      updated_at:
+        type: TIMESTAMP
+        tz_aware: true
+  - name: users
+    path: /users
+    records_path: users
+    primary_key: id
+    pagination:
+      kind: next_url
+      cursor_path: links.next
+      page_size: 100
+    schema:
+      id:
+        type: INTEGER
+      name:
+        type: STRING
+      email:
+        type: STRING
+      role:
+        type: STRING
+      created_at:
+        type: TIMESTAMP
+        tz_aware: true
+      updated_at:
+        type: TIMESTAMP
+        tz_aware: true
+  - name: organizations
+    path: /organizations
+    records_path: organizations
+    primary_key: id
+    pagination:
+      kind: next_url
+      cursor_path: links.next
+      page_size: 100
+    schema:
+      id:
+        type: INTEGER
+      name:
+        type: STRING
+      created_at:
+        type: TIMESTAMP
+        tz_aware: true
+      updated_at:
+        type: TIMESTAMP
+        tz_aware: true
+tier: 2
+verified_by: test_vendor_contracts.py
+config_fields:
+  - name: subdomain
+    label: Subdomain
+    help: The part before the vendor's domain in your account URL.

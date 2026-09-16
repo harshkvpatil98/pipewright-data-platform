@@ -11,6 +11,47 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+
+    # Real database servers, so the connectors that claim tier 2 ("runs against
+    # a container in CI on every merge") are making a true statement. Without
+    # these the suite still passes -- `test_containers.py` skips what it cannot
+    # reach -- but the tier badge would be decoration, which is the one thing
+    # the tier system is not allowed to be.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: platform
+          POSTGRES_USER: platform
+          POSTGRES_PASSWORD: platform
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U platform -d platform"
+          --health-interval 10s --health-timeout 5s --health-retries 10
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: platform
+          MYSQL_DATABASE: platform
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -pplatform"
+          --health-interval 10s --health-timeout 5s --health-retries 15
+      mariadb:
+        image: mariadb:11
+        env:
+          MARIADB_ROOT_PASSWORD: platform
+          MARIADB_DATABASE: platform
+        ports: ["3307:3306"]
+        options: >-
+          --health-cmd "healthcheck.sh --connect --innodb_initialized"
+          --health-interval 10s --health-timeout 5s --health-retries 15
+
+    env:
+      CONNECTORS_TEST_POSTGRES_URL: postgresql+psycopg://platform:platform@127.0.0.1:5432/platform
+      CONNECTORS_TEST_MYSQL_URL: mysql+pymysql://root:platform@127.0.0.1:3306/platform
+      CONNECTORS_TEST_MARIADB_URL: mysql+pymysql://root:platform@127.0.0.1:3307/platform
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -31,6 +72,11 @@ jobs:
 
       - name: Bootstrap Python venv (editable installs)
         run: bash ./scripts/ci-bootstrap-python-venv.sh
+
+      - name: Confirm the connector containers are reachable
+        # A silent skip here would mean the tier-2 claims quietly stopped being
+        # true. Better to fail the build than to keep the badge.
+        run: .venv/bin/python ./scripts/check-connector-servers.py
 
       - name: Verify (ruff, tests, lint, typecheck, web build)
         run: bash ./scripts/verify-release.sh

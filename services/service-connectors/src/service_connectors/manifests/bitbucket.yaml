@@ -1,0 +1,34 @@
+key: bitbucket
+label: Bitbucket
+category: saas
+description: Read repositories and pull requests from Bitbucket.
+docs_url: https://developer.atlassian.com/cloud/bitbucket/rest/
+base_url: https://api.bitbucket.org/2.0
+auth:
+  kind: basic
+  template: Basic {token}
+streams:
+  - name: repositories
+    path: /repositories/{workspace}
+    records_path: values
+    primary_key: uuid
+    pagination:
+      kind: next_url
+      cursor_path: next
+      page_size: 100
+  - name: pullrequests
+    path: /repositories/{workspace}/{repo}/pullrequests
+    records_path: values
+    primary_key: id
+    pagination:
+      kind: next_url
+      cursor_path: next
+      page_size: 100
+tier: 2
+verified_by: test_vendor_contracts.py
+config_fields:
+  - name: workspace
+    label: Workspace
+  - name: repo
+    label: Repository
+    required: false

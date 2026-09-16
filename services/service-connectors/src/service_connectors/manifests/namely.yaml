@@ -1,0 +1,29 @@
+key: namely
+label: Namely
+category: saas
+description: Read profiles and job titles from Namely.
+docs_url: https://developers.namely.com/
+base_url: https://{subdomain}.namely.com/api/v1
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: profiles
+    path: /profiles
+    records_path: profiles
+    primary_key: id
+    pagination: &id001
+      kind: page
+      page_param: page
+      size_param: per_page
+      page_size: 100
+  - name: job_titles
+    path: /job_titles
+    records_path: job_titles
+    primary_key: id
+    pagination: *id001
+tier: 4
+config_fields:
+  - name: subdomain
+    label: Subdomain
+    help: The part before the vendor's domain in your account URL.

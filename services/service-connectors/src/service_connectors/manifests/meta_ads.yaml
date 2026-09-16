@@ -1,0 +1,41 @@
+key: meta_ads
+label: Meta Ads
+category: saas
+description: Read campaigns, ad sets, and insights from Meta Ads.
+docs_url: https://developers.facebook.com/docs/marketing-apis/
+base_url: https://graph.facebook.com/v21.0/act_{ad_account_id}
+auth:
+  kind: api_key
+  placement: query
+  query_param: access_token
+streams:
+  - name: campaigns
+    path: /campaigns
+    records_path: data
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: after
+      cursor_path: paging.cursors.after
+      page_size: 100
+  - name: adsets
+    path: /adsets
+    records_path: data
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: after
+      cursor_path: paging.cursors.after
+      page_size: 100
+  - name: insights
+    path: /insights
+    records_path: data
+    pagination:
+      kind: cursor
+      cursor_param: after
+      cursor_path: paging.cursors.after
+      page_size: 100
+tier: 4
+config_fields:
+  - name: ad_account_id
+    label: Ad account id

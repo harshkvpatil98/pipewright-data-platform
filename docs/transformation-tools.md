@@ -1,6 +1,6 @@
 # Transformation tools
 
-167 tools across 10 categories. Every one compiles to the
+173 tools across 11 categories. Every one compiles to the
 relational IR, so every one gets type inference, column lineage and
 pushdown without a second implementation.
 
@@ -14,6 +14,7 @@ test suite, so this file cannot describe behaviour the code does not have.
 - [Type & conversion](#type--conversion) (10)
 - [Date & time](#date--time) (33)
 - [Encoding & privacy](#encoding--privacy) (14)
+- [Nested data](#nested-data) (6)
 - [Missing data](#missing-data) (6)
 - [Numeric](#numeric) (23)
 - [Rows](#rows) (7)
@@ -1264,6 +1265,128 @@ Offered on **textual** columns.
 | `value` | `value` |
 |---|---|
 | `&amp;` | `&` |
+
+
+## Nested data
+
+### Flatten object into columns
+
+`nested.flatten`
+
+Turn a column holding an object into one column per field, named by their path.
+
+Also known as: _unnest object_, _expand object_, _json to columns_, _normalize object_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Column | column | yes | — |
+| Fields | columns | yes | — |
+| | Dotted paths, e.g. address.city. Use 'Describe a JSON column's shape' to list what is there. | | |
+| Prefix | text | no | — |
+| Remove the original column | boolean | no | `True` |
+
+| `who` | `address.city` |
+|---|---|
+| `{"name": "Ada", "address": {"city": "London"}}` | `London` |
+
+_Nested objects keep their path, so `address.city` is one column._
+
+### Explode array into rows
+
+`nested.explode`
+
+Turn a column holding an array into one row per element, repeating the other columns.
+
+Also known as: _unnest array_, _array to rows_, _expand rows_, _flatten array_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Column | column | yes | — |
+| Keep rows with an empty array | boolean | no | `True` |
+
+| `items` | `items` |
+|---|---|
+| `[1, 2, 3]` | `1` |
+
+_One row becomes three. Every other column repeats._
+
+### Extract a value by path
+
+`nested.json_extract`
+
+Pull one value out of a JSON column by its dotted path, e.g. `address.city` or `items.0.sku`.
+
+Also known as: _json path_, _jsonpath_, _get nested value_, _pluck_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Column | column | yes | — |
+| Path | text | yes | — |
+| New column | text | no | — |
+
+| `payload` | `city` |
+|---|---|
+| `{"address": {"city": "Oslo"}}` | `Oslo` |
+
+### Collect rows into an array
+
+`nested.collect`
+
+The inverse of explode: gather a column's values into one array per group.
+
+Also known as: _group into array_, _array_agg_, _implode_, _nest_, _unexplode_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Group by | columns | yes | — |
+| Collect | column | yes | — |
+| New column | text | no | — |
+
+| `sku` | `skus` |
+|---|---|
+| `x` | `["x", "y"]` |
+| `y` | `["z"]` |
+
+### Describe a JSON column's shape
+
+`nested.infer_json_schema`
+
+Replace the table with one row per field found in a JSON column: its path, the types seen there, and how many documents actually have it.
+
+Also known as: _json schema_, _describe json_, _what is in this column_, _shape_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Column | column | yes | — |
+
+| `payload` | `path` |
+|---|---|
+| `{"id": 1, "tags": ["a"]}` | `id` |
+| `{"id": 2}` | `tags` |
+
+_`id` is in both documents and `tags` is in one, which is the useful part: a pipeline built on `tags` breaks on half the rows. `tags[]` describes what is inside the array._
+
+### Split a nested array into its own table
+
+`nested.normalise`
+
+Turn one document with a repeated section into a child table, carrying the parent's key so the two can be joined back together.
+
+Also known as: _child table_, _split out_, _one to many_, _relational_, _shred_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Nested column | column | yes | — |
+| Parent key | column | yes | — |
+| Fields to keep | columns | yes | — |
+| | Dotted paths inside each element, e.g. sku or product.name. | | |
+| Child column prefix | text | no | — |
+
+| `lines` | `sku` |
+|---|---|
+| `[{"sku": "x", "qty": 2}]` | `x` |
+
+_The result is the child table. `order_id` travels with it so a join puts the two back together._
 
 
 ## Missing data

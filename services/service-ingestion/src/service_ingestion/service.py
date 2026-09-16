@@ -42,6 +42,37 @@ def _build_log_events(events: list[dict[str, object]]) -> dict[str, object]:
     return {'events': events}
 
 
+def _profile_for(*, parsed, file_bytes: bytes, settings, log_events: list) -> dict:
+    """Profile the file, streaming it when it is too big to hold twice.
+
+    Below the threshold the frame is already in memory and profiling it is
+    free. Above it, the file is re-read a chunk at a time and the statistics
+    are accumulated -- which is slower and is the only way a 2GB CSV profiles
+    at all. The profile says which of the two it was.
+    """
+    from service_ingestion import streaming
+
+    streamable = parsed.metadata.get('format') in ('csv', 'tsv', 'psv')
+    if not (streaming.should_stream(len(file_bytes)) and streamable):
+        return build_profile(
+            dataframe=parsed.dataframe,
+            sample_limit=settings.profile_sample_value_limit,
+            file_size_bytes=len(file_bytes),
+        )
+
+    log_events.append(
+        _log_event(
+            'profile',
+            'File is large; profiling by streaming it rather than holding it in memory.',
+            details={'file_size_bytes': len(file_bytes)},
+        )
+    )
+    return streaming.profile_stream(
+        streaming.chunks_of_delimited(file_bytes, options=parsed.spec.get('options') or {}),
+        file_size_bytes=len(file_bytes),
+    )
+
+
 def ingest_project_file(
     db,
     *,
@@ -51,6 +82,7 @@ def ingest_project_file(
     storage_backend,
     settings,
     current_user: UserRead,
+    ingest_spec: dict | None = None,
 ) -> DatasetUploadResponse:
     project = ensure_owned_project(db, project_id, current_user.id)
     file_type = validate_upload_file(upload_file, settings)
@@ -133,7 +165,13 @@ def ingest_project_file(
         )
 
         current_stage = 'parse'
-        parsed = parse_tabular_file(file_bytes=file_bytes, file_type=file_type)
+        parsed = parse_tabular_file(
+            file_bytes=file_bytes,
+            file_type=file_type,
+            file_name=upload_file.file_name,
+            content_type=upload_file.content_type,
+            ingest_spec=ingest_spec,
+        )
         log_events.append(
             _log_event(
                 'parse',
@@ -141,14 +179,17 @@ def ingest_project_file(
                 details=parsed.metadata,
             )
         )
+        for warning in parsed.warnings:
+            log_events.append(_log_event('parse', warning))
 
         current_stage = 'profile'
         schema_json = infer_schema(dataframe=parsed.dataframe)
         preview_json = build_preview(dataframe=parsed.dataframe, limit=settings.preview_row_limit)
-        profile_json = build_profile(
-            dataframe=parsed.dataframe,
-            sample_limit=settings.profile_sample_value_limit,
-            file_size_bytes=len(file_bytes),
+        profile_json = _profile_for(
+            parsed=parsed,
+            file_bytes=file_bytes,
+            settings=settings,
+            log_events=log_events,
         )
         log_events.append(
             _log_event(
@@ -174,6 +215,7 @@ def ingest_project_file(
             profile_json=profile_json,
             row_count=profile_json['row_count'],
             column_count=profile_json['column_count'],
+            ingest_spec_json=parsed.spec,
         )
         log_events.append(
             _log_event(

@@ -189,7 +189,10 @@ def test_ingest_project_file_rejects_unsupported_extensions(ensure_owned_project
         updated_at=datetime.now(UTC),
     )
 
-    with pytest.raises(BadRequestError, match="Unsupported file type"):
+    # The message now names the extension and lists what this deployment
+    # accepts, because "unsupported file type" left somebody guessing which
+    # types were supported.
+    with pytest.raises(BadRequestError, match="not a file type this deployment accepts"):
         ingest_project_file(
             object(),
             project_id=uuid.uuid4(),

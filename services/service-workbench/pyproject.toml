@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "service-workbench"
+version = "0.1.0"
+description = "SQL workbench, notebook, and the sandboxed Python escape hatch"
+requires-python = ">=3.11"
+# The live engine is injected by the gateway, the same way write-back gets one,
+# so this service depends on no connector package and no database driver.
+dependencies = [
+  "fastapi>=0.115,<1.0",
+  "pandas>=2.2,<3.0",
+  "pydantic>=2.9,<3.0",
+  "pyyaml>=6.0,<7.0",
+  "sqlalchemy>=2.0,<3.0",
+  "shared-python>=0.1.0",
+  "service-auth>=0.1.0",
+  "service-projects>=0.1.0",
+  "service-transformations>=0.1.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3,<9.0",
+]

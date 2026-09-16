@@ -1,0 +1,33 @@
+key: sugarcrm
+label: SugarCRM
+category: saas
+description: Read accounts, contacts, and opportunities from SugarCRM.
+docs_url: https://support.sugarcrm.com/documentation/
+base_url: https://{subdomain}.sugarondemand.com/rest/v11
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: accounts
+    path: /Accounts
+    records_path: records
+    primary_key: id
+    pagination: &id001
+      kind: offset
+      offset_param: offset
+      page_size: 100
+  - name: contacts
+    path: /Contacts
+    records_path: records
+    primary_key: id
+    pagination: *id001
+  - name: opportunities
+    path: /Opportunities
+    records_path: records
+    primary_key: id
+    pagination: *id001
+tier: 4
+config_fields:
+  - name: subdomain
+    label: Subdomain
+    help: The part before the vendor's domain in your account URL.

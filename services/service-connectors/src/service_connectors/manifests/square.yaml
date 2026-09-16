@@ -1,0 +1,66 @@
+key: square
+label: Square
+category: saas
+description: Read customers, payments, and locations from Square.
+docs_url: https://developer.squareup.com/reference/square
+base_url: https://connect.squareup.com/v2
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: customers
+    path: /customers
+    records_path: customers
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: cursor
+      cursor_path: cursor
+      page_size: 100
+    schema:
+      id:
+        type: STRING
+      given_name:
+        type: STRING
+      family_name:
+        type: STRING
+      email_address:
+        type: STRING
+        rename: email
+      created_at:
+        type: TIMESTAMP
+        tz_aware: true
+      updated_at:
+        type: TIMESTAMP
+        tz_aware: true
+  - name: payments
+    path: /payments
+    records_path: payments
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: cursor
+      cursor_path: cursor
+      page_size: 100
+    schema:
+      id:
+        type: STRING
+      status:
+        type: STRING
+      amount_money.amount:
+        type: INTEGER
+        rename: amount
+      amount_money.currency:
+        type: STRING
+        rename: currency
+      created_at:
+        type: TIMESTAMP
+        tz_aware: true
+  - name: locations
+    path: /locations
+    records_path: locations
+    primary_key: id
+    pagination:
+      kind: none
+tier: 2
+verified_by: test_vendor_contracts.py

@@ -54,6 +54,14 @@ from service_workflows.models import (  # noqa: F401
     WorkflowRun,
 )
 from service_notifications.models import ExternalNotificationTarget, UserNotification  # noqa: F401
+from service_workbench.models import (  # noqa: F401
+    Notebook,
+    NotebookCell,
+    QueryRun,
+    SavedQuery,
+)
+from service_connectors.models import ConnectorSchemaSnapshot  # noqa: F401
+from service_ingestion.models import IngestSpecRecord  # noqa: F401
 
 # Imported for the side effect: this teaches governance how to snapshot and
 # restore a workflow, which is what makes version history restorable.

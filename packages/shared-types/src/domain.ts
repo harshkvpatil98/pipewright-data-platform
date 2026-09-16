@@ -183,6 +183,12 @@ export type DatasetRecord = {
   preview_json: DatasetPreview | null;
   ingestion_error: string | null;
   last_profiled_at: string | null;
+  /**
+   * How the file was read: separator, header row, every column's type and date
+   * format. Null for datasets ingested before Phase 11 — inventing one would
+   * be a claim about how they were read.
+   */
+  ingest_spec_json: IngestSpec | null;
   created_at: string;
   updated_at: string;
 };
@@ -772,7 +778,11 @@ export type TransformationRunResponse = {
   dataset: DatasetRecord;
 };
 
-export type ScheduleType = "transformation_pipeline_run" | "postgres_publish";
+export type ScheduleType =
+  | "transformation_pipeline_run"
+  | "postgres_publish"
+  /** The nightly connector schema watch — see `service_connectors/sweep.py`. */
+  | "connector_schema_watch";
 
 export type ScheduledOperationRecord = {
   id: string;
@@ -964,3 +974,103 @@ export type AuthTokenResponse = {
   expires_in: number;
   user: AuthUser;
 };
+
+/**
+ * Phase 11 — ingestion intelligence.
+ *
+ * Every stage of the sniffing pipeline returns one of these: what it decided,
+ * how sure it is, and the evidence it decided from. A `certainty` of
+ * `"ambiguous"` with `blocking: true` means the file genuinely does not say —
+ * an unreadable date, a separator that could be decimal or thousands — and the
+ * import waits for an answer rather than picking one.
+ */
+export type IngestCertainty = "certain" | "likely" | "uncertain" | "ambiguous";
+
+export type IngestFinding = {
+  stage: string;
+  value: unknown;
+  certainty: IngestCertainty;
+  confidence: number;
+  reason: string;
+  candidates: { value: unknown; score: number; reason: string }[];
+  evidence: string[];
+  needs_review: boolean;
+  blocking: boolean;
+};
+
+export type IngestColumnSpec = {
+  name: string;
+  type: string;
+  date_format: string | null;
+  decimal: string | null;
+  thousands: string | null;
+  null_tokens: string[];
+  rename: string | null;
+  include: boolean;
+};
+
+export type IngestSpec = {
+  version: number;
+  format: string;
+  container: string;
+  options: Record<string, unknown>;
+  columns: IngestColumnSpec[];
+  derived_from: string | null;
+};
+
+export type IngestAnalysis = {
+  container: string;
+  format: string;
+  read_options: Record<string, unknown>;
+  findings: IngestFinding[];
+  columns: {
+    name: string;
+    type_name: string;
+    finding: IngestFinding;
+    rejected: { value: string; count: number }[];
+    null_tokens: string[];
+    conformity: number;
+    excel_errors: number;
+  }[];
+  members: { name: string; size_bytes: number }[];
+  tables: string[];
+  warnings: string[];
+  blocked_by: IngestFinding[];
+  needs_review: number;
+  row_count_sampled: number;
+};
+
+export type AnalyseUploadResponse = {
+  file_name: string;
+  file_size_bytes: number;
+  analysis: IngestAnalysis;
+  spec: IngestSpec;
+  preview: {
+    columns: string[];
+    dtypes: Record<string, string>;
+    rows: Record<string, unknown>[];
+  };
+  conversion_notes: string[];
+  matched_spec: {
+    id: string;
+    label: string;
+    use_count: number;
+    last_used_at: string | null;
+    applied: boolean;
+  } | null;
+  questions: IngestFinding[];
+};
+
+export type IngestSpecRecord = {
+  id: string;
+  label: string;
+  name_pattern: string;
+  column_fingerprint: string;
+  file_format: string;
+  spec: IngestSpec;
+  use_count: number;
+  last_used_at: string | null;
+  created_at: string | null;
+};
+
+export type IngestSpecListResponse = { items: IngestSpecRecord[] };

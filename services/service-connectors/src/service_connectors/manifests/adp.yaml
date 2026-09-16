@@ -1,0 +1,19 @@
+key: adp
+label: ADP
+category: saas
+description: Read workers from ADP.
+docs_url: https://developers.adp.com/
+base_url: https://api.adp.com/hr/v2
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: workers
+    path: /workers
+    records_path: workers
+    primary_key: associateOID
+    pagination:
+      kind: offset
+      offset_param: offset
+      page_size: 100
+tier: 4

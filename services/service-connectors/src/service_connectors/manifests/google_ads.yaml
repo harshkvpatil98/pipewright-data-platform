@@ -1,0 +1,27 @@
+key: google_ads
+label: Google Ads
+category: saas
+description: Read campaigns and performance from Google Ads.
+docs_url: https://developers.google.com/google-ads/api/docs/start
+base_url: https://googleads.googleapis.com/v17/customers/{customer_id}
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: campaigns
+    path: /googleAds:search
+    records_path: results
+    pagination:
+      kind: cursor
+      cursor_param: pageToken
+      cursor_path: nextPageToken
+      page_size: 100
+    params:
+      query: SELECT campaign.id, campaign.name, campaign.status FROM campaign
+tier: 4
+config_fields:
+  - name: customer_id
+    label: Customer id
+  - name: developer_token
+    label: Developer token
+    kind: secret

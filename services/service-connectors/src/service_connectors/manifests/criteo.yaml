@@ -1,0 +1,20 @@
+key: criteo
+label: Criteo
+category: saas
+description: Read campaigns from Criteo.
+docs_url: https://developers.criteo.com/marketing-solutions/docs
+base_url: https://api.criteo.com/2024-07
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: campaigns
+    path: /marketing-solutions/campaigns
+    records_path: data
+    primary_key: id
+    pagination:
+      kind: page
+      page_param: page
+      size_param: per_page
+      page_size: 100
+tier: 4

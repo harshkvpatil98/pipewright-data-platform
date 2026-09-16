@@ -1,0 +1,52 @@
+# The database servers the connector tier-2 claims rest on.
+#
+# `test_containers.py` drives the PostgreSQL, MySQL and MariaDB connectors
+# against real servers. CI starts these as service containers; this file is the
+# same thing for a laptop, so a developer can reproduce what CI runs:
+#
+#   docker compose -f docker-compose.connectors.yml up -d
+#   export CONNECTORS_TEST_POSTGRES_URL=postgresql+psycopg://platform:platform@127.0.0.1:15432/platform
+#   export CONNECTORS_TEST_MYSQL_URL=mysql+pymysql://root:platform@127.0.0.1:13306/platform
+#   export CONNECTORS_TEST_MARIADB_URL=mysql+pymysql://root:platform@127.0.0.1:13307/platform
+#   .venv/bin/python -m pytest services/service-connectors/tests/test_containers.py -q
+#
+# Deliberately on non-default ports: the platform's own Postgres is already on
+# 5432, and a verification suite that wrote into the application database would
+# be a bad afternoon. Nothing here shares a volume, so `down -v` is free.
+services:
+  connectors-postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: platform
+      POSTGRES_USER: platform
+      POSTGRES_PASSWORD: platform
+    ports: ["15432:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U platform -d platform"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  connectors-mysql:
+    image: mysql:8
+    environment:
+      MYSQL_ROOT_PASSWORD: platform
+      MYSQL_DATABASE: platform
+    ports: ["13306:3306"]
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -pplatform"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  connectors-mariadb:
+    image: mariadb:11
+    environment:
+      MARIADB_ROOT_PASSWORD: platform
+      MARIADB_DATABASE: platform
+    ports: ["13307:3306"]
+    healthcheck:
+      test: ["CMD-SHELL", "healthcheck.sh --connect --innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 30

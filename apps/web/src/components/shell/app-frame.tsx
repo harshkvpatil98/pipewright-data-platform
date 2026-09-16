@@ -60,6 +60,8 @@ function buildRailSections(projectId?: string, projectName?: string): RailSectio
         { id: "sources", label: "Sources", icon: "database", href: scoped("/extraction") },
         { id: "studio", label: "Studio", icon: "transform", href: scoped("/studio") },
         { id: "table-editor", label: "Table editor", icon: "table", href: scoped("/table-editor") },
+        { id: "workbench", label: "SQL workbench", icon: "sigma", href: scoped("/workbench") },
+        { id: "notebooks", label: "Notebooks", icon: "book", href: scoped("/notebooks") },
         { id: "workflows", label: "Workflows", icon: "merge", href: scoped("/workflows") },
         { id: "quality", label: "Data quality", icon: "shield", href: scoped("/data-quality") },
         { id: "charts", label: "Charts", icon: "sigma", href: scoped("/charts") },

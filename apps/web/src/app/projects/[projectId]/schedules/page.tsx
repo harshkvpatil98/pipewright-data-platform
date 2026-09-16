@@ -12,7 +12,11 @@ type PageProps = {
 };
 
 function parseScheduleType(value: string | undefined): ScheduleType | null {
-  if (value === "transformation_pipeline_run" || value === "postgres_publish") {
+  if (
+    value === "transformation_pipeline_run" ||
+    value === "postgres_publish" ||
+    value === "connector_schema_watch"
+  ) {
     return value;
   }
   return null;

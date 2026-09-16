@@ -1,0 +1,70 @@
+key: github
+label: GitHub
+category: saas
+description: Read repositories, issues, and pull requests from GitHub.
+docs_url: https://docs.github.com/en/rest
+base_url: https://api.github.com
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: repositories
+    path: /orgs/{org}/repos
+    primary_key: id
+    pagination: &id001
+      kind: page
+      page_param: page
+      size_param: per_page
+      page_size: 100
+    schema:
+      id:
+        type: INTEGER
+      name:
+        type: STRING
+      full_name:
+        type: STRING
+      private:
+        type: BOOLEAN
+      created_at:
+        type: TIMESTAMP
+        tz_aware: true
+      updated_at:
+        type: TIMESTAMP
+        tz_aware: true
+      pushed_at:
+        type: TIMESTAMP
+        tz_aware: true
+  - name: issues
+    path: /repos/{org}/{repo}/issues
+    primary_key: id
+    pagination: *id001
+    schema:
+      id:
+        type: INTEGER
+      number:
+        type: INTEGER
+      title:
+        type: STRING
+      state:
+        type: STRING
+      created_at:
+        type: TIMESTAMP
+        tz_aware: true
+      updated_at:
+        type: TIMESTAMP
+        tz_aware: true
+      closed_at:
+        type: TIMESTAMP
+        tz_aware: true
+  - name: pull_requests
+    path: /repos/{org}/{repo}/pulls
+    primary_key: id
+    pagination: *id001
+tier: 2
+verified_by: test_vendor_contracts.py
+config_fields:
+  - name: org
+    label: Organisation
+  - name: repo
+    label: Repository
+    required: false

@@ -1,0 +1,17 @@
+key: heap
+label: Heap
+category: saas
+description: Read event definitions from Heap.
+docs_url: https://developers.heap.io/reference
+base_url: https://heapanalytics.com/api
+auth:
+  kind: basic
+  template: Basic {token}
+streams:
+  - name: events
+    path: /v1/event_definitions
+    records_path: events
+    primary_key: id
+    pagination:
+      kind: none
+tier: 4

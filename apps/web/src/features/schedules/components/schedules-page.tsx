@@ -8,6 +8,8 @@ import type {
   AuthUser,
   DatasetListResponse,
   DestinationListResponse,
+  ExtractionConnection,
+  ExtractionConnectionListResponse,
   ScheduledOperationRecord,
   ScheduleCreatePayload,
   ScheduleTriggerResponse,
@@ -38,6 +40,9 @@ type SchedulesPageViewProps = {
 function scheduleTypeLabel(t: ScheduleType): string {
   if (t === "transformation_pipeline_run") {
     return "Transformation pipeline";
+  }
+  if (t === "connector_schema_watch") {
+    return "Connector schema watch";
   }
   return "PostgreSQL publish";
 }
@@ -89,6 +94,8 @@ export function SchedulesPageView({
   const [pipelines, setPipelines] = useState<TransformationPipelineListResponse["items"]>([]);
   const [datasets, setDatasets] = useState<DatasetListResponse["items"]>([]);
   const [destinations, setDestinations] = useState<DestinationListResponse["items"]>([]);
+  const [connectionId, setConnectionId] = useState("");
+  const [connections, setConnections] = useState<ExtractionConnection[]>([]);
   const [loadingRefs, setLoadingRefs] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -109,16 +116,20 @@ export function SchedulesPageView({
       setLoadingRefs(true);
       setFormError(null);
       try {
-        const [pl, ds, dest] = await Promise.all([
+        const [pl, ds, dest, conns] = await Promise.all([
           apiFetch<TransformationPipelineListResponse>(`/projects/${projectId}/pipelines`),
           apiFetch<DatasetListResponse>(`/projects/${projectId}/datasets`),
           apiFetch<DestinationListResponse>(`/projects/${projectId}/destinations`),
+          apiFetch<ExtractionConnectionListResponse>(
+            `/projects/${projectId}/extraction/connections`,
+          ),
         ]);
         if (cancelled) {
           return;
         }
         setPipelines(pl.items);
         setDatasets(ds.items);
+        setConnections(conns.items);
         const pg = dest.items.filter((d) => d.destination_type === "postgres" && d.status === "active");
         setDestinations(pg);
         if (!editing) {
@@ -185,6 +196,8 @@ export function SchedulesPageView({
     const cfg = row.target_config_json;
     if (row.schedule_type === "transformation_pipeline_run") {
       setPipelineId(String(cfg.pipeline_id ?? ""));
+    } else if (row.schedule_type === "connector_schema_watch") {
+      setConnectionId(String(cfg.connection_id ?? ""));
     } else {
       setDatasetId(String(cfg.dataset_id ?? ""));
       setDestinationId(String(cfg.destination_id ?? ""));
@@ -199,13 +212,18 @@ export function SchedulesPageView({
     if (scheduleType === "transformation_pipeline_run") {
       return { pipeline_id: pipelineId };
     }
+    if (scheduleType === "connector_schema_watch") {
+      // Blank means every connection in the project, which is what a nightly
+      // watch should do; naming one narrows it to a single source.
+      return connectionId ? { connection_id: connectionId } : {};
+    }
     return {
       dataset_id: datasetId,
       destination_id: destinationId,
       table_name: tableName.trim(),
       write_mode: writeMode,
     };
-  }, [scheduleType, pipelineId, datasetId, destinationId, tableName, writeMode]);
+  }, [scheduleType, pipelineId, connectionId, datasetId, destinationId, tableName, writeMode]);
 
   async function submitForm() {
     setFormError(null);
@@ -465,6 +483,7 @@ export function SchedulesPageView({
             >
               <option value="transformation_pipeline_run">Transformation pipeline run</option>
               <option value="postgres_publish">PostgreSQL publish</option>
+              <option value="connector_schema_watch">Connector schema watch</option>
             </Select>
           </FormField>
 
@@ -493,7 +512,27 @@ export function SchedulesPageView({
             </Select>
           </FormField>
 
-          {scheduleType === "transformation_pipeline_run" ? (
+          {scheduleType === "connector_schema_watch" ? (
+            <FormField
+              label="Connection (optional)"
+              htmlFor="sched-connection"
+              description="Leave blank to watch every connection in this project."
+            >
+              <Select
+                id="sched-connection"
+                value={connectionId}
+                onChange={(e) => setConnectionId(e.target.value)}
+                disabled={loadingRefs}
+              >
+                <option value="">Every connection</option>
+                {connections.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </Select>
+            </FormField>
+          ) : scheduleType === "transformation_pipeline_run" ? (
             <FormField label="Pipeline" htmlFor="sched-pipeline">
               <Select
                 id="sched-pipeline"

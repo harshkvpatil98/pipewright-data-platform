@@ -1,0 +1,21 @@
+key: questdb_rest
+label: QuestDB (HTTP)
+category: timeseries
+description: Run SQL against QuestDB's HTTP endpoint.
+docs_url: https://questdb.io/docs/reference/api/rest/
+base_url: http://{host}
+auth:
+  kind: none
+streams:
+  - name: query
+    path: /exec
+    records_path: dataset
+    pagination:
+      kind: none
+    params:
+      query: SELECT * FROM tables()
+tier: 4
+config_fields:
+  - name: host
+    label: Host
+    placeholder: metrics.internal:8086

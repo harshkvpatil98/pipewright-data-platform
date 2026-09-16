@@ -32,6 +32,7 @@ from service_schedules.status import get_service_status as get_schedules_status
 from service_sources.status import get_service_status as get_sources_status
 from service_transformations.status import get_service_status as get_transformations_status
 from service_workflows.status import get_service_status as get_workflows_status
+from service_workbench.status import get_service_status as get_workbench_status
 from service_writeback.status import get_service_status as get_writeback_status
 from shared_python.db.health import is_database_ready
 from shared_python.status import PlatformStatus, SchedulerOperationalSnapshot, ServiceStatus
@@ -56,6 +57,7 @@ def collect_service_statuses(db: Session) -> list[ServiceStatus]:
         get_transformations_status(db),
         get_workflows_status(db),
         get_writeback_status(db),
+        get_workbench_status(db),
         get_lineage_status(db),
         get_intelligence_status(db),
         get_observability_status(db),

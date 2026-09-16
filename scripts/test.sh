@@ -29,6 +29,7 @@ pytest --import-mode=importlib \
   services/service-quality/tests \
   services/service-extraction/tests \
   services/service-writeback/tests \
+  services/service-workbench/tests \
   services/service-connectors/tests \
   services/service-reporting/tests \
   services/service-workflows/tests \

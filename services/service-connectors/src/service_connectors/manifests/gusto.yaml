@@ -1,0 +1,26 @@
+key: gusto
+label: Gusto
+category: saas
+description: Read employees and payrolls from Gusto.
+docs_url: https://docs.gusto.com/embedded-payroll/reference
+base_url: https://api.gusto.com/v1
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: employees
+    path: /companies/{company_id}/employees
+    primary_key: id
+    pagination: &id001
+      kind: page
+      page_param: page
+      size_param: per_page
+      page_size: 100
+  - name: payrolls
+    path: /companies/{company_id}/payrolls
+    primary_key: payroll_uuid
+    pagination: *id001
+tier: 4
+config_fields:
+  - name: company_id
+    label: Company id

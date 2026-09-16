@@ -1,0 +1,26 @@
+key: braintree
+label: Braintree
+category: saas
+description: Read customers and transactions from Braintree.
+docs_url: https://developer.paypal.com/braintree/docs
+base_url: https://api.braintreegateway.com/merchants/{merchant_id}
+auth:
+  kind: basic
+  template: Basic {token}
+streams:
+  - name: customers
+    path: /customers
+    primary_key: id
+    pagination: &id001
+      kind: page
+      page_param: page
+      size_param: per_page
+      page_size: 100
+  - name: transactions
+    path: /transactions
+    primary_key: id
+    pagination: *id001
+tier: 4
+config_fields:
+  - name: merchant_id
+    label: Merchant id

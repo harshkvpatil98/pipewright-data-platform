@@ -25,6 +25,7 @@ import {
   STEP_GROUPS,
   type StepDefinition,
 } from "@/features/studio/step-catalog";
+import { RecipeYamlPanel } from "@/features/studio/recipe-yaml-panel";
 import { ColumnMenu } from "@/features/studio/tools/column-menu";
 import { ToolBrowser } from "@/features/studio/tools/tool-browser";
 import {
@@ -208,6 +209,8 @@ export function StudioPage({
   >(null);
   //: Chosen from the context menu; the browser opens with it already selected.
   const [pendingTool, setPendingTool] = useState<string | null>(null);
+  //: The recipe as code. Both directions, which is what makes it reviewable.
+  const [yamlOpen, setYamlOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -362,6 +365,14 @@ export function StudioPage({
             },
           },
           {
+            id: "yaml",
+            label: yamlOpen ? "Hide YAML" : "As YAML",
+            icon: "book",
+            hint: "Edit the recipe as a file, or keep it in git",
+            disabled: !dataset,
+            onClick: () => setYamlOpen((current) => !current),
+          },
+          {
             id: "clear",
             label: "Clear",
             icon: "trash",
@@ -385,7 +396,7 @@ export function StudioPage({
         })),
       })),
     ],
-    [steps.length, saving, dataset, addStep, savePipeline, catalogue.items.length],
+    [steps.length, saving, dataset, addStep, savePipeline, catalogue.items.length, yamlOpen],
   );
 
   const rowDelta = preview ? preview.row_count_after - preview.row_count_before : 0;
@@ -454,8 +465,24 @@ export function StudioPage({
       ]}
       health={{ label: loading ? "Computing preview" : "Preview current", healthy: !error }}
       inspector={{
-        title: selected ? "Step settings" : "Inspector",
-        content: selected ? (
+        title: yamlOpen ? "Recipe as code" : selected ? "Step settings" : "Inspector",
+        content: yamlOpen ? (
+          <RecipeYamlPanel
+            steps={steps.map((step) => ({ step_type: step.step_type, config: step.config }))}
+            onApply={(next) => {
+              setSteps(
+                next.map((step) => ({
+                  uid: nextUid(),
+                  step_type: step.step_type,
+                  config: step.config,
+                })),
+              );
+              setSelectedUid(null);
+              toast.success("Recipe updated", "The steps now match the file.");
+            }}
+            onClose={() => setYamlOpen(false)}
+          />
+        ) : selected ? (
           selected.step_type === "tool" ? (
             <ToolStepEditor
               config={selected.config}

@@ -202,6 +202,7 @@ def finalize_dataset_materialization_success(
     profile_json: dict[str, object],
     row_count: int,
     column_count: int,
+    ingest_spec_json: dict[str, object] | None = None,
 ) -> DatasetDetailRead:
     dataset.file_path = file_path
     dataset.file_name = file_name
@@ -215,6 +216,11 @@ def finalize_dataset_materialization_success(
     dataset.status = "ready"
     dataset.ingestion_error = None
     dataset.last_profiled_at = datetime.now(UTC)
+    if ingest_spec_json is not None:
+        # How the file was read, kept with the dataset: "why is this column
+        # text" needs an answer, and re-reading the same file needs the same
+        # answers rather than a fresh inference over different data.
+        dataset.ingest_spec_json = ingest_spec_json
     db.commit()
     db.refresh(dataset)
     return _to_detail(dataset)
@@ -232,6 +238,7 @@ def finalize_dataset_ingestion_success(
     profile_json: dict[str, object],
     row_count: int,
     column_count: int,
+    ingest_spec_json: dict[str, object] | None = None,
 ) -> DatasetDetailRead:
     return finalize_dataset_materialization_success(
         db,
@@ -244,6 +251,7 @@ def finalize_dataset_ingestion_success(
         profile_json=profile_json,
         row_count=row_count,
         column_count=column_count,
+        ingest_spec_json=ingest_spec_json,
     )
 
 

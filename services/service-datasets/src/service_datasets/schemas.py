@@ -48,6 +48,11 @@ class DatasetDetailRead(DatasetSummaryRead):
     preview_json: dict[str, Any] | None
     ingestion_error: str | None
     last_profiled_at: datetime | None
+    #: How this file was read: the delimiter, the header row, every column's
+    #: type and date format. Exposed because "why is this column text" is a
+    #: question somebody asks of the dataset, not of the upload screen they
+    #: saw once. Null for datasets ingested before Phase 11.
+    ingest_spec_json: dict[str, Any] | None = None
 
 
 class DatasetListResponse(BaseModel):

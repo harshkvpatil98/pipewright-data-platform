@@ -1,0 +1,23 @@
+key: successfactors
+label: SAP SuccessFactors
+category: saas
+description: Read users from SAP SuccessFactors.
+docs_url: https://help.sap.com/docs/SAP_SUCCESSFACTORS_PLATFORM
+base_url: https://{datacenter}.successfactors.com/odata/v2
+auth:
+  kind: basic
+  template: Basic {token}
+streams:
+  - name: users
+    path: /User
+    records_path: d.results
+    primary_key: userId
+    pagination:
+      kind: offset
+      offset_param: offset
+      page_size: 100
+tier: 4
+config_fields:
+  - name: datacenter
+    label: Data centre
+    placeholder: api4

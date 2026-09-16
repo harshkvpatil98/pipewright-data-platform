@@ -1,0 +1,23 @@
+key: ukg
+label: UKG
+category: saas
+description: Read employee details from UKG.
+docs_url: https://developer.ukg.com/
+base_url: https://{subdomain}.ultipro.com/personnel/v1
+auth:
+  kind: basic
+  template: Basic {token}
+streams:
+  - name: employees
+    path: /employee-details
+    primary_key: id
+    pagination:
+      kind: page
+      page_param: page
+      size_param: per_page
+      page_size: 100
+tier: 4
+config_fields:
+  - name: subdomain
+    label: Subdomain
+    help: The part before the vendor's domain in your account URL.

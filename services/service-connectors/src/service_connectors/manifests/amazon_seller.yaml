@@ -1,0 +1,28 @@
+key: amazon_seller
+label: Amazon Seller Central
+category: saas
+description: Read orders from Amazon Selling Partner.
+docs_url: https://developer-docs.amazon.com/sp-api/
+base_url: https://sellingpartnerapi-{region}.amazon.com
+auth:
+  kind: api_key
+  placement: header
+  header: x-amz-access-token
+  template: '{token}'
+streams:
+  - name: orders
+    path: /orders/v0/orders
+    records_path: payload.Orders
+    primary_key: AmazonOrderId
+    pagination:
+      kind: cursor
+      cursor_param: NextToken
+      cursor_path: payload.NextToken
+      page_size: 100
+tier: 4
+config_fields:
+  - name: region
+    label: Region
+    default: eu
+  - name: marketplace_id
+    label: Marketplace id

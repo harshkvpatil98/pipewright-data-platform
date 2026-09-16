@@ -1,0 +1,29 @@
+key: zuora
+label: Zuora
+category: saas
+description: Read accounts, subscriptions, and invoices from Zuora.
+docs_url: https://www.zuora.com/developer/api-references/api/overview/
+base_url: https://rest.zuora.com/v1
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: accounts
+    path: /object/account
+    primary_key: id
+    pagination: &id001
+      kind: page
+      page_param: page
+      size_param: per_page
+      page_size: 100
+  - name: subscriptions
+    path: /subscriptions
+    records_path: subscriptions
+    primary_key: id
+    pagination: *id001
+  - name: invoices
+    path: /invoices
+    records_path: invoices
+    primary_key: id
+    pagination: *id001
+tier: 4

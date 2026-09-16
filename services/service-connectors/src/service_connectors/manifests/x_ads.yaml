@@ -1,0 +1,32 @@
+key: x_ads
+label: X Ads
+category: saas
+description: Read campaigns and line items from X Ads.
+docs_url: https://developer.x.com/en/docs/x-ads-api
+base_url: https://ads-api.x.com/12/accounts/{ad_account_id}
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: campaigns
+    path: /campaigns
+    records_path: data
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: cursor
+      cursor_path: next_cursor
+      page_size: 100
+  - name: line_items
+    path: /line_items
+    records_path: data
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: cursor
+      cursor_path: next_cursor
+      page_size: 100
+tier: 4
+config_fields:
+  - name: ad_account_id
+    label: Ad account id

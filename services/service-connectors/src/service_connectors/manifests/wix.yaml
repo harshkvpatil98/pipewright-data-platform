@@ -1,0 +1,26 @@
+key: wix
+label: Wix
+category: saas
+description: Read orders and products from Wix.
+docs_url: https://dev.wix.com/api/rest/getting-started
+base_url: https://www.wixapis.com
+auth:
+  kind: api_key
+  placement: header
+  header: Authorization
+  template: '{token}'
+streams:
+  - name: orders
+    path: /ecom/v1/orders/search
+    records_path: orders
+    primary_key: id
+    pagination: &id001
+      kind: offset
+      offset_param: offset
+      page_size: 100
+  - name: products
+    path: /stores/v1/products/query
+    records_path: products
+    primary_key: id
+    pagination: *id001
+tier: 4

@@ -1,0 +1,28 @@
+key: influxdb
+label: InfluxDB
+category: timeseries
+description: Query measurements from InfluxDB 2.x.
+docs_url: https://docs.influxdata.com/influxdb/v2/api/
+base_url: http://{host}/api/v2
+auth:
+  kind: api_key
+  placement: header
+  header: Authorization
+  template: Token {token}
+streams:
+  - name: buckets
+    path: /buckets
+    records_path: buckets
+    primary_key: id
+    pagination: &id001
+      kind: none
+  - name: query
+    path: /query
+    pagination: *id001
+tier: 4
+config_fields:
+  - name: host
+    label: Host
+    placeholder: metrics.internal:8086
+  - name: org
+    label: Organisation

@@ -1,0 +1,32 @@
+key: pinterest_ads
+label: Pinterest Ads
+category: saas
+description: Read campaigns and ad groups from Pinterest Ads.
+docs_url: https://developers.pinterest.com/docs/api/v5/
+base_url: https://api.pinterest.com/v5/ad_accounts/{ad_account_id}
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: campaigns
+    path: /campaigns
+    records_path: items
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: bookmark
+      cursor_path: bookmark
+      page_size: 100
+  - name: ad_groups
+    path: /ad_groups
+    records_path: items
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: bookmark
+      cursor_path: bookmark
+      page_size: 100
+tier: 4
+config_fields:
+  - name: ad_account_id
+    label: Ad account id

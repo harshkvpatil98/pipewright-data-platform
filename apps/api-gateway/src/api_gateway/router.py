@@ -25,6 +25,7 @@ from service_schedules import build_router as build_schedules_router
 from service_sources import build_router as build_sources_router
 from service_transformations import build_router as build_transformations_router
 from service_workflows import build_router as build_workflows_router
+from service_workbench import build_router as build_workbench_router
 from service_writeback import build_router as build_writeback_router
 from service_notifications import build_router as build_notifications_router
 
@@ -59,6 +60,7 @@ def build_api_router(settings) -> APIRouter:
     api_router.include_router(build_schedules_router(get_db, current_user, get_storage_backend, settings))
     api_router.include_router(build_workflows_router(get_db, current_user))
     api_router.include_router(build_writeback_router(get_db, current_user))
+    api_router.include_router(build_workbench_router(get_db, current_user))
     api_router.include_router(build_lineage_router(get_db, current_user))
     api_router.include_router(
         build_intelligence_router(get_db, current_user, get_storage_backend)

@@ -1,0 +1,24 @@
+key: linkedin_ads
+label: LinkedIn Ads
+category: saas
+description: Read campaigns and campaign groups from LinkedIn Ads.
+docs_url: https://learn.microsoft.com/en-us/linkedin/marketing/
+base_url: https://api.linkedin.com/rest
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: campaigns
+    path: /adCampaigns
+    records_path: elements
+    primary_key: id
+    pagination: &id001
+      kind: offset
+      offset_param: offset
+      page_size: 100
+  - name: campaign_groups
+    path: /adCampaignGroups
+    records_path: elements
+    primary_key: id
+    pagination: *id001
+tier: 4

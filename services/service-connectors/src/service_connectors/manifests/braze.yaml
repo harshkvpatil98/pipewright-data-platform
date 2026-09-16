@@ -1,0 +1,35 @@
+key: braze
+label: Braze
+category: saas
+description: Read campaigns, canvases, and segments from Braze.
+docs_url: https://www.braze.com/docs/api/basics/
+base_url: https://rest.{instance}.braze.com
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: campaigns
+    path: /campaigns/list
+    records_path: campaigns
+    primary_key: id
+    pagination: &id001
+      kind: page
+      page_param: page
+      size_param: per_page
+      page_size: 100
+  - name: canvases
+    path: /canvas/list
+    records_path: canvases
+    primary_key: id
+    pagination: *id001
+  - name: segments
+    path: /segments/list
+    records_path: segments
+    primary_key: id
+    pagination: *id001
+tier: 4
+config_fields:
+  - name: instance
+    label: Instance
+    default: iad-01
+    help: The Braze instance your account is on.

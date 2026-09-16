@@ -10,7 +10,15 @@ from service_destinations.publish_schemas import DatasetPublishPostgresResponse
 from service_pipeline_runs.schemas import PipelineRunRead
 from service_transformations.schemas import TransformationRunResponse
 
-ScheduleTypeLiteral = Literal["transformation_pipeline_run", "postgres_publish"]
+ScheduleTypeLiteral = Literal[
+    "transformation_pipeline_run",
+    "postgres_publish",
+    # The nightly connector schema watch. On the general scheduler rather
+    # than a cron of its own: it needs the same claiming, retry and
+    # timezone handling every other scheduled thing needs, and a second
+    # scheduler is a second place for a job to silently stop running.
+    "connector_schema_watch",
+]
 
 
 class ScheduledOperationCreate(BaseModel):

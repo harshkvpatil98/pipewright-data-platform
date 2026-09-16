@@ -1,0 +1,31 @@
+key: marketo
+label: Marketo
+category: saas
+description: Read leads and programs from Marketo.
+docs_url: https://developers.marketo.com/rest-api/
+base_url: https://{munchkin_id}.mktorest.com/rest/v1
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: leads
+    path: /leads.json
+    records_path: result
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: nextPageToken
+      cursor_path: nextPageToken
+      page_size: 100
+  - name: programs
+    path: /programs.json
+    records_path: result
+    primary_key: id
+    pagination:
+      kind: offset
+      offset_param: offset
+      page_size: 100
+tier: 4
+config_fields:
+  - name: munchkin_id
+    label: Munchkin id

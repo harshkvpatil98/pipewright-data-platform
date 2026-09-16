@@ -1,0 +1,35 @@
+key: activecampaign
+label: ActiveCampaign
+category: saas
+description: Read contacts, deals, and campaigns from ActiveCampaign.
+docs_url: https://developers.activecampaign.com/reference/overview
+base_url: https://{account}.api-us1.com/api/3
+auth:
+  kind: api_key
+  placement: header
+  header: Api-Token
+  template: '{token}'
+streams:
+  - name: contacts
+    path: /contacts
+    records_path: contacts
+    primary_key: id
+    pagination: &id001
+      kind: offset
+      offset_param: offset
+      page_size: 100
+  - name: deals
+    path: /deals
+    records_path: deals
+    primary_key: id
+    pagination: *id001
+  - name: campaigns
+    path: /campaigns
+    records_path: campaigns
+    primary_key: id
+    pagination: *id001
+tier: 4
+config_fields:
+  - name: account
+    label: Account name
+    help: The part before .api-us1.com in your API URL.

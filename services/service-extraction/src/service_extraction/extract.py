@@ -43,6 +43,8 @@ from shared_python.errors import ApplicationError, BadRequestError, InternalServ
 from shared_python.logging import get_logger
 from shared_python.security.config_crypto import decrypt_sensitive_fields
 
+from service_extraction.tiers import note_for
+
 logger = get_logger(__name__)
 
 RUN_TYPE = "database_extraction"
@@ -163,6 +165,11 @@ def run_extraction_job(
         )
         incoming = result.dataframe
         warnings = list(result.warnings)
+        # The tier travels into the run's own output: by the time anybody is
+        # looking at these numbers, the connector picker is long gone.
+        tier_note = note_for(connection.connector_type)
+        if tier_note:
+            warnings.append(tier_note)
 
         current_stage = "merge"
         log_events.append(

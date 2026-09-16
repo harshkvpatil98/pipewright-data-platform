@@ -1,0 +1,25 @@
+key: firestore_api
+label: Cloud Firestore
+category: nosql
+description: Read documents from a Firestore collection.
+docs_url: https://firebase.google.com/docs/firestore/reference/rest
+base_url: https://firestore.googleapis.com/v1/projects/{project_id}/databases/(default)/documents
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: documents
+    path: /{collection}
+    records_path: documents
+    primary_key: name
+    pagination:
+      kind: cursor
+      cursor_param: pageToken
+      cursor_path: nextPageToken
+      page_size: 100
+tier: 4
+config_fields:
+  - name: project_id
+    label: Project id
+  - name: collection
+    label: Collection

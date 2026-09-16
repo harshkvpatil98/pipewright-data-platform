@@ -1,0 +1,65 @@
+key: asana
+label: Asana
+category: saas
+description: Read tasks, projects, and users from Asana.
+docs_url: https://developers.asana.com/reference/rest-api-reference
+base_url: https://app.asana.com/api/1.0
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: tasks
+    path: /tasks
+    records_path: data
+    primary_key: gid
+    pagination:
+      kind: cursor
+      cursor_param: offset
+      cursor_path: next_page.offset
+      page_size: 100
+    schema:
+      gid:
+        type: STRING
+      name:
+        type: STRING
+      completed:
+        type: BOOLEAN
+      created_at:
+        type: TIMESTAMP
+        tz_aware: true
+      modified_at:
+        type: TIMESTAMP
+        tz_aware: true
+      due_on:
+        type: STRING
+  - name: projects
+    path: /projects
+    records_path: data
+    primary_key: gid
+    pagination:
+      kind: cursor
+      cursor_param: offset
+      cursor_path: next_page.offset
+      page_size: 100
+    schema:
+      gid:
+        type: STRING
+      name:
+        type: STRING
+      created_at:
+        type: TIMESTAMP
+        tz_aware: true
+      modified_at:
+        type: TIMESTAMP
+        tz_aware: true
+  - name: users
+    path: /users
+    records_path: data
+    primary_key: gid
+    pagination:
+      kind: cursor
+      cursor_param: offset
+      cursor_path: next_page.offset
+      page_size: 100
+tier: 2
+verified_by: test_vendor_contracts.py

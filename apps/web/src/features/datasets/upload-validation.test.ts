@@ -7,10 +7,27 @@ function buildFile(name: string, size: number) {
 }
 
 describe("dataset upload validation", () => {
-  it("rejects unsupported extensions", () => {
-    expect(validateDatasetUploadFile(buildFile("notes.txt", 128), maxUploadSizeBytes)).toBe(
-      "Unsupported file type. Upload csv, xlsx, or json files.",
+  it("rejects an extension nothing can read, and says what can be read", () => {
+    expect(validateDatasetUploadFile(buildFile("slides.pptx", 128), maxUploadSizeBytes)).toContain(
+      ".pptx files are not supported",
     );
+  });
+
+  it("accepts the formats the readers actually handle", () => {
+    // `.txt` is delimited text often enough that refusing it here meant the
+    // sniffer never got the chance to notice it was tab-separated.
+    for (const name of [
+      "export.txt",
+      "feed.dat",
+      "book.xlsx",
+      "events.jsonl",
+      "orders.xml",
+      "data.parquet",
+      "dump.sql",
+      "orders.csv.gz",
+    ]) {
+      expect(validateDatasetUploadFile(buildFile(name, 256), maxUploadSizeBytes)).toBeNull();
+    }
   });
 
   it("rejects empty uploads", () => {

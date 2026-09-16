@@ -1,0 +1,25 @@
+key: trello
+label: Trello
+category: saas
+description: Read boards and cards from Trello.
+docs_url: https://developer.atlassian.com/cloud/trello/rest/
+base_url: https://api.trello.com/1
+auth:
+  kind: api_key
+  placement: query
+  query_param: key
+streams:
+  - name: boards
+    path: /members/me/boards
+    primary_key: id
+    pagination: &id001
+      kind: none
+  - name: cards
+    path: /boards/{board_id}/cards
+    primary_key: id
+    pagination: *id001
+tier: 4
+config_fields:
+  - name: board_id
+    label: Board id
+    required: false

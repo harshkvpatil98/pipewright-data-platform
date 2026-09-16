@@ -1,0 +1,32 @@
+key: meilisearch
+label: Meilisearch
+category: nosql
+description: Read documents from a Meilisearch index.
+docs_url: https://www.meilisearch.com/docs/reference/api/overview
+base_url: http://{host}
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: indexes
+    path: /indexes
+    records_path: results
+    primary_key: uid
+    pagination:
+      kind: none
+  - name: documents
+    path: /indexes/{index}/documents
+    records_path: results
+    primary_key: id
+    pagination:
+      kind: offset
+      offset_param: offset
+      page_size: 100
+tier: 4
+config_fields:
+  - name: host
+    label: Host
+    placeholder: metrics.internal:8086
+  - name: index
+    label: Index
+    required: false

@@ -1,0 +1,23 @@
+key: neo4j_api
+label: Neo4j
+category: nosql
+description: Run a Cypher query against Neo4j's HTTP API.
+docs_url: https://neo4j.com/docs/http-api/current/
+base_url: http://{host}/db/{database}
+auth:
+  kind: basic
+  template: Basic {token}
+streams:
+  - name: query
+    path: /query/v2
+    records_path: data.values
+    pagination:
+      kind: none
+tier: 4
+config_fields:
+  - name: host
+    label: Host
+    placeholder: metrics.internal:8086
+  - name: database
+    label: Database
+    default: neo4j

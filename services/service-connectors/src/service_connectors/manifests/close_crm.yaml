@@ -1,0 +1,29 @@
+key: close_crm
+label: Close
+category: saas
+description: Read leads, contacts, and opportunities from Close.
+docs_url: https://developer.close.com/
+base_url: https://api.close.com/api/v1
+auth:
+  kind: basic
+  template: Basic {token}
+streams:
+  - name: leads
+    path: /lead/
+    records_path: data
+    primary_key: id
+    pagination: &id001
+      kind: offset
+      offset_param: offset
+      page_size: 100
+  - name: contacts
+    path: /contact/
+    records_path: data
+    primary_key: id
+    pagination: *id001
+  - name: opportunities
+    path: /opportunity/
+    records_path: data
+    primary_key: id
+    pagination: *id001
+tier: 4

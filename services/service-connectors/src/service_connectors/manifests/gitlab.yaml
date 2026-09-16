@@ -1,0 +1,56 @@
+key: gitlab
+label: GitLab
+category: saas
+description: Read projects, issues, and merge requests from GitLab.
+docs_url: https://docs.gitlab.com/ee/api/rest/
+base_url: https://gitlab.com/api/v4
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: projects
+    path: /projects
+    primary_key: id
+    pagination: &id001
+      kind: page
+      page_param: page
+      size_param: per_page
+      page_size: 100
+    schema:
+      id:
+        type: INTEGER
+      name:
+        type: STRING
+      path_with_namespace:
+        type: STRING
+      created_at:
+        type: TIMESTAMP
+        tz_aware: true
+      last_activity_at:
+        type: TIMESTAMP
+        tz_aware: true
+  - name: issues
+    path: /issues
+    primary_key: id
+    pagination: *id001
+    schema:
+      id:
+        type: INTEGER
+      iid:
+        type: INTEGER
+      title:
+        type: STRING
+      state:
+        type: STRING
+      created_at:
+        type: TIMESTAMP
+        tz_aware: true
+      updated_at:
+        type: TIMESTAMP
+        tz_aware: true
+  - name: merge_requests
+    path: /merge_requests
+    primary_key: id
+    pagination: *id001
+tier: 2
+verified_by: test_vendor_contracts.py

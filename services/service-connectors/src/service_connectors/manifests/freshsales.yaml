@@ -1,0 +1,36 @@
+key: freshsales
+label: Freshsales
+category: saas
+description: Read contacts, accounts, and deals from Freshsales.
+docs_url: https://developers.freshworks.com/crm/api/
+base_url: https://{subdomain}.myfreshworks.com/crm/sales/api
+auth:
+  kind: api_key
+  placement: header
+  header: Authorization
+  template: Token token={token}
+streams:
+  - name: contacts
+    path: /contacts
+    records_path: contacts
+    primary_key: id
+    pagination: &id001
+      kind: page
+      page_param: page
+      size_param: per_page
+      page_size: 100
+  - name: accounts
+    path: /sales_accounts
+    records_path: sales_accounts
+    primary_key: id
+    pagination: *id001
+  - name: deals
+    path: /deals
+    records_path: deals
+    primary_key: id
+    pagination: *id001
+tier: 4
+config_fields:
+  - name: subdomain
+    label: Subdomain
+    help: The part before the vendor's domain in your account URL.

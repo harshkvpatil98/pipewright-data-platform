@@ -1,0 +1,60 @@
+key: posthog
+label: PostHog
+category: saas
+description: Read events, persons, and insights from PostHog.
+docs_url: https://posthog.com/docs/api
+base_url: https://{host}/api/projects/{project_id}
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: events
+    path: /events
+    records_path: results
+    primary_key: id
+    pagination:
+      kind: next_url
+      cursor_path: next
+      page_size: 100
+    schema:
+      id:
+        type: STRING
+      event:
+        type: STRING
+      timestamp:
+        type: TIMESTAMP
+        tz_aware: true
+      distinct_id:
+        type: STRING
+  - name: persons
+    path: /persons
+    records_path: results
+    primary_key: id
+    pagination:
+      kind: next_url
+      cursor_path: next
+      page_size: 100
+    schema:
+      id:
+        type: STRING
+      name:
+        type: STRING
+      created_at:
+        type: TIMESTAMP
+        tz_aware: true
+  - name: insights
+    path: /insights
+    records_path: results
+    primary_key: id
+    pagination:
+      kind: next_url
+      cursor_path: next
+      page_size: 100
+tier: 2
+verified_by: test_vendor_contracts.py
+config_fields:
+  - name: host
+    label: Host
+    default: app.posthog.com
+  - name: project_id
+    label: Project id

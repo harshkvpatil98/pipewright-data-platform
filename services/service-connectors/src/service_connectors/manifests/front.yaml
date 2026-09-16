@@ -1,0 +1,52 @@
+key: front
+label: Front
+category: saas
+description: Read conversations, contacts, and inboxes from Front.
+docs_url: https://dev.frontapp.com/reference/introduction
+base_url: https://api2.frontapp.com
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: conversations
+    path: /conversations
+    records_path: _results
+    primary_key: id
+    pagination:
+      kind: next_url
+      cursor_path: _pagination.next
+      page_size: 100
+    schema:
+      id:
+        type: STRING
+      subject:
+        type: STRING
+      status:
+        type: STRING
+      created_at:
+        type: FLOAT
+  - name: contacts
+    path: /contacts
+    records_path: _results
+    primary_key: id
+    pagination:
+      kind: next_url
+      cursor_path: _pagination.next
+      page_size: 100
+    schema:
+      id:
+        type: STRING
+      name:
+        type: STRING
+      updated_at:
+        type: FLOAT
+  - name: inboxes
+    path: /inboxes
+    records_path: _results
+    primary_key: id
+    pagination:
+      kind: next_url
+      cursor_path: _pagination.next
+      page_size: 100
+tier: 2
+verified_by: test_vendor_contracts.py

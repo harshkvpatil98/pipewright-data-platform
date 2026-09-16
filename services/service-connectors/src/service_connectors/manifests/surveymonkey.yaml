@@ -1,0 +1,29 @@
+key: surveymonkey
+label: SurveyMonkey
+category: saas
+description: Read surveys and responses from SurveyMonkey.
+docs_url: https://api.surveymonkey.com/v3/docs
+base_url: https://api.surveymonkey.com/v3
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: surveys
+    path: /surveys
+    records_path: data
+    primary_key: id
+    pagination: &id001
+      kind: page
+      page_param: page
+      size_param: per_page
+      page_size: 100
+  - name: responses
+    path: /surveys/{survey_id}/responses/bulk
+    records_path: data
+    primary_key: id
+    pagination: *id001
+tier: 4
+config_fields:
+  - name: survey_id
+    label: Survey id
+    required: false

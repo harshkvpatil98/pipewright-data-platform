@@ -1,0 +1,22 @@
+key: rippling
+label: Rippling
+category: saas
+description: Read employees and departments from Rippling.
+docs_url: https://developer.rippling.com/
+base_url: https://api.rippling.com/platform/api
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: employees
+    path: /employees
+    primary_key: id
+    pagination: &id001
+      kind: offset
+      offset_param: offset
+      page_size: 100
+  - name: departments
+    path: /departments
+    primary_key: id
+    pagination: *id001
+tier: 4

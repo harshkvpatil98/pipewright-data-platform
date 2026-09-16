@@ -1,0 +1,26 @@
+key: insightly
+label: Insightly
+category: saas
+description: Read contacts, organisations, and opportunities from Insightly.
+docs_url: https://api.insightly.com/v3.1/Help
+base_url: https://api.na1.insightly.com/v3.1
+auth:
+  kind: basic
+  template: Basic {token}
+streams:
+  - name: contacts
+    path: /Contacts
+    primary_key: CONTACT_ID
+    pagination: &id001
+      kind: offset
+      offset_param: offset
+      page_size: 100
+  - name: organisations
+    path: /Organisations
+    primary_key: ORGANISATION_ID
+    pagination: *id001
+  - name: opportunities
+    path: /Opportunities
+    primary_key: OPPORTUNITY_ID
+    pagination: *id001
+tier: 4

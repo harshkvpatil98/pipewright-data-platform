@@ -1,0 +1,52 @@
+key: twilio
+label: Twilio
+category: saas
+description: Read messages and calls from Twilio.
+docs_url: https://www.twilio.com/docs/usage/api
+base_url: https://api.twilio.com/2010-04-01/Accounts/{account_sid}
+auth:
+  kind: basic
+  template: Basic {token}
+streams:
+  - name: messages
+    path: /Messages.json
+    records_path: messages
+    primary_key: sid
+    pagination: &id001
+      kind: page
+      page_param: page
+      size_param: per_page
+      page_size: 100
+    schema:
+      sid:
+        type: STRING
+      status:
+        type: STRING
+      from:
+        type: STRING
+        rename: from_number
+      to:
+        type: STRING
+        rename: to_number
+      date_sent:
+        type: STRING
+        rename: sent_at
+  - name: calls
+    path: /Calls.json
+    records_path: calls
+    primary_key: sid
+    pagination: *id001
+    schema:
+      sid:
+        type: STRING
+      status:
+        type: STRING
+      duration:
+        type: STRING
+      start_time:
+        type: STRING
+tier: 2
+verified_by: test_vendor_contracts.py
+config_fields:
+  - name: account_sid
+    label: Account SID

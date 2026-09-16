@@ -1,0 +1,63 @@
+key: intercom
+label: Intercom
+category: saas
+description: Read conversations, contacts, and companies from Intercom.
+docs_url: https://developers.intercom.com/docs/references/introduction/
+base_url: https://api.intercom.io
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: contacts
+    path: /contacts
+    records_path: data
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: starting_after
+      cursor_path: pages.next.starting_after
+      page_size: 100
+    schema:
+      id:
+        type: STRING
+      email:
+        type: STRING
+      name:
+        type: STRING
+      role:
+        type: STRING
+      created_at:
+        type: INTEGER
+      updated_at:
+        type: INTEGER
+  - name: conversations
+    path: /conversations
+    records_path: conversations
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: starting_after
+      cursor_path: pages.next.starting_after
+      page_size: 100
+  - name: companies
+    path: /companies
+    records_path: data
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: starting_after
+      cursor_path: pages.next.starting_after
+      page_size: 100
+    schema:
+      id:
+        type: STRING
+      name:
+        type: STRING
+      company_id:
+        type: STRING
+      created_at:
+        type: INTEGER
+      updated_at:
+        type: INTEGER
+tier: 2
+verified_by: test_vendor_contracts.py

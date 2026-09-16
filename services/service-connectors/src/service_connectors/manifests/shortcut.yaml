@@ -1,0 +1,26 @@
+key: shortcut
+label: Shortcut
+category: saas
+description: Read epics, projects, and members from Shortcut.
+docs_url: https://developer.shortcut.com/api/rest/v3
+base_url: https://api.app.shortcut.com/api/v3
+auth:
+  kind: api_key
+  placement: header
+  header: Shortcut-Token
+  template: '{token}'
+streams:
+  - name: epics
+    path: /epics
+    primary_key: id
+    pagination: &id001
+      kind: none
+  - name: projects
+    path: /projects
+    primary_key: id
+    pagination: *id001
+  - name: members
+    path: /members
+    primary_key: id
+    pagination: *id001
+tier: 4

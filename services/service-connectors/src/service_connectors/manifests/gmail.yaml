@@ -1,0 +1,26 @@
+key: gmail
+label: Gmail
+category: saas
+description: Read messages and labels from Gmail.
+docs_url: https://developers.google.com/gmail/api/reference/rest
+base_url: https://gmail.googleapis.com/gmail/v1/users/me
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: messages
+    path: /messages
+    records_path: messages
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: pageToken
+      cursor_path: nextPageToken
+      page_size: 100
+  - name: labels
+    path: /labels
+    records_path: labels
+    primary_key: id
+    pagination:
+      kind: none
+tier: 4

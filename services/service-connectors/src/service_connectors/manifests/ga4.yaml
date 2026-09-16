@@ -1,0 +1,19 @@
+key: ga4
+label: Google Analytics 4
+category: saas
+description: Read reports from a GA4 property.
+docs_url: https://developers.google.com/analytics/devguides/reporting/data/v1
+base_url: https://analyticsdata.googleapis.com/v1beta/properties/{property_id}
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: report
+    path: /:runReport
+    records_path: rows
+    pagination:
+      kind: none
+tier: 4
+config_fields:
+  - name: property_id
+    label: Property id

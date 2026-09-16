@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from service_auth.schemas import UserRead
 from service_extraction.connectors import sql_database
 from service_extraction.connectors.base import SENSITIVE_CONFIG_FIELDS
+from service_extraction.tiers import note_for
 from service_extraction.models import ExtractionConnection, ExtractionJob
 from service_extraction.schemas import (
     ConnectionTestResponse,
@@ -185,12 +186,19 @@ def test_connection(
     connection.last_test_message = result.message[:2000]
     db.commit()
 
+    warnings = list(result.warnings)
+    # A working connection proves the credential, not the connector. Said here
+    # because this screen is where somebody decides whether to trust a source.
+    tier_note = note_for(connection.connector_type)
+    if tier_note and result.success:
+        warnings.append(tier_note)
+
     return ConnectionTestResponse(
         success=result.success,
         message=result.message,
         latency_ms=result.latency_ms,
         server_version=result.server_version,
-        warnings=list(result.warnings),
+        warnings=warnings,
     )
 
 

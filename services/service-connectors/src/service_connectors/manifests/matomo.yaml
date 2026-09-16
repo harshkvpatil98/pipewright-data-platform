@@ -1,0 +1,26 @@
+key: matomo
+label: Matomo
+category: saas
+description: Read visits and reports from Matomo.
+docs_url: https://developer.matomo.org/api-reference/reporting-api
+base_url: https://{host}/index.php
+auth:
+  kind: api_key
+  placement: query
+  query_param: token_auth
+streams:
+  - name: visits
+    path: /
+    pagination:
+      kind: offset
+      offset_param: offset
+      page_size: 100
+    params:
+      module: API
+      method: Live.getLastVisitsDetails
+      format: JSON
+tier: 4
+config_fields:
+  - name: host
+    label: Host
+    placeholder: analytics.example.com

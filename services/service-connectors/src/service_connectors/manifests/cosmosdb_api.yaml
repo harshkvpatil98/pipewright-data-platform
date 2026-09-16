@@ -1,0 +1,26 @@
+key: cosmosdb_api
+label: Azure Cosmos DB
+category: nosql
+description: Read documents from a Cosmos DB container.
+docs_url: https://learn.microsoft.com/en-us/rest/api/cosmos-db/
+base_url: https://{account}.documents.azure.com/dbs/{database}/colls/{container}
+auth:
+  kind: api_key
+  placement: header
+  header: Authorization
+  template: '{token}'
+streams:
+  - name: documents
+    path: /docs
+    records_path: Documents
+    primary_key: id
+    pagination:
+      kind: none
+tier: 4
+config_fields:
+  - name: account
+    label: Account
+  - name: database
+    label: Database
+  - name: container
+    label: Container

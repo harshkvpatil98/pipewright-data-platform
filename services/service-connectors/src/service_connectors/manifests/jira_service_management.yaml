@@ -1,0 +1,28 @@
+key: jira_service_management
+label: Jira Service Management
+category: saas
+description: Read service requests from Jira Service Management.
+docs_url: https://developer.atlassian.com/cloud/jira/service-desk/rest/
+base_url: https://{subdomain}.atlassian.net/rest/servicedeskapi
+auth:
+  kind: basic
+  template: Basic {token}
+streams:
+  - name: requests
+    path: /request
+    records_path: values
+    primary_key: issueId
+    pagination: &id001
+      kind: offset
+      offset_param: offset
+      page_size: 100
+  - name: servicedesks
+    path: /servicedesk
+    records_path: values
+    primary_key: id
+    pagination: *id001
+tier: 4
+config_fields:
+  - name: subdomain
+    label: Subdomain
+    help: The part before the vendor's domain in your account URL.

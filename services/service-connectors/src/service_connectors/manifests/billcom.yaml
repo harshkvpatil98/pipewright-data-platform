@@ -1,0 +1,26 @@
+key: billcom
+label: Bill.com
+category: saas
+description: Read vendors and bills from Bill.com.
+docs_url: https://developer.bill.com/docs
+base_url: https://api.bill.com/api/v2
+auth:
+  kind: api_key
+  placement: header
+  header: devKey
+  template: '{token}'
+streams:
+  - name: vendors
+    path: /List/Vendor.json
+    records_path: response_data
+    primary_key: id
+    pagination: &id001
+      kind: offset
+      offset_param: offset
+      page_size: 100
+  - name: bills
+    path: /List/Bill.json
+    records_path: response_data
+    primary_key: id
+    pagination: *id001
+tier: 4

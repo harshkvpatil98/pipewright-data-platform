@@ -1,0 +1,25 @@
+key: paypal
+label: PayPal
+category: saas
+description: Read transactions and invoices from PayPal.
+docs_url: https://developer.paypal.com/api/rest/
+base_url: https://api-m.paypal.com/v1
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: transactions
+    path: /reporting/transactions
+    records_path: transaction_details
+    primary_key: transaction_id
+    pagination: &id001
+      kind: page
+      page_param: page
+      size_param: per_page
+      page_size: 100
+  - name: invoices
+    path: /invoicing/invoices
+    records_path: invoices
+    primary_key: id
+    pagination: *id001
+tier: 4

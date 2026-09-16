@@ -1,0 +1,36 @@
+key: linear
+label: Linear
+category: saas
+description: Read issues from Linear's GraphQL API.
+docs_url: https://developers.linear.app/docs
+base_url: https://api.linear.app
+auth:
+  kind: api_key
+  placement: header
+  header: Authorization
+  template: '{token}'
+streams:
+  - name: issues
+    path: /graphql
+    records_path: data.issues.nodes
+    primary_key: id
+    pagination:
+      kind: none
+    schema:
+      id:
+        type: STRING
+      title:
+        type: STRING
+      state.name:
+        type: STRING
+        rename: state
+      createdAt:
+        type: TIMESTAMP
+        tz_aware: true
+        rename: created_at
+      updatedAt:
+        type: TIMESTAMP
+        tz_aware: true
+        rename: updated_at
+tier: 2
+verified_by: test_vendor_contracts.py

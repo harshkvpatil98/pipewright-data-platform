@@ -27,6 +27,7 @@ from service_connectors.protocol import (
     StreamColumn,
     StreamRef,
     TestResult,
+    with_tier_note,
 )
 
 # How many documents to look at when working out what the columns are. A
@@ -186,7 +187,10 @@ class MongoConnector:
 
         rows = flatten_records([_drop_object_ids(doc) for doc in documents])
         frame = pd.DataFrame(rows)
-        return ReadResult(dataframe=frame, row_count=len(frame), truncated=truncated)
+        return with_tier_note(
+            ReadResult(dataframe=frame, row_count=len(frame), truncated=truncated),
+            self.spec,
+        )
 
 
 def _drop_object_ids(document: Any) -> dict[str, Any]:
@@ -296,7 +300,10 @@ class DynamoConnector:
 
         truncated = bool(start_key)
         frame = pd.DataFrame(flatten_records(items[:limit]))
-        return ReadResult(dataframe=frame, row_count=len(frame), truncated=truncated)
+        return with_tier_note(
+            ReadResult(dataframe=frame, row_count=len(frame), truncated=truncated),
+            self.spec,
+        )
 
 
 NOSQL_CONNECTORS = (MongoConnector(), DynamoConnector())

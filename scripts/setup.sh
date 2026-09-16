@@ -49,6 +49,7 @@ pip install -e services/service-schedules
 pip install -e services/service-quality
 pip install -e services/service-extraction
 pip install -e services/service-writeback
+pip install -e services/service-workbench
 pip install -e services/service-enterprise
 pip install -e services/service-governance
 pip install -e services/service-connectors

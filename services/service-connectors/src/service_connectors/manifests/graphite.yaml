@@ -1,0 +1,24 @@
+key: graphite
+label: Graphite
+category: timeseries
+description: Read metrics from Graphite's render API.
+docs_url: https://graphite-api.readthedocs.io/en/latest/api.html
+base_url: http://{host}
+auth:
+  kind: none
+streams:
+  - name: metrics
+    path: /metrics/index.json
+    pagination: &id001
+      kind: none
+  - name: render
+    path: /render
+    pagination: *id001
+    params:
+      format: json
+      target: '*'
+tier: 4
+config_fields:
+  - name: host
+    label: Host
+    placeholder: metrics.internal:8086

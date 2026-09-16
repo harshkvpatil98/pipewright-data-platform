@@ -1,0 +1,38 @@
+key: outlook
+label: Outlook / Microsoft Graph
+category: saas
+description: Read mail, calendar, and contacts from Microsoft Graph.
+docs_url: https://learn.microsoft.com/en-us/graph/api/overview
+base_url: https://graph.microsoft.com/v1.0/me
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: messages
+    path: /messages
+    records_path: value
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: $skiptoken
+      cursor_path: '@odata.nextLink'
+      page_size: 100
+  - name: events
+    path: /events
+    records_path: value
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: $skiptoken
+      cursor_path: '@odata.nextLink'
+      page_size: 100
+  - name: contacts
+    path: /contacts
+    records_path: value
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: $skiptoken
+      cursor_path: '@odata.nextLink'
+      page_size: 100
+tier: 4

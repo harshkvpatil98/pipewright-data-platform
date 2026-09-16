@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import gzip
 import io
+import re
 import json
 import zipfile
 from dataclasses import dataclass
@@ -34,6 +35,13 @@ class FormatSpec:
     typed: bool
     writable: bool
     description: str
+    # Whether the extension is enough to choose this format unaided.
+    #
+    # False for the ambiguous ones. `.md` is usually a README rather than a
+    # table, `.log` could be either log format, and `.txt` could be anything at
+    # all -- so those have to be asked for by name. Guessing wrong here means a
+    # directory scan that fails on a file nobody meant to import.
+    detectable: bool = True
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -42,6 +50,7 @@ class FormatSpec:
             "extensions": list(self.extensions),
             "typed": self.typed,
             "writable": self.writable,
+            "detectable": self.detectable,
             "description": self.description,
         }
 
@@ -54,7 +63,20 @@ FORMATS: tuple[FormatSpec, ...] = (
     FormatSpec("parquet", "Parquet", (".parquet", ".pq"), True, True, "Columnar and typed. Small on wide data."),
     FormatSpec("avro", "Avro", (".avro",), True, True, "Row-oriented and typed, with an embedded schema."),
     FormatSpec("excel", "Excel", (".xlsx", ".xlsm"), False, True, "A worksheet, read as a table."),
-    FormatSpec("fixed_width", "Fixed width", (".txt", ".dat"), False, False, "Mainframe extracts, positioned by column widths."),
+    FormatSpec("fixed_width", "Fixed width", (".txt", ".dat"), False, False, "Mainframe extracts, positioned by column widths.", detectable=False),
+    # Phase 10: the object-store matrix multiplies stores by formats, so a
+    # format added here is a format every store gains. Only formats the
+    # installed libraries genuinely read are listed -- a format that raises
+    # "needs lxml" on first use is worse than one that was never offered.
+    FormatSpec("psv", "Pipe separated", (".psv", ".pipe"), False, True, "Pipe separated. Common in banking extracts."),
+    FormatSpec("orc", "ORC", (".orc",), True, False, "Columnar and typed, from the Hive world."),
+    FormatSpec("arrow", "Arrow / Feather", (".arrow", ".feather", ".ipc"), True, True, "Arrow's own file format. Fast and exact."),
+    FormatSpec("yaml", "YAML", (".yaml", ".yml"), False, True, "A list of mappings, or one mapping per document."),
+    FormatSpec("toml", "TOML", (".toml",), False, False, "Configuration, read as a single row or a named table."),
+    FormatSpec("ini", "INI", (".ini", ".cfg", ".conf"), False, False, "One row per section, one column per key.", detectable=False),
+    FormatSpec("markdown", "Markdown table", (".md", ".markdown"), False, True, "The first pipe table in the document.", detectable=False),
+    FormatSpec("log_json", "JSON log lines", (".log",), False, False, "One JSON object per line, with unparseable lines reported.", detectable=False),
+    FormatSpec("log_combined", "Web server log", (".log", ".access"), False, False, "Apache/nginx combined format, parsed into columns.", detectable=False),
 )
 
 FORMATS_BY_NAME = {spec.name: spec for spec in FORMATS}
@@ -73,7 +95,10 @@ def format_for_path(path: str) -> str | None:
 
     extension = Path(lowered).suffix
     for spec in FORMATS:
-        if extension in spec.extensions:
+        # Only the unambiguous ones. A `.md` file is usually a README and a
+        # `.log` could be either log format, so those are chosen by name rather
+        # than guessed at from a directory listing.
+        if spec.detectable and extension in spec.extensions:
             return spec.name
     return None
 
@@ -144,6 +169,24 @@ def read_bytes(
             return pd.read_excel(io.BytesIO(payload), sheet_name=options.get("sheet", 0))
         if format == "fixed_width":
             return _read_fixed_width(payload, options)
+        if format == "psv":
+            return pd.read_csv(io.BytesIO(payload), sep="|")
+        if format == "orc":
+            return pd.read_orc(io.BytesIO(payload))
+        if format == "arrow":
+            return pd.read_feather(io.BytesIO(payload))
+        if format == "yaml":
+            return _read_yaml(payload)
+        if format == "toml":
+            return _read_toml(payload, options)
+        if format == "ini":
+            return _read_ini(payload)
+        if format == "markdown":
+            return _read_markdown(payload)
+        if format == "log_json":
+            return _read_json_log(payload)
+        if format == "log_combined":
+            return _read_combined_log(payload)
     except BadRequestError:
         raise
     except Exception as exc:  # noqa: BLE001 - a malformed file is the user's problem to see
@@ -210,6 +253,23 @@ def write_bytes(
         _write_avro(frame, buffer)
     elif format == "excel":
         frame.to_excel(buffer, index=False)
+    elif format == "psv":
+        frame.to_csv(buffer, index=False, sep="|")
+    elif format == "arrow":
+        frame.to_feather(buffer)
+    elif format == "yaml":
+        import yaml as yaml_module
+
+        buffer.write(
+            yaml_module.safe_dump(
+                frame.to_dict(orient="records"), sort_keys=False, allow_unicode=True
+            ).encode("utf-8")
+        )
+    elif format == "markdown":
+        # Written out rather than through `to_markdown`, which needs `tabulate`
+        # -- a whole dependency to emit pipes and dashes, for a format whose
+        # reader is already hand-written here for the same reason.
+        buffer.write(_write_markdown(frame).encode("utf-8"))
     else:  # pragma: no cover - guarded by the writable check above
         raise BadRequestError(f"'{format}' cannot be written.")
 
@@ -241,3 +301,177 @@ def _avro_type(series: pd.Series) -> str:
     if is_float_dtype(series):
         return "double"
     return "string"
+
+
+# ---------------------------------------------------------- Phase 10 formats
+
+
+def _rows_to_frame(rows: list[Any], label: str) -> pd.DataFrame:
+    """A list of anything, as a table.
+
+    A list of mappings is a table already. A list of scalars becomes a
+    single-column table rather than an error, because a file of one value per
+    line is a perfectly ordinary thing to be handed.
+    """
+    if not rows:
+        return pd.DataFrame()
+    if all(isinstance(row, dict) for row in rows):
+        return pd.json_normalize(rows)
+    if any(isinstance(row, dict) for row in rows):
+        raise BadRequestError(
+            f"This {label} file mixes objects and plain values, so it has no single "
+            "set of columns."
+        )
+    return pd.DataFrame({"value": rows})
+
+
+def _read_yaml(payload: bytes) -> pd.DataFrame:
+    import yaml as yaml_module
+
+    documents = [
+        document
+        for document in yaml_module.safe_load_all(payload.decode("utf-8"))
+        if document is not None
+    ]
+    if len(documents) == 1 and isinstance(documents[0], list):
+        return _rows_to_frame(documents[0], "YAML")
+    if len(documents) == 1 and isinstance(documents[0], dict):
+        return pd.json_normalize([documents[0]])
+    return _rows_to_frame(documents, "YAML")
+
+
+def _read_toml(payload: bytes, options: dict[str, Any]) -> pd.DataFrame:
+    import tomllib
+
+    document = tomllib.loads(payload.decode("utf-8"))
+    table = options.get("table")
+    if table:
+        section = document.get(str(table))
+        if section is None:
+            raise BadRequestError(
+                f"This file has no [{table}] section. Sections: {', '.join(document) or 'none'}."
+            )
+        document = section
+    if isinstance(document, list):
+        return _rows_to_frame(document, "TOML")
+    return pd.json_normalize([document])
+
+
+def _read_ini(payload: bytes) -> pd.DataFrame:
+    import configparser
+
+    parser = configparser.ConfigParser()
+    parser.read_string(payload.decode("utf-8"))
+    rows = [
+        {"section": name, **dict(parser[name])}
+        for name in parser.sections()
+    ]
+    if parser.defaults():
+        rows.insert(0, {"section": "DEFAULT", **dict(parser.defaults())})
+    return pd.DataFrame(rows)
+
+
+_MARKDOWN_SEPARATOR = re.compile(r"^\s*\|?[\s:-]*-[\s:|-]*\|?\s*$")
+
+
+def _read_markdown(payload: bytes) -> pd.DataFrame:
+    """The first pipe table in a Markdown document.
+
+    Written out rather than handed to a Markdown library: the whole grammar is
+    "split on pipes, skip the dashes", and a library would be a dependency for
+    twenty lines.
+    """
+    lines = [line for line in payload.decode("utf-8").splitlines() if line.strip()]
+    header: list[str] | None = None
+    rows: list[list[str]] = []
+
+    for line in lines:
+        if "|" not in line:
+            if header is not None:
+                break  # The table ended.
+            continue
+        if _MARKDOWN_SEPARATOR.match(line):
+            continue
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if header is None:
+            header = cells
+        else:
+            rows.append(cells)
+
+    if header is None:
+        raise BadRequestError("This file has no Markdown table in it.")
+    width = len(header)
+    padded = [row[:width] + [""] * max(0, width - len(row)) for row in rows]
+    return pd.DataFrame(padded, columns=header)
+
+
+def _read_json_log(payload: bytes) -> pd.DataFrame:
+    """JSON lines, tolerant of the lines that are not.
+
+    A log is not a data file: it has restart banners and truncated final lines.
+    Refusing the whole file because of one is not useful; reporting how many
+    were skipped is.
+    """
+    import json
+
+    rows: list[dict[str, Any]] = []
+    skipped = 0
+    for line in payload.decode("utf-8", errors="replace").splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        try:
+            parsed = json.loads(stripped)
+        except json.JSONDecodeError:
+            skipped += 1
+            continue
+        rows.append(parsed if isinstance(parsed, dict) else {"value": parsed})
+
+    frame = pd.json_normalize(rows) if rows else pd.DataFrame()
+    if skipped:
+        frame.attrs["warnings"] = [
+            f"{skipped:,} line(s) were not JSON and were skipped."
+        ]
+    return frame
+
+
+_COMBINED_LOG = re.compile(
+    r'^(?P<host>\S+) \S+ (?P<user>\S+) \[(?P<time>[^\]]+)\] '
+    r'"(?P<method>\S+) (?P<path>\S*) ?(?P<protocol>[^"]*)" '
+    r'(?P<status>\d{3}) (?P<bytes>\S+)'
+    r'(?: "(?P<referrer>[^"]*)" "(?P<agent>[^"]*)")?'
+)
+
+
+def _read_combined_log(payload: bytes) -> pd.DataFrame:
+    rows: list[dict[str, Any]] = []
+    skipped = 0
+    for line in payload.decode("utf-8", errors="replace").splitlines():
+        if not line.strip():
+            continue
+        match = _COMBINED_LOG.match(line)
+        if match is None:
+            skipped += 1
+            continue
+        row = match.groupdict()
+        row["status"] = int(row["status"])
+        row["bytes"] = int(row["bytes"]) if str(row["bytes"]).isdigit() else None
+        rows.append(row)
+
+    frame = pd.DataFrame(rows)
+    if skipped:
+        frame.attrs["warnings"] = [
+            f"{skipped:,} line(s) did not match the combined log format and were skipped."
+        ]
+    return frame
+
+
+def _write_markdown(frame: pd.DataFrame) -> str:
+    columns = [str(name) for name in frame.columns]
+    lines = ["| " + " | ".join(columns) + " |", "| " + " | ".join("---" for _ in columns) + " |"]
+    for row in frame.itertuples(index=False):
+        cells = ["" if value is None or pd.isna(value) else str(value) for value in row]
+        # A pipe inside a cell would end the cell; escaping is what every
+        # Markdown renderer expects here.
+        lines.append("| " + " | ".join(cell.replace("|", "\\|") for cell in cells) + " |")
+    return "\n".join(lines) + "\n"

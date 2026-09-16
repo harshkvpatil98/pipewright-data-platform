@@ -3,12 +3,18 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import type { DatasetUploadResponse } from "@platform/shared-types";
+import type {
+  AnalyseUploadResponse,
+  DatasetUploadResponse,
+  IngestSpec,
+} from "@platform/shared-types";
 import { Button, FormField, Input, Modal } from "@platform/shared-ui";
 
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { appConfig } from "@/lib/config";
+import { IngestReviewPanel } from "@/features/datasets/components/ingest-review-panel";
+import { blockingQuestions, specProblems } from "@/features/datasets/ingest-review";
 import {
   formatBytes,
   getSupportedDatasetExtensions,
@@ -30,6 +36,12 @@ export function UploadDatasetModal({ open, onClose, projectId }: UploadDatasetMo
   const [dragActive, setDragActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // The review step. `analysis` is what the file turned out to be; `spec` is
+  // that answer as the person has edited it, and is what gets imported.
+  const [analysis, setAnalysis] = useState<AnalyseUploadResponse | null>(null);
+  const [spec, setSpec] = useState<IngestSpec | null>(null);
+  const [analysing, setAnalysing] = useState(false);
+  const [rememberAs, setRememberAs] = useState("");
 
   const reset = () => {
     setName("");
@@ -37,6 +49,10 @@ export function UploadDatasetModal({ open, onClose, projectId }: UploadDatasetMo
     setDragActive(false);
     setError(null);
     setSubmitting(false);
+    setAnalysis(null);
+    setSpec(null);
+    setAnalysing(false);
+    setRememberAs("");
     if (inputRef.current) {
       inputRef.current.value = "";
     }
@@ -64,6 +80,37 @@ export function UploadDatasetModal({ open, onClose, projectId }: UploadDatasetMo
       setName(nextFile.name.replace(/\.[^.]+$/, ""));
     }
     setError(null);
+    setAnalysis(null);
+    setSpec(null);
+    void analyse(nextFile);
+  };
+
+  /**
+   * Work out how to read the file, storing nothing.
+   *
+   * Runs the moment a file is chosen rather than on a button, because the
+   * answer is what the person needs in order to decide anything else — and a
+   * failure here costs nothing, since nothing has been written.
+   */
+  const analyse = async (target: File) => {
+    const formData = new FormData();
+    formData.append("file", target);
+    try {
+      setAnalysing(true);
+      setError(null);
+      const response = await apiFetch<AnalyseUploadResponse>(
+        `/projects/${projectId}/datasets/analyze`,
+        { method: "POST", body: formData },
+      );
+      setAnalysis(response);
+      setSpec(response.spec);
+    } catch (analyseError) {
+      setError(extractErrorMessage(analyseError));
+      setAnalysis(null);
+      setSpec(null);
+    } finally {
+      setAnalysing(false);
+    }
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -84,10 +131,31 @@ export function UploadDatasetModal({ open, onClose, projectId }: UploadDatasetMo
 
     const formData = new FormData();
     formData.append("file", file);
+    // The spec the person has reviewed and edited travels with the file. It is
+    // the whole point of the review step: the import reads the file the way
+    // they confirmed, not the way a second inference pass would decide.
+    if (spec) {
+      formData.append("ingest_spec", JSON.stringify(spec));
+    }
 
     try {
       setError(null);
       setSubmitting(true);
+
+      if (spec && rememberAs.trim() && analysis) {
+        // Saved before the import, so a failed import does not lose the
+        // decisions somebody just made by hand.
+        await apiFetch(`/projects/${projectId}/ingest-specs`, {
+          method: "POST",
+          body: JSON.stringify({
+            label: rememberAs.trim(),
+            file_name: file.name,
+            spec,
+            columns: analysis.preview.columns,
+          }),
+        });
+      }
+
       const response = await apiFetch<DatasetUploadResponse>(
         `/projects/${projectId}/datasets/upload?dataset_name=${encodeURIComponent(name.trim())}`,
         {
@@ -104,19 +172,32 @@ export function UploadDatasetModal({ open, onClose, projectId }: UploadDatasetMo
     }
   };
 
+  const questions = analysis ? blockingQuestions(analysis) : [];
+  const problems = spec ? specProblems(spec) : [];
+  const blocked = questions.length > 0 || problems.length > 0;
+
   return (
     <Modal
       open={open}
       onClose={handleClose}
       title="Upload dataset"
-      description="Upload a csv, xlsx, or json file to create a dataset, profile it, and store a real ingestion run."
+      description="Choose a file and the platform works out how to read it — separator, encoding, header row, every column's type — and shows you before anything is stored."
       footer={
         <div className="flex items-center justify-end gap-3">
           <Button variant="secondary" onClick={handleClose} disabled={submitting}>
             Cancel
           </Button>
-          <Button type="submit" form="upload-dataset-form" disabled={submitting || !file || name.trim().length < 2}>
-            {submitting ? "Creating dataset..." : "Upload dataset"}
+          <Button
+            type="submit"
+            form="upload-dataset-form"
+            disabled={submitting || analysing || blocked || !file || name.trim().length < 2}
+            title={
+              questions.length > 0
+                ? "Answer the questions above first."
+                : problems[0] ?? undefined
+            }
+          >
+            {submitting ? "Creating dataset..." : analysis ? "Import as reviewed" : "Upload dataset"}
           </Button>
         </div>
       }
@@ -139,8 +220,10 @@ export function UploadDatasetModal({ open, onClose, projectId }: UploadDatasetMo
         <div>
           <div className="mb-2 text-sm font-medium text-ink">Source file</div>
           <p className="mb-3 text-xs leading-5 text-ink-3">
-            Supported formats: csv, xlsx, json. Maximum size: {formatBytes(appConfig.maxUploadSizeBytes)}.
-            Uploads are stored through the platform storage layer and immediately profiled.
+            Spreadsheets, delimited text, JSON, XML, Parquet, Avro, ORC, SQL dumps and the
+            statistical formats — compressed or not. Maximum size:{" "}
+            {formatBytes(appConfig.maxUploadSizeBytes)}. The contents decide the format, so a
+            file with the wrong extension still reads correctly.
           </p>
           <button
             type="button"
@@ -183,9 +266,45 @@ export function UploadDatasetModal({ open, onClose, projectId }: UploadDatasetMo
             {error}
           </div>
         ) : null}
+
+        {analysing ? (
+          <div className="rounded-2xl border border-line bg-surface px-4 py-3 text-sm text-ink-2">
+            Working out how to read this file. Nothing has been stored.
+          </div>
+        ) : null}
+
+        {analysis && spec ? (
+          <>
+            <IngestReviewPanel analysis={analysis} spec={spec} onSpecChange={setSpec} />
+
+            {problems.length > 0 ? (
+              <div className="rounded-2xl border border-warning-line bg-warning-soft px-4 py-3 text-sm text-warning">
+                <ul className="space-y-1">
+                  {problems.map((problem) => (
+                    <li key={problem}>{problem}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            <FormField
+              label="Remember these settings (optional)"
+              htmlFor="dataset-upload-remember"
+              description="Give this a name and the next file with the same columns is read the same way, rather than inferred again from different data."
+            >
+              <Input
+                id="dataset-upload-remember"
+                value={rememberAs}
+                onChange={(event) => setRememberAs(event.target.value)}
+                placeholder="Monthly bank statement"
+              />
+            </FormField>
+          </>
+        ) : null}
+
         {submitting ? (
           <div className="rounded-2xl border border-line bg-surface px-4 py-3 text-sm text-ink-2">
-            Validating the upload, storing the file, and generating the initial schema, preview, and profile.
+            Storing the file and generating the schema, preview and profile.
           </div>
         ) : null}
       </form>

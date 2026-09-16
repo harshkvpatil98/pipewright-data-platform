@@ -4,8 +4,8 @@
 last one stopped. Keep it current. If you change project state, update the **Progress ledger**
 and **Session log** at the bottom before you finish.
 
-**Last updated:** 2026-08-21
-**Updated by:** session `5754fbb2` (Phases 08, 09, 12, 13, 14 complete; roadmap v2 phases 10-11, 15-23 remain)
+**Last updated:** 2026-09-16
+**Updated by:** session `add9b3f2` (Phases 10 and 11 complete; roadmap v2 phases 18-23 remain, 16 partial)
 
 ---
 
@@ -57,8 +57,8 @@ on the venv, that is usually why.
 npm run verify     # ruff + pytest + ESLint + tsc + production build
 ```
 
-Everything must be green before moving on. Current baseline: **1,256 Python tests,
-111 web tests, all passing.**
+Everything must be green before moving on. Current baseline: **5,943 Python tests,
+652 web tests, all passing.**
 
 Other commands: `npm test` (tests only) · `npm run smoke` (end-to-end smoke) ·
 `npm run lint` · `npm run typecheck` · `scripts/backup.sh --verify` (real restore drill).
@@ -97,17 +97,18 @@ was for that push, not a standing one.
 | 01 | Orchestration | `service-workflows` | DAG, queue/worker, canvas, cron, backfills, macros |
 | 02 | Trust | `service-lineage`, `service-observability` | Column lineage (derived, never stored), anomalies, incidents |
 | 03 | Team | `service-access`, `service-governance` | Roles, versions, approvals, audit log |
-| 04 | Reach | `service-connectors` | Connector SDK + conformance suite, 19 connectors |
+| 04 | Reach | `service-connectors` | Connector SDK + conformance suite, 19 connectors (**211** after Phase 10) |
 | 05 | Consumption | `service-reporting` | Charts, dashboards, pivots, Excel export, catalog |
 | 06 | Intelligence | `service-intelligence` | PII, join keys, entity resolution — **no model calls** |
 | 07 | Enterprise | `service-enterprise` | Tenancy, row/column security, retention, SSO, `/metrics` |
 
-**Migrations:** `apps/api-gateway/alembic/versions/`, 27 files, head is `0027_writeback_change_sets`.
+**Migrations:** `apps/api-gateway/alembic/versions/`, 30 files, head is `0030_ingest_specs`.
 
 ### Roadmap v2: in progress
 
 See [`roadmap-v2.md`](./roadmap-v2.md) — 16 phases across 4 tracks, ≈58 sessions.
-Phases **08, 09, 12, 13, 14, 15** are done; the progress ledger in §8 tracks the rest.
+Phases **08, 09, 10, 11, 12, 13, 14, 15, 17** are done and **16** shipped its
+machinery plus 173 tools; the progress ledger in §8 tracks the rest.
 
 ---
 
@@ -166,6 +167,8 @@ honesty; if you verify one, update its status here.
 
 | Gap | Why |
 |---|---|
+| 161 of 211 connectors are tier 4 | Written from vendor documentation and never executed here. Said on every card, in the config form, in the connection test and in the run's warnings — which is the design, not a gap to close by relaxing the claim |
+| Tier 3 ("Recorded") is empty | It means replaying a *captured real session*, and there are no credentials on this machine for any of these vendors. Fabricating a recording would be the exact failure the tier system prevents |
 | 5 SaaS connectors never run live | Stripe/HubSpot/Shopify/Salesforce/Sheets — no credentials on this machine |
 | OIDC network legs never run | Token exchange + JWKS written to spec; no IdP available |
 | SAML absent | Needs `xmlsec`; a SAML that skips signature checking is an auth bypass |
@@ -174,6 +177,15 @@ honesty; if you verify one, update its status here.
 | Write-back run only against SQLite | PostgreSQL and MySQL paths are written and dialect-aware; no server on this machine to run them |
 | Write-back does not cover files or SaaS | A file-backed dataset is a replayable recipe in the Studio, which is a better answer than a destructive rewrite. Write-back exists for live tables the platform does not own |
 | No three-way conflict resolution UI | A stale row stops the commit and names the statement; choosing "theirs" or "yours" per row is its own screen |
+| Python notebook cells are disabled on macOS | The sandbox probe finds `setrlimit(RLIMIT_AS)` rejected, so a cell could allocate until the host runs out of memory. Disabling with a stated reason is the designed behaviour; on Linux the probe passes and cells run |
+| Notebooks run in the request, not on the worker | Bounded instead: 15s per Python cell, a SQL statement timeout, 120s for the whole notebook. A queue would add a job table, a worker node type and client polling for the same result |
+| PDF table extraction absent | Needs camelot or pdfplumber, neither installed. The format detector refuses `.pdf` by name with that sentence rather than failing inside a parser |
+| SPSS `.sav`, `.ods` and 7-Zip unreadable | Need `pyreadstat`, `odfpy` and `py7zr`. Each is declared and refused with the package to install. SAS and Stata, which pandas reads natively, work |
+| Upload sessions live in process memory | A session is worthless without its chunks and the chunks are in that process's storage, so a session table would be a write per 8MB for state that cannot outlive them. A multi-process gateway needs sticky sessions for uploads |
+| Duplicate-row detection is skipped when streaming | It needs every row held at once. The streaming profile reports `null` rather than `0`, which would be a claim |
+| Streaming, queues and CDC absent from the catalogue | 13 sources the roadmap itself defers to Phase 20. A different execution model, not another declaration |
+| Inbound webhooks and gRPC absent | A webhook is a receiver needing an endpoint, a store and a replay story (Phase 20's shape); gRPC needs `grpcio` and a reflection-based dynamic client |
+| 9 engines are declared but undriveable | Cassandra, ScyllaDB, Couchbase, Redis, ArangoDB, HBase, Aerospike, Timestream, HDFS. Each declares only `test`, reports `available: false`, and names the interface this platform *can* read instead |
 | Tool library is 167, not the roadmap's 420 | Window, statistical/ML, geospatial, fuzzy-matching, enrichment and recipe-management families are absent by name in `roadmap-v2.md`. Each needs something the IR does not have yet (a window node, a geometry type, a network policy) rather than more declarations |
 
 ---
@@ -186,14 +198,14 @@ honesty; if you verify one, update its status here.
 |---|---|---|---|---|
 | 08 | Type system & IR | **done** | 4/4 | Types, IR, 2 backends, 20 steps, IR-derived lineage. Cutover deliberately deferred — see below |
 | 09 | Design system & themes | **done** | 2/2 | Graphite/teal/copper; light+dark+system; density |
-| 10 | Connector factory (→250) | not started | 0/6 | Needs 08 |
-| 11 | Ingestion intelligence | not started | 0/3 | Needs 08 |
+| 10 | Connector factory (→250) | **done** | 6/6 | 211 connectors, 4 generators, 50 at tier 2, schema watch + incidents, secret references |
+| 11 | Ingestion intelligence | **done** | 3/3 | Sniffing pipeline with evidence, 10 readers, ingest specs, resumable upload, streaming profile, 6 nested tools |
 | 12 | Pushdown & dialects | **done** | 4/4 | Surfaces, planner, plan executor, plan panel. Not yet wired into runs |
 | 13 | Data grid | **done** | 4/4 | Canvas grid, selection, clipboard, profiling, header interactions, step deltas. Editing wired by 15 |
 | 14 | Formula engine | **done** | 3/3 | Lexer, parser to IR, 87-function catalogue, formulas push down |
 | 15 | Write-back | **done** | 3/3 | Change sets, identity, dry run, blast radius, batching, Table editor page |
-| 16 | Tool library (→420) | **partial** | 3/6 | 167 tools + the registry, harness, API, docs and UI. Window/statistical/geo/enrichment families deliberately absent |
-| 17 | SQL IDE & notebook | not started | 0/3 | Needs 12, 13 |
+| 16 | Tool library (→420) | **partial** | 3/6 | 173 tools + the registry, harness, API, docs and UI. Window/statistical/geo/enrichment families deliberately absent |
+| 17 | SQL IDE & notebook | **done** | 3/3 | Workbench, notebook, sandbox, recipe-as-code. Python cells disabled on macOS by design |
 | 18 | Time travel | not started | 0/3 | Needs 08 |
 | 19 | Semantic layer & contracts | not started | 0/3 | Needs 08, 18 |
 | 20 | Streaming & CDC | not started | 0/4 | Needs 08, 10 |
@@ -203,16 +215,18 @@ honesty; if you verify one, update its status here.
 
 ### Recommended next action
 
-**Phase 11 (ingestion intelligence)** or **Phase 17 (SQL IDE)**, or more tool
-categories on the Phase 16 registry.
+**Track D (18–23) is the whole of what is left**, plus more tool categories on
+the Phase 16 registry. Tracks A, B and C are complete: 18 (time travel) is the
+natural next one and unlocks 19 and 22.
 
 The thesis track is finished: 08 (types + IR) → 09 (design) → 13 (grid) → 14 (formulas) →
-12 (pushdown) → 15 (write-back) are all done, and 16 has shipped its machinery plus
-167 tools. Together they are the whole argument — an analyst edits a live table in a
-grid, reaches any of 167 tools from a right-click or Ctrl+K, and every edit is a
-reviewed statement with lineage. What is left is breadth (10, 11, more tool
-categories), depth (17–23), and two cutovers noted below: making the IR the only
-executor, and wiring pushdown into extraction runs.
+12 (pushdown) → 15 (write-back) → 17 (SQL IDE) are all done, and 16 shipped its
+machinery plus 167 tools. Together they are the whole argument — an analyst edits a
+live table in a grid, reaches any of 167 tools from a right-click or Ctrl+K, drops
+into SQL or Python when the visual tools run out, and every edit is a reviewed
+statement with lineage. What is left is depth (18–23), more tool categories, and
+two cutovers noted below: making the IR the only executor, and wiring pushdown
+into extraction runs.
 
 ### Phase 08: what is done, and the one thing deliberately not done
 
@@ -244,6 +258,140 @@ Conventions worth knowing before touching the IR:
   `mappings`, not `casts`; aggregate names come from
   `steps.aggregate.SUPPORTED_AGGREGATIONS`. Guards in `test_ir_step_coverage.py` compare
   the two allowlists, which is how three missing aggregates were found.
+
+### Phase 11 notes: ingestion intelligence
+
+`services/service-ingestion`. Read `sniff/evidence.py` first -- every stage of
+the pipeline returns a `Finding` and the whole package follows from that shape.
+Then `spec.py`, which is what the pipeline produces and the only way rows are
+materialised.
+
+- **`AMBIGUOUS` is not "low confidence".** It means several readings fit and the
+  file does not choose. Such a finding is `blocking`, the upload is refused, and
+  both readings come back in words. Do not "improve" this by adding a default;
+  the roadmap's requirement is that an ambiguous date is asked about.
+- **The date scan reads every value, not a sample.** The single row that settles
+  a thousand-row column can be anywhere, and a sample is exactly how it gets
+  missed. `test_corpus.py::disambiguated-by-a-late-row` is the guard.
+- **`analyse(..., limit=...)` has no safe default.** `ANALYSIS_ROWS` for a
+  preview, `None` to read the file. The sample leaking into the import path was
+  a real bug: every upload was silently cut to five thousand rows and reported
+  success.
+- **A value written with a decimal point is a decimal**, even when round. `10.0`
+  narrowed to an integer drops the cents from a price column.
+- **A leading zero means an identifier.** `01234` read as a number becomes 1234,
+  and unlike most inference mistakes nothing about the result looks wrong.
+- **An `.xlsx` is a zip.** `containers.is_document_zip` is why it is not
+  unwrapped as one, and `formats.detect_format` calls the same function rather
+  than a second, weaker check.
+- **A modal line width can tie**, when a file has as many preamble lines as data
+  rows. Both `header.py` and `formats.py` break the tie towards the *wider*
+  shape; breaking it the other way makes the preamble the table.
+- **A `.sql` dump is parsed, never executed.** `split_statements` scans the
+  original characters so a semicolon inside a literal does not truncate the
+  file. Only `CREATE TABLE` and `INSERT` are acted on; everything else is
+  counted and ignored.
+- **A spec is found again by column fingerprint first, name pattern second.**
+  The fingerprint is order- and case-insensitive, because a reordered or
+  re-spelled column is the same report.
+- **`nested.flatten` and `nested.normalise` require an explicit field list.** A
+  tool whose output columns depend on the rows cannot be predicted by lineage,
+  and `test_tool_library.py` enforces that predicted equals actual for every
+  tool. `nested.infer_json_schema` exists to produce the list.
+- **The corpus is generated, not checked in.** `tests/corpus.py` is the
+  description of what makes each file awful; a binary fixture is opaque. It is
+  loaded by path because pytest runs with `--import-mode=importlib` and a bare
+  `from corpus import ...` resolves against the rootdir -- and the module must
+  be put in `sys.modules` before it executes, or `dataclasses` cannot resolve
+  its own annotations.
+
+### Phase 10 notes: the connector factory
+
+`services/service-connectors`. Read `protocol.py` first for `Tier`, then
+`generators.py` for how the catalogue is assembled. Four tables produce it:
+`manifests/*.yaml`, `dialects.py`, `stores.py` and `datastores.py`.
+
+- **A tier is a citation, not an assertion.** `verified_by` names a test file;
+  `test_generators.py` resolves it and checks the file actually drives that
+  connector; `ConnectorSpec.__post_init__` refuses a tier above 4 without one.
+  Adding a tier without a test that mentions the connector fails the suite.
+- **Nine PostgreSQL-wire dialects stay at tier 4 on purpose.** CockroachDB and
+  friends run the exact code path `test_containers.py` exercises. Promoting them
+  would conflate "the driver works" with "the product works", and
+  `test_a_postgres_wire_dialect_is_not_quietly_promoted` pins that.
+- **A skipped container test is a green build.** `test_containers.py` skips a
+  server it cannot reach, which is right for a laptop and wrong for CI — so
+  `scripts/check-connector-servers.py` runs first in `ci.yml` and fails the
+  build instead. `docker-compose.connectors.yml` is the laptop equivalent.
+- **The vendor contracts are deliberately redundant with the manifests.** Both
+  were written from the vendor's documentation, so a disagreement means one is
+  wrong. That redundancy is what found the pagination bugs; do not "simplify"
+  `test_vendor_contracts.py` by reading the values out of the manifest.
+- **Pagination parameter names travel with the strategy.** `PageParams` reads
+  `page_param`/`size_param`/`offset_param`/`cursor_param`/`start_page` from the
+  config. A name declared and then ignored is worse than none: the API answers
+  with page one and the loop collects the same rows to `MAX_PAGES`.
+- **`next_url` is a separate strategy from `cursor`**, because a large family of
+  APIs return the *address* of the next page rather than a token.
+  `resolve_next_url` refuses a cross-origin one — the credential is in a header
+  and httpx sends it wherever it is pointed.
+- **`httpx` `params=` replaces a URL's query, it does not add to one.** Passing
+  an empty dict alongside a next-page URL silently discarded the page marker.
+  `merge_query` exists for that; do not go back to `params=`.
+- **The tier caveat is built in exactly one place.** `with_tier_note(result,
+  spec)`. Three connectors used to compose the sentence themselves and a fourth
+  quietly did not; a structural test now fails any adapter that reads rows
+  without either attaching the note or delegating to a base class that does.
+- **A URL-safety rule applies to the values that reach the URL.** Scanning the
+  whole config made every Basic-auth connection unconfigurable, because those
+  credentials are email addresses and `@` is not allowed *in a path segment*.
+- **The watch keys snapshots on the qualified name.** `public.orders` and
+  `analytics.orders` are different tables; a bare name compares one against the
+  other and then collides on the unique index.
+- **"We could not look" is not drift.** A credential that expired or a host that
+  is down is reported as skipped with the reason. Recording it as missing
+  columns files a breaking incident every time a VPN drops.
+- **`watch.sweep` and `sweep.sweep_project` are different things.** The first
+  compares shipped manifests against a caller-supplied previous state and needs
+  no database; the second is the nightly job over configured connections. The
+  docstrings say so, because the names do not.
+
+### Phase 17 notes: the workbench, the notebook and the sandbox
+
+`services/service-workbench`. Read `sandbox.py` first if you touch anything
+there; read `safety.py` first if you touch the SQL side.
+
+- **Read-only is a default enforced at three layers**, and they are not
+  redundant: the permission table decides who may call `run` at all, the service
+  narrows a requested mode to what the role carries (writes need **admin**), and
+  the response reports the policy that was actually in force. Removing any one
+  of them lets a client believe it is read-only when it is not.
+- **`sql_text.split` scans the original characters.** Not a stripped copy --
+  the offsets are part of the answer, because "error in statement 3" has to be
+  able to point at statement 3. If you change it, the dollar-quoted function
+  body test is the one that catches a naive rewrite.
+- **A leading keyword does not tell you whether a statement writes.** A
+  data-modifying CTE leads with `WITH`; `EXPLAIN ANALYZE INSERT` leads with
+  `EXPLAIN` and performs the insert. Both are tested.
+- **Statement timeouts are set per dialect and a missing one is reported.**
+  Without them a workbench is a way to take a database down.
+- **The sandbox's capabilities are probed by trying, in a child process.**
+  `hasattr(resource, "RLIMIT_AS")` is true on macOS and `setrlimit` raises, so
+  the earlier `hasattr` check claimed a limit that did not exist. On this
+  machine the probe fails and **Python cells are disabled with a stated
+  reason** -- that is correct, not a bug, and `test_notebook.py` skips the
+  cell-running tests accordingly while still asserting the refusal.
+- **Two sandbox escapes are regression tests, not theory.** `BuiltinImporter`
+  hands back a module cached in `sys.modules` without firing an `import` event;
+  `os._wrap_close.__init__.__globals__` reaches the real `os` regardless of what
+  is in `sys.modules`. The first needs the purge, the second needs the audit
+  hook. Neither alone is sufficient.
+- **`run()` is the mechanism, `require_usable()` is the policy.** Keeping them
+  apart is what lets the escape tests run on a platform the policy declines.
+- **Notebooks run in the request.** Bounded rather than queued -- see the
+  `notebook.py` docstring for why, and for what would change that.
+- **`recipe_yaml.py` lives in service-transformations**, not here: it is about
+  recipes, and the workbench merely exposes it.
 
 ### Phase 16 notes: the tool library
 
@@ -460,8 +608,13 @@ Report honestly. If something is unverified, say so and add it to §7.
 
 | 2026-08-22 | `5754fbb2` | **Phase 12 complete.** Execution surfaces, pushdown planner, plan executor, Studio plan panel. Also fixed a React pooled-event bug that unmounted the grid mid-scroll on wide tables. 1,800 -> 1,827 Python tests |
 
+| 2026-08-23 | `5754fbb2` | **Phase 17 complete.** `service-workbench`: statement splitter, read-only-by-default policy, multi-statement execution with per-dialect timeouts, EXPLAIN, live schema browser, cursor-aware autocomplete, saved queries, history, notebooks with a shared frame namespace, a probed Python sandbox, and lossless recipe-as-code YAML. 19 routes, migration 0028, three pages. Closed two real sandbox escapes and a capability check that claimed a memory limit macOS does not provide. 4,392 -> 4,701 Python, 573 -> 636 web tests |
 | 2026-08-23 | `5754fbb2` | **Phase 16 partial (machinery complete).** Tool registry, 167 tools across 10 categories, IR catalogue 87 -> 186 functions, universal test harness, catalogue + preview API, generated reference, tool browser with live preview, type-aware column context menu, palette synonyms. Fixed `abs`/`round` raising on all-null columns, `to_date` failing a run on one bad value, mixed date formats silently losing rows, and `starts_with`/`contains` having no lowering at all. 2,113 -> 4,392 Python, 544 -> 573 web tests |
 | 2026-08-22 | `5754fbb2` | **Phase 15 complete.** `service-writeback` (identity, change sets, compiler, dry run, blast radius, batching), 11 routes, migration 0027, Table editor page. Fixed a dry run that left DDL behind on SQLite, per-edit validation that blocked add-then-fill, and a blast-radius share rule that fired on a 3-row table. 1,993 -> 2,113 Python, 510 -> 544 web tests |
 | 2026-08-22 | `5754fbb2` | **Phase 14 complete.** Formula lexer/parser producing IR, catalogue 40 -> 87 functions, formulas push down. Fixed a planner crash on a bare local scan and arithmetic typing that returned `unknown` for decimal x float. 1,827 -> 1,993 Python tests |
+
+| 2026-09-16 | `add9b3f2` | **Phase 10 complete.** Connector factory: 211 connectors from four generators, 50 at tier 2 backed by vendor-contract fixtures, real PostgreSQL/MySQL/MariaDB containers in CI, and the whole S3 family. OData and JSON:API protocol connectors, the schema watch with drift incidents and a nightly schedule type (migration 0029), secret references, and a `/connectors/watch` API plus UI. Found five live bugs — dropped pagination parameter names, seven manifests treating a next-page URL as a token, httpx wiping a follow-up query, a SQL connector `read()` that had never worked, and a URL check that banned `@` in every Basic-auth username — plus a tenancy leak and a stream-name collision in review. 4,701 → 5,621 Python tests |
+
+| 2026-09-16 | `add9b3f2` | **Phase 11 complete.** Ingestion intelligence: a sniffing pipeline where every stage reports confidence and evidence and an ambiguous date blocks rather than defaults; ten per-format readers; the ingest spec, stored against a column fingerprint and reused next month; chunked resumable upload with checksum; a streaming profiler using Welford; six nested-data tools (167 → 173); a 72-file awful corpus; migration 0030 and an analyse-before-commit UI. Found seven real bugs including every import being silently truncated to 5,000 rows, `10.0` narrowed to an integer, `01234` becoming 1234, and a preamble becoming the table. 5,621 → 5,943 Python, 636 → 652 web tests |
 
 <!-- Add a row above when you finish a session. Keep it to one line. -->

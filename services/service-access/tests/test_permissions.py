@@ -180,3 +180,52 @@ def test_the_default_review_message_still_applies_to_definitions():
     message = review_refusal("POST", f"{PROJECT}/workflows")
     assert message is not None
     assert "Propose the edit as a change request" in message
+
+
+def test_the_workbench_reads_are_viewer_and_the_runs_are_operator():
+    """Read-only by default, all the way up to the permission table.
+
+    `explain` reports a plan without running anything, so it sits with the other
+    analytical POSTs. `run` is operator because reaching into a source database
+    is more than "see everything in the project" -- and a *write* needs admin,
+    which the workbench service enforces on top of this.
+    """
+    base = f"{PROJECT}/workbench"
+    assert required_role("POST", f"{base}/preview") == "viewer"
+    assert required_role("POST", f"{base}/explain") == "viewer"
+    assert required_role("GET", f"{base}/history") == "viewer"
+    assert required_role("GET", f"{base}/schema/abc") == "viewer"
+    assert required_role("POST", f"{base}/run") == "operator"
+    assert required_role("POST", f"{base}/notebooks/abc/run") == "operator"
+    assert required_role("POST", f"{base}/queries") == "editor"
+    assert required_role("DELETE", f"{base}/queries/abc") == "editor"
+
+
+def test_the_connector_schema_watch_is_an_operator_action():
+    """Sweeping is running the nightly job by hand, not editing anything.
+
+    It re-reads schemas and files drift incidents -- both things an operator
+    does on call. Treating it as a definition change would put it behind the
+    editor role and out of reach of the person who noticed the 3am failure.
+    """
+    assert required_role("GET", f"{PROJECT}/connectors/watch") == "viewer"
+    assert required_role("POST", f"{PROJECT}/connectors/watch") == "operator"
+    assert required_role("GET", f"{PROJECT}/connectors/usage") == "viewer"
+
+
+def test_analysing_an_upload_is_a_read():
+    """Working out how to read a file stores nothing.
+
+    Requiring an editor for it would mean a viewer could not look at a file
+    before somebody imports it, which is exactly when looking is useful. The
+    import itself is still a write.
+    """
+    assert required_role("POST", f"{PROJECT}/datasets/analyze") == "viewer"
+    assert required_role("POST", f"{PROJECT}/datasets/upload") == "editor"
+    assert required_role("GET", f"{PROJECT}/ingest-specs") == "viewer"
+    assert required_role("POST", f"{PROJECT}/ingest-specs") == "editor"
+    assert required_role("DELETE", f"{PROJECT}/ingest-specs/abc") == "editor"
+    # The chunked-upload endpoints are the ordinary upload, split up.
+    assert required_role("POST", f"{PROJECT}/datasets/uploads") == "editor"
+    assert required_role("PUT", f"{PROJECT}/datasets/uploads/abc/chunks/0") == "editor"
+    assert required_role("POST", f"{PROJECT}/datasets/uploads/abc/complete") == "editor"

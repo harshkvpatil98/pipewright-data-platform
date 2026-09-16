@@ -1,0 +1,35 @@
+key: bigcommerce
+label: BigCommerce
+category: saas
+description: Read orders, products, and customers from BigCommerce.
+docs_url: https://developer.bigcommerce.com/docs/rest
+base_url: https://api.bigcommerce.com/stores/{store_hash}/v3
+auth:
+  kind: api_key
+  placement: header
+  header: X-Auth-Token
+  template: '{token}'
+streams:
+  - name: orders
+    path: /orders
+    records_path: data
+    primary_key: id
+    pagination: &id001
+      kind: page
+      page_param: page
+      size_param: per_page
+      page_size: 100
+  - name: products
+    path: /catalog/products
+    records_path: data
+    primary_key: id
+    pagination: *id001
+  - name: customers
+    path: /customers
+    records_path: data
+    primary_key: id
+    pagination: *id001
+tier: 4
+config_fields:
+  - name: store_hash
+    label: Store hash

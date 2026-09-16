@@ -1,0 +1,27 @@
+key: netsuite
+label: NetSuite
+category: saas
+description: Read customers and invoices from NetSuite.
+docs_url: https://docs.oracle.com/en/cloud/saas/netsuite/ns-online-help/book_1559132836.html
+base_url: https://{account_id}.suitetalk.api.netsuite.com/services/rest/record/v1
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: customers
+    path: /customer
+    records_path: items
+    primary_key: id
+    pagination: &id001
+      kind: offset
+      offset_param: offset
+      page_size: 100
+  - name: invoices
+    path: /invoice
+    records_path: items
+    primary_key: id
+    pagination: *id001
+tier: 4
+config_fields:
+  - name: account_id
+    label: Account id

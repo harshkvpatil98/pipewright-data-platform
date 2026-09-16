@@ -1,0 +1,27 @@
+key: adyen
+label: Adyen
+category: saas
+description: Read merchants and stores from Adyen.
+docs_url: https://docs.adyen.com/api-explorer/
+base_url: https://management-live.adyen.com/v3
+auth:
+  kind: api_key
+  placement: header
+  header: X-API-Key
+  template: '{token}'
+streams:
+  - name: merchants
+    path: /merchants
+    records_path: data
+    primary_key: id
+    pagination: &id001
+      kind: page
+      page_param: page
+      size_param: per_page
+      page_size: 100
+  - name: stores
+    path: /stores
+    records_path: data
+    primary_key: id
+    pagination: *id001
+tier: 4

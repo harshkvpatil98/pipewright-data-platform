@@ -1,0 +1,27 @@
+key: datadog
+label: Datadog
+category: saas
+description: Read monitors and dashboards from Datadog.
+docs_url: https://docs.datadoghq.com/api/latest/
+base_url: https://api.{site}/api/v1
+auth:
+  kind: api_key
+  placement: header
+  header: DD-API-KEY
+  template: '{token}'
+streams:
+  - name: monitors
+    path: /monitor
+    primary_key: id
+    pagination: &id001
+      kind: none
+  - name: dashboards
+    path: /dashboard
+    records_path: dashboards
+    primary_key: id
+    pagination: *id001
+tier: 4
+config_fields:
+  - name: site
+    label: Site
+    default: datadoghq.com

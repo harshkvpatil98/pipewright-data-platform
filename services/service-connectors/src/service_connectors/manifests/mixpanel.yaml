@@ -1,0 +1,20 @@
+key: mixpanel
+label: Mixpanel
+category: saas
+description: Read events and profiles from Mixpanel.
+docs_url: https://developer.mixpanel.com/reference/overview
+base_url: https://data.mixpanel.com/api/2.0
+auth:
+  kind: basic
+  template: Basic {token}
+streams:
+  - name: engage
+    path: /engage
+    records_path: results
+    primary_key: $distinct_id
+    pagination:
+      kind: page
+      page_param: page
+      size_param: per_page
+      page_size: 100
+tier: 4

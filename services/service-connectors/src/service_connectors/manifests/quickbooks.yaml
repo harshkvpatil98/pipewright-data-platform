@@ -1,0 +1,29 @@
+key: quickbooks
+label: QuickBooks Online
+category: saas
+description: Read customers and invoices from QuickBooks.
+docs_url: https://developer.intuit.com/app/developer/qbo/docs/api/accounting/all-entities/account
+base_url: https://quickbooks.api.intuit.com/v3/company/{realm_id}
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: customers
+    path: /query
+    records_path: QueryResponse.Customer
+    primary_key: Id
+    pagination: &id001
+      kind: none
+    params:
+      query: select * from Customer
+  - name: invoices
+    path: /query
+    records_path: QueryResponse.Invoice
+    primary_key: Id
+    pagination: *id001
+    params:
+      query: select * from Invoice
+tier: 4
+config_fields:
+  - name: realm_id
+    label: Company (realm) id

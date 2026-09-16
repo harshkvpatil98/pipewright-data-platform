@@ -1,0 +1,29 @@
+key: sage
+label: Sage Accounting
+category: saas
+description: Read contacts, invoices, and ledger accounts from Sage.
+docs_url: https://developer.sage.com/accounting/reference/
+base_url: https://api.accounting.sage.com/v3.1
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: contacts
+    path: /contacts
+    records_path: $items
+    primary_key: id
+    pagination: &id001
+      kind: offset
+      offset_param: offset
+      page_size: 100
+  - name: sales_invoices
+    path: /sales_invoices
+    records_path: $items
+    primary_key: id
+    pagination: *id001
+  - name: ledger_accounts
+    path: /ledger_accounts
+    records_path: $items
+    primary_key: id
+    pagination: *id001
+tier: 4

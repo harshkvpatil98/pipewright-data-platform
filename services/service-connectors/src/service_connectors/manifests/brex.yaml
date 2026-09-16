@@ -1,0 +1,29 @@
+key: brex
+label: Brex
+category: saas
+description: Read transactions and expenses from Brex.
+docs_url: https://developer.brex.com/
+base_url: https://platform.brexapis.com/v2
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: transactions
+    path: /transactions/card/primary
+    records_path: items
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: cursor
+      cursor_path: next_cursor
+      page_size: 100
+  - name: expenses
+    path: /expenses
+    records_path: items
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: cursor
+      cursor_path: next_cursor
+      page_size: 100
+tier: 4

@@ -1,0 +1,52 @@
+key: zoom
+label: Zoom
+category: saas
+description: Read users and meetings from Zoom.
+docs_url: https://developers.zoom.us/docs/api/
+base_url: https://api.zoom.us/v2
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: users
+    path: /users
+    records_path: users
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: next_page_token
+      cursor_path: next_page_token
+      page_size: 100
+    schema:
+      id:
+        type: STRING
+      email:
+        type: STRING
+      first_name:
+        type: STRING
+      last_name:
+        type: STRING
+      created_at:
+        type: TIMESTAMP
+        tz_aware: true
+  - name: meetings
+    path: /users/me/meetings
+    records_path: meetings
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: next_page_token
+      cursor_path: next_page_token
+      page_size: 100
+    schema:
+      id:
+        type: INTEGER
+      topic:
+        type: STRING
+      start_time:
+        type: TIMESTAMP
+        tz_aware: true
+      duration:
+        type: INTEGER
+tier: 2
+verified_by: test_vendor_contracts.py

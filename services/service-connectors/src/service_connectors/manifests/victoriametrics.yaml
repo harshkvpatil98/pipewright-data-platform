@@ -1,0 +1,25 @@
+key: victoriametrics
+label: VictoriaMetrics
+category: timeseries
+description: Query series from VictoriaMetrics.
+docs_url: https://docs.victoriametrics.com/url-examples/
+base_url: http://{host}
+auth:
+  kind: none
+streams:
+  - name: series
+    path: /api/v1/series
+    records_path: data
+    pagination: &id001
+      kind: none
+    params:
+      match[]: '{__name__!=""}'
+  - name: labels
+    path: /api/v1/labels
+    records_path: data
+    pagination: *id001
+tier: 4
+config_fields:
+  - name: host
+    label: Host
+    placeholder: metrics.internal:8086

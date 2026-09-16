@@ -1,0 +1,64 @@
+key: klaviyo
+label: Klaviyo
+category: saas
+description: Read profiles, lists, campaigns, and events from Klaviyo.
+docs_url: https://developers.klaviyo.com/en/reference/api_overview
+base_url: https://a.klaviyo.com/api
+auth:
+  kind: api_key
+  placement: header
+  header: Authorization
+  template: Klaviyo-API-Key {token}
+streams:
+  - name: profiles
+    path: /profiles
+    records_path: data
+    primary_key: id
+    pagination:
+      kind: next_url
+      cursor_path: links.next
+      page_size: 100
+    incremental:
+      cursor_field: attributes.updated
+      param: filter
+      template: greater-than(updated,{value})
+    schema:
+      id:
+        type: STRING
+      attributes.email:
+        type: STRING
+        rename: email
+      attributes.created:
+        type: TIMESTAMP
+        tz_aware: true
+        rename: created_at
+      attributes.updated:
+        type: TIMESTAMP
+        tz_aware: true
+        rename: updated_at
+  - name: lists
+    path: /lists
+    records_path: data
+    primary_key: id
+    pagination:
+      kind: next_url
+      cursor_path: links.next
+      page_size: 100
+  - name: campaigns
+    path: /campaigns
+    records_path: data
+    primary_key: id
+    pagination:
+      kind: next_url
+      cursor_path: links.next
+      page_size: 100
+  - name: events
+    path: /events
+    records_path: data
+    primary_key: id
+    pagination:
+      kind: next_url
+      cursor_path: links.next
+      page_size: 100
+tier: 2
+verified_by: test_vendor_contracts.py

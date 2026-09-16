@@ -1,0 +1,29 @@
+key: google_calendar
+label: Google Calendar
+category: saas
+description: Read calendars and events from Google Calendar.
+docs_url: https://developers.google.com/calendar/api/v3/reference
+base_url: https://www.googleapis.com/calendar/v3
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: calendars
+    path: /users/me/calendarList
+    records_path: items
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: pageToken
+      cursor_path: nextPageToken
+      page_size: 100
+  - name: events
+    path: /calendars/primary/events
+    records_path: items
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: pageToken
+      cursor_path: nextPageToken
+      page_size: 100
+tier: 4

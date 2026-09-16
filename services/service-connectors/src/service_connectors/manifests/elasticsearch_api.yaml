@@ -1,0 +1,29 @@
+key: elasticsearch_api
+label: Elasticsearch
+category: nosql
+description: Read documents from an Elasticsearch index.
+docs_url: https://www.elastic.co/guide/en/elasticsearch/reference/current/rest-apis.html
+base_url: http://{host}
+auth:
+  kind: basic
+  template: Basic {token}
+streams:
+  - name: indices
+    path: /_cat/indices
+    pagination: &id001
+      kind: none
+    params:
+      format: json
+  - name: search
+    path: /{index}/_search
+    records_path: hits.hits
+    primary_key: _id
+    pagination: *id001
+tier: 4
+config_fields:
+  - name: host
+    label: Host
+    placeholder: metrics.internal:8086
+  - name: index
+    label: Index
+    required: false

@@ -1,0 +1,55 @@
+key: calendly
+label: Calendly
+category: saas
+description: Read scheduled events and event types from Calendly.
+docs_url: https://developer.calendly.com/api-docs
+base_url: https://api.calendly.com
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: scheduled_events
+    path: /scheduled_events
+    records_path: collection
+    primary_key: uri
+    pagination:
+      kind: cursor
+      cursor_param: page_token
+      cursor_path: pagination.next_page_token
+      page_size: 100
+    schema:
+      uri:
+        type: STRING
+      name:
+        type: STRING
+      status:
+        type: STRING
+      start_time:
+        type: TIMESTAMP
+        tz_aware: true
+      end_time:
+        type: TIMESTAMP
+        tz_aware: true
+      created_at:
+        type: TIMESTAMP
+        tz_aware: true
+  - name: event_types
+    path: /event_types
+    records_path: collection
+    primary_key: uri
+    pagination:
+      kind: cursor
+      cursor_param: page_token
+      cursor_path: pagination.next_page_token
+      page_size: 100
+    schema:
+      uri:
+        type: STRING
+      name:
+        type: STRING
+      duration:
+        type: INTEGER
+      active:
+        type: BOOLEAN
+tier: 2
+verified_by: test_vendor_contracts.py

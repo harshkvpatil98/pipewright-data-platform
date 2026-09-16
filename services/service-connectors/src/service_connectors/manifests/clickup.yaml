@@ -1,0 +1,29 @@
+key: clickup
+label: ClickUp
+category: saas
+description: Read teams and spaces from ClickUp.
+docs_url: https://clickup.com/api/
+base_url: https://api.clickup.com/api/v2
+auth:
+  kind: api_key
+  placement: header
+  header: Authorization
+  template: '{token}'
+streams:
+  - name: teams
+    path: /team
+    records_path: teams
+    primary_key: id
+    pagination: &id001
+      kind: none
+  - name: spaces
+    path: /team/{team_id}/space
+    records_path: spaces
+    primary_key: id
+    pagination: *id001
+tier: 2
+verified_by: test_vendor_contracts.py
+config_fields:
+  - name: team_id
+    label: Team id
+    required: false

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import uuid
 from collections.abc import Callable
 
 from fastapi import APIRouter, Depends
@@ -12,9 +13,16 @@ from service_connectors.conformance import check_spec
 from service_connectors.formats import COMPRESSIONS, FORMATS
 from service_connectors.protocol import CATEGORIES
 from service_connectors.registry import get, specs, validate_config
+from service_connectors.health import overview, usage
 from service_connectors.schemas import (
     ConformanceResponse,
+    SweepRequest,
+    SweepResponse,
+    WatchStatusResponse,
+    WatchedStreamRead,
     ConnectorCatalogResponse,
+    ConnectorHealthResponse,
+    ConnectorUsageResponse,
     ConnectorSpecRead,
     ConnectorTestRequest,
     ConnectorTestResponse,
@@ -23,6 +31,8 @@ from service_connectors.schemas import (
     StreamListResponse,
     StreamRead,
 )
+from service_projects.contracts import ensure_owned_project
+
 from shared_python.errors import BadRequestError
 
 
@@ -45,6 +55,85 @@ def build_router(
             items=[ConnectorSpecRead(**spec.to_dict()) for spec in specs()],
             categories=list(CATEGORIES),
         )
+
+    @router.get("/connectors/health", response_model=ConnectorHealthResponse)
+    def health(
+        _current_user: UserRead = Depends(get_current_user),
+    ) -> ConnectorHealthResponse:
+        """The catalogue's own state.
+
+        With two hundred connectors, "which ones do we have" stops being a list
+        somebody reads and becomes a question needing shape: how many work
+        here, how many are only declared, and which single package would unlock
+        the most. Needs no database, because it describes what this deployment
+        *could* reach rather than what it has.
+        """
+        return ConnectorHealthResponse(**overview().to_dict())
+
+    @router.get("/projects/{project_id}/connectors/usage", response_model=ConnectorUsageResponse)
+    def project_usage(
+        project_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> ConnectorUsageResponse:
+        """Which connectors this project actually uses, and how they are faring."""
+        ensure_owned_project(db, project_id, current_user.id)
+        return ConnectorUsageResponse(
+            items=[entry.to_dict() for entry in usage(db, project_id)]
+        )
+
+    @router.get(
+        "/projects/{project_id}/connectors/watch", response_model=WatchStatusResponse
+    )
+    def watch_status(
+        project_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> WatchStatusResponse:
+        """What the schema watch is remembering, and what it could remember.
+
+        `describable` is the second half on purpose: at two hundred connectors
+        "nothing has drifted" is ambiguous between "everything is fine" and
+        "nothing is being watched", and those deserve different reactions.
+        """
+        from service_connectors.sweep import watched_streams
+        from service_connectors.watch import describable
+
+        ensure_owned_project(db, project_id, current_user.id)
+        return WatchStatusResponse(
+            items=[WatchedStreamRead(**row) for row in watched_streams(db, project_id=project_id)],
+            describable=describable(),
+        )
+
+    @router.post(
+        "/projects/{project_id}/connectors/watch", response_model=SweepResponse
+    )
+    def run_watch(
+        project_id: uuid.UUID,
+        payload: SweepRequest,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> SweepResponse:
+        """Re-read every watchable stream now.
+
+        The same call the nightly schedule makes. `apply: false` compares and
+        records nothing, because the first sweep of a busy project can open a
+        lot of incidents and somebody should be able to look first.
+        """
+        from service_connectors.sweep import sweep_project
+
+        ensure_owned_project(db, project_id, current_user.id)
+        report = sweep_project(
+            db,
+            project_id=project_id,
+            connection_id=payload.connection_id,
+            open_incidents=payload.apply,
+        )
+        if payload.apply:
+            db.commit()
+        else:
+            db.rollback()
+        return SweepResponse(**report.to_dict())
 
     @router.get("/connectors/formats", response_model=FormatCatalogResponse)
     def formats(

@@ -32,9 +32,9 @@ def test_conformance_catches_a_capability_with_no_method():
         def test(self, _config):
             return TestResult(success=True, message="fine")
 
-    from service_connectors.registry import register
-
-    register(Liar())
+    # Deliberately not registered: `check_spec` takes the connector itself, and
+    # putting a knowingly-broken one into the global registry would leak it
+    # into every test that runs after this file.
     report = check_spec(Liar())
     assert not report.ok
     assert any("write" in failure for failure in report.failures)

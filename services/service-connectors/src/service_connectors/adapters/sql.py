@@ -27,6 +27,8 @@ from service_connectors.protocol import (
     StreamColumn,
     StreamRef,
     TestResult,
+    Tier,
+    with_tier_note,
 )
 
 # Every SQL backend needs the same five things, so the fields are built once.
@@ -45,6 +47,16 @@ def _server_fields(default_port: int, *, database_label: str = "Database") -> tu
             options=("disable", "require", "verify-ca", "verify-full"),
             default="require",
             help="Whether to insist the connection is encrypted.",
+        ),
+        # `sql_database.list_tables` has always read this; without a field for
+        # it the validator rejected the key, so a connection to anything but
+        # the default schema could discover nothing and there was no way to say
+        # so on the form.
+        ConfigField(
+            "schema",
+            "Schema",
+            required=False,
+            help="Leave blank for the connection's default schema.",
         ),
     )
 
@@ -69,12 +81,16 @@ class SqlConnector:
             result = sql_database.test_connection(self._backend, self._config(config))
         except ApplicationError as exc:
             return TestResult(success=False, message=str(exc.detail))
-        return TestResult(
-            success=result.success,
-            message=result.message,
-            latency_ms=result.latency_ms or round((time.perf_counter() - started) * 1000, 2),
-            server_version=result.server_version,
-            warnings=list(result.warnings),
+        return with_tier_note(
+            TestResult(
+                success=result.success,
+                message=result.message,
+                latency_ms=result.latency_ms
+                or round((time.perf_counter() - started) * 1000, 2),
+                server_version=result.server_version,
+                warnings=list(result.warnings),
+            ),
+            self.spec,
         )
 
     def discover(self, config: dict[str, Any]) -> list[StreamRef]:
@@ -114,13 +130,16 @@ class SqlConnector:
             self._backend, table=stream.name, schema=stream.namespace
         )
         result = sql_database.read_dataframe(
-            self._backend, self._config(config), query=query, max_rows=limit
+            self._backend, self._config(config), sql=query, max_rows=limit
         )
-        return ReadResult(
-            dataframe=result.dataframe,
-            row_count=result.row_count,
-            truncated=result.truncated,
-            warnings=list(result.warnings),
+        return with_tier_note(
+            ReadResult(
+                dataframe=result.dataframe,
+                row_count=result.row_count,
+                truncated=result.truncated,
+                warnings=list(result.warnings),
+            ),
+            self.spec,
         )
 
 
@@ -154,6 +173,8 @@ POSTGRES = SqlConnector(
         description="Read tables and views from a PostgreSQL database.",
         config_fields=_server_fields(5432),
         capabilities=frozenset({"test", "discover", "schema", "read", "incremental"}),
+        tier=Tier.CONTAINER,
+        verified_by="test_containers.py",
     ),
     backend="postgresql",
 )
@@ -166,6 +187,8 @@ MYSQL = SqlConnector(
         description="Read tables and views from a MySQL or MariaDB database.",
         config_fields=_server_fields(3306),
         capabilities=frozenset({"test", "discover", "schema", "read", "incremental"}),
+        tier=Tier.CONTAINER,
+        verified_by="test_containers.py",
     ),
     backend="mysql",
 )
@@ -176,6 +199,8 @@ SQLITE = SqlConnector(
         label="SQLite",
         category="database",
         description="Read tables from a SQLite file on the server's filesystem.",
+        tier=Tier.CONTAINER,
+        verified_by="test_sql_database_connector.py",
         config_fields=(
             ConfigField(
                 "file_path",

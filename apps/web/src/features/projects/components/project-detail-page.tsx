@@ -97,6 +97,12 @@ export function ProjectDetailPageView({
               Open Studio
             </Link>
             <Link
+              href={`/projects/${project.id}/workbench`}
+              className="inline-flex items-center rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:border-line-strong"
+            >
+              SQL workbench
+            </Link>
+            <Link
               href={`/projects/${project.id}/table-editor`}
               className="inline-flex items-center rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:border-line-strong"
             >

@@ -1,0 +1,49 @@
+key: servicenow
+label: ServiceNow
+category: saas
+description: Read incidents, changes, and users from ServiceNow.
+docs_url: https://developer.servicenow.com/dev.do
+base_url: https://{instance}.service-now.com/api/now/table
+auth:
+  kind: basic
+  template: Basic {token}
+streams:
+  - name: incidents
+    path: /incident
+    records_path: result
+    primary_key: sys_id
+    pagination: &id001
+      kind: offset
+      offset_param: offset
+      page_size: 100
+    schema:
+      sys_id:
+        type: STRING
+      number:
+        type: STRING
+      short_description:
+        type: STRING
+        rename: summary
+      state:
+        type: STRING
+      priority:
+        type: STRING
+      sys_created_on:
+        type: STRING
+        rename: created_at
+  - name: changes
+    path: /change_request
+    records_path: result
+    primary_key: sys_id
+    pagination: *id001
+  - name: users
+    path: /sys_user
+    records_path: result
+    primary_key: sys_id
+    pagination: *id001
+tier: 2
+verified_by: test_vendor_contracts.py
+config_fields:
+  - name: instance
+    label: Instance
+    help: The part before .service-now.com.

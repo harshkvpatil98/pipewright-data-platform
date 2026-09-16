@@ -1,0 +1,25 @@
+key: solr
+label: Apache Solr
+category: nosql
+description: Read documents from a Solr core.
+docs_url: https://solr.apache.org/guide/solr/latest/
+base_url: http://{host}/solr/{core}
+auth:
+  kind: none
+streams:
+  - name: select
+    path: /select
+    records_path: response.docs
+    primary_key: id
+    pagination:
+      kind: none
+    params:
+      q: '*:*'
+      wt: json
+tier: 4
+config_fields:
+  - name: host
+    label: Host
+    placeholder: metrics.internal:8086
+  - name: core
+    label: Core

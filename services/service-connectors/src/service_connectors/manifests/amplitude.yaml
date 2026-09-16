@@ -1,0 +1,18 @@
+key: amplitude
+label: Amplitude
+category: saas
+description: Read cohorts from Amplitude.
+docs_url: https://www.docs.developers.amplitude.com/analytics/apis/
+base_url: https://amplitude.com/api/2
+auth:
+  kind: basic
+  template: Basic {token}
+streams:
+  - name: cohorts
+    path: /cohorts
+    records_path: cohorts
+    primary_key: id
+    pagination:
+      kind: none
+tier: 2
+verified_by: test_vendor_contracts.py

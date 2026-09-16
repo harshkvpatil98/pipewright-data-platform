@@ -1,0 +1,24 @@
+key: ebay
+label: eBay
+category: saas
+description: Read orders and inventory from eBay.
+docs_url: https://developer.ebay.com/api-docs/static/api-landing.html
+base_url: https://api.ebay.com/sell
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: orders
+    path: /fulfillment/v1/order
+    records_path: orders
+    primary_key: orderId
+    pagination: &id001
+      kind: offset
+      offset_param: offset
+      page_size: 100
+  - name: inventory
+    path: /inventory/v1/inventory_item
+    records_path: inventoryItems
+    primary_key: sku
+    pagination: *id001
+tier: 4

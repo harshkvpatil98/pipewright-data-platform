@@ -54,6 +54,10 @@ OPERATOR_SEGMENTS = frozenset(
         "retry",
         "ingest",
         "profile",
+        # Re-reading every connector's schema and filing a drift incident. It
+        # is the nightly job, run by hand -- the same thing "run" means
+        # everywhere else in this set, and not a change to any definition.
+        "watch",
     }
 )
 
@@ -71,6 +75,17 @@ READ_ONLY_SEGMENTS = frozenset(
         "suggestions",
         "export",
         "discover",
+        # EXPLAIN reports a plan without running the statement. The workbench
+        # never emits EXPLAIN ANALYZE, which would.
+        "explain",
+        # Autocomplete. A POST because the script it completes against is too
+        # long for a URL, not because it changes anything.
+        "completions",
+        # Working out how to read an uploaded file. A POST because the file is
+        # the body; it stores nothing at all, and requiring an editor for it
+        # would mean a viewer could not look at a file before somebody imports
+        # it -- which is exactly when looking is useful.
+        "analyze",
     }
 )
 

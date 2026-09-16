@@ -1,0 +1,29 @@
+key: lever
+label: Lever
+category: saas
+description: Read opportunities and postings from Lever.
+docs_url: https://hire.lever.co/developer/documentation
+base_url: https://api.lever.co/v1
+auth:
+  kind: basic
+  template: Basic {token}
+streams:
+  - name: opportunities
+    path: /opportunities
+    records_path: data
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: offset
+      cursor_path: next
+      page_size: 100
+  - name: postings
+    path: /postings
+    records_path: data
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: offset
+      cursor_path: next
+      page_size: 100
+tier: 4

@@ -113,4 +113,26 @@ def execute_schedule_operation(
             postgres_publish=pub,
         )
 
+    if row.schedule_type == "connector_schema_watch":
+        from service_connectors.sweep import sweep_project
+
+        raw = cfg.get("connection_id")
+        try:
+            connection_id = uuid.UUID(str(raw)) if raw else None
+        except (ValueError, TypeError) as exc:
+            raise BadRequestError("Schedule target has an invalid connection_id.") from exc
+
+        report = sweep_project(db, project_id=project_id, connection_id=connection_id)
+        # A sweep that found breaking drift is not a *failed* run: it did
+        # exactly what it was asked to, and the incident it filed is the
+        # notification. Marking it failed would put the schedule into retry
+        # and re-file the same incident every few minutes.
+        return ScheduleExecutionOutcome(
+            success=True,
+            message=report.summary_line(),
+            triggered_run=None,
+            transformation=None,
+            postgres_publish=None,
+        )
+
     raise BadRequestError("Unsupported schedule type.")

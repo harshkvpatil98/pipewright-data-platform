@@ -1,0 +1,29 @@
+key: iterable
+label: Iterable
+category: saas
+description: Read campaigns, lists, and templates from Iterable.
+docs_url: https://api.iterable.com/api/docs
+base_url: https://api.iterable.com/api
+auth:
+  kind: api_key
+  placement: header
+  header: Api-Key
+  template: '{token}'
+streams:
+  - name: campaigns
+    path: /campaigns
+    records_path: campaigns
+    primary_key: id
+    pagination: &id001
+      kind: none
+  - name: lists
+    path: /lists
+    records_path: lists
+    primary_key: id
+    pagination: *id001
+  - name: templates
+    path: /templates
+    records_path: templates
+    primary_key: templateId
+    pagination: *id001
+tier: 4

@@ -20,13 +20,20 @@ def test_parse_csv() -> None:
     assert parsed.metadata["encoding"] == "utf-8"
 
 
-def test_parse_csv_with_latin_1_fallback() -> None:
+def test_parse_csv_with_a_single_byte_encoding() -> None:
+    """The characters are what matter, not which of the compatible names won.
+
+    cp1252, iso-8859-15 and latin-1 differ on a handful of code points and
+    agree on `ã`. The sniffer reports the one it scored highest and records
+    that the alternatives read these bytes identically, so asserting a
+    particular name would be asserting a tie-break rather than a result.
+    """
     parsed = parse_tabular_file(
         file_bytes="name,city\nalpha,São Paulo\n".encode("latin-1"),
         file_type="csv",
     )
     assert parsed.dataframe.iloc[0].to_dict()["city"] == "São Paulo"
-    assert parsed.metadata["encoding"] == "latin-1"
+    assert parsed.metadata["encoding"] in {"cp1252", "iso-8859-15", "latin-1"}
 
 
 def test_parse_json() -> None:
@@ -50,9 +57,27 @@ def test_parse_xlsx() -> None:
     assert parsed.metadata["sheet_name"] == "Orders"
 
 
-def test_parse_json_rejects_non_object_arrays() -> None:
+def test_parse_json_reads_an_array_of_scalars_as_one_column() -> None:
+    """A list of values is a one-column table, and refusing it helped nobody.
+
+    This used to raise. An array of scalars is a perfectly ordinary thing to
+    export -- a list of ids, a list of postcodes -- and the reader now says
+    what it did rather than declining the file.
+    """
+    parsed = parse_tabular_file(
+        file_bytes=json.dumps(["alpha", "beta"]).encode("utf-8"), file_type="json"
+    )
+    assert list(parsed.dataframe.columns) == ["value"]
+    assert parsed.dataframe["value"].tolist() == ["alpha", "beta"]
+    assert any(
+        finding["stage"] == "json_shape" and "non-object" in finding["reason"]
+        for finding in parsed.metadata["findings"]
+    )
+
+
+def test_parse_json_still_refuses_a_file_that_is_not_json() -> None:
     with pytest.raises(BadRequestError):
-        parse_tabular_file(file_bytes=json.dumps(["alpha", "beta"]).encode("utf-8"), file_type="json")
+        parse_tabular_file(file_bytes=b"{not json at all", file_type="json")
 
 
 def _build_test_xlsx() -> bytes:

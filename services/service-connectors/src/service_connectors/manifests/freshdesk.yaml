@@ -1,0 +1,57 @@
+key: freshdesk
+label: Freshdesk
+category: saas
+description: Read tickets, contacts, and companies from Freshdesk.
+docs_url: https://developers.freshdesk.com/api/
+base_url: https://{subdomain}.freshdesk.com/api/v2
+auth:
+  kind: basic
+  template: Basic {token}
+streams:
+  - name: tickets
+    path: /tickets
+    primary_key: id
+    pagination: &id001
+      kind: page
+      page_param: page
+      size_param: per_page
+      page_size: 100
+    schema:
+      id:
+        type: INTEGER
+      subject:
+        type: STRING
+      status:
+        type: INTEGER
+      priority:
+        type: INTEGER
+      created_at:
+        type: TIMESTAMP
+        tz_aware: true
+      updated_at:
+        type: TIMESTAMP
+        tz_aware: true
+  - name: contacts
+    path: /contacts
+    primary_key: id
+    pagination: *id001
+    schema:
+      id:
+        type: INTEGER
+      name:
+        type: STRING
+      email:
+        type: STRING
+      created_at:
+        type: TIMESTAMP
+        tz_aware: true
+  - name: companies
+    path: /companies
+    primary_key: id
+    pagination: *id001
+tier: 2
+verified_by: test_vendor_contracts.py
+config_fields:
+  - name: subdomain
+    label: Subdomain
+    help: The part before the vendor's domain in your account URL.

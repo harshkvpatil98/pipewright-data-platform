@@ -53,7 +53,20 @@ class Settings(BaseSettings):
     storage_backend: Literal["local"] = "local"
     upload_root_path: str = "data/uploads"
     max_upload_size_bytes: int = 25 * 1024 * 1024
-    allowed_upload_extensions: Annotated[list[str], NoDecode] = ["csv", "xlsx", "json"]
+    # Every format the ingestion readers handle. The extension is a gate, not a
+    # decision: the sniffer reads the bytes and overrules the name, so a
+    # workbook renamed `.csv` still loads correctly -- but an extension nobody
+    # can read is refused here rather than deep inside a parser.
+    allowed_upload_extensions: Annotated[list[str], NoDecode] = [
+        "csv", "tsv", "tab", "psv", "txt", "dat",
+        "xlsx", "xlsm", "xls",
+        "json", "jsonl", "ndjson",
+        "xml", "yaml", "yml",
+        "parquet", "pq", "avro", "orc",
+        "sql",
+        "sas7bdat", "dta",
+        "gz", "bz2", "xz", "zip",
+    ]
     preview_row_limit: int = 50
     profile_sample_value_limit: int = 5
     # Single sign-on. Unset means the platform's own login is the only way in.

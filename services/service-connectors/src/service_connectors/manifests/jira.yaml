@@ -1,0 +1,63 @@
+key: jira
+label: Jira
+category: saas
+description: Read issues, projects, and users from Jira.
+docs_url: https://developer.atlassian.com/cloud/jira/platform/rest/v3/
+base_url: https://{subdomain}.atlassian.net/rest/api/3
+auth:
+  kind: basic
+  template: Basic {token}
+streams:
+  - name: issues
+    path: /search
+    records_path: issues
+    primary_key: id
+    pagination: &id001
+      kind: offset
+      offset_param: offset
+      page_size: 100
+    incremental:
+      cursor_field: fields.updated
+      param: jql
+      template: updated >= "{value}"
+    schema:
+      id:
+        type: STRING
+      key:
+        type: STRING
+      fields.summary:
+        type: STRING
+        rename: summary
+      fields.status.name:
+        type: STRING
+        rename: status
+      fields.created:
+        type: TIMESTAMP
+        tz_aware: true
+        rename: created_at
+      fields.updated:
+        type: TIMESTAMP
+        tz_aware: true
+        rename: updated_at
+  - name: projects
+    path: /project/search
+    records_path: values
+    primary_key: id
+    pagination: *id001
+    schema:
+      id:
+        type: STRING
+      key:
+        type: STRING
+      name:
+        type: STRING
+  - name: users
+    path: /users/search
+    primary_key: accountId
+    pagination: *id001
+tier: 2
+verified_by: test_vendor_contracts.py
+config_fields:
+  - name: subdomain
+    label: Subdomain
+    help: The part before the vendor's domain in your account URL.

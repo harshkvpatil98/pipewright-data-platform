@@ -1,0 +1,22 @@
+key: typesense
+label: Typesense
+category: nosql
+description: Read documents from a Typesense collection.
+docs_url: https://typesense.org/docs/latest/api/
+base_url: http://{host}
+auth:
+  kind: api_key
+  placement: header
+  header: X-TYPESENSE-API-KEY
+  template: '{token}'
+streams:
+  - name: collections
+    path: /collections
+    primary_key: name
+    pagination:
+      kind: none
+tier: 4
+config_fields:
+  - name: host
+    label: Host
+    placeholder: metrics.internal:8086

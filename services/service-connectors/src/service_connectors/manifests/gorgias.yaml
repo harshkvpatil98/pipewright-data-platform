@@ -1,0 +1,33 @@
+key: gorgias
+label: Gorgias
+category: saas
+description: Read tickets and customers from Gorgias.
+docs_url: https://developers.gorgias.com/reference/introduction
+base_url: https://{subdomain}.gorgias.com/api
+auth:
+  kind: basic
+  template: Basic {token}
+streams:
+  - name: tickets
+    path: /tickets
+    records_path: data
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: cursor
+      cursor_path: meta.next_cursor
+      page_size: 100
+  - name: customers
+    path: /customers
+    records_path: data
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: cursor
+      cursor_path: meta.next_cursor
+      page_size: 100
+tier: 4
+config_fields:
+  - name: subdomain
+    label: Subdomain
+    help: The part before the vendor's domain in your account URL.

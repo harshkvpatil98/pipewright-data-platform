@@ -1,0 +1,27 @@
+key: faire
+label: Faire
+category: saas
+description: Read orders and products from Faire.
+docs_url: https://faire.github.io/external-api-v2-docs/
+base_url: https://www.faire.com/external-api/v2
+auth:
+  kind: api_key
+  placement: header
+  header: X-FAIRE-ACCESS-TOKEN
+  template: '{token}'
+streams:
+  - name: orders
+    path: /orders
+    records_path: orders
+    primary_key: id
+    pagination: &id001
+      kind: page
+      page_param: page
+      size_param: per_page
+      page_size: 100
+  - name: products
+    path: /products
+    records_path: products
+    primary_key: id
+    pagination: *id001
+tier: 4

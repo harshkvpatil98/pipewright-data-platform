@@ -1,0 +1,27 @@
+key: etsy
+label: Etsy
+category: saas
+description: Read listings and receipts from Etsy.
+docs_url: https://developers.etsy.com/documentation/
+base_url: https://openapi.etsy.com/v3/application
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: listings
+    path: /shops/{shop_id}/listings
+    records_path: results
+    primary_key: listing_id
+    pagination: &id001
+      kind: offset
+      offset_param: offset
+      page_size: 100
+  - name: receipts
+    path: /shops/{shop_id}/receipts
+    records_path: results
+    primary_key: receipt_id
+    pagination: *id001
+tier: 4
+config_fields:
+  - name: shop_id
+    label: Shop id

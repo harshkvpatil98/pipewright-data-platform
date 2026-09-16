@@ -9,6 +9,11 @@ from service_ingestion.schemas import IngestionUpload
 from shared_python.errors import BadRequestError
 from shared_python.storage.base import sanitize_filename
 
+# A content type that contradicts the extension is worth refusing early -- but
+# only where the pairing is genuinely wrong. Browsers, mail gateways and `curl`
+# all send `application/octet-stream` for anything they do not recognise, and
+# refusing that would refuse most real uploads. The sniffer reads the bytes
+# either way and overrules both.
 _ALLOWED_MIME_HINTS = {
     'csv': {'text/csv', 'application/csv', 'text/plain'},
     'xlsx': {
@@ -37,7 +42,11 @@ async def read_upload_file(upload_file: UploadFile) -> IngestionUpload:
 def validate_upload_file(upload_file: IngestionUpload, settings) -> str:
     extension = infer_extension(upload_file.file_name)
     if extension not in settings.allowed_upload_extensions:
-        raise BadRequestError('Unsupported file type. Allowed types are csv, xlsx, and json.')
+        allowed = ', '.join(sorted(settings.allowed_upload_extensions))
+        raise BadRequestError(
+            f"'{extension or 'no extension'}' is not a file type this deployment accepts. "
+            f'Allowed: {allowed}.'
+        )
 
     content_type = (upload_file.content_type or '').lower()
     allowed_mimes = _ALLOWED_MIME_HINTS.get(extension, set())

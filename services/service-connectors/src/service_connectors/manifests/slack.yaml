@@ -1,0 +1,52 @@
+key: slack
+label: Slack
+category: saas
+description: Read channels and users from Slack.
+docs_url: https://api.slack.com/methods
+base_url: https://slack.com/api
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: conversations
+    path: /conversations.list
+    records_path: channels
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: cursor
+      cursor_path: response_metadata.next_cursor
+      page_size: 100
+    schema:
+      id:
+        type: STRING
+      name:
+        type: STRING
+      is_private:
+        type: BOOLEAN
+      created:
+        type: INTEGER
+      num_members:
+        type: INTEGER
+  - name: users
+    path: /users.list
+    records_path: members
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: cursor
+      cursor_path: response_metadata.next_cursor
+      page_size: 100
+    schema:
+      id:
+        type: STRING
+      name:
+        type: STRING
+      real_name:
+        type: STRING
+      is_bot:
+        type: BOOLEAN
+      updated:
+        type: INTEGER
+tier: 2
+verified_by: test_vendor_contracts.py

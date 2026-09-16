@@ -1,0 +1,55 @@
+key: helpscout
+label: Help Scout
+category: saas
+description: Read conversations, customers, and mailboxes from Help Scout.
+docs_url: https://developer.helpscout.com/mailbox-api/
+base_url: https://api.helpscout.net/v2
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: conversations
+    path: /conversations
+    records_path: _embedded.conversations
+    primary_key: id
+    pagination: &id001
+      kind: page
+      page_param: page
+      size_param: per_page
+      page_size: 100
+    schema:
+      id:
+        type: INTEGER
+      subject:
+        type: STRING
+      status:
+        type: STRING
+      createdAt:
+        type: TIMESTAMP
+        tz_aware: true
+        rename: created_at
+      userUpdatedAt:
+        type: TIMESTAMP
+        tz_aware: true
+        rename: updated_at
+  - name: customers
+    path: /customers
+    records_path: _embedded.customers
+    primary_key: id
+    pagination: *id001
+    schema:
+      id:
+        type: INTEGER
+      firstName:
+        type: STRING
+        rename: first_name
+      lastName:
+        type: STRING
+        rename: last_name
+  - name: mailboxes
+    path: /mailboxes
+    records_path: _embedded.mailboxes
+    primary_key: id
+    pagination: *id001
+tier: 2
+verified_by: test_vendor_contracts.py

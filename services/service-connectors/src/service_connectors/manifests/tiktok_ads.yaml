@@ -1,0 +1,27 @@
+key: tiktok_ads
+label: TikTok Ads
+category: saas
+description: Read campaigns and ad groups from TikTok Ads.
+docs_url: https://business-api.tiktok.com/portal/docs
+base_url: https://business-api.tiktok.com/open_api/v1.3
+auth:
+  kind: api_key
+  placement: header
+  header: Access-Token
+  template: '{token}'
+streams:
+  - name: campaigns
+    path: /campaign/get/
+    records_path: data.list
+    primary_key: campaign_id
+    pagination: &id001
+      kind: page
+      page_param: page
+      size_param: per_page
+      page_size: 100
+  - name: adgroups
+    path: /adgroup/get/
+    records_path: data.list
+    primary_key: adgroup_id
+    pagination: *id001
+tier: 4

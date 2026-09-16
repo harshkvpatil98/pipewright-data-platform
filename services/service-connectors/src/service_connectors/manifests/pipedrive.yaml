@@ -1,0 +1,66 @@
+key: pipedrive
+label: Pipedrive
+category: saas
+description: Read deals, people, and organisations from Pipedrive.
+docs_url: https://developers.pipedrive.com/docs/api/v1
+base_url: https://api.pipedrive.com/v1
+auth:
+  kind: api_key
+  placement: query
+  query_param: api_token
+streams:
+  - name: deals
+    path: /deals
+    records_path: data
+    primary_key: id
+    pagination: &id001
+      kind: offset
+      offset_param: offset
+      page_size: 100
+    schema:
+      id:
+        type: INTEGER
+      title:
+        type: STRING
+      value:
+        type: FLOAT
+      currency:
+        type: STRING
+      status:
+        type: STRING
+      add_time:
+        type: STRING
+      update_time:
+        type: STRING
+  - name: persons
+    path: /persons
+    records_path: data
+    primary_key: id
+    pagination: *id001
+    schema:
+      id:
+        type: INTEGER
+      name:
+        type: STRING
+      add_time:
+        type: STRING
+      update_time:
+        type: STRING
+  - name: organizations
+    path: /organizations
+    records_path: data
+    primary_key: id
+    pagination: *id001
+  - name: activities
+    path: /activities
+    records_path: data
+    primary_key: id
+    pagination: *id001
+  - name: pipelines
+    path: /pipelines
+    records_path: data
+    primary_key: id
+    pagination:
+      kind: none
+tier: 2
+verified_by: test_vendor_contracts.py

@@ -1,0 +1,25 @@
+key: couchdb_api
+label: CouchDB
+category: nosql
+description: Read documents from a CouchDB database.
+docs_url: https://docs.couchdb.org/en/stable/api/index.html
+base_url: http://{host}
+auth:
+  kind: basic
+  template: Basic {token}
+streams:
+  - name: all_docs
+    path: /{database}/_all_docs
+    records_path: rows
+    primary_key: id
+    pagination:
+      kind: none
+    params:
+      include_docs: 'true'
+tier: 4
+config_fields:
+  - name: host
+    label: Host
+    placeholder: metrics.internal:8086
+  - name: database
+    label: Database

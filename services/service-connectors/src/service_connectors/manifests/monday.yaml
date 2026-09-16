@@ -1,0 +1,20 @@
+key: monday
+label: Monday.com
+category: saas
+description: Read boards from Monday.com's GraphQL API.
+docs_url: https://developer.monday.com/api-reference/docs
+base_url: https://api.monday.com/v2
+auth:
+  kind: api_key
+  placement: header
+  header: Authorization
+  template: '{token}'
+streams:
+  - name: boards
+    path: /
+    records_path: data.boards
+    primary_key: id
+    pagination:
+      kind: none
+tier: 2
+verified_by: test_vendor_contracts.py

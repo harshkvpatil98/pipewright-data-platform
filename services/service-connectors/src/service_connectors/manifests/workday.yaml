@@ -1,0 +1,24 @@
+key: workday
+label: Workday
+category: saas
+description: Read workers from Workday.
+docs_url: https://community.workday.com/sites/default/files/file-hosting/restapi/
+base_url: https://{tenant_host}.workday.com/ccx/api/v1/{tenant_name}
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: workers
+    path: /workers
+    records_path: data
+    primary_key: id
+    pagination:
+      kind: offset
+      offset_param: offset
+      page_size: 100
+tier: 4
+config_fields:
+  - name: tenant_host
+    label: Tenant host
+  - name: tenant_name
+    label: Tenant name

@@ -142,6 +142,7 @@ def _load() -> None:
         conversions,
         datetimes,
         encoding,
+        nested,
         nulls,
         numeric,
         rows,

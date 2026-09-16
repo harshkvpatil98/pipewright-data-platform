@@ -1,0 +1,32 @@
+key: confluence
+label: Confluence
+category: saas
+description: Read pages and spaces from Confluence.
+docs_url: https://developer.atlassian.com/cloud/confluence/rest/v2/
+base_url: https://{subdomain}.atlassian.net/wiki/api/v2
+auth:
+  kind: basic
+  template: Basic {token}
+streams:
+  - name: pages
+    path: /pages
+    records_path: results
+    primary_key: id
+    pagination:
+      kind: next_url
+      cursor_path: _links.next
+      page_size: 100
+  - name: spaces
+    path: /spaces
+    records_path: results
+    primary_key: id
+    pagination:
+      kind: next_url
+      cursor_path: _links.next
+      page_size: 100
+tier: 2
+verified_by: test_vendor_contracts.py
+config_fields:
+  - name: subdomain
+    label: Subdomain
+    help: The part before the vendor's domain in your account URL.

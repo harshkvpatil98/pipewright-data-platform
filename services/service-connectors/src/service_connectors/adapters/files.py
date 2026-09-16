@@ -38,6 +38,8 @@ from service_connectors.protocol import (
     StreamColumn,
     StreamRef,
     TestResult,
+    Tier,
+    with_tier_note,
     WriteResult,
 )
 
@@ -152,11 +154,14 @@ class _FileConnectorBase:
             if unreadable
             else []
         )
-        return TestResult(
-            success=True,
-            message=f"Found {len(files)} file(s).",
-            latency_ms=latency,
-            warnings=warnings,
+        return with_tier_note(
+            TestResult(
+                success=True,
+                message=f"Found {len(files)} file(s).",
+                latency_ms=latency,
+                warnings=warnings,
+            ),
+            self.spec,
         )
 
     def discover(self, config: dict[str, Any]) -> list[StreamRef]:
@@ -294,13 +299,14 @@ class _FileConnectorBase:
             combined = combined.head(limit)
             truncated = True
 
-        return ReadResult(
+        result = ReadResult(
             dataframe=combined,
             row_count=len(combined),
             truncated=truncated,
             next_cursor=cursor_for(files) or cursor,
             warnings=warnings,
         )
+        return with_tier_note(result, self.spec)
 
 
 _FORMAT_FIELDS = (
@@ -338,6 +344,8 @@ class LocalFileConnector(_FileConnectorBase):
         label="Server files",
         category="file",
         description="Read files from a directory on the platform's own filesystem.",
+        tier=Tier.CONTAINER,
+        verified_by="test_file_connector.py",
         config_fields=(
             ConfigField(
                 "directory",
@@ -426,6 +434,8 @@ class S3Connector(_FileConnectorBase):
         ),
         capabilities=frozenset({"test", "discover", "schema", "read", "incremental", "write"}),
         driver_package="boto3",
+        tier=Tier.CONTAINER,
+        verified_by="test_generators.py",
     )
 
     def _client(self, config: dict[str, Any]):

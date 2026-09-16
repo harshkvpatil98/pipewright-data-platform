@@ -1,0 +1,29 @@
+key: squarespace
+label: Squarespace
+category: saas
+description: Read orders and inventory from Squarespace.
+docs_url: https://developers.squarespace.com/commerce-apis/overview
+base_url: https://api.squarespace.com/1.0/commerce
+auth:
+  kind: bearer
+  template: Bearer {token}
+streams:
+  - name: orders
+    path: /orders
+    records_path: result
+    primary_key: id
+    pagination:
+      kind: cursor
+      cursor_param: cursor
+      cursor_path: pagination.nextPageCursor
+      page_size: 100
+  - name: inventory
+    path: /inventory
+    records_path: inventory
+    primary_key: variantId
+    pagination:
+      kind: cursor
+      cursor_param: cursor
+      cursor_path: pagination.nextPageCursor
+      page_size: 100
+tier: 4

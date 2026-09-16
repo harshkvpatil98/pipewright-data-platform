@@ -1,0 +1,54 @@
+key: greenhouse
+label: Greenhouse
+category: saas
+description: Read candidates, applications, and jobs from Greenhouse.
+docs_url: https://developers.greenhouse.io/harvest.html
+base_url: https://harvest.greenhouse.io/v1
+auth:
+  kind: basic
+  template: Basic {token}
+streams:
+  - name: candidates
+    path: /candidates
+    primary_key: id
+    pagination: &id001
+      kind: page
+      page_param: page
+      size_param: per_page
+      page_size: 100
+    schema:
+      id:
+        type: INTEGER
+      first_name:
+        type: STRING
+      last_name:
+        type: STRING
+      created_at:
+        type: TIMESTAMP
+        tz_aware: true
+      updated_at:
+        type: TIMESTAMP
+        tz_aware: true
+  - name: applications
+    path: /applications
+    primary_key: id
+    pagination: *id001
+  - name: jobs
+    path: /jobs
+    primary_key: id
+    pagination: *id001
+    schema:
+      id:
+        type: INTEGER
+      name:
+        type: STRING
+      status:
+        type: STRING
+      created_at:
+        type: TIMESTAMP
+        tz_aware: true
+      updated_at:
+        type: TIMESTAMP
+        tz_aware: true
+tier: 2
+verified_by: test_vendor_contracts.py

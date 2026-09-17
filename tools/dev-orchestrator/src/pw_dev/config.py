@@ -100,6 +100,12 @@ class Config:
     isolation: IsolationConfig = field(default_factory=IsolationConfig)
     publication: PublicationPolicy = field(default_factory=PublicationPolicy)
     verification_profile: str = "pipewright"
+    #: Repository files the operator handed this planning run with
+    #: `--context-file`. Their contents go into the planner's packet and their
+    #: digests into the run's event log, so a specification can be traced to the
+    #: text that shaped it. Not settable from `pw-dev.toml`: it is a per-run
+    #: input, not adopted policy.
+    planner_context_files: tuple[str, ...] = ()
 
     # ----------------------------------------------------------------- loading
     @staticmethod
@@ -162,6 +168,7 @@ class Config:
             isolation=IsolationConfig(**snapshot["isolation"]),
             publication=PublicationPolicy(**publication),
             verification_profile=snapshot.get("verification_profile", "pipewright"),
+            planner_context_files=tuple(snapshot.get("planner_context_files") or ()),
         )
 
     def with_overrides(self, overrides: dict[str, Any]) -> "Config":
@@ -180,6 +187,11 @@ class Config:
             patch = overrides.get(role)
             if patch:
                 config = replace(config, **{role: replace(getattr(config, role), **patch)})
+        if "planner_context_files" in overrides:
+            config = replace(
+                config,
+                planner_context_files=tuple(overrides["planner_context_files"] or ()),
+            )
         return config
 
     def validate(self) -> None:
@@ -212,6 +224,7 @@ class Config:
         for key in ("planner", "implementer", "reviewer"):
             document[key]["extra_args"] = list(getattr(self, key).extra_args)
         document["publication"]["protected_branches"] = list(self.publication.protected_branches)
+        document["planner_context_files"] = list(self.planner_context_files)
         return document
 
     def runs_dir(self) -> Path:

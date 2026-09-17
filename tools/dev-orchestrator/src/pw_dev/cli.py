@@ -20,7 +20,8 @@ from .doctor import run_doctor
 from .errors import PwDevError
 from .schemas.validate import SchemaError, validate_artifact
 from .state.db import RunStore
-from .state.machine import RunState, describe
+from .state.machine import (RunState, SUCCESSFUL_RUN_STATES, describe, describe_run,
+                            is_terminal)
 
 
 def _store(config: Config) -> RunStore:
@@ -40,6 +41,8 @@ def _config(args: argparse.Namespace) -> Config:
         overrides["limits"] = {"max_parallel_workers": args.max_workers}
     if getattr(args, "unattended", False):
         overrides["isolation"] = {"unattended": True}
+    if getattr(args, "context_file", None):
+        overrides["planner_context_files"] = list(args.context_file)
     for role, flag in (("planner", "planner_model"), ("implementer", "implementer_model"),
                        ("reviewer", "reviewer_model")):
         value = getattr(args, flag, None)
@@ -85,27 +88,64 @@ def cmd_plan(args: argparse.Namespace) -> int:
         spec_path = config.runs_dir() / run_id / "phase-spec.json"
         if spec_path.is_file():
             _echo(f"specification: {spec_path}")
+            _echo(f"publication policy in this specification: "
+                  f"{config.publication.mode} (execute it with "
+                  f"`--publish {args.publish}`; a different policy needs a fresh plan)")
             if args.show:
                 _echo(spec_path.read_text(encoding="utf-8"))
             else:
-                _summarise_spec(json.loads(spec_path.read_text(encoding="utf-8")))
-        return 0 if state in (RunState.VERIFIED_LOCAL, RunState.WAITING_FOR_PLAN) else 1
+                _summarise_spec(json.loads(spec_path.read_text(encoding="utf-8")), spec_path)
+        return 0 if state in (RunState.PLAN_READY, RunState.WAITING_FOR_PLAN) else 1
 
 
-def _summarise_spec(spec: dict) -> None:
+def _clip(text: str, limit: int) -> str:
+    """Shorten for the terminal, and say so. A summary that silently drops the
+    end of a sentence reads as the whole sentence."""
+    text = " ".join(str(text).split())
+    if len(text) <= limit:
+        return text
+    return text[:limit] + f"… [+{len(text) - limit} more characters]"
+
+
+def _summarise_spec(spec: dict, spec_path: Path | None = None) -> None:
     _echo("")
     _echo(f"  phase {spec['phase_id']}: {spec['phase_title']}")
-    _echo(f"  {spec['summary'][:400]}")
+    _echo(f"  {_clip(spec['summary'], 400)}")
     _echo(f"  {len(spec['requirements'])} requirements, {len(spec['non_goals'])} non-goals, "
           f"{len(spec['tasks'])} tasks, {len(spec['risks'])} risks")
-    if spec["open_questions"]:
-        _echo("  open questions:")
-        for question in spec["open_questions"][:6]:
-            _echo(f"    - {question['question'][:160]}")
+
+    questions = spec["open_questions"]
+    if questions:
+        # A question the plan answered and a question it could not are different
+        # things. Printing both under one heading turned eight resolved
+        # decisions into eight apparent blockers.
+        resolved = [q for q in questions if (q.get("resolution") or "").strip()]
+        unresolved = [q for q in questions if not (q.get("resolution") or "").strip()]
+        if resolved:
+            _echo(f"  contradictions with a proposed resolution ({len(resolved)}) — "
+                  f"adopt or change them, they are not blockers:")
+            for question in resolved[:6]:
+                _echo(f"    - {_clip(question['question'], 140)}")
+                _echo(f"      proposed: {_clip(question['resolution'], 140)}")
+            if len(resolved) > 6:
+                _echo(f"    … and {len(resolved) - 6} more")
+        if unresolved:
+            _echo(f"  unresolved questions ({len(unresolved)}) — nothing in the plan "
+                  f"answers these:")
+            for question in unresolved[:6]:
+                _echo(f"    - {_clip(question['question'], 160)}")
+            if len(unresolved) > 6:
+                _echo(f"    … and {len(unresolved) - 6} more")
+
     _echo("  tasks:")
     for task in spec["tasks"]:
         deps = f" after {','.join(task['depends_on'])}" if task["depends_on"] else ""
-        _echo(f"    {task['id']} [{task['role']}]{deps}: {task['title'][:80]}")
+        _echo(f"    {task['id']} [{task['role']}]{deps}: {_clip(task['title'], 80)}")
+    if spec_path is not None:
+        _echo("")
+        _echo(f"  this is a summary; the complete specification is at {spec_path}")
+        _echo("  validate it without running anything: "
+              f"`pw-dev validate-spec {spec_path}`")
 
 
 # ------------------------------------------------------------------------ run
@@ -162,7 +202,7 @@ def _report_end(config: Config, store: RunStore, run_id: str, state: RunState) -
                   f"{document['remote']}/{document['branch']} "
                   f"(remote reads back {(document['remote_sha_after_push'] or '')[:12]})")
             _echo(f"  CI: {document['ci_status']}")
-    return 0 if state in (RunState.COMPLETE, RunState.VERIFIED_LOCAL) else 1
+    return 0 if state in SUCCESSFUL_RUN_STATES else 1
 
 
 # --------------------------------------------------------------------- status
@@ -182,7 +222,9 @@ def cmd_status(args: argparse.Namespace) -> int:
         row = store.get_run(args.run_id)
         state = RunState(row["state"])
         _echo(f"run        {row['run_id']}")
-        _echo(f"state      {state.value} — {describe(state)}")
+        _echo(f"state      {state.value} — "
+              f"{describe_run(state, plan_only=bool(row['plan_only']))}")
+        _echo(f"kind       {'plan-only (nothing implemented)' if row['plan_only'] else 'implementation'}")
         _echo(f"detail     {row['state_detail'] or '-'}")
         _echo(f"brain      {row['brain']}")
         _echo(f"phase      {row['phase_id'] or '-'}")
@@ -274,11 +316,13 @@ def cmd_plan_import(args: argparse.Namespace) -> int:
             controller.validate(document)
             if args.plan_only:
                 store.set_run_state(
-                    args.run_id, RunState.VERIFIED_LOCAL,
-                    "an operator-supplied specification was validated; nothing was implemented",
+                    args.run_id, RunState.PLAN_READY,
+                    "an operator-supplied specification passed structural and policy "
+                    "validation; nothing was implemented, verified or reviewed",
                     force=True,
                 )
-                _echo("specification accepted")
+                _echo("specification accepted: it passed validation. "
+                      "Nothing was implemented, verified or reviewed.")
                 return 0
             controller.implement()
             controller.integrate_and_verify()
@@ -416,8 +460,12 @@ def cmd_cancel(args: argparse.Namespace) -> int:
     with _store(config) as store:
         row = store.get_run(args.run_id)
         state = RunState(row["state"])
-        if state in (RunState.COMPLETE, RunState.CANCELLED, RunState.FAILED):
-            _echo(f"{args.run_id} is already {state.value}")
+        if is_terminal(state):
+            # Every terminal state, not a list that has to be remembered when a
+            # new one is added: cancelling a finished run used to relabel a
+            # PLAN_READY specification as CANCELLED.
+            _echo(f"{args.run_id} already finished in {state.value} — "
+                  f"{describe_run(state, plan_only=bool(row['plan_only']))}")
             return 0
         store.set_run_state(
             args.run_id, RunState.CANCELLED,
@@ -428,13 +476,89 @@ def cmd_cancel(args: argparse.Namespace) -> int:
     return 0
 
 
+# -------------------------------------------------------------- validate-spec
+def cmd_validate_spec(args: argparse.Namespace) -> int:
+    """Check a specification without creating a run, a worker or a commit.
+
+    Everything `pw-dev run` would check before dispatching anybody: the schema,
+    the base commit this repository is actually at, the adopted policy and
+    budgets, the verification registry, and the path rules the integration
+    guard will apply. It writes nothing outside stdout -- no run row, no
+    worktree, no provider call -- so it is safe to run against a specification
+    somebody else produced.
+
+    Exit 2 for a document that is not a valid `phase_spec/v1`, 1 for one that is
+    valid and rejected, 0 for one that would be accepted.
+    """
+    from .controller.discovery import discover
+    from .controller.validate_plan import validate_plan
+    from .verify.registry import registry_for
+
+    config = _config(args)
+    path = Path(args.path)
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except OSError as exc:
+        _echo(f"{path}: {exc}")
+        return 2
+    except ValueError as exc:
+        _echo(f"{path} is not valid JSON: {exc}")
+        return 2
+
+    try:
+        validate_artifact(document, "phase_spec/v1")
+    except SchemaError as exc:
+        _echo(f"{path} is not a valid phase_spec/v1 document:")
+        for error in exc.errors:
+            _echo(f"  error:   {error}")
+        return 2
+
+    base = args.base or discover(config.repo_root).head_sha
+    registry = registry_for(config.verification_profile)
+    report = validate_plan(
+        document, config=config, registry=registry, base_commit=base,
+        repo_root=config.repo_root,
+    )
+
+    _echo(f"specification: {path}")
+    _echo(f"phase:         {document['phase_id']} — {document['phase_title']}")
+    _echo(f"base commit:   {document['base_commit']}")
+    _echo(f"checked against: {base}"
+          + ("  (this repository's HEAD)" if not args.base else "  (--base)"))
+    _echo(f"policy:        publication={config.publication.mode}, "
+          f"profile={config.verification_profile}, "
+          f"workers<={config.limits.max_parallel_workers}, "
+          f"per-task<={config.limits.per_task_seconds}s, "
+          f"run<={config.limits.total_run_seconds}s")
+    _echo("")
+    _echo(report.render())
+    _echo("")
+    if report.ok:
+        _echo(f"ACCEPTED: {len(report.warnings)} warning(s), no errors. Nothing was "
+              f"implemented, executed or published by this command.")
+        return 0
+    _echo(f"REJECTED: {len(report.errors)} error(s), {len(report.warnings)} warning(s).")
+    return 1
+
+
 def cmd_checks(args: argparse.Namespace) -> int:
     from .verify.registry import Registry
 
     registry = Registry()
     for check_id, description in registry.describe():
-        gate = " [gate]" if registry.get(check_id).gate else ""
-        _echo(f"{check_id}{gate}\n    {description}")
+        check = registry.get(check_id)
+        labels = []
+        if check.gate:
+            labels.append("gate")
+        if check.evidence_class != "standard":
+            labels.append(check.evidence_class)
+        suffix = f" [{', '.join(labels)}]" if labels else ""
+        _echo(f"{check_id}{suffix}\n    {description}")
+    _echo("")
+    _echo("gate           runs before COMMIT whether or not a plan asks for it")
+    _echo("optional_smoke a diagnostic; it cannot stand in for acceptance evidence")
+    _echo("required_live  an end-to-end acceptance path; it fails closed, and a plan "
+          "that needs it\n               must name it in required_verifications")
     return 0
 
 
@@ -470,7 +594,21 @@ def build_parser() -> argparse.ArgumentParser:
     plan.add_argument("--brain", choices=("automatic", "interactive"), default="automatic")
     plan.add_argument("--show", action="store_true", help="print the full specification")
     plan.add_argument("--planner-model")
-    plan.set_defaults(func=cmd_plan, publish="none")
+    # A specification records the publication policy it was planned under, and
+    # `run` refuses one that disagrees with its own. Planning always under
+    # `none` therefore made every specification unusable with any other policy.
+    # Plan under the policy you intend to execute under.
+    plan.add_argument("--publish", choices=("none", "local", "feature-branch"),
+                      default="none",
+                      help="the publication policy this specification is planned for; "
+                           "execute it with the same value")
+    plan.add_argument("--branch", help="plan for publication to this existing branch")
+    plan.add_argument("--context-file", action="append", metavar="PATH",
+                      help="a repository file whose contents are put in the planner's "
+                           "packet, with its sha256 recorded. Bounded by "
+                           "limits.max_context_file_bytes; a longer file is truncated and "
+                           "the truncation is stated in the packet. Repeatable")
+    plan.set_defaults(func=cmd_plan)
 
     run = sub.add_parser("run", help="plan, implement, verify, review and publish one phase")
     run.add_argument("--next", dest="phase", nargs="?", const=None, default=None)
@@ -485,6 +623,10 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--planner-model")
     run.add_argument("--implementer-model")
     run.add_argument("--reviewer-model")
+    run.add_argument("--context-file", action="append", metavar="PATH",
+                     help="a repository file whose contents are put in the planner's "
+                          "packet, with its sha256 recorded. Bounded by "
+                          "limits.max_context_file_bytes. Repeatable. Ignored with --spec")
     run.set_defaults(func=cmd_run)
 
     status = sub.add_parser("status", help="show a run, or list runs")
@@ -529,6 +671,19 @@ def build_parser() -> argparse.ArgumentParser:
     cancel = sub.add_parser("cancel", help="stop a run, preserving its work")
     cancel.add_argument("run_id")
     cancel.set_defaults(func=cmd_cancel)
+
+    validate_spec = sub.add_parser(
+        "validate-spec",
+        help="check a specification against the schema, this repository, the adopted "
+             "policy, the registry and the path rules -- without running anything",
+    )
+    validate_spec.add_argument("path")
+    validate_spec.add_argument("--base", help="check against this commit instead of HEAD")
+    validate_spec.add_argument("--publish", choices=("none", "local", "feature-branch"),
+                               default="none",
+                               help="the policy to check the specification against")
+    validate_spec.add_argument("--branch")
+    validate_spec.set_defaults(func=cmd_validate_spec)
 
     checks = sub.add_parser("checks", help="list the verification registry")
     checks.set_defaults(func=cmd_checks)

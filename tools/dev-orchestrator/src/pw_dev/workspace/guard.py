@@ -9,12 +9,37 @@ decides whether an observed change is admissible.
 Some paths are refused for every task regardless of what a specification says,
 because an agent that can edit the verification registry or the publisher can
 approve its own work.
+
+## Literal paths and patterns
+
+One rule, stated once, and applied by every caller in this package:
+
+**a pattern is a glob if and only if it contains `*` or `?`. Every other
+character, `[` and `]` included, is literal.**
+
+This repository is a Next.js App Router application, so real file paths look
+like `apps/web/src/app/projects/[projectId]/datasets/[datasetId]/page.tsx`.
+Under `fnmatch` -- which this module used to call -- `[projectId]` is a
+character class, so that literal path was *refused* while the unrelated
+`apps/web/src/app/projects/p/datasets/d/page.tsx` was *allowed*: wrong in both
+directions at once. A glob character class has no use here and a dynamic route
+segment appears in dozens of paths, so brackets are literal and the ambiguity is
+gone rather than merely documented.
+
+Glob semantics otherwise follow the familiar ones:
+
+* `*` and `?` match within a single path segment and never cross `/`;
+* `**` as a whole segment matches zero or more segments;
+* a pattern with no wildcard at all is a literal path, and also covers
+  everything beneath it, so `services/service-datasets` owns its subtree.
+
+Forbidden patterns are evaluated before allowed ones and win, always.
 """
 
 from __future__ import annotations
 
-import fnmatch
 import re
+from functools import lru_cache
 from pathlib import Path, PurePosixPath
 
 from ..errors import PolicyViolation
@@ -80,20 +105,160 @@ def normalise(raw: str) -> str:
     return "/".join(parts)
 
 
-def _matches(path: str, pattern: str) -> bool:
-    pattern = pattern.strip().replace("\\", "/")
-    if not pattern:
+def is_pattern(raw: str) -> bool:
+    """Whether this string is a glob. `[` and `]` are literal; see the module docstring."""
+    return "*" in raw or "?" in raw
+
+
+def _segments(raw: str) -> tuple[str, ...]:
+    cleaned = raw.strip().replace("\\", "/").rstrip("/")
+    return tuple(part for part in cleaned.split("/") if part not in ("", "."))
+
+
+@lru_cache(maxsize=4096)
+def _segment_globs_intersect(left: str, right: str) -> bool:
+    """Can one path segment satisfy both single-segment globs?
+
+    A small two-sided wildcard match: `*` consumes any run of characters on
+    either side, `?` consumes exactly one. Used for overlap detection, where
+    both sides may contain wildcards; plain matching only ever has wildcards on
+    one side, and falls out of the same function.
+    """
+
+    @lru_cache(maxsize=None)
+    def go(i: int, j: int) -> bool:
+        while i < len(left) and j < len(right) and left[i] not in "*?" \
+                and right[j] not in "*?" and left[i] == right[j]:
+            i += 1
+            j += 1
+        if i < len(left) and left[i] == "*":
+            return go(i + 1, j) or (j < len(right) and go(i, j + 1))
+        if j < len(right) and right[j] == "*":
+            return go(i, j + 1) or (i < len(left) and go(i + 1, j))
+        if i == len(left) or j == len(right):
+            return i == len(left) and j == len(right)
+        if left[i] == "?" or right[j] == "?":
+            return go(i + 1, j + 1)
+        return left[i] == right[j] and go(i + 1, j + 1)
+
+    return go(0, 0)
+
+
+@lru_cache(maxsize=4096)
+def _sequences_intersect(left: tuple[str, ...], right: tuple[str, ...]) -> bool:
+    """Is there a path both segment sequences match? `**` spans zero or more."""
+    if not left and not right:
+        return True
+    if not left:
+        return all(segment == "**" for segment in right)
+    if not right:
+        return all(segment == "**" for segment in left)
+    if left[0] == "**":
+        return (_sequences_intersect(left[1:], right)
+                or _sequences_intersect(left, right[1:]))
+    if right[0] == "**":
+        return (_sequences_intersect(left, right[1:])
+                or _sequences_intersect(left[1:], right))
+    if not _segment_globs_intersect(left[0], right[0]):
         return False
-    if fnmatch.fnmatchcase(path, pattern):
+    return _sequences_intersect(left[1:], right[1:])
+
+
+def _claim_forms(segments: tuple[str, ...]) -> tuple[tuple[str, ...], ...]:
+    """Every sequence a declared pattern stands for.
+
+    A wildcard-free pattern owns its subtree, so `services/service-datasets`
+    also stands for `services/service-datasets/**`. Expanding it here, rather
+    than special-casing it inside the comparison, is what makes the comparison
+    exact. An earlier version compared the literal against a same-length prefix
+    of the other pattern, and `apps/web` versus `**/package-lock.json` slipped
+    through: both accept `apps/web/package-lock.json`, and the check said they
+    did not overlap -- so the scheduler would have run both tasks at once.
+    """
+    if any(is_pattern(segment) or segment == "**" for segment in segments):
+        return (segments,)
+    return (segments, segments + ("**",))
+
+
+def patterns_overlap(left: str, right: str) -> bool:
+    """Whether two declared patterns can both claim the same file.
+
+    Exact, not approximate: the answer is yes only when some concrete path
+    satisfies both. Two tasks whose patterns overlap are never dispatched
+    concurrently, so a false "no" would let two workers edit one file -- which
+    is why this is decided rather than guessed from a shared prefix.
+    """
+    left_segments, right_segments = _segments(left), _segments(right)
+    if not left_segments or not right_segments:
+        return False
+    return any(
+        _sequences_intersect(mine, theirs)
+        for mine in _claim_forms(left_segments)
+        for theirs in _claim_forms(right_segments)
+    )
+
+
+def pattern_covers(outer: str, inner: str) -> bool:
+    """Whether everything `inner` can claim is also claimed by `outer`.
+
+    Containment, not intersection. `apps/web/**` intersects
+    `**/package-lock.json` -- `apps/web/package-lock.json` satisfies both -- but
+    a task that owns the web application has not thereby declared that it edits
+    a lockfile, and serializing every frontend task against every backend one on
+    that basis would be a worse answer than the question deserves.
+
+    **Sound, and deliberately incomplete.** It returns `True` only for the two
+    shapes where containment is a fact rather than an inference:
+
+    1. the two patterns are the same;
+    2. `outer` is a run of literal segments, optionally followed by `**`, and
+       `inner` starts with exactly those literal segments. Every path `inner`
+       can produce then begins with that prefix, which `outer` owns.
+
+    Anything else is `False`, meaning *not established* rather than *false*.
+    Every caller treats an unestablished containment as "no implicit lock" or
+    "no finding", which is the safe direction: the path guard still refuses the
+    write, and `patterns_overlap` -- which is exact -- still refuses the
+    concurrency.
+
+    The previous version expanded `inner`'s wildcards into placeholder text and
+    matched that one witness against `outer`. One witness is not a proof:
+    `pattern_covers("src/*p*", "src/*")` was `True` because the placeholder
+    happened to contain a `p`, while `src/x` disproves it, and the placeholder's
+    own letters made a legitimate claim like `**/*pw*` look like it contained
+    `.git/**`.
+    """
+    outer_segments, inner_segments = _segments(outer), _segments(inner)
+    if not outer_segments or not inner_segments:
+        return False
+    if outer_segments == inner_segments:
+        return True
+
+    prefix = outer_segments[:-1] if outer_segments[-1] == "**" else outer_segments
+    if any(is_pattern(segment) or segment == "**" for segment in prefix):
+        return False
+    if not prefix:
+        return outer_segments == ("**",)
+    return inner_segments[:len(prefix)] == prefix
+
+
+def matches(path: str, pattern: str) -> bool:
+    """Whether a concrete repository path is claimed by one pattern."""
+    return _matches(path, pattern)
+
+
+def _matches(path: str, pattern: str) -> bool:
+    """Whether a concrete repository path is claimed by one pattern."""
+    pattern_segments = _segments(pattern)
+    if not pattern_segments:
+        return False
+    path_segments = _segments(path)
+    if _sequences_intersect(pattern_segments, path_segments):
         return True
     # A bare directory pattern covers everything under it.
-    if not any(ch in pattern for ch in "*?["):
-        prefix = pattern.rstrip("/")
-        return path == prefix or path.startswith(prefix + "/")
-    # `a/**` should also cover `a/b/c`, which fnmatch's `*` does not cross.
-    if pattern.endswith("/**"):
-        prefix = pattern[:-3]
-        return path == prefix or path.startswith(prefix + "/")
+    if not any(is_pattern(segment) or segment == "**" for segment in pattern_segments):
+        return (len(path_segments) > len(pattern_segments)
+                and path_segments[:len(pattern_segments)] == pattern_segments)
     return False
 
 
@@ -144,11 +309,37 @@ class PathGuard:
         shared = []
         for mine in self.allowed:
             for theirs in other.allowed:
-                if mine == theirs or _matches(mine.rstrip("/*"), theirs) or _matches(
-                    theirs.rstrip("/*"), mine
-                ):
+                if patterns_overlap(mine, theirs):
                     shared.append(f"{mine} ~ {theirs}")
         return shared
+
+    def claims(self, pattern: str) -> bool:
+        """Whether this guard's allowed set can reach anything `pattern` names."""
+        return any(patterns_overlap(pattern, mine) for mine in self.allowed)
+
+    def literal_roots(self) -> list[str]:
+        """The concrete repository prefixes the allowed patterns are anchored at.
+
+        The leading run of wildcard-free segments of each pattern, deduplicated
+        and with descendants of another root dropped. Used to check, before a
+        worker starts, that everything a task claims resolves inside its own
+        checkout -- the same literal-versus-pattern rule as everywhere else, so
+        a dynamic-route directory is an anchor rather than a wildcard.
+        """
+        roots: set[str] = set()
+        for pattern in self.allowed:
+            prefix: list[str] = []
+            for segment in _segments(pattern):
+                if segment == "**" or is_pattern(segment):
+                    break
+                prefix.append(segment)
+            if prefix:
+                roots.add("/".join(prefix))
+        ordered = sorted(roots)
+        return [
+            root for root in ordered
+            if not any(root != other and root.startswith(other + "/") for other in ordered)
+        ]
 
 
 def resolve_within(root: Path, raw_path: str) -> Path:

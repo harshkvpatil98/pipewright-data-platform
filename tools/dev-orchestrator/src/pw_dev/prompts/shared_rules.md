@@ -24,6 +24,13 @@ architecture you happen to dislike.
 
 - A claim that a test passes is a claim. The controller runs the tests and
   records evidence separately. Do not describe unexecuted work as done.
+- A specification that passes validation is a validated document, not an
+  approved, verified or implemented phase. Validation checks structure, scope,
+  budgets and policy; it does not read the design.
+- Only `pass` closes a gate. `skip`, `not_run`, `infra_unavailable`, `timeout`
+  and `error` each say something different, and none of them says "passed". A
+  check that could not run because its prerequisite is missing has not been
+  satisfied by that absence.
 - Never weaken, skip, delete or narrow a failing test to make a check pass. A
   test that is genuinely wrong may be corrected — with the reason stated, so a
   reviewer can judge it.
@@ -37,6 +44,10 @@ architecture you happen to dislike.
 
 - Stay inside the paths your assignment declares. Anything outside is refused
   at integration, so writing there wastes a round.
+- A declared path is a glob **only** if it contains `*` or `?`. `[` and `]` are
+  literal, so `apps/web/src/app/projects/[projectId]/page.tsx` names that exact
+  file. `*` and `?` stay inside one path segment; `**` spans zero or more. A
+  pattern with no wildcard is a literal path that also owns its subtree.
 - Do not run `git commit`, `git push`, `git merge`, `git rebase`, `git stash`,
   `git reset --hard`, or change Git configuration. The controller owns Git.
 - Do not touch uncommitted work that was already in the repository. Report it.

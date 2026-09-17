@@ -378,7 +378,7 @@ def test_a_plan_only_run_produces_a_specification_and_implements_nothing(
     config = make_run_config(fixture_repo, tmp_path, codex, claude, mode="none")
 
     state, run_id, store = run_controller(config, plan_only=True)
-    assert state is RunState.VERIFIED_LOCAL
+    assert state is RunState.PLAN_READY
     assert (config.runs_dir() / run_id / "phase-spec.json").is_file()
     assert not (bin_dir / "claude-calls.json").exists(), "no worker may run in a plan-only run"
     assert (fixture_repo / "src" / "app.py").read_text() == "VALUE = 1\n"
@@ -397,7 +397,7 @@ def test_uncommitted_user_work_is_recorded_and_left_alone(fixture_repo: Path, tm
     config = make_run_config(fixture_repo, tmp_path, codex, claude, mode="none")
 
     state, run_id, store = run_controller(config, plan_only=True)
-    assert state is RunState.VERIFIED_LOCAL
+    assert state is RunState.PLAN_READY
     assert (fixture_repo / "src" / "wip.py").read_text() == "USER_WORK = True\n"
     assert (fixture_repo / "src" / "other.py").read_text() == "OTHER = 999\n"
 

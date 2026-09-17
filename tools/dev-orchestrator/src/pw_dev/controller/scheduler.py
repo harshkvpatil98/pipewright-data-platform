@@ -23,7 +23,8 @@ from dataclasses import dataclass, field
 
 from ..errors import PolicyViolation
 from ..state.machine import TaskState
-from ..workspace.guard import PathGuard
+from ..workspace.guard import (PathGuard, is_pattern, matches, pattern_covers,
+                                patterns_overlap)
 
 #: Resources the controller always serializes, whatever the plan says.
 IMPLICIT_EXCLUSIVE = {
@@ -32,6 +33,19 @@ IMPLICIT_EXCLUSIVE = {
                  "common/config/**", "**/pnpm-lock.yaml"),
     "contracts": ("packages/shared-types/**",),
 }
+
+
+def _claims(claimed: str, guarded: str) -> bool:
+    """Whether declaring `claimed` declares an edit to the `guarded` resource.
+
+    Containment either way, plus the concrete case: a wildcard-free claim names
+    one path, and if the resource pattern matches that path the task has said it
+    edits that artifact. `apps/web/package-lock.json` is a lockfile edit;
+    `apps/web/**` is not, even though a lockfile could appear beneath it.
+    """
+    if pattern_covers(guarded, claimed) or pattern_covers(claimed, guarded):
+        return True
+    return not is_pattern(claimed) and matches(claimed, guarded)
 
 
 @dataclass
@@ -50,19 +64,46 @@ class TaskNode:
         return PathGuard(self.allowed_paths, self.forbidden_paths)
 
     def effective_resources(self) -> list[str]:
-        """Declared resources plus the ones implied by the paths a task claims."""
+        """Declared resources plus the ones implied by the paths a task claims.
+
+        Decided by pattern overlap, not by rewriting the claim into a probe
+        string. The old probe replaced every wildcard with a letter, so whether
+        a claim implied a lock depended on what the flattened string happened to
+        look like -- and a Next.js dynamic segment flattened into a glob
+        character class.
+        """
         resources = set(self.exclusive_resources)
         for name, patterns in IMPLICIT_EXCLUSIVE.items():
-            guard = PathGuard(list(patterns))
-            for claimed in self.allowed_paths:
-                probe = claimed.replace("**", "x").replace("*", "x").rstrip("/")
-                try:
-                    guard.check(probe)
-                except Exception:  # noqa: BLE001 - non-match is the common case
-                    continue
+            if any(_claims(claimed, guarded)
+                   for claimed in self.allowed_paths for guarded in patterns):
                 resources.add(name)
-                break
         return sorted(resources)
+
+    def unguarded_resource_reach(self) -> list[str]:
+        """Serialized resources this task could write without holding the lock.
+
+        Containment decides whether a lock is taken; reachability is wider, so
+        `apps/api-gateway/**/*.py` can write a migration without having declared
+        the Alembic lock. Reported at plan validation so the difference is a
+        stated finding rather than an assumption.
+
+        Resource patterns that begin with `**` are left out: "some directory
+        below you could contain a lockfile" is true of every recursive claim in
+        the repository and naming it every time would bury the findings that
+        mean something.
+        """
+        held = set(self.effective_resources())
+        reach: list[str] = []
+        for name, patterns in IMPLICIT_EXCLUSIVE.items():
+            if name in held:
+                continue
+            anchored = [p for p in patterns if not p.startswith("**")]
+            for claimed in self.allowed_paths:
+                hit = next((g for g in anchored if patterns_overlap(claimed, g)), None)
+                if hit is not None:
+                    reach.append(f"{name} (via {claimed!r} reaching {hit!r})")
+                    break
+        return reach
 
 
 class Scheduler:

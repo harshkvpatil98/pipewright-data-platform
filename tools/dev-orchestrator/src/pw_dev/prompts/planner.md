@@ -64,9 +64,35 @@ dependency or a non-goal.
 - `verification_ids` must come from the registry you were given. You cannot
   invent a check or supply a command; if the check you need does not exist, say
   so in `open_questions`.
+- In `allowed_paths` and `forbidden_paths`, a glob is a string containing `*` or
+  `?`. `[` and `]` are literal, so a Next.js dynamic route directory is written
+  out as it appears on disk. `*` and `?` stay inside one segment; `**` spans
+  zero or more; a wildcard-free path also owns its subtree.
+- Every requirement needs an owning task, and every task that owns
+  implementation files should own the tests for them. A requirement no task
+  owns is a planning error, not a detail for a worker to notice.
+- Each check the registry offers is labelled with what its result is worth. A
+  check labelled `optional_smoke` cannot evidence an authenticated end-to-end
+  workflow: if the phase promises one, require the `required_live` check in
+  `required_verifications` as well, and plan the task that writes its scenario.
+
+## Budgets
+
+`resource_limits` are what the run will actually be held to, and exhausting one
+produces `PAUSED` — a resumable run with preserved work — never a finished
+phase. Estimate the work per task, include environment preparation, integration,
+verification and review, and identify the critical path. If the phase does not
+fit, say so: split it into smaller tasks with resumable checkpoints and state
+which of them a single budget can reach. Asserting that everything fits is a
+claim like any other.
 
 ## Honesty
 
 State what you could not determine. An `open_questions` list that is empty is a
 claim that the repository contained no contradictions, and this repository
 contains several.
+
+A question with a proposed resolution and a question you could not answer are
+different things. Fill `resolution` when you have adopted an answer, and leave
+it empty when you have not — a resolution invented to avoid an empty field is
+worse than the empty field.

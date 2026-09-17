@@ -72,6 +72,8 @@ question, and it costs one tiny call per provider.
 pw-dev doctor [--probe]                     # what this machine can actually do
 pw-dev plan --next                          # produce a phase specification and stop
 pw-dev plan --phase 18 --show
+pw-dev plan --phase 18 --context-file docs/plans/notes.md   # corrections, in full
+pw-dev validate-spec <spec.json>            # check a specification, run nothing
 pw-dev run --next --publish feature-branch  # the full loop
 pw-dev run --spec <path> --brain interactive --publish feature-branch
 pw-dev status [<run-id>]                    # state, tasks, evidence, usage
@@ -85,6 +87,35 @@ pw-dev cancel <run-id>                      # stop, preserving work
 pw-dev checks                               # the verification registry
 pw-dev schemas                              # the artifact schemas
 ```
+
+### Planning to running, and the publication policy
+
+A specification records the publication policy it was planned under, and `run`
+refuses one that disagrees with its own — authority comes from the adopted
+policy, never from a document a model wrote. So **plan under the policy you
+intend to execute under**, and pass the same `--publish` value to both:
+
+```bash
+pw-dev plan --phase 18 --publish none                 # or: --publish feature-branch
+pw-dev validate-spec .pw-dev/runs/<run-id>/phase-spec.json
+pw-dev run --spec .pw-dev/runs/<run-id>/phase-spec.json --publish none
+```
+
+Adopting a different policy later is a fresh planning and validation cycle, not
+an edit: change `[publication] mode` in `pw-dev.toml` (or pass `--publish`),
+plan again against the current HEAD, validate, and run. The equality check is
+not relaxed, a recorded run's frozen policy is not rewritten, and a
+specification's `base_commit` is not swapped for a newer one — both would make a
+published commit unattributable to anything that was actually reviewed.
+
+### Handing the planner corrections
+
+`--context-file PATH` reads a repository file, bounds and redacts it, records
+its SHA-256 in the run's event log and the planning packet, and puts the
+**contents** into the planner's prompt under a heading that outranks roadmap
+prose. Repeatable. Naming a file in a free-text instruction is not delivery: a
+planner that never opens it plans without it, and nothing afterwards shows that
+it did.
 
 ### Two brains, one state machine
 
@@ -108,17 +139,29 @@ specification digest. An approval of a different tree is refused there.
 
 ```
 DISCOVER → PLAN → VALIDATE_PLAN → IMPLEMENT → INTEGRATE → VERIFY → REVIEW → COMMIT → PUSH → COMPLETE
+                        ↘ PLAN_READY  (plan-only: nothing implemented)
 ```
 
 with `WAITING_FOR_PLAN`, `WAITING_FOR_REVIEW`, `NEEDS_FIX`, `BLOCKED`, `PAUSED`,
-`CANCELLED`, `FAILED`, and `VERIFIED_LOCAL` when publication was not requested.
+`CANCELLED` and `FAILED`.
 
-Three of these are worth stating plainly:
+The three stopping states that are not failures mean three different amounts,
+and they are kept apart on purpose:
+
+| State | What is true |
+|---|---|
+| `PLAN_READY` | a specification passed structural and policy validation. **Nothing was implemented, no check was executed, and no reviewer has seen it.** Validation establishes that the document is well-formed, in scope, inside the adopted budget and free of the conflicts the controller can decide — not that the design is right |
+| `VERIFIED_LOCAL` | an implementation the controller verified and an independent reviewer approved. Nothing was published |
+| `COMPLETE` | the above, published, with the remote ref read back and matched |
+
+A plan-only run used to finish in `VERIFIED_LOCAL`, whose own description said
+"verified and approved". It was neither, so `PLAN_READY` exists. Runs recorded
+before it are *described* for what they were rather than relabelled: their rows
+are historical evidence, and `pw-dev status` prints the honest sentence for a
+stored plan-only run without rewriting the state it was saved under.
 
 - **`PAUSED`** is where a run goes when a budget is exhausted. It is resumable
   and it is not a completed phase.
-- **`VERIFIED_LOCAL`** means verified and approved, and *nothing was published*.
-- **`COMPLETE`** requires the remote ref to have been read back and matched.
 
 Every status carries the precise outstanding condition, not just a word.
 
@@ -147,6 +190,65 @@ PostgreSQL, MySQL and MariaDB and fails if they are unreachable. The
 `connectors:servers` check records `infra_unavailable` rather than letting a
 green local run look equivalent.
 
+### What a result is worth
+
+`pw-dev checks` labels every check, because "it passed" is not one thing:
+
+| Class | Meaning |
+|---|---|
+| `gate` | runs before `COMMIT` whether or not a plan asks for it. A plan cannot drop one by omitting it |
+| `optional_smoke` | a diagnostic. `repo:smoke` exits 0 offline and is satisfied by *any* server answering the configured root, including one started last week from a different checkout. It cannot stand in for acceptance evidence |
+| `required_live` | an end-to-end acceptance path that fails closed. A plan that needs one must name it in `required_verifications` — a live scenario only one task asks for is not a gate on the phase, and validation refuses that shape |
+
+**`alembic:heads`** asserts the count. The registered command used to be
+`alembic heads`, which exits 0 with two heads and exits 0 with none — so the
+exact failure it exists to catch, two workers each allocating a revision, passed
+it. It now reads the revision graph through Alembic's `ScriptDirectory` and
+requires exactly one head. It opens no database.
+
+**`repo:live-acceptance`** starts the gateway *itself*, from the candidate's own
+virtualenv, in the candidate's own directory, on an ephemeral port, against a
+disposable database and storage directory with credentials, a signing secret and
+an administrator it generated, and then runs every step of
+`scripts/live-acceptance/<phase-id>.json`.
+
+Three things are deliberately **not** the scenario's to decide:
+
+- **what starts.** The launcher is a literal in the check registry. A scenario
+  that could name the module would satisfy an acceptance gate with
+  `python -m http.server` and a `GET /` returning 200;
+- **what environment it starts with.** Database URL, upload root, signing
+  secret, `HOME` and `TMPDIR` are generated per invocation inside a temporary
+  directory. The operator's environment is not inherited beyond `PATH`, so an
+  unset variable falls back to a Pipewright default rather than to whatever
+  happens to be exported;
+- **what is cleaned up.** Teardown signals the process group this runner
+  created — whether or not its leader is still alive, because a launcher that
+  forks and exits otherwise leaves the server holding the port — and removes the
+  directory this runner made. Nothing else.
+
+Before the port is opened, the candidate interpreter is asked where it resolves
+`api_gateway` and the services from, and every origin must be inside the
+candidate. Pipewright installs its packages with `pip install -e`, so a
+virtualenv belonging to another checkout imports *that* checkout's source — and
+`api_gateway.config` then loads the operator's real `apps/api-gateway/.env`,
+pointing the "disposable" run at their actual database. Outcomes:
+
+| Situation | Outcome |
+|---|---|
+| every declared step executed and passed | `pass` |
+| a step failed an expectation | `fail` |
+| the server never became ready | `infra_unavailable` |
+| no scenario file, or a credential the runner did not create | `not_run` |
+| a declared step did not execute | `skip` |
+| the deadline passed | `timeout` |
+
+Only `pass` closes a gate, so **a phase that has not written its scenario yet
+cannot accidentally satisfy the check**: no file means `not_run`. The scenario
+name is derived from the specification's own `phase_id` by the controller, not
+chosen by a worker, and the runner lives under `pw_dev/verify/` where no task may
+write it.
+
 Every evidence record is bound to the candidate tree fingerprint, base SHA,
 specification digest and an environment digest. The fingerprint walks the
 filesystem rather than asking Git, so a new untracked file invalidates evidence
@@ -170,6 +272,23 @@ the candidate refuses the commit rather than being quietly dropped.
 Each writing worker gets its own git worktree, created from **its own
 prerequisite commit** — not from the run's base, so a dependent task sees the
 contracts it depends on.
+
+### One thing a checkout does not get
+
+`node_modules` is symlinked in. **`.venv` is not**, and that is a real
+limitation rather than an oversight. Pipewright installs its service packages
+with `pip install -e`, so a virtualenv belonging to the original checkout
+imports *that* checkout's source: every Python check would run, and would be
+testing the wrong tree. A check that passes against code nobody is publishing is
+worse than one that says it did not run.
+
+So every check declaring `requires=("venv",)` — ten of the fourteen, including
+the `repo:verify` and `alembic:heads` gates — records `not_run` in a checkout
+without its own environment, and the completion gate does not close. The run
+says so at the start rather than at `COMMIT`, and `check_module_isolation`
+blocks a candidate whose modules resolve elsewhere instead of merely logging it.
+Closing this properly means provisioning a candidate-local environment, which
+this build does not do.
 
 A worktree is not a security boundary. Worktrees share `.git` and stop file
 collisions, nothing more. The actual write boundary is enforced by the operating
@@ -234,6 +353,42 @@ overlapping paths, and no exclusive resource it needs is held. Overlapping write
 ownership between two concurrently eligible tasks is refused at plan validation,
 not discovered later as a merge conflict.
 
+### Paths: one rule
+
+**A pattern is a glob if and only if it contains `*` or `?`. Every other
+character, `[` and `]` included, is literal.**
+
+This is a Next.js App Router application, so
+`apps/web/src/app/projects/[projectId]/datasets/[datasetId]/page.tsx` is an
+ordinary file. The guard used to call `fnmatch`, which reads `[projectId]` as a
+character class — and that was wrong in both directions at once: the real file
+was **refused**, while `projects/p/datasets/d/page.tsx`, a different and
+unauthorised file, was **allowed**, because `p` and `d` are in those classes.
+
+Otherwise: `*` and `?` stay inside one path segment, `**` spans zero or more
+segments, and a wildcard-free pattern is a literal path that also owns its
+subtree. Forbidden patterns are evaluated first and win.
+
+Two patterns overlap when some concrete path satisfies both — decided exactly,
+not inferred from a shared prefix, because a wrong "no" would put two workers in
+one file. A wildcard-free pattern owns its subtree, so it is compared as
+`P` *and* `P/**`: `apps/web` and `**/package-lock.json` both accept
+`apps/web/package-lock.json`, and they overlap.
+
+Whether a claim *takes* a serialized lock is a narrower question: containment,
+plus the concrete case. `apps/web/package-lock.json` names a lockfile and takes
+the lock; `apps/web/**` could contain one and does not, because owning the web
+application is not declaring a lockfile edit. A claim that can reach a
+serialized resource without holding its lock is reported at plan validation.
+
+Containment is **sound and deliberately incomplete**: it answers yes only when
+one pattern is a literal prefix (optionally followed by `**`) of the other, and
+`False` everywhere else means *not established*. Every caller treats that as "no
+implicit lock" or "no finding", which is the safe direction — the guard still
+refuses the write and the exact overlap check still refuses the concurrency. An
+earlier version inferred containment from a single placeholder witness, which
+made `src/*p*` appear to contain `src/*`.
+
 Alembic revision allocation, lockfile and dependency changes, and shared contract
 edits take a named lock — implicitly, from the paths a task claims, so a plan
 cannot forget to declare one.
@@ -291,6 +446,34 @@ Reported usage is stored as reported. `claude -p` supplies a dollar figure;
 `codex exec` supplies tokens and no cost. A missing cost shows as **unknown**,
 not zero — and a subscription is not "free". Wall-clock and round limits are
 enforced regardless.
+
+---
+
+## What plan validation does and does not prove
+
+`pw-dev validate-spec <path>` runs everything `pw-dev run` checks before
+dispatching anybody — the schema, the base commit this repository is actually
+at, the adopted policy and budgets, the verification registry, and the path
+rules the integration guard will apply — and creates no run, no worktree, no
+provider call and no commit. Exit 0 accepted, 1 rejected, 2 malformed.
+
+It establishes that the document is well-formed; that every identifier resolves;
+that every concrete declared path survives the real guard; that no two
+concurrently eligible tasks share write ownership; that every requirement has an
+owning task; that a declared migration has a task that allocates it; that the
+budget arithmetic closes; and that the publication policy is the one this run
+holds.
+
+It establishes **nothing** about whether the design is correct, whether the
+tasks add up to the requirements, or whether the phase is the right one. Every
+report ends with that sentence, so a green validation is not quoted as an
+approval.
+
+One thing it refuses outright: `accepted_preexisting_failures` may not name a
+`required_live` check. Such a check is non-passing at baseline by construction —
+its scenario does not exist until the phase writes it — so scoping it out waives
+the gate rather than recording a pre-existing failure. The run loop refuses the
+same waiver independently, because a specification can arrive by import.
 
 ---
 

@@ -19,6 +19,7 @@ from __future__ import annotations
 import concurrent.futures
 import json
 import os
+import re
 import threading
 import time
 from dataclasses import dataclass, field
@@ -39,7 +40,7 @@ from ..util.jsonio import write_json_atomic
 from ..verify.registry import registry_for
 from ..verify.runner import SUCCESS_OUTCOMES, VerificationRunner
 from ..workspace import git
-from ..workspace.guard import PathGuard, PathViolation
+from ..workspace.guard import PathGuard, PathViolation, resolve_within
 from ..workspace.patches import (CONTROLLER_SCRATCH, PatchBundle, apply_bundle,
                                  conflicting_paths, export_bundle, would_conflict)
 from ..workspace.sandbox import (SandboxSupport, claude_config_denials,
@@ -47,7 +48,7 @@ from ..workspace.sandbox import (SandboxSupport, claude_config_denials,
 from ..workspace.sentinel import Sentinel, protected_locations
 from ..workspace.worktrees import WorktreeManager
 from . import roles
-from .context import ContextBuilder, build_task_assignment
+from .context import ContextBuilder, build_task_assignment, read_operator_context
 from .discovery import discover
 from .scheduler import Scheduler, TaskNode, nodes_from_spec, scope_union
 from .validate_plan import validate_plan
@@ -176,7 +177,13 @@ class Controller:
     # ------------------------------------------------------------- the phases
     def execute(self, *, requested_phase: str | None = None, plan_only: bool = False,
                 imported_spec: dict | None = None) -> RunState:
-        self._deadline = time.monotonic() + self.config.limits.total_run_seconds
+        # An already-set deadline is honoured rather than reset, so a caller can
+        # hand this controller a budget that is already spent. A run whose wall
+        # clock is gone must pause with its work preserved, and that has to be
+        # reachable without configuring a zero-second budget -- which is not a
+        # budget, and which plan validation now refuses as unschedulable.
+        if self._deadline is None:
+            self._deadline = time.monotonic() + self.config.limits.total_run_seconds
         try:
             self.discover()
             spec = imported_spec or self.plan(requested_phase)
@@ -185,11 +192,12 @@ class Controller:
             self.validate(spec)
             if plan_only:
                 self._transition(
-                    RunState.VERIFIED_LOCAL,
-                    "plan-only run: a validated specification was produced and nothing was "
-                    "implemented",
+                    RunState.PLAN_READY,
+                    "plan-only run: the specification passed structural and policy "
+                    "validation. Nothing was implemented, no verification was executed and "
+                    "no reviewer has seen it.",
                 )
-                return RunState.VERIFIED_LOCAL
+                return RunState.PLAN_READY
             self.implement()
             self.integrate_and_verify()
             verdict = self.review()
@@ -222,6 +230,26 @@ class Controller:
         state = RunState(self.store.get_run(self.run_id)["state"])
         return state in (RunState.PAUSED, RunState.BLOCKED, RunState.NEEDS_FIX,
                          RunState.WAITING_FOR_PLAN, RunState.WAITING_FOR_REVIEW)
+
+    def check_parameters(self) -> dict[str, str]:
+        """Controller-supplied bindings for parameterised checks.
+
+        `scenario` names the live acceptance document a phase must provide, and
+        it is derived from the specification's own phase id rather than chosen
+        by a worker: a task that could name the scenario could point the
+        required check at an easier one.
+        """
+        if not self.spec:
+            return {}
+        slug = re.sub(r"[^a-z0-9-]+", "-", str(self.spec["phase_id"]).lower()).strip("-")
+        return {"scenario": slug or "phase"}
+
+    def _verification_runner(self) -> VerificationRunner:
+        return VerificationRunner(
+            self.registry, store=self.store, run_id=self.run_id,
+            base_commit=self.base_commit, spec_digest=self.spec_digest,
+            artifacts_dir=self.evidence_dir, parameters=self.check_parameters(),
+        )
 
     def gate_checks(self) -> list[str]:
         """Everything the integrated candidate must pass.
@@ -256,7 +284,7 @@ class Controller:
             if outcome in SUCCESS_OUTCOMES:
                 continue
             was_failing = self.baseline.get(check_id) not in SUCCESS_OUTCOMES
-            if was_failing and check_id in scoped:
+            if was_failing and check_id in scoped and self._waivable(check_id):
                 self.notes.append(
                     f"{check_id} was already {self.baseline.get(check_id)} before this run and "
                     f"the specification scopes it out: {scoped[check_id]}"
@@ -268,6 +296,27 @@ class Controller:
                    if was_failing else " (regressed during this run)")
             )
         return outstanding
+
+    def _waivable(self, check_id: str) -> bool:
+        """Whether `accepted_preexisting_failures` may scope this check out.
+
+        A required live acceptance path may not be. Its scenario does not exist
+        until the phase writes it, so the check is *always* non-passing at
+        baseline -- which means the general "this was already failing" mechanism
+        would waive the one gate whose whole purpose is that a missing scenario
+        cannot pass. Refused here as well as at plan validation, because a
+        specification can arrive by import.
+        """
+        if check_id not in self.registry:
+            return True
+        if self.registry.get(check_id).evidence_class != "required_live":
+            return True
+        self.notes.append(
+            f"{check_id} is a required live acceptance path and was not waived: a "
+            f"scenario that does not exist yet is non-passing at baseline, so scoping it "
+            f"out would waive the gate rather than record a pre-existing failure."
+        )
+        return False
 
     # --------------------------------------------------------------- DISCOVER
     def discover(self) -> dict:
@@ -306,8 +355,9 @@ class Controller:
     # ------------------------------------------------------------------- PLAN
     def plan(self, requested_phase: str | None) -> dict | None:
         self._transition(RunState.PLAN, "the planner is producing a specification")
+        operator = self._operator_context()
         if self.brain == "interactive":
-            self._export_plan_request(requested_phase)
+            self._export_plan_request(requested_phase, operator)
             self.store.set_run_state(
                 self.run_id, RunState.WAITING_FOR_PLAN,
                 f"exported a planning packet; supply a specification with "
@@ -343,6 +393,7 @@ class Controller:
             },
             requested_phase=requested_phase,
             context_text=context_text,
+            operator_context=operator.render(),
         )
 
         result = self._call_provider(
@@ -354,7 +405,40 @@ class Controller:
         assert isinstance(spec, dict)
         return spec
 
-    def _export_plan_request(self, requested_phase: str | None) -> None:
+    def _operator_context(self):
+        """Read and record `--context-file` inputs before the planner is called.
+
+        The digests go into the event log and into the planning packet, so a
+        specification can be traced back to the exact text that shaped it. A
+        file that could not be read is an event, never a silent omission.
+        """
+        paths = list(self.config.planner_context_files)
+        operator = read_operator_context(self.repo_root, paths, self.config.limits)
+        for problem in operator.problems:
+            self.store.event(self.run_id, "context.problem",
+                             f"operator context: {problem}")
+        if operator.digests:
+            self.store.event(
+                self.run_id, "context.operator",
+                "planning context supplied by the operator: "
+                + ", ".join(
+                    f"{d['path']} (file sha256 {(d['source_digest'] or 'unreadable')[:16]}, "
+                    f"{d['source_bytes']} bytes"
+                    + (f"; TRUNCATED to {d['delivered_characters']} characters in the "
+                       f"packet, delivered sha256 {d['delivered_digest'][:16]})"
+                       if d["truncated"] else ")")
+                    for d in operator.digests),
+                payload={"files": operator.digests},
+            )
+        elif paths:
+            raise PolicyViolation(
+                "every --context-file was rejected, so the planner would have been called "
+                "without the corrections it was told to apply: "
+                + "; ".join(operator.problems)
+            )
+        return operator
+
+    def _export_plan_request(self, requested_phase: str | None, operator=None) -> None:
         """Interactive brain: write everything the application needs to plan."""
         packet = {
             "schema_version": "plan_request/v1",
@@ -378,6 +462,10 @@ class Controller:
             },
             "schema": "phase_spec/v1",
             "planner_prompt": role_prompt("planner"),
+            "operator_context": {
+                "files": operator.digests if operator else [],
+                "text": operator.render() if operator else "",
+            },
         }
         path = self.run_dir / "plan-request.json"
         write_json_atomic(path, packet)
@@ -520,6 +608,23 @@ class Controller:
                 "protected locations changed during the run: " + "; ".join(tampering)
             )
 
+    def _assert_scope_resolves_inside(self, node: TaskNode, checkout: Path) -> None:
+        """Every root a task is anchored at must resolve inside its own checkout.
+
+        The sandbox grants the worktree; this checks, before the worker starts,
+        that what the specification anchored the task at is actually reachable
+        there -- and that nothing resolves out of it through a symlink. Same
+        literal-versus-pattern rule as the guard, so a dynamic-route directory
+        is an anchor and not a wildcard.
+        """
+        for root in node.guard().literal_roots():
+            resolved = resolve_within(checkout, root)
+            self.store.event(
+                self.run_id, "scope.anchor",
+                f"{root} resolves inside {checkout.name}", task_id=node.id,
+                payload={"root": root, "resolved": str(resolved)},
+            )
+
     def _collect(self, task_id: str, future: concurrent.futures.Future,
                  done: set[str], scheduler: Scheduler) -> None:
         node = scheduler.nodes[task_id]
@@ -557,6 +662,8 @@ class Controller:
                 f"working in {worktree.path.name} from {base[:12]}",
                 worktree=str(worktree.path),
             )
+
+            self._assert_scope_resolves_inside(node, worktree.path)
 
             assignment = build_task_assignment(
                 run_id=self.run_id, task=task_spec, spec=self.spec,
@@ -661,11 +768,7 @@ class Controller:
                 task_id=task_id,
             )
 
-        runner = VerificationRunner(
-            self.registry, store=self.store, run_id=self.run_id,
-            base_commit=self.base_commit, spec_digest=self.spec_digest,
-            artifacts_dir=self.evidence_dir,
-        )
+        runner = self._verification_runner()
         fingerprint = tree_fingerprint(worktree)
         records = runner.run_many(
             requested, checkout=worktree, candidate_fingerprint=fingerprint,
@@ -721,14 +824,24 @@ class Controller:
     def _link_environment(self, checkout: Path) -> None:
         """Give a checkout the dependency trees its checks need.
 
-        `node_modules` and `.venv` are symlinked from the original checkout so a
-        worktree can run `npm run typecheck` without a fresh install. The venv
-        link is recorded as a limitation, not hidden: Pipewright installs its
-        service packages with `pip install -e`, so a linked venv resolves those
-        packages to the *original* checkout's source. `VerificationRunner`
-        checks exactly that and reports it, which is why the integrated gate is
-        run against a checkout whose modules were confirmed to resolve locally.
+        `node_modules` is symlinked from the original checkout so a worktree can
+        run `npm run typecheck` without a fresh install.
+
+        **`.venv` deliberately is not**, and the docstring here used to say it
+        was while the loop below only ever linked one of them. Pipewright
+        installs its service packages with `pip install -e`, so a virtualenv
+        belonging to another checkout imports *that* checkout's source: every
+        Python check would run, and would be testing the wrong tree. A check
+        that passes against code nobody is publishing is worse than one that
+        says it did not run.
+
+        The cost is real and is stated rather than hidden: without a virtualenv
+        in the checkout, every check declaring `requires=("venv",)` records
+        `not_run`, which is not a pass, so the completion gate does not close.
+        `_report_environment_gap` names that at the start of a run instead of
+        leaving it to be discovered at COMMIT.
         """
+        self._report_environment_gap(checkout)
         for name in ("node_modules",):
             source = self.repo_root / name
             target = checkout / name
@@ -740,6 +853,29 @@ class Controller:
                         self.run_id, "environment.link_failed",
                         f"could not link {name} into {checkout.name}: {exc}",
                     )
+
+    def _report_environment_gap(self, checkout: Path) -> None:
+        """Name the checks this checkout cannot execute, before they are needed."""
+        if (checkout / ".venv" / "bin" / "python").exists():
+            return
+        blocked = sorted(c.id for c in self.registry.all() if "venv" in c.requires)
+        if not blocked:
+            return
+        gating = sorted(set(blocked) & set(self.gate_checks() if self.spec else
+                                           [c.id for c in self.registry.gates()]))
+        note = (
+            f"{checkout.name} has no .venv, so {len(blocked)} check(s) will record "
+            f"'not_run' rather than execute: {', '.join(blocked)}."
+            + (f" {len(gating)} of them gate completion ({', '.join(gating)}), so this run "
+               f"cannot reach COMMIT until the checkout has its own environment."
+               if gating else "")
+            + " Linking the original checkout's virtualenv is not the fix: editable "
+              "installs would resolve there and the checks would pass against a different "
+              "tree."
+        )
+        self.notes.append(note)
+        self.store.event(self.run_id, "environment.gap", note,
+                         payload={"checkout": str(checkout), "checks": blocked})
 
     def _integrate_task(self, task_id: str, bundle: PatchBundle) -> None:
         assert self.spec is not None
@@ -841,11 +977,7 @@ class Controller:
     def _capture_baseline(self) -> None:
         """Run the required checks before any change, so a pre-existing failure stays visible."""
         assert self.spec is not None
-        runner = VerificationRunner(
-            self.registry, store=self.store, run_id=self.run_id,
-            base_commit=self.base_commit, spec_digest=self.spec_digest,
-            artifacts_dir=self.evidence_dir,
-        )
+        runner = self._verification_runner()
         fingerprint = tree_fingerprint(self.candidate_dir)
         self._emit(activity="capturing the pre-change baseline")
         self.baseline = runner.capture_baseline(
@@ -873,13 +1005,23 @@ class Controller:
         self._transition(RunState.INTEGRATE, "freezing the integrated candidate")
         git.git(self.candidate_dir, ["add", "-A", "--", ".", *CONTROLLER_SCRATCH], check=False)
 
-        isolation_problems = VerificationRunner(
-            self.registry, store=self.store, run_id=self.run_id,
-            base_commit=self.base_commit, spec_digest=self.spec_digest,
-            artifacts_dir=self.evidence_dir,
-        ).check_module_isolation(self.candidate_dir, ("shared_python", "api_gateway"))
+        isolation_problems = self._verification_runner().check_module_isolation(
+            self.candidate_dir, ("shared_python", "api_gateway"),
+        )
         for problem in isolation_problems:
             self.store.event(self.run_id, "environment.isolation", problem)
+        if isolation_problems and self.config.verification_profile != "fixture":
+            # Verifying the wrong tree is not a lesser form of verifying. If the
+            # candidate's interpreter resolves Pipewright's packages somewhere
+            # else, every Python result below describes another checkout's code,
+            # and recording those results as this candidate's evidence is the
+            # precise false pass this run exists to prevent.
+            raise PolicyViolation(
+                "the candidate checkout cannot verify its own code:\n  "
+                + "\n  ".join(isolation_problems)
+                + "\nEvery Python check here would describe a different tree, so the "
+                  "run is blocked rather than verified against the wrong source."
+            )
 
         self.candidate_fingerprint = tree_fingerprint(self.candidate_dir)
         self.store.update_run_fields(
@@ -890,11 +1032,7 @@ class Controller:
             f"verifying candidate {self.candidate_fingerprint[:20]}…",
         )
 
-        runner = VerificationRunner(
-            self.registry, store=self.store, run_id=self.run_id,
-            base_commit=self.base_commit, spec_digest=self.spec_digest,
-            artifacts_dir=self.evidence_dir,
-        )
+        runner = self._verification_runner()
         required = self.gate_checks()
         records = runner.run_many(
             required, checkout=self.candidate_dir,
@@ -956,11 +1094,7 @@ class Controller:
             ]
             self._run_repair_round(findings, label=f"verification round {rounds}")
 
-            runner = VerificationRunner(
-                self.registry, store=self.store, run_id=self.run_id,
-                base_commit=self.base_commit, spec_digest=self.spec_digest,
-                artifacts_dir=self.evidence_dir,
-            )
+            runner = self._verification_runner()
             self.candidate_fingerprint = tree_fingerprint(self.candidate_dir)
             records = runner.run_many(
                 [r["verification_id"] for r in regressions], checkout=self.candidate_dir,

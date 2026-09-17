@@ -44,11 +44,47 @@ class Check:
     # silently. `npm run verify` locally is not the same coverage as CI, which
     # brings up PostgreSQL, MySQL and MariaDB.
     infra_note: str | None = None
+    # What a result from this check is worth. `gate` closes a completion gate;
+    # `optional_smoke` is a diagnostic that cannot stand in for one; `required_live`
+    # is an end-to-end acceptance path that only counts when a plan requires it.
+    # Stated here so `pw-dev checks` and plan validation can say which is which
+    # instead of leaving a reader to infer it from a name.
+    evidence_class: str = "standard"
+    # Exit statuses this check gives a specific meaning. Everything unmapped is
+    # the usual pass/fail. A runner that collapsed "no scenario" and "a step
+    # failed" into one word would hide which of them happened.
+    exit_outcomes: dict[int, str] = field(default_factory=dict)
 
-    def render(self, repo: Path) -> tuple[list[str], Path]:
-        argv = [token.replace("{repo}", str(repo)) for token in self.argv]
-        cwd = Path(self.cwd.replace("{repo}", str(repo)))
-        return argv, cwd
+    def render(self, repo: Path,
+               parameters: dict[str, str] | None = None) -> tuple[list[str], Path]:
+        """Bind `{repo}` and any controller-supplied parameters.
+
+        Parameters come from the controller -- the run's specification, not a
+        model's message -- and each value is put through `normalise` before it
+        reaches an argument. A token left unbound stays in the argv verbatim so
+        the caller can refuse to run rather than execute a literal `{scenario}`.
+        """
+        from ..workspace.guard import normalise
+
+        bindings = {"repo": str(repo)}
+        for name, value in (parameters or {}).items():
+            bindings[name] = normalise(str(value))
+
+        def bind(text: str) -> str:
+            for name, value in bindings.items():
+                text = text.replace("{" + name + "}", value)
+            return text
+
+        return [bind(token) for token in self.argv], Path(bind(self.cwd))
+
+    def unbound_tokens(self, argv: list[str]) -> list[str]:
+        """Placeholders still present after rendering."""
+        seen: list[str] = []
+        for token in argv:
+            for match in re.finditer(r"\{([a-z_][a-z0-9_]*)\}", token):
+                if match.group(1) not in seen:
+                    seen.append(match.group(1))
+        return seen
 
 
 def _venv(repo_token: str = "{repo}") -> str:
@@ -161,10 +197,38 @@ PIPEWRIGHT_CHECKS: tuple[Check, ...] = (
     ),
     Check(
         id="repo:smoke",
-        description="scripts/smoke-test.sh",
+        description=(
+            "scripts/smoke-test.sh -- an OPTIONAL diagnostic: repository layout, then health "
+            "probes against whatever answers SMOKE_API_ROOT. It exits 0 offline, and a "
+            "gateway started from another checkout satisfies it, so it is not acceptance "
+            "evidence for an authenticated workflow. Use repo:live-acceptance for that"
+        ),
         argv=("bash", "./scripts/smoke-test.sh"),
         timeout_seconds=1200,
         requires=("venv",),
+        evidence_class="optional_smoke",
+    ),
+    Check(
+        id="repo:live-acceptance",
+        description=(
+            "REQUIRED live acceptance: proves this checkout's own code is what runs, "
+            "starts the gateway from it on an ephemeral port with a disposable database, "
+            "storage, signing secret and test credentials, runs every step of "
+            "scripts/live-acceptance/<scenario>.json, and fails closed. A missing scenario "
+            "records not_run, unreachable infrastructure records infra_unavailable, a "
+            "skipped step records skip -- none of which is a pass"
+        ),
+        # The launcher is a literal here, in controller-owned code. It is not a
+        # parameter and not a scenario field: a worker who could choose what to
+        # start could satisfy this gate with `python -m http.server`.
+        argv=(f"{_venv()}",
+              "{repo}/tools/dev-orchestrator/src/pw_dev/verify/live_acceptance.py",
+              "{repo}", "{scenario}", "pipewright-gateway",
+              "{repo}/.pw-dev-scratch/live-acceptance-evidence.json"),
+        timeout_seconds=1800,
+        requires=("venv",),
+        evidence_class="required_live",
+        exit_outcomes={20: "infra_unavailable", 21: "not_run", 22: "skip", 2: "error"},
     ),
     Check(
         id="connectors:servers",
@@ -184,11 +248,16 @@ PIPEWRIGHT_CHECKS: tuple[Check, ...] = (
     ),
     Check(
         id="alembic:heads",
-        description="Exactly one Alembic head -- catches two workers allocating parallel revisions",
-        argv=(f"{_venv()}", "-m", "alembic", "heads"),
-        cwd="{repo}/apps/api-gateway",
+        description=(
+            "Exactly one Alembic head, asserted against the revision graph -- catches two "
+            "workers allocating parallel revisions. `alembic heads` alone does not: it exits "
+            "0 with two heads and with none"
+        ),
+        argv=(f"{_venv()}", "{repo}/tools/dev-orchestrator/src/pw_dev/verify/alembic_heads.py",
+              "{repo}/apps/api-gateway"),
         timeout_seconds=300,
         requires=("venv",),
+        gate=True,
     ),
 )
 
@@ -228,6 +297,14 @@ class Registry:
     def gates(self) -> list[Check]:
         return [c for c in self._checks.values() if c.gate]
 
+    def all(self) -> list[Check]:
+        """Every registered check, in id order."""
+        return [self._checks[check_id] for check_id in sorted(self._checks)]
+
+    def of_class(self, evidence_class: str) -> list[Check]:
+        """Registered checks of one evidence class, e.g. every required live path."""
+        return [c for c in self._checks.values() if c.evidence_class == evidence_class]
+
     def ids(self) -> list[str]:
         return sorted(self._checks)
 
@@ -251,6 +328,7 @@ class Registry:
             argv=argv, cwd=check.cwd, timeout_seconds=check.timeout_seconds,
             requires=check.requires, infra=check.infra, gate=check.gate,
             env=dict(check.env), infra_note=check.infra_note,
+            evidence_class=check.evidence_class, exit_outcomes=dict(check.exit_outcomes),
         )
 
 

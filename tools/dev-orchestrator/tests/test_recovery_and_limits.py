@@ -6,7 +6,6 @@ import json
 import subprocess
 import threading
 import time
-from dataclasses import replace
 from pathlib import Path
 
 
@@ -195,24 +194,25 @@ def test_a_candidate_that_changed_since_the_recorded_fingerprint_invalidates_app
 # ------------------------------------------------------------------- limits
 def test_an_exhausted_run_budget_pauses_with_work_preserved(fixture_repo: Path, tmp_path: Path):
     base = git.head_sha(fixture_repo)
-    # The plan's limits must fit inside the adopted ones, or the run is refused
-    # at validation for a different reason. Here both are zero: the budget is
-    # already spent when the first worker is about to be dispatched.
+    # A schedulable plan with an ordinary budget: a zero-second budget is not a
+    # budget, and plan validation refuses it as unschedulable before any of this
+    # happens. What is simulated here is a run whose wall clock ran out while it
+    # was working, so the controller is handed a deadline that has already passed.
     spec = spec_for(base, resource_limits={"max_parallel_workers": 2,
                                            "per_task_seconds": 60,
-                                           "total_run_seconds": 0,
+                                           "total_run_seconds": 600,
                                            "repair_rounds_per_task": 2})
     bin_dir = tmp_path / "bin"
     codex = fake_codex(bin_dir, {"planner": spec})
     claude = fake_claude(bin_dir, edits=PASSING_EDIT)
     config = make_run_config(fixture_repo, tmp_path, codex, claude, mode="none")
-    config = replace(config, limits=replace(config.limits, total_run_seconds=0))
 
     store = RunStore(config.db_path(), config.runs_dir())
     run_id = store.create_run(brain="automatic", config_snapshot=config.snapshot(),
                               publication_mode="none", deadline_epoch=None)
     controller = Controller(config, store=store, run_id=run_id, brain="automatic",
                             reporter=lambda line: None)
+    controller._deadline = time.monotonic() - 1
     controller.acquire()
     try:
         state = controller.execute(imported_spec=spec)

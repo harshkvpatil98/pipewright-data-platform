@@ -20,7 +20,7 @@ from pathlib import Path
 
 from ..config import Limits
 from ..schemas.validate import validate_artifact
-from ..util.hashing import digest_json
+from ..util.hashing import digest_bytes, digest_json, digest_text
 from ..util.redact import redact
 from ..workspace.guard import PathViolation, normalise
 
@@ -99,6 +99,83 @@ class ContextBuilder:
                 f"### `{entry.path}`\n_why: {entry.reason}_\n\n```\n{entry.body}\n```"
             )
         return "\n\n".join(blocks)
+
+
+@dataclass
+class OperatorContext:
+    """Text the operator hands the planner, bounded and recorded.
+
+    A filename in a prompt is a hope. `plan --context-file` reads the file,
+    bounds it, redacts it, digests it and puts the body in the packet, so what
+    the planner received is what the operator wrote and the digest proves which
+    revision of it that was.
+
+    The file must be inside the repository, like every other context source in
+    this package: a planning packet that can read `~/.aws/credentials` is a
+    different tool.
+    """
+
+    files: list[ContextFile]
+    digests: list[dict]
+    problems: list[str]
+
+    def render(self) -> str:
+        if not self.files:
+            return ""
+        blocks = []
+        for entry, meta in zip(self.files, self.digests):
+            note = (f" — TRUNCATED at {len(entry.body)} characters of "
+                    f"{meta['source_bytes']} bytes; read the rest from `{entry.path}` in "
+                    f"this checkout before relying on it" if entry.truncated else "")
+            stamp = (meta["source_digest"] or meta["delivered_digest"])[:16]
+            blocks.append(
+                f"### `{entry.path}` (sha256 {stamp}…{note})\n\n{entry.body}"
+            )
+        return "\n\n".join(blocks)
+
+
+def read_operator_context(repo_root: Path, paths: list[str], limits: Limits,
+                          *, max_files: int = 8) -> OperatorContext:
+    """Read operator-supplied context files, refusing anything outside the repository.
+
+    Two digests are recorded, because they answer two questions. `source_digest`
+    is SHA-256 over the file's bytes on disk, and it identifies *which revision
+    of the document* the operator supplied. `delivered_digest` is over the text
+    that actually reached the provider, after redaction and any truncation, and
+    it identifies *what the planner read*. Recording only the second would let
+    two files with the same bounded prefix and different tails share an
+    identifier -- which is the opposite of what a digest is for.
+    """
+    builder = ContextBuilder(repo_root, limits)
+    requested = list(paths)[:max_files]
+    problems: list[str] = []
+    if len(paths) > max_files:
+        problems.append(
+            f"{len(paths) - max_files} further context file(s) were not read: "
+            f"--context-file is capped at {max_files} files"
+        )
+    files, read_problems = builder.read(
+        [(p, "supplied by the operator for this planning run") for p in requested]
+    )
+    problems.extend(read_problems)
+
+    digests = []
+    for entry in files:
+        source = Path(repo_root) / entry.path
+        try:
+            raw = source.read_bytes()
+            source_digest, source_bytes = digest_bytes(raw), len(raw)
+        except OSError:
+            source_digest, source_bytes = None, None
+        digests.append({
+            "path": entry.path,
+            "source_digest": source_digest,
+            "source_bytes": source_bytes,
+            "delivered_digest": digest_text(entry.body),
+            "delivered_characters": len(entry.body),
+            "truncated": entry.truncated,
+        })
+    return OperatorContext(files=files, digests=digests, problems=problems)
 
 
 def build_task_assignment(

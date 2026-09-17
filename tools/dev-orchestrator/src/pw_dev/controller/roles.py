@@ -17,7 +17,7 @@ from .context import ContextBuilder
 
 def plan_prompt(*, discovery: dict, registry_ids: list[tuple[str, str]], base_commit: str,
                 config_summary: dict, requested_phase: str | None,
-                context_text: str) -> str:
+                context_text: str, operator_context: str = "") -> str:
     """The planner's packet.
 
     The contradictions discovery found are handed over explicitly. A planner
@@ -34,6 +34,19 @@ def plan_prompt(*, discovery: dict, registry_ids: list[tuple[str, str]], base_co
     contradictions = "\n".join(f"- {c}" for c in discovery["contradictions"]) or "- (none found)"
     deferred = "\n".join(f"- {d}" for d in discovery["deferred_decisions"]) or "- (none recorded)"
     checks = "\n".join(f"- `{cid}`: {description}" for cid, description in registry_ids)
+
+    operator_block = ""
+    if operator_context:
+        operator_block = f"""
+## Corrections and requirements supplied by the operator
+
+These are the operator's own instructions for this plan, handed over in full rather
+than named. They rank above roadmap prose and above your own reading of the
+repository; where they conflict with something below, follow them and record the
+conflict in `open_questions`. Address every one of them.
+
+{operator_context}
+"""
 
     target = (
         f"Plan **phase {requested_phase}**." if requested_phase else
@@ -90,7 +103,7 @@ adopted one exactly.
 ## Repository context
 
 {context_text}
-
+{operator_block}
 ---
 
 Return one JSON document conforming to the phase_spec/v1 schema. `base_commit` must be

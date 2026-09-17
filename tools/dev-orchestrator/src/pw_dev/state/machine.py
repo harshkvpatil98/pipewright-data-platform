@@ -1,10 +1,25 @@
 """The run state machine.
 
 Every transition is explicit. A status is only allowed to mean one thing, and
-the ones that look like success are the narrowest: `COMPLETE` requires a
-publication receipt, `VERIFIED_LOCAL` is what a run reaches when publication was
-never requested, and neither is reachable from an exhausted budget -- that is
-`PAUSED`, which is resumable, and says so.
+the ones that look like success are the narrowest.
+
+Three of them are separated on purpose, because they were once one word:
+
+* `PLAN_READY` -- a specification passed structural and policy validation.
+  Nobody implemented it, no check ran against it, and no reviewer saw it.
+  Validation establishes that the document is well-formed, in scope, within the
+  adopted budget and free of the conflicts the controller can decide; it
+  establishes nothing about whether the design is right;
+* `VERIFIED_LOCAL` -- an implementation the controller verified and an
+  independent reviewer approved. Nothing was published;
+* `COMPLETE` -- the above, published, with the remote ref read back and matched.
+
+A plan-only run used to finish in `VERIFIED_LOCAL`, whose own description says
+"verified and approved". It was neither. `PLAN_READY` exists so the status is
+the truth rather than the nearest available word.
+
+Neither success state is reachable from an exhausted budget -- that is `PAUSED`,
+which is resumable, and says so.
 """
 
 from __future__ import annotations
@@ -17,6 +32,7 @@ class RunState(str, Enum):
     PLAN = "PLAN"
     WAITING_FOR_PLAN = "WAITING_FOR_PLAN"
     VALIDATE_PLAN = "VALIDATE_PLAN"
+    PLAN_READY = "PLAN_READY"
     IMPLEMENT = "IMPLEMENT"
     INTEGRATE = "INTEGRATE"
     VERIFY = "VERIFY"
@@ -50,7 +66,14 @@ class TaskState(str, Enum):
 #: States a run can stop in. Only two of them mean the work is finished, and
 #: `VERIFIED_LOCAL` explicitly does not mean anything was published.
 TERMINAL_RUN_STATES = frozenset({
-    RunState.COMPLETE, RunState.VERIFIED_LOCAL, RunState.CANCELLED, RunState.FAILED,
+    RunState.COMPLETE, RunState.VERIFIED_LOCAL, RunState.PLAN_READY,
+    RunState.CANCELLED, RunState.FAILED,
+})
+
+#: Stopping states that are not a failure. They mean different amounts, which is
+#: the point of keeping them apart.
+SUCCESSFUL_RUN_STATES = frozenset({
+    RunState.COMPLETE, RunState.VERIFIED_LOCAL, RunState.PLAN_READY,
 })
 
 #: Stopped but resumable. A run here has preserved work and a stated condition.
@@ -80,9 +103,9 @@ _ALLOWED: dict[RunState, frozenset[RunState]] = {
         RunState.IMPLEMENT, RunState.PLAN, RunState.WAITING_FOR_PLAN,
         # A plan-only run stops here: a validated specification was produced and
         # deliberately not implemented. That is a finished run, not an abandoned
-        # one, and it published nothing -- which is exactly what VERIFIED_LOCAL
-        # means.
-        RunState.VERIFIED_LOCAL,
+        # one -- and it is `PLAN_READY`, not `VERIFIED_LOCAL`, because nothing
+        # was verified and nobody reviewed it.
+        RunState.PLAN_READY,
         RunState.BLOCKED, RunState.PAUSED, RunState.FAILED, RunState.CANCELLED,
     }),
     RunState.IMPLEMENT: frozenset({
@@ -130,6 +153,7 @@ _ALLOWED: dict[RunState, frozenset[RunState]] = {
     }),
     RunState.COMPLETE: frozenset(),
     RunState.VERIFIED_LOCAL: frozenset(),
+    RunState.PLAN_READY: frozenset(),
     RunState.CANCELLED: frozenset(),
     RunState.FAILED: frozenset(),
 }
@@ -150,6 +174,10 @@ def describe(state: RunState) -> str:
         RunState.PLAN: "the planner is producing a phase specification",
         RunState.WAITING_FOR_PLAN: "waiting for an operator-supplied specification (pw-dev plan-import)",
         RunState.VALIDATE_PLAN: "validating the specification against the adopted policy",
+        RunState.PLAN_READY: (
+            "the specification passed structural and policy validation; nothing was "
+            "implemented, no check was executed and no reviewer saw it"
+        ),
         RunState.IMPLEMENT: "workers are implementing assigned tasks",
         RunState.INTEGRATE: "integrating completed task outputs into the candidate",
         RunState.VERIFY: "the controller is executing required verifications",
@@ -159,9 +187,30 @@ def describe(state: RunState) -> str:
         RunState.COMMIT: "creating the commit for the approved tree",
         RunState.PUSH: "publishing the verified branch",
         RunState.COMPLETE: "published, and the remote ref was read back and matched",
-        RunState.VERIFIED_LOCAL: "verified and approved locally; publication was not requested",
+        RunState.VERIFIED_LOCAL: (
+            "implemented, verified by the controller and approved by an independent "
+            "reviewer; publication was not requested, so nothing was published"
+        ),
         RunState.BLOCKED: "stopped on a condition the controller may not decide alone",
         RunState.PAUSED: "a configured limit was reached; the run is resumable",
         RunState.CANCELLED: "cancelled by the operator; recoverable work was preserved",
         RunState.FAILED: "stopped on an unrecoverable error",
     }[state]
+
+
+def describe_run(state: RunState, *, plan_only: bool = False) -> str:
+    """The line for one stored run, which may predate `PLAN_READY`.
+
+    Runs recorded before that state existed finished plan-only work in
+    `VERIFIED_LOCAL`. Their rows are historical evidence and are not rewritten;
+    they are described for what they were instead, so an old plan-only run is
+    not read as an approved implementation and an old implementation run is not
+    demoted to a plan.
+    """
+    if plan_only and state is RunState.VERIFIED_LOCAL:
+        return (
+            "a specification was produced and validated; nothing was implemented, verified "
+            "or reviewed. Recorded before PLAN_READY existed, under the state this tool "
+            "then used for a plan-only run"
+        )
+    return describe(state)

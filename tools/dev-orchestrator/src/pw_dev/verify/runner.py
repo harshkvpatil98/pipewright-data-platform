@@ -87,13 +87,14 @@ class VerificationRunner:
 
     def __init__(
         self, registry: Registry, *, store, run_id: str, base_commit: str,
-        spec_digest: str, artifacts_dir: Path,
+        spec_digest: str, artifacts_dir: Path, parameters: dict[str, str] | None = None,
     ) -> None:
         self.registry = registry
         self.store = store
         self.run_id = run_id
         self.base_commit = base_commit
         self.spec_digest = spec_digest
+        self.parameters = dict(parameters or {})
         self.artifacts_dir = Path(artifacts_dir)
         self.artifacts_dir.mkdir(parents=True, exist_ok=True)
         self._env_cache: dict[str, EnvironmentFacts] = {}
@@ -107,7 +108,7 @@ class VerificationRunner:
         if isinstance(check, str):
             check = self.registry.get(check)
         checkout = Path(checkout).resolve()
-        argv, cwd = check.render(checkout)
+        argv, cwd = check.render(checkout, self.parameters)
         facts = self._environment(checkout, modules_to_resolve)
         started = utc_now()
 
@@ -134,6 +135,17 @@ class VerificationRunner:
             "environment": facts.to_dict(),
             "detail": None,
         }
+
+        unbound = check.unbound_tokens(argv)
+        if unbound:
+            document["outcome"] = Outcome.NOT_RUN
+            document["finished_at"] = utc_now()
+            document["detail"] = (
+                f"the controller has no value for {', '.join(sorted(unbound))} in this "
+                f"check's command, so it was not executed. An unparameterised check is "
+                f"not a passing one."
+            )
+            return self._record(document)
 
         missing = self._missing_prerequisites(check, checkout)
         if missing:
@@ -207,6 +219,12 @@ class VerificationRunner:
                 f"killed after {check.timeout_seconds}s. Whether it would have passed is "
                 f"unknown; the process group was terminated."
             )
+        elif result.returncode in check.exit_outcomes:
+            # A check that distinguishes "there is no scenario" from "a step
+            # failed" gets to say so. Every mapped outcome is outside
+            # SUCCESS_OUTCOMES, so none of them closes a gate.
+            document["outcome"] = check.exit_outcomes[result.returncode]
+            document["detail"] = _failure_detail(result)
         elif result.returncode != 0:
             document["outcome"] = Outcome.FAIL
             document["detail"] = _failure_detail(result)

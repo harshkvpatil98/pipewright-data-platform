@@ -19,6 +19,7 @@ Two kinds of fixture here, deliberately:
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -694,3 +695,55 @@ def test_a_same_size_launcher_rewrite_within_one_second_still_rebuilds(
     launcher.write_text(f"#!{shared}/bin/python\nprint('v2')\n", encoding="utf-8")
     assert len("v1") == len("v2"), "the rewrite is the same size, on purpose"
     assert not pyenv.prepare(synthetic, shared_venv=shared).reused
+
+
+def test_a_launcher_rewrite_that_restores_its_timestamp_still_rebuilds(
+        synthetic: Path, tmp_path: Path):
+    """Metadata is chosen by whoever writes the file; content is not.
+
+    Size, mode and modification time can all be put back exactly, so an
+    environment that trusted them would keep running a launcher that is no
+    longer the one it was stamped against. The manifest carries a digest of
+    the bytes for this case.
+    """
+    shared = tmp_path / "shared"
+    (shared / "bin").mkdir(parents=True)
+    for name in ("python", "python3"):
+        (shared / "bin" / name).symlink_to(SHARED_VENV / "bin" / "python")
+    launcher = shared / "bin" / "atool"
+    launcher.write_text(f"#!{shared}/bin/python\nprint('v1')\n", encoding="utf-8")
+    before = launcher.stat()
+
+    first = pyenv.prepare(synthetic, shared_venv=shared)
+    if not first.prepared:
+        pytest.skip(f"the minimal shared venv is not usable here: {first.problems}")
+
+    launcher.write_text(f"#!{shared}/bin/python\nprint('v2')\n", encoding="utf-8")
+    os.utime(launcher, ns=(before.st_atime_ns, before.st_mtime_ns))
+    os.chmod(launcher, before.st_mode)
+    after = launcher.stat()
+    assert (after.st_size, after.st_mtime_ns, after.st_mode) == (
+        before.st_size, before.st_mtime_ns, before.st_mode), (
+        "the point of the test is that every metadata field is identical")
+
+    assert not pyenv.prepare(synthetic, shared_venv=shared).reused
+
+
+def test_a_launcher_symlink_is_stamped_by_its_target_not_its_contents(
+        tmp_path: Path):
+    """Repointing a launcher symlink changes what runs, so it changes the stamp."""
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    (tmp_path / "one").write_text("#!/bin/sh\necho one\n", encoding="utf-8")
+    (tmp_path / "two").write_text("#!/bin/sh\necho one\n", encoding="utf-8")
+    link = bin_dir / "atool"
+    link.symlink_to(tmp_path / "one")
+
+    before = pyenv._launcher_manifest(bin_dir)
+    link.unlink()
+    link.symlink_to(tmp_path / "two")
+    after = pyenv._launcher_manifest(bin_dir)
+
+    assert before != after, "the two targets have identical contents, on purpose"
+    assert before[0][-1] == f"link:{tmp_path / 'one'}"
+    assert after[0][-1] == f"link:{tmp_path / 'two'}"

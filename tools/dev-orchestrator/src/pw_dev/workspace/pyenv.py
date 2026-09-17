@@ -78,7 +78,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..util.hashing import digest_json
+from ..util.hashing import digest_file, digest_json
 
 #: Written into the checkout's site-packages. One file, so the composition is
 #: readable with `cat` when something looks wrong.
@@ -310,7 +310,7 @@ def stamp_for(checkout: Path, shared: Path, interpreter_version: str,
         "base_interpreter": _interpreter_identity(base),
         "source_roots": sorted(str(p) for p in roots),
         "launchers": _launcher_manifest(base.parent if base else None),
-        "layout": 4,
+        "layout": 5,
     })
 
 
@@ -331,7 +331,18 @@ def _interpreter_identity(base: Path | None) -> dict | None:
 
 
 def _launcher_manifest(bin_dir: Path | None) -> list[list]:
-    """Name, size and modification time of every launcher that would be copied."""
+    """What every launcher that would be copied *is*, not just when it changed.
+
+    Metadata alone was not enough. Name, size and a whole-second modification
+    time all stayed the same when a launcher was rewritten with same-sized
+    content inside one second, and the checkout went on using its stale copy.
+    Nanosecond time narrows that window but does not close it, because a
+    modification time is something a writer chooses.
+
+    So the manifest carries the content itself, as a digest. A symlink records
+    its target without being followed — reading through it would describe the
+    interpreter it points at rather than the link that could be repointed.
+    """
     if bin_dir is None or not Path(bin_dir).is_dir():
         return []
     manifest = []
@@ -339,14 +350,17 @@ def _launcher_manifest(bin_dir: Path | None) -> list[list]:
         if entry.name in _SKIP_SCRIPTS or entry.name.startswith("python"):
             continue
         try:
-            stat_result = entry.stat()
+            stat_result = entry.lstat()
+            if stat.S_ISLNK(stat_result.st_mode):
+                content = f"link:{os.readlink(entry)}"
+            elif stat.S_ISREG(stat_result.st_mode):
+                content = digest_file(entry)
+            else:
+                content = f"kind:{stat.S_IFMT(stat_result.st_mode)}"
         except OSError:
             continue
-        # Nanoseconds, not seconds: rewriting a launcher with same-sized
-        # content inside one second left name, size and second unchanged, and
-        # the checkout kept its stale copy.
         manifest.append([entry.name, stat_result.st_size, stat_result.st_mtime_ns,
-                         stat_result.st_mode])
+                         stat_result.st_mode, content])
     return manifest
 
 

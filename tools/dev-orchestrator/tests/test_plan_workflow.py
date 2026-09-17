@@ -189,9 +189,14 @@ def test_a_single_task_that_can_exhaust_the_whole_run_is_refused(config):
     assert any("the first task can exhaust the run" in e for e in report.errors)
 
 
-def test_the_time_ceiling_is_reported_as_a_ceiling_not_a_requirement(config):
-    """`per_task_seconds` is a timeout. Twelve one-second tasks are not twelve
-    timeouts of work, and rejecting them would refuse a plan that finishes."""
+def test_worker_capacity_is_a_bound_even_without_a_dependency_chain(config):
+    """Twelve independent tasks and two workers is six unavoidable waves.
+
+    Dropping this bound was the overcorrection: `ceil(N / W) x timeout` is wrong
+    as a *ceiling* -- a chain can force more waves than capacity does -- but it
+    is a perfectly good lower bound on the worst case, and removing it let a
+    plan needing 180s pass with a 60s budget.
+    """
     spec = make_spec()
     spec["tasks"] = [
         {**copy.deepcopy(spec["tasks"][0]), "id": f"T-{i:02d}",
@@ -201,10 +206,10 @@ def test_the_time_ceiling_is_reported_as_a_ceiling_not_a_requirement(config):
     spec["resource_limits"] = {"max_parallel_workers": 2, "per_task_seconds": 30,
                                "total_run_seconds": 60, "repair_rounds_per_task": 2}
     report = _validate(spec, config)
-    assert report.ok, "a ceiling is not a rejection"
-    warning = next(w for w in report.warnings if "used its full" in w)
-    assert "That is a ceiling, not an estimate" in warning
-    assert "PAUSED" in warning
+    error = next((e for e in report.errors if "cannot overlap" in e), None)
+    assert error, report.render()
+    assert "12 worker task(s) across 2 worker(s), so 6 wave(s)" in error
+    assert "180s" in error
 
 
 def test_a_migration_nobody_owns_is_refused(config):

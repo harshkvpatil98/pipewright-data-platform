@@ -179,7 +179,19 @@ def _check_tasks(spec: dict, report: PlanReport, *, registry: Registry,
             )
 
         if not task["allowed_paths"]:
-            report.errors.append(f"{task['id']} declares no writable paths")
+            if task["role"] != "verification":
+                report.errors.append(
+                    f"{task['id']} ({task['role']}) declares no writable paths. A worker "
+                    f"that owns nothing cannot produce a patch, and the controller has no "
+                    f"scope against which to judge what it did. Only a 'verification' task "
+                    f"may own nothing; the controller then executes it itself."
+                )
+            elif not task["verification_ids"]:
+                report.errors.append(
+                    f"{task['id']} is a verification task that owns nothing and names no "
+                    f"verification_ids, so it would do nothing at all. Give it the checks "
+                    f"it exists to run, or remove it."
+                )
 
         _check_task_paths(task, report)
 
@@ -196,6 +208,16 @@ def _check_tasks(spec: dict, report: PlanReport, *, registry: Registry,
                         f"{task['id']} asks for context file {relative!r}, which is not in "
                         f"this checkout"
                     )
+
+        if task["role"] == "verification" and task["verification_ids"]:
+            required = set(spec["required_verifications"])
+            unrequired = [c for c in task["verification_ids"] if c not in required]
+            if unrequired:
+                report.warnings.append(
+                    f"{task['id']} is a checkpoint whose checks {sorted(unrequired)} are not "
+                    f"in required_verifications. They will gate this task's dependents, but "
+                    f"nothing re-runs them against the final candidate before COMMIT."
+                )
 
         if task["role"] in ("backend", "frontend", "contract"):
             if not any(_looks_like_tests(p) for p in task["allowed_paths"]):
@@ -421,24 +443,138 @@ def _check_limits(spec: dict, report: PlanReport, *, config: Config) -> None:
             f"Budget exhaustion produces PAUSED, not a finished phase."
         )
 
-    # `per_task_seconds` is a *timeout*, not an estimate: a task that finishes
-    # in a minute does not consume thirty. Multiplying it by the task count and
-    # calling the product a requirement rejected plans that would finish
-    # comfortably, and it ignores dependencies and exclusive resources, so it
-    # also understated genuinely serial work. What can honestly be said is the
-    # ceiling, said as a ceiling.
-    tasks = len(spec["tasks"])
+    # `per_task_seconds` is a *timeout*, not an estimate: a task that finishes in
+    # a minute does not consume thirty, so no arithmetic over it predicts a
+    # duration. What it bounds is the worst case, and the useful question is
+    # whether even the *unavoidable* part of that worst case fits.
+    #
+    # Three things force provider calls apart, and the largest is the bound:
+    #
+    #   * a dependency chain -- no number of workers shortens it;
+    #   * worker capacity -- W workers run at most W calls at once, so N tasks
+    #     need at least ceil(N / W) waves. This is a perfectly good *lower*
+    #     bound; it was only ever wrong when quoted as a ceiling, because a
+    #     chain can force more waves than capacity does;
+    #   * an exclusive resource -- one holder at a time, run-wide.
+    #
+    # Only tasks that dispatch a worker are counted. A controller-executed
+    # checkpoint consumes check time, not a provider timeout, and charging it
+    # one would invent work nobody does. Environment preparation, controller
+    # verification, integration and review are excluded too -- said plainly,
+    # rather than folded in as though they were free.
+    worker_tasks = [t for t in spec["tasks"]
+                    if not (t["role"] == "verification" and not t["allowed_paths"])]
+    per_task = limits["per_task_seconds"]
     workers = max(1, limits["max_parallel_workers"])
-    ceiling = -(-tasks // workers) * limits["per_task_seconds"]
-    if ceiling > limits["total_run_seconds"]:
-        report.warnings.append(
-            f"if every one of the {tasks} task(s) used its full {limits['per_task_seconds']}s "
-            f"allowance, {workers} worker(s) would need {ceiling}s against the plan's "
-            f"{limits['total_run_seconds']}s -- before integration, verification, review or "
-            f"repair. That is a ceiling, not an estimate: state the expected duration of "
-            f"each task and the critical path, and plan resumable checkpoints, because "
-            f"exhausting the budget produces PAUSED rather than a finished phase."
+    counted = {t["id"] for t in worker_tasks}
+
+    chain, chain_path = _longest_chain(spec, counted)
+    resource, resource_count = _largest_serialized_resource(worker_tasks)
+    capacity = -(-len(worker_tasks) // workers)
+
+    reasons = [
+        (chain, f"a dependency chain of {chain} worker task(s)"
+                + (f" ({' -> '.join(chain_path)})" if chain_path else "")),
+        (capacity, f"{len(worker_tasks)} worker task(s) across {workers} worker(s), "
+                   f"so {capacity} wave(s)"),
+        (resource_count, f"{resource_count} task(s) serialized on the {resource!r} "
+                         f"resource"),
+    ]
+    rounds, why = max(reasons, key=lambda item: item[0])
+    floor = rounds * per_task
+
+    controller_only = len(spec["tasks"]) - len(worker_tasks)
+    excluded = ("environment preparation, controller verification, integration and review"
+                + (f", and {controller_only} controller-executed checkpoint(s) that "
+                   f"consume no provider call" if controller_only else ""))
+
+    if floor > limits["total_run_seconds"]:
+        report.errors.append(
+            f"{why} cannot overlap, so in the worst case that alone needs {floor}s of "
+            f"provider time against the plan's {limits['total_run_seconds']}s -- before "
+            f"{excluded}, or any of the {limits['repair_rounds_per_task']} repair "
+            f"round(s). Split the work, or plan for a run that pauses and resumes: "
+            f"exhausting the budget produces PAUSED with the work preserved, never a "
+            f"finished phase."
         )
+    elif floor > limits["total_run_seconds"] * 0.5:
+        report.warnings.append(
+            f"the largest unavoidable serialization here is {why}; at the full per-task "
+            f"timeout that is {floor}s of the plan's {limits['total_run_seconds']}s, "
+            f"before {excluded}. That is a worst case, not a prediction, but there is "
+            f"little room in it: plan resumable checkpoints and expect PAUSED rather "
+            f"than completion."
+        )
+
+
+def _longest_chain(spec: dict, counted: set[str] | None = None) -> tuple[int, list[str]]:
+    """The most provider calls that must happen one after another, and the path.
+
+    Dependencies are the part of a schedule no number of workers removes.
+    `counted` restricts what contributes to the length -- a controller-executed
+    checkpoint still orders the tasks around it and still costs no provider
+    call -- while staying in the reported path so the chain reads correctly.
+    """
+    tasks = {t["id"]: list(t["depends_on"]) for t in spec["tasks"]}
+    if counted is None:
+        counted = set(tasks)
+    memo: dict[str, list[str]] = {}
+
+    def longest(task_id: str, seen: frozenset) -> list[str]:
+        if task_id in memo:
+            return memo[task_id]
+        if task_id in seen:
+            # A cycle. The scheduler refuses the plan for it separately; what
+            # must not happen here is inventing a chain out of the loop, which
+            # reported `A -> B -> A` as three serial tasks.
+            raise _Cycle(task_id)
+        best: list[str] = []
+        for parent in tasks.get(task_id, ()):
+            if parent not in tasks:
+                continue
+            candidate = longest(parent, seen | {task_id})
+            if _weight(candidate, counted) > _weight(best, counted):
+                best = candidate
+        path = [*best, task_id]
+        memo[task_id] = path
+        return path
+
+    longest_path: list[str] = []
+    for task_id in tasks:
+        try:
+            path = longest(task_id, frozenset())
+        except _Cycle:
+            return 0, []
+        if _weight(path, counted) > _weight(longest_path, counted):
+            longest_path = path
+    return _weight(longest_path, counted), longest_path
+
+
+def _weight(path: list[str], counted: set[str]) -> int:
+    """How many provider calls a path costs. A controller-executed checkpoint
+    orders the work around it and consumes no provider call, so it counts zero."""
+    return sum(1 for task_id in path if task_id in counted)
+
+
+class _Cycle(Exception):
+    """The graph loops. Reported by the scheduler; never turned into a chain."""
+
+
+def _largest_serialized_resource(tasks: list[dict]) -> tuple[str, int]:
+    """The exclusive resource held by the most tasks, and how many hold it.
+
+    One holder at a time, run-wide, so these tasks cannot overlap either --
+    whatever the dependency graph says.
+    """
+    counts: dict[str, int] = {}
+    for task in tasks:
+        declared = set(task["exclusive_resources"]) | set(_implicit_resources(task))
+        for resource in declared:
+            counts[resource] = counts.get(resource, 0) + 1
+    if not counts:
+        return "none", 0
+    name = max(counts, key=lambda key: (counts[key], key))
+    return name, counts[name]
 
 
 def _check_publication(spec: dict, report: PlanReport, *, config: Config) -> None:

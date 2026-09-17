@@ -39,8 +39,9 @@ from ..util.hashing import digest_json, tree_fingerprint
 from ..util.jsonio import write_json_atomic
 from ..verify.registry import registry_for
 from ..verify.runner import SUCCESS_OUTCOMES, VerificationRunner
-from ..workspace import git
+from ..workspace import git, pyenv
 from ..workspace.guard import PathGuard, PathViolation, resolve_within
+from ..workspace.pyenv import EnvironmentReport
 from ..workspace.patches import (CONTROLLER_SCRATCH, PatchBundle, apply_bundle,
                                  conflicting_paths, export_bundle, would_conflict)
 from ..workspace.sandbox import (SandboxSupport, claude_config_denials,
@@ -52,6 +53,13 @@ from .context import ContextBuilder, build_task_assignment, read_operator_contex
 from .discovery import discover
 from .scheduler import Scheduler, TaskNode, nodes_from_spec, scope_union
 from .validate_plan import validate_plan
+
+
+#: Modules whose import origin proves a checkout is verifying its own code.
+#: One from each layer that is installed editable: the gateway, the shared
+#: library, a service, and this tool. If these four resolve inside the checkout,
+#: the `.pth` composition did what it claims.
+MODULE_OWNERSHIP_PROBES = ("api_gateway", "shared_python", "service_datasets", "pw_dev")
 
 
 @dataclass
@@ -137,6 +145,8 @@ class Controller:
         self.sentinel: Sentinel | None = None
         self.notes: list[str] = []
         self.final_records: dict[str, dict] = {}
+        #: task id -> the candidate fingerprint its checks passed against.
+        self.checkpoints: dict[str, str] = {}
 
     # ------------------------------------------------------------------ setup
     def acquire(self) -> None:
@@ -525,11 +535,29 @@ class Controller:
                 self.config.limits.max_parallel_workers,
             ),
         )
-        # A resumed run does not re-dispatch work that is already integrated.
-        done: set[str] = {
-            row["task_id"] for row in self.store.get_tasks(self.run_id)
-            if row["state"] in (TaskState.INTEGRATED.value, TaskState.DONE.value)
-        } if resuming else set()
+        # A resumed run does not re-dispatch work that is already integrated --
+        # except a checkpoint, whose pass described the candidate as it was at
+        # the time. `_checkpoint_is_current` asks the durable evidence whether
+        # that is still the tree, so a resumed run inherits a verdict only when
+        # it still applies.
+        done: set[str] = set()
+        if resuming:
+            fingerprint = tree_fingerprint(self.candidate_dir)
+            for row in self.store.get_tasks(self.run_id):
+                if row["state"] not in (TaskState.INTEGRATED.value, TaskState.DONE.value):
+                    continue
+                node = next((n for n in nodes if n.id == row["task_id"]), None)
+                if node is not None and node.is_checkpoint():
+                    if not self._checkpoint_is_current(node, fingerprint):
+                        self.store.event(
+                            self.run_id, "checkpoint.stale",
+                            f"{node.id} passed against an earlier candidate; it is "
+                            f"re-checked against {fingerprint[:20]} rather than inherited",
+                            task_id=node.id,
+                        )
+                        continue
+                    self.checkpoints[node.id] = fingerprint
+                done.add(row["task_id"])
         if done:
             self.store.event(
                 self.run_id, "implement.resumed",
@@ -570,6 +598,20 @@ class Controller:
                 for node in ready:
                     for resource in node.effective_resources():
                         self.store.acquire_resource(self.run_id, resource, node.id)
+                    if node.is_controller_executed():
+                        # Nothing to write, so nobody to dispatch. Running the
+                        # checks is the whole task, and the controller owns that.
+                        self.store.set_task_state(
+                            self.run_id, node.id, TaskState.RUNNING,
+                            "controller-executed checkpoint; no worker is dispatched",
+                        )
+                        try:
+                            self._run_checkpoint(node)
+                        finally:
+                            for resource in node.effective_resources():
+                                self.store.release_resource(self.run_id, resource, node.id)
+                        done.add(node.id)
+                        continue
                     running[node.id] = pool.submit(self._run_task, node)
                     self.store.set_task_state(
                         self.run_id, node.id, TaskState.DISPATCHED,
@@ -643,7 +685,124 @@ class Controller:
                 self.store.release_resource(self.run_id, resource, task_id)
 
         self._integrate_task(task_id, bundle)
+        if node.is_checkpoint():
+            self._run_checkpoint(node)
         done.add(task_id)
+
+    def _run_checkpoint(self, node: TaskNode) -> None:
+        """Run a checkpoint's declared checks against the candidate, and gate on them.
+
+        Three things make this different from the advisory checks a worker asks
+        for while it iterates:
+
+        * **the controller chooses what runs.** The checks come from the task's
+          declared `verification_ids` in the accepted specification, not from
+          the worker's `verification_requests`. A worker that omits them, or
+          asks for something easier, changes nothing;
+        * **it runs against the integrated candidate**, not the worker's
+          checkout, so what is verified is the tree the phase is actually
+          building;
+        * **only `pass` releases the dependents.** `fail`, `skip`, `not_run`,
+          `infra_unavailable`, `timeout` and `error` each say something
+          different and none of them says the work is done. The specification's
+          `accepted_preexisting_failures` does not apply here either: that
+          mechanism exists for a check the phase inherited already broken, and
+          a checkpoint is a statement about this phase's own work.
+
+        The passing fingerprint is recorded. A later task that changes the
+        candidate invalidates it, and `_stale_checkpoints` refuses to let a
+        resumed run inherit a pass that described a different tree.
+        """
+        assert self.spec is not None
+        required = list(dict.fromkeys(node.verification_ids))
+        if not required:
+            self.store.event(
+                self.run_id, "checkpoint.empty",
+                f"{node.id} is a checkpoint that names no verification_ids; it gates "
+                f"nothing", task_id=node.id,
+            )
+            return
+
+        fingerprint = tree_fingerprint(self.candidate_dir)
+        self._emit(activity=f"checkpoint {node.id}: {len(required)} required check(s)")
+        runner = self._verification_runner()
+        records = runner.run_many(
+            required, checkout=self.candidate_dir, candidate_fingerprint=fingerprint,
+            task_id=node.id, cancel_check=self._check_cancelled,
+            on_start=lambda cid: setattr(self.progress, "current_check", f"{node.id}:{cid}"),
+        )
+        self.progress.current_check = None
+
+        outcomes = {r["verification_id"]: r["outcome"] for r in records}
+        missing = [check_id for check_id in required if check_id not in outcomes]
+        failing = [
+            f"{check_id}: {outcomes[check_id]}"
+            for check_id in required
+            if check_id in outcomes and outcomes[check_id] not in SUCCESS_OUTCOMES
+        ]
+        if missing or failing:
+            detail = "; ".join(failing + [f"{c}: never executed" for c in missing])
+            self.store.set_task_state(
+                self.run_id, node.id, TaskState.NEEDS_FIX,
+                f"checkpoint not met: {detail}"[:500],
+            )
+            raise PolicyViolation(
+                f"{node.id} is a verification checkpoint and it did not pass against "
+                f"candidate {fingerprint[:20]}: {detail}. Its dependents "
+                f"({', '.join(self._dependents_of(node.id)) or 'none'}) are not released, "
+                f"because only a passing check says the work behind them is done."
+            )
+
+        self.checkpoints[node.id] = fingerprint
+        self.store.set_task_state(
+            self.run_id, node.id, TaskState.INTEGRATED,
+            f"checkpoint met against candidate {fingerprint[:20]}: "
+            f"{', '.join(required)}",
+        )
+        self.store.event(
+            self.run_id, "checkpoint.passed",
+            f"{node.id}: {', '.join(required)} passed against candidate "
+            f"{fingerprint[:20]}",
+            task_id=node.id, payload={"checks": required, "candidate": fingerprint},
+        )
+
+    def _checkpoint_is_current(self, node: TaskNode, fingerprint: str) -> bool:
+        """Whether this checkpoint's evidence describes the candidate as it is now.
+
+        Read from the recorded evidence rather than from memory, because a
+        resumed run is a new process and the only durable statement about what
+        was verified is the evidence itself -- which carries the fingerprint of
+        the tree each check actually ran against.
+        """
+        required = set(node.verification_ids)
+        if not required:
+            return True
+        passing = {
+            record["verification_id"]
+            for record in self.store.evidence_for(
+                self.run_id, candidate_fingerprint=fingerprint)
+            if record.get("task_id") == node.id
+            and record["outcome"] in SUCCESS_OUTCOMES
+        }
+        return required.issubset(passing)
+
+    def _dependents_of(self, task_id: str) -> list[str]:
+        assert self.spec is not None
+        return sorted(t["id"] for t in self.spec["tasks"] if task_id in t["depends_on"])
+
+    def _stale_checkpoints(self) -> list[str]:
+        """Checkpoints whose passing evidence describes an earlier candidate.
+
+        A checkpoint passes against a specific tree. Anything integrated
+        afterwards produces a different tree, and the pass no longer describes
+        what is about to be committed. Reported so a resumed run rechecks rather
+        than inherits.
+        """
+        if not self.checkpoints:
+            return []
+        current = tree_fingerprint(self.candidate_dir)
+        return sorted(task_id for task_id, seen in self.checkpoints.items()
+                      if seen != current)
 
     # ------------------------------------------------------------- one worker
     def _run_task(self, node: TaskNode) -> PatchBundle:
@@ -664,6 +823,10 @@ class Controller:
             )
 
             self._assert_scope_resolves_inside(node, worktree.path)
+            # Before the provider call, not after: a checkout that cannot verify
+            # its own code is knowable in a tenth of a second, and finding out
+            # afterwards costs an implementation call to learn it.
+            self._require_environment(worktree.path, what=f"{node.id}'s checkout")
 
             assignment = build_task_assignment(
                 run_id=self.run_id, task=task_spec, spec=self.spec,
@@ -753,6 +916,13 @@ class Controller:
         nothing was run at all, that is recorded here and handed to the reviewer
         rather than quietly accepted.
         """
+        # Rebuilt from scratch, not reused, and its module origins re-proved.
+        # A worker has had write access to this checkout, and where the host
+        # cannot enforce the carve-out above there is nothing but this standing
+        # between a rewritten interpreter and the controller running it.
+        self._require_environment(
+            worktree, what=f"{task_id}'s checkout after the worker ran", rebuild=True,
+        )
         requested = [
             check_id for check_id in report.get("verification_requests", [])
             if check_id in self.registry
@@ -811,7 +981,7 @@ class Controller:
         """
         if reuse and self.candidate_dir.is_dir() and (self.candidate_dir / ".git").exists():
             self.integration_commits["__latest__"] = git.head_sha(self.candidate_dir)
-            self._link_environment(self.candidate_dir)
+            self._require_environment(self.candidate_dir, what="the resumed candidate")
             return
         if self.candidate_dir.exists():
             self.worktrees.destroy(self.candidate_dir)
@@ -819,29 +989,55 @@ class Controller:
         git.git(self.repo_root, ["branch", "-D", branch], check=False)
         git.add_worktree(self.repo_root, self.candidate_dir, self.base_commit, branch)
         self.integration_commits["__latest__"] = self.base_commit
-        self._link_environment(self.candidate_dir)
+        self._require_environment(self.candidate_dir, what="the integration candidate")
 
-    def _link_environment(self, checkout: Path) -> None:
-        """Give a checkout the dependency trees its checks need.
+    def _link_environment(self, checkout: Path, *, rebuild: bool = False) -> EnvironmentReport:
+        """Give a checkout everything its checks need to run against *its own* code.
 
-        `node_modules` is symlinked from the original checkout so a worktree can
-        run `npm run typecheck` without a fresh install.
+        `node_modules` is shared from the original checkout: JavaScript
+        dependencies are not editable installs of this repository's source, so
+        borrowing them cannot make a check describe the wrong tree.
 
-        **`.venv` deliberately is not**, and the docstring here used to say it
-        was while the loop below only ever linked one of them. Pipewright
-        installs its service packages with `pip install -e`, so a virtualenv
-        belonging to another checkout imports *that* checkout's source: every
-        Python check would run, and would be testing the wrong tree. A check
-        that passes against code nobody is publishing is worse than one that
-        says it did not run.
+        Python is not shareable that way and is not shared. `workspace.pyenv`
+        builds this checkout its own interpreter whose `sys.path` puts *this*
+        checkout's first-party source ahead of a shared third-party
+        installation. Symlinking the original `.venv` would have been shorter
+        and would have made every Python check verify the original checkout,
+        which is worse than a check that says it did not run.
 
-        The cost is real and is stated rather than hidden: without a virtualenv
-        in the checkout, every check declaring `requires=("venv",)` records
-        `not_run`, which is not a pass, so the completion gate does not close.
-        `_report_environment_gap` names that at the start of a run instead of
-        leaving it to be discovered at COMMIT.
+        The result is returned rather than swallowed: a checkout without a
+        usable environment is a condition the caller has to act on, not a line
+        in a log.
         """
-        self._report_environment_gap(checkout)
+        if not self.python_environment_needed():
+            report = EnvironmentReport(
+                checkout=Path(checkout), prepared=True,
+                problems=(),
+            )
+            self.store.event(
+                self.run_id, "environment.not_required",
+                f"no check in the {self.config.verification_profile!r} profile declares a "
+                f"Python environment, so {Path(checkout).name} is not given one",
+            )
+        else:
+            report = pyenv.prepare(
+                checkout, shared_venv=self.repo_root / ".venv",
+                timeout_seconds=self.config.limits.environment_seconds,
+                reuse=not rebuild,
+            )
+            self.store.event(
+                self.run_id,
+                "environment.prepared" if report.prepared else "environment.failed",
+                report.describe(), payload=report.to_dict(),
+            )
+        if report.missing_requirements:
+            self.notes.append(
+                f"{checkout.name} declares {len(report.missing_requirements)} requirement(s) "
+                f"the shared installation cannot provide "
+                f"({', '.join(report.missing_requirements[:6])}). Checks that import them "
+                f"will fail here, visibly; adding a dependency needs the repository's own "
+                f"environment rebuilt."
+            )
         for name in ("node_modules",):
             source = self.repo_root / name
             target = checkout / name
@@ -853,29 +1049,49 @@ class Controller:
                         self.run_id, "environment.link_failed",
                         f"could not link {name} into {checkout.name}: {exc}",
                     )
+        return report
 
-    def _report_environment_gap(self, checkout: Path) -> None:
-        """Name the checks this checkout cannot execute, before they are needed."""
-        if (checkout / ".venv" / "bin" / "python").exists():
+    def python_environment_needed(self) -> bool:
+        """Whether any registered check would use a Python environment at all.
+
+        The fixture profile's checks run `python3 -m unittest` against a
+        three-file repository and declare no prerequisites. Building a
+        virtualenv for a checkout whose checks never look at one is work with no
+        reader, and refusing to proceed without it would be a prerequisite this
+        profile does not have.
+        """
+        return any("venv" in check.requires for check in self.registry.all())
+
+    def _require_environment(self, checkout: Path, *, what: str,
+                             rebuild: bool = False) -> None:
+        """Prepare a checkout's environment, and refuse to continue without one.
+
+        Called before the provider is, so a checkout that cannot be verified
+        does not first consume an implementation call. The alternative -- run
+        the worker, then discover at integration that nothing here could have
+        been checked -- spends budget to learn something knowable in a tenth of
+        a second.
+        """
+        report = self._link_environment(checkout, rebuild=rebuild)
+        if not self.python_environment_needed():
             return
-        blocked = sorted(c.id for c in self.registry.all() if "venv" in c.requires)
-        if not blocked:
-            return
-        gating = sorted(set(blocked) & set(self.gate_checks() if self.spec else
-                                           [c.id for c in self.registry.gates()]))
-        note = (
-            f"{checkout.name} has no .venv, so {len(blocked)} check(s) will record "
-            f"'not_run' rather than execute: {', '.join(blocked)}."
-            + (f" {len(gating)} of them gate completion ({', '.join(gating)}), so this run "
-               f"cannot reach COMMIT until the checkout has its own environment."
-               if gating else "")
-            + " Linking the original checkout's virtualenv is not the fix: editable "
-              "installs would resolve there and the checks would pass against a different "
-              "tree."
+        if not report.usable:
+            raise PolicyViolation(
+                f"{what} has no usable Python environment, so nothing verified here would "
+                f"mean anything: " + "; ".join(report.problems)
+            )
+        problems = pyenv.assert_module_origins(checkout, MODULE_OWNERSHIP_PROBES)
+        if problems:
+            raise PolicyViolation(
+                f"{what} does not import its own code:\n  " + "\n  ".join(problems)
+                + "\nEvery Python check here would describe a different tree."
+            )
+        self.store.event(
+            self.run_id, "environment.verified",
+            f"{checkout.name} imports {len(MODULE_OWNERSHIP_PROBES)} probe module(s) from "
+            f"its own tree",
+            payload={"modules": list(MODULE_OWNERSHIP_PROBES)},
         )
-        self.notes.append(note)
-        self.store.event(self.run_id, "environment.gap", note,
-                         payload={"checkout": str(checkout), "checks": blocked})
 
     def _integrate_task(self, task_id: str, bundle: PatchBundle) -> None:
         assert self.spec is not None
@@ -1156,6 +1372,13 @@ class Controller:
                     + "; ".join(f"{v.path} ({v.reason})" for v in violations[:5]),
                 )
             self._checkpoint(f"repair-{label}", changed)
+            # A repair worker had write access to the candidate, including its
+            # environment. Everything verified after this point runs through
+            # that interpreter, so it is rebuilt and re-proved first.
+            self._require_environment(
+                self.candidate_dir, what="the candidate after a repair round",
+                rebuild=True,
+            )
 
     # ----------------------------------------------------------------- REVIEW
     def review(self) -> dict | None:
@@ -1568,10 +1791,20 @@ class Controller:
         )
         write_roots = [*(sandbox_roots or []), Path(cwd) / ".pw-dev-scratch",
                        provider_dir, provider_tmp]
-        denials: list[Path] = []
+        # The checkout's own Python environment is carved back out of the grant.
+        # The controller later runs `<checkout>/.venv/bin/python` *itself*, with
+        # the controller's own privileges and no sandbox, so a worker able to
+        # rewrite that interpreter -- or the `.pth` that composes its
+        # `sys.path` -- would be choosing what the controller executes. Seatbelt
+        # applies the last matching rule, and `pw-dev doctor` proves at startup
+        # that a carve-out inside a granted root is honoured.
+        denials: list[Path] = [Path(root) / ".venv" for root in (sandbox_roots or [])]
         if isinstance(adapter, ClaudeCliAdapter):
             write_roots.append(claude_config)
-            denials = claude_config_denials(claude_config)
+            # extend, never assign: assigning dropped the `.venv` carve-out
+            # above for the one adapter that actually writes, which is the only
+            # adapter it mattered for.
+            denials.extend(claude_config_denials(claude_config))
 
         wrapper = None
         if writable and sandbox_roots and self.isolation_mode == "enforced":

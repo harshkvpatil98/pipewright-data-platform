@@ -75,16 +75,36 @@ dependency or a non-goal.
   check labelled `optional_smoke` cannot evidence an authenticated end-to-end
   workflow: if the phase promises one, require the `required_live` check in
   `required_verifications` as well, and plan the task that writes its scenario.
+- A task with `role: "verification"` is a **checkpoint**: the controller runs its
+  `verification_ids` against the integrated candidate and refuses to release its
+  dependents until every one passes. Use one wherever the plan means "this must
+  be proved before anything after it happens" — a completion or documentation
+  task belongs behind one. A checkpoint may declare an empty `allowed_paths`,
+  and then no worker is dispatched at all; that is the only role that may own
+  nothing. Give it something to own only when it genuinely writes a file, such
+  as a live-acceptance scenario.
 
 ## Budgets
 
 `resource_limits` are what the run will actually be held to, and exhausting one
 produces `PAUSED` — a resumable run with preserved work — never a finished
-phase. Estimate the work per task, include environment preparation, integration,
-verification and review, and identify the critical path. If the phase does not
-fit, say so: split it into smaller tasks with resumable checkpoints and state
-which of them a single budget can reach. Asserting that everything fits is a
-claim like any other.
+phase.
+
+`per_task_seconds` is a **timeout**, not an estimate: a task that finishes in a
+minute does not consume thirty. Do not compute `ceil(tasks / workers) x
+per_task_seconds` and call it a *ceiling* — tasks in a dependency chain cannot
+overlap however many workers there are, so as an upper bound it understates. It
+is a valid *lower* bound, and validation uses three of them: the longest
+dependency chain, `ceil(worker tasks / workers)`, and the largest set of tasks
+serialized by one exclusive resource. The largest applies. A verification task
+that owns nothing is executed by the controller and counts toward none of them.
+
+Estimate the work per task, include environment preparation, integration,
+verification and review, and identify the critical path **across every join** —
+a task depending on two branches waits for the longer one. If the phase does not
+fit, say so: split it into smaller tasks behind verification checkpoints and
+state which of them a single budget can reach. Asserting that everything fits is
+a claim like any other.
 
 ## Honesty
 

@@ -63,6 +63,27 @@ class TaskNode:
     def guard(self) -> PathGuard:
         return PathGuard(self.allowed_paths, self.forbidden_paths)
 
+    def is_checkpoint(self) -> bool:
+        """Whether this task's declared checks gate its dependents.
+
+        A `verification` task is a checkpoint: the controller runs the checks it
+        names against the integrated candidate, and dependents wait for them to
+        pass. Ordinary tasks keep advisory checks -- a worker asking for
+        `python:service` while it iterates should not thereby make that check a
+        completion gate for the phase.
+        """
+        return self.role == "verification"
+
+    def is_controller_executed(self) -> bool:
+        """A checkpoint that owns nothing, and therefore needs no worker.
+
+        "Run these checks against the candidate and tell me the answer" is
+        controller work. Dispatching a worker to ask for it would spend an
+        implementation call to obtain a result the worker cannot influence, and
+        would hand somebody a checkout in order to produce an empty patch.
+        """
+        return self.is_checkpoint() and not self.allowed_paths
+
     def effective_resources(self) -> list[str]:
         """Declared resources plus the ones implied by the paths a task claims.
 
@@ -120,8 +141,12 @@ class Scheduler:
             unknown = [dep for dep in node.depends_on if dep not in self.nodes]
             if unknown:
                 raise PolicyViolation(f"{node.id} depends on unknown task(s): {unknown}")
-            if not node.allowed_paths:
-                raise PolicyViolation(f"{node.id} declares no writable paths")
+            if not node.allowed_paths and not node.is_controller_executed():
+                raise PolicyViolation(
+                    f"{node.id} declares no writable paths. Only a task with "
+                    f"role 'verification' may own nothing, and then the controller "
+                    f"executes it rather than a worker."
+                )
         cycle = self._find_cycle()
         if cycle:
             raise PolicyViolation("the task graph contains a cycle: " + " -> ".join(cycle))

@@ -38,16 +38,39 @@ Forbidden patterns are evaluated before allowed ones and win, always.
 
 from __future__ import annotations
 
+import importlib.machinery as machinery
 import re
 from functools import lru_cache
 from pathlib import Path, PurePosixPath
 
 from ..errors import PolicyViolation
 
+#: Every file suffix this interpreter will import a module from.
+_IMPORTABLE_SUFFIXES = tuple(sorted(set(
+    machinery.SOURCE_SUFFIXES + machinery.BYTECODE_SUFFIXES
+    + machinery.EXTENSION_SUFFIXES
+)))
+
 #: Never writable by any task, in any run. Controller state, provider
 #: configuration, verification definitions, the publisher, and Git's own
 #: metadata. A task that asks for one of these is a policy violation, not a
 #: scope to be widened.
+#: Names CPython imports by itself during interpreter startup, and every file
+#: suffix that would satisfy such an import. Built from `importlib.machinery`
+#: rather than written out, so a suffix this interpreter supports cannot be
+#: missed by having been forgotten here.
+STARTUP_HOOK_NAMES = ("sitecustomize", "usercustomize")
+
+_STARTUP_HOOK_PATTERNS = tuple(
+    pattern
+    for name in STARTUP_HOOK_NAMES
+    for pattern in (
+        *(f"**/{name}{suffix}" for suffix in _IMPORTABLE_SUFFIXES),
+        f"**/{name}",          # a package directory
+        f"**/{name}/**",       # and everything in it
+    )
+)
+
 ALWAYS_FORBIDDEN = (
     ".git/**", ".git",
     ".pw-dev/**", ".pw-dev",
@@ -57,6 +80,16 @@ ALWAYS_FORBIDDEN = (
     ".env", ".env.*", "**/.env", "**/.env.*",
     "**/id_rsa", "**/id_ed25519", "**/*.pem", "**/*.key",
     ".github/workflows/**",
+    # Python imports these automatically at interpreter startup, from anywhere
+    # on `sys.path`. A checkout's first-party source roots are on the `sys.path`
+    # of the interpreter the *controller* runs verification with, unsandboxed --
+    # so a task able to add one of these would be choosing what executes during
+    # every check, and could exit zero in silence. CPython ships neither; the
+    # one on this machine belongs to Homebrew, which is luck, not a boundary.
+    # Every importable form of the name, not one spelling of it: a package
+    # directory, sourceless bytecode and a compiled extension all satisfy
+    # `import sitecustomize` exactly as the `.py` does.
+    *_STARTUP_HOOK_PATTERNS,
 )
 
 

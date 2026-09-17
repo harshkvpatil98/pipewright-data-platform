@@ -228,6 +228,17 @@ class VerificationRunner:
         elif result.returncode != 0:
             document["outcome"] = Outcome.FAIL
             document["detail"] = _failure_detail(result)
+        elif check.success_pattern and not re.search(
+                check.success_pattern, result.stdout + result.stderr):
+            # Exit zero with none of the output that proves the check ran. The
+            # honest reading is that we do not know what happened, and "we do
+            # not know" is not "it passed".
+            document["outcome"] = Outcome.ERROR
+            document["detail"] = (
+                f"exited 0 but produced none of the output this check is known to "
+                f"produce (expected to match {check.success_pattern!r}). A command that "
+                f"ends quietly has not demonstrated that it ran."
+            )
         else:
             skipped = _skip_count(result.stdout + result.stderr)
             if skipped:

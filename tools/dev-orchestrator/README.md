@@ -197,6 +197,7 @@ green local run look equivalent.
 | Class | Meaning |
 |---|---|
 | `gate` | runs before `COMMIT` whether or not a plan asks for it. A plan cannot drop one by omitting it |
+| a checkpoint's `verification_ids` | run when that task integrates, against the candidate, and block its dependents until they pass |
 | `optional_smoke` | a diagnostic. `repo:smoke` exits 0 offline and is satisfied by *any* server answering the configured root, including one started last week from a different checkout. It cannot stand in for acceptance evidence |
 | `required_live` | an end-to-end acceptance path that fails closed. A plan that needs one must name it in `required_verifications` — a live scenario only one task asks for is not a gate on the phase, and validation refuses that shape |
 
@@ -273,22 +274,51 @@ Each writing worker gets its own git worktree, created from **its own
 prerequisite commit** — not from the run's base, so a dependent task sees the
 contracts it depends on.
 
-### One thing a checkout does not get
+### Every checkout gets an environment that imports its own code
 
-`node_modules` is symlinked in. **`.venv` is not**, and that is a real
-limitation rather than an oversight. Pipewright installs its service packages
-with `pip install -e`, so a virtualenv belonging to the original checkout
-imports *that* checkout's source: every Python check would run, and would be
-testing the wrong tree. A check that passes against code nobody is publishing is
-worse than one that says it did not run.
+A git worktree has no `.venv`, so every check declaring `requires=("venv",)` —
+ten of the fourteen, including the `repo:verify` and `alembic:heads` gates —
+used to record `not_run`, and a run could never close its completion gate.
 
-So every check declaring `requires=("venv",)` — ten of the fourteen, including
-the `repo:verify` and `alembic:heads` gates — records `not_run` in a checkout
-without its own environment, and the completion gate does not close. The run
-says so at the start rather than at `COMMIT`, and `check_module_isolation`
-blocks a candidate whose modules resolve elsewhere instead of merely logging it.
-Closing this properly means provisioning a candidate-local environment, which
-this build does not do.
+Symlinking the original `.venv` would have been the short fix and the wrong one.
+Pipewright installs its twenty-six first-party packages with `pip install -e`,
+so that virtualenv imports the *original* checkout's source: the checks would
+run, and every one of them would be verifying a tree nobody is publishing.
+
+`workspace/pyenv.py` builds each checkout its own virtualenv instead, and
+composes `sys.path` so the two questions get different answers:
+
+```
+<checkout>/.venv/lib/pythonX.Y/site-packages/_pw_dev_sources.pth
+    <checkout>/packages/*/src          first-party: this checkout
+    <checkout>/services/*/src
+    <checkout>/apps/api-gateway/src
+    <checkout>/tools/dev-orchestrator/src
+    <root>/.venv/.../site-packages     third-party: shared, and only packages
+```
+
+Adding the shared directory to `sys.path` does not make it a *site* directory,
+so the `__editable__.*.pth` files inside it are never processed and the original
+checkout's sources never appear. Nothing is installed, nothing is downloaded,
+and preparation takes well under a second — which is why every worker checkout
+and the candidate can each have one.
+
+- **It is proved, not assumed.** Before a worker starts and before the candidate
+  is verified, the checkout's interpreter is asked where it resolves
+  `api_gateway`, `shared_python`, `service_datasets` and `pw_dev` from. Anything
+  outside the checkout blocks the run.
+- **It is checked before the provider is called.** A checkout that cannot verify
+  its own code is knowable in a tenth of a second; finding out afterwards costs
+  an implementation call to learn it.
+- **Staleness is a decision.** The inputs are digested into a stamp, so a
+  resumed run rebuilds an environment built for a different tree instead of
+  inheriting it.
+- **A new dependency is named.** A checkout that declares a third-party
+  requirement the shared installation predates cannot be given it. The names are
+  reported; the check then fails on the import, visibly.
+- **Nothing is borrowed that would break isolation.** The shared directory is
+  referenced by path, and a worker's sandbox grants writes under its own
+  checkout only. No `.env`, credential store or database is copied.
 
 A worktree is not a security boundary. Worktrees share `.git` and stop file
 collisions, nothing more. The actual write boundary is enforced by the operating
@@ -352,6 +382,41 @@ A task may start when its dependencies are integrated, no running task claims
 overlapping paths, and no exclusive resource it needs is held. Overlapping write
 ownership between two concurrently eligible tasks is refused at plan validation,
 not discovered later as a merge conflict.
+
+### Verification checkpoints
+
+A task's `verification_ids` used to be advisory: the controller ran what the
+*worker asked for*, recorded the outcomes as events, integrated the patch and
+released the dependents regardless. A plan promising "documentation is updated
+only after the verification task passes" was describing an ordering nothing
+enforced.
+
+**A task with `role: "verification"` is a checkpoint.** Its declared
+`verification_ids` are required, and three things make that mean something:
+
+- **the controller chooses what runs**, from the accepted specification. A
+  worker that omits them from `verification_requests`, or asks for something
+  easier, changes nothing;
+- **they run against the integrated candidate**, not the worker's checkout, so
+  what is verified is the tree the phase is building;
+- **only `pass` releases the dependents.** `fail`, `skip`, `not_run`,
+  `infra_unavailable`, `timeout` and `error` each say something different and
+  none of them says the work is done. `accepted_preexisting_failures` does not
+  apply either: that is for a check the phase inherited broken, and a checkpoint
+  is a statement about this phase's own work.
+
+The passing candidate fingerprint is recorded. A resumed run re-reads the
+durable evidence and inherits a verdict only when it still describes the current
+candidate; otherwise it rechecks. Ordinary tasks are unchanged — a worker asking
+for `python:service` while it iterates does not thereby make that check a
+completion gate for the phase.
+
+A checkpoint that declares **no** `allowed_paths` is executed by the controller
+with no worker at all: "run these checks and tell me the answer" is controller
+work, and dispatching somebody to ask for it would spend an implementation call
+on a result they cannot influence. Every other role must own something — a
+worker that owns nothing cannot produce a patch, and there would be no scope
+against which to judge what it did.
 
 ### Paths: one rule
 
@@ -438,9 +503,56 @@ pushed branch with no PR has not been tested by CI.
 ## Budgets and cost
 
 Configured in `pw-dev.toml`: parallel workers, per-task seconds, total run
-seconds, provider retries, repair rounds, output size. Reaching one produces a
-resumable `PAUSED`, never a completed phase. Three identical repair rounds
-escalate rather than continuing against a wall.
+seconds, provider retries, repair rounds, output size.
+
+### Five different durations, kept apart
+
+| | What it bounds | Limit |
+|---|---|---|
+| provider call | one `claude -p` or `codex exec` invocation answering | `per_task_seconds`, `plan_seconds`, `review_seconds` |
+| environment preparation | giving one checkout an interpreter | `environment_seconds` |
+| controller verification | one registry check running | each `Check.timeout_seconds` |
+| integration and review | applying patches, fingerprinting, the reviewer's own call | inside the run budget |
+| the run | everything above, end to end | `total_run_seconds` |
+
+**`per_task_seconds` is a timeout, not an estimate.** A task that finishes in a
+minute does not consume thirty, so no arithmetic over it predicts a duration.
+What it bounds is the worst case, and plan validation reports the three things
+that force provider calls apart in it:
+
+| Bound | What forces it |
+|---|---|
+| longest dependency chain | no number of workers shortens it |
+| `ceil(worker tasks / workers)` | W workers run at most W calls at once |
+| largest resource-serialized set | one holder at a time, run-wide |
+
+The largest of the three, times `per_task_seconds`, is the floor.
+
+`ceil(tasks / workers) x per_task_seconds` is **not a ceiling** — five tasks in a
+dependency chain with three workers still run one after another, so as an upper
+bound it understates, which is the dangerous direction. It is a perfectly good
+*lower* bound, which is why it is one of the three rather than discarded.
+
+Only tasks that dispatch a worker are counted: a controller-executed checkpoint
+consumes check time, not a provider timeout. Environment preparation, controller
+verification, integration and review are excluded from all three, and the
+message says so rather than folding them in as though they were free.
+
+### Which conditions produce which state
+
+| Condition | State |
+|---|---|
+| `total_run_seconds` spent | `PAUSED`, resumable, work preserved |
+| a provider did not answer within its timeout | `PAUSED` |
+| `repair_rounds_per_task` exhausted | `PAUSED` |
+| a provider refused: rate limit, auth, unknown model | `BLOCKED`, resumable, with the provider's own reason |
+| a checkpoint did not pass | `BLOCKED`, naming the checks and the dependents held back |
+| a worker wrote outside its scope, or a plan broke policy | `BLOCKED` |
+
+`PAUSED` is for the budgets this tool set; `BLOCKED` is for a condition it may
+not decide alone. Both preserve the work and both resume. Neither is a completed
+phase, and the distinction is kept because "we ran out of time" and "the
+provider refused" call for different actions.
 
 Reported usage is stored as reported. `claude -p` supplies a dollar figure;
 `codex exec` supplies tokens and no cost. A missing cost shows as **unknown**,

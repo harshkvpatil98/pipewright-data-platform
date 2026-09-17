@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import subprocess
 from pathlib import Path
 from typing import Any, Iterable
@@ -42,7 +43,15 @@ def digest_file(path: Path) -> str:
     return h.hexdigest()
 
 
-def _iter_files(root: Path) -> Iterable[Path]:
+def _iter_entries(root: Path) -> Iterable[tuple[Path, str | None]]:
+    """Every file and symlink under `root`, as `(path, link_target)`.
+
+    Symlinks used to be skipped entirely, which meant adding one, removing one
+    or repointing one left the fingerprint unchanged -- so evidence bound to a
+    fingerprint could survive a change to the tree it described. They are hashed
+    by their target rather than followed: following would leave the tree and
+    could recurse.
+    """
     stack = [root]
     while stack:
         current = stack.pop()
@@ -51,14 +60,21 @@ def _iter_files(root: Path) -> Iterable[Path]:
         except (PermissionError, FileNotFoundError):
             continue
         for entry in entries:
+            if entry.name in _IGNORED_DIR_NAMES:
+                # `node_modules` and `.venv` are supplied by the controller, not
+                # written by the work being verified, whether or not they happen
+                # to be symlinks.
+                continue
             if entry.is_symlink():
+                try:
+                    yield entry, os.readlink(entry)
+                except OSError:
+                    yield entry, "<unreadable>"
                 continue
             if entry.is_dir():
-                if entry.name in _IGNORED_DIR_NAMES:
-                    continue
                 stack.append(entry)
             elif entry.is_file():
-                yield entry
+                yield entry, None
 
 
 def tree_fingerprint(root: Path, *, extra_ignored: set[str] | None = None) -> str:
@@ -68,20 +84,34 @@ def tree_fingerprint(root: Path, *, extra_ignored: set[str] | None = None) -> st
     changes the fingerprint. Build outputs and dependency directories are
     skipped: a `next build` writing to `.next/` is not a change to the
     candidate, and including it would invalidate evidence the moment a check
-    runs.
+    runs. `node_modules` and `.venv` are skipped for the same reason -- the
+    controller supplies them, the work being verified does not.
+
+    Symlinks are hashed by their target. Skipping them, as this did, meant
+    adding, removing or repointing one left the fingerprint unchanged, so
+    evidence bound to a fingerprint could outlive the tree it described.
     """
     ignored = _IGNORED_DIR_NAMES | (extra_ignored or set())
     h = hashlib.sha256()
     root = root.resolve()
     entries = []
-    for path in _iter_files(root):
+    for path, link_target in _iter_entries(root):
         if any(part in ignored for part in path.relative_to(root).parts[:-1]):
             continue
-        entries.append(path)
-    for path in sorted(entries):
+        entries.append((path, link_target))
+    for path, link_target in sorted(entries):
         relative = path.relative_to(root).as_posix()
         h.update(relative.encode("utf-8"))
         h.update(b"\0")
+        if link_target is not None:
+            # The target, not the contents: a symlink is a fact about the tree,
+            # and following it would leave the tree.
+            h.update(b"symlink:")
+            h.update(link_target.encode("utf-8"))
+            h.update(b"\0")
+            h.update(b"l")
+            h.update(b"\n")
+            continue
         h.update(digest_file(path).encode("ascii"))
         h.update(b"\0")
         # Mode matters: making a script executable is a real change.

@@ -248,7 +248,7 @@
               "integration",
               "docs"
             ],
-            "description": "'contract' work is serialized ahead of everything that depends on it.",
+            "description": "'contract' work is serialized ahead of everything that depends on it. 'verification' is a checkpoint: the controller runs this task's verification_ids against the integrated candidate and refuses to release its dependents until every one passes. A verification task that declares no allowed_paths is executed entirely by the controller, with no worker.",
             "type": "string"
           },
           "objective": {
@@ -268,7 +268,7 @@
           },
           "allowed_paths": {
             "type": "array",
-            "description": "Repository-relative glob patterns this task may write. Anything else is rejected at integration.",
+            "description": "Repository-relative glob patterns this task may write. Anything else is rejected at integration. A pattern is a glob only if it contains '*' or '?'; '[' and ']' are literal, so a Next.js dynamic route directory is written as it appears on disk. May be empty ONLY for role 'verification', which then becomes a controller-executed checkpoint: no worker is dispatched, and the controller runs verification_ids against the integrated candidate.",
             "items": {
               "type": "string"
             }
@@ -294,7 +294,7 @@
           },
           "verification_ids": {
             "type": "array",
-            "description": "Registry IDs the controller runs for this task. The worker cannot invent new ones.",
+            "description": "Registry IDs the controller runs for this task. The worker cannot invent new ones. For an ordinary task these are advisory evidence. For a 'verification' task they are the checkpoint: every one must pass, against the integrated candidate, before any dependent task starts.",
             "items": {
               "type": "string"
             }

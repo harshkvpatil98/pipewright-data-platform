@@ -54,6 +54,14 @@ class Check:
     # the usual pass/fail. A runner that collapsed "no scenario" and "a step
     # failed" into one word would hide which of them happened.
     exit_outcomes: dict[int, str] = field(default_factory=dict)
+    # A pattern the output must contain before exit zero counts as a pass.
+    #
+    # Exit zero on its own says a process ended without complaining, which is
+    # also what `os._exit(0)` says. Verification runs code the phase is
+    # writing -- that is what verification *is* -- so the defence is not to stop
+    # it running but to stop silence counting as a result: a pytest run that
+    # passed says so, and one that vanished cannot.
+    success_pattern: str | None = None
 
     def render(self, repo: Path,
                parameters: dict[str, str] | None = None) -> tuple[list[str], Path]:
@@ -89,6 +97,11 @@ class Check:
 
 def _venv(repo_token: str = "{repo}") -> str:
     return f"{repo_token}/.venv/bin/python"
+
+
+#: pytest's own summary line. A run that produced no summary did not finish,
+#: whatever it exited with.
+_PYTEST_RAN = r"\d+ (?:passed|failed|error|skipped|deselected|xfailed|xpassed)"
 
 
 #: Pipewright's checks, read from `scripts/test.sh`, `scripts/verify-release.sh`
@@ -134,6 +147,7 @@ PIPEWRIGHT_CHECKS: tuple[Check, ...] = (
               "services/service-notifications/tests"),
         timeout_seconds=3600,
         requires=("venv",),
+        success_pattern=_PYTEST_RAN,
     ),
     Check(
         id="python:service",
@@ -141,6 +155,7 @@ PIPEWRIGHT_CHECKS: tuple[Check, ...] = (
         argv=(f"{_venv()}", "-m", "pytest", "-q", "--import-mode=importlib", "{service_path}"),
         timeout_seconds=1200,
         requires=("venv",),
+        success_pattern=_PYTEST_RAN,
     ),
     Check(
         id="orchestrator:ruff",
@@ -158,6 +173,7 @@ PIPEWRIGHT_CHECKS: tuple[Check, ...] = (
         timeout_seconds=1800,
         requires=("venv",),
         gate=True,
+        success_pattern=_PYTEST_RAN,
     ),
     Check(
         id="web:lint",
@@ -194,6 +210,7 @@ PIPEWRIGHT_CHECKS: tuple[Check, ...] = (
         timeout_seconds=5400,
         requires=("venv", "node_modules"),
         gate=True,
+        success_pattern=_PYTEST_RAN,
     ),
     Check(
         id="repo:smoke",
@@ -329,6 +346,7 @@ class Registry:
             requires=check.requires, infra=check.infra, gate=check.gate,
             env=dict(check.env), infra_note=check.infra_note,
             evidence_class=check.evidence_class, exit_outcomes=dict(check.exit_outcomes),
+            success_pattern=check.success_pattern,
         )
 
 

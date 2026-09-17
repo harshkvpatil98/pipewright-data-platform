@@ -31,6 +31,10 @@ architecture you happen to dislike.
   and `error` each say something different, and none of them says "passed". A
   check that could not run because its prerequisite is missing has not been
   satisfied by that absence.
+- A task whose role is `verification` is a checkpoint. The controller runs the
+  checks the specification gave it, against the integrated candidate, and holds
+  its dependents until every one passes. Leaving them out of your
+  `verification_requests` does not remove them.
 - Never weaken, skip, delete or narrow a failing test to make a check pass. A
   test that is genuinely wrong may be corrected — with the reason stated, so a
   reviewer can judge it.

@@ -196,6 +196,15 @@ def run(
         popen_kwargs["start_new_session"] = True  # its own process group
 
     process = subprocess.Popen(argv, **popen_kwargs)  # noqa: S603 - argv array, no shell
+    # Recorded now, while the leader is certainly alive. After it exits its
+    # group id is no longer readable from it, and a process it left behind is
+    # exactly the one that has to be reaped.
+    group_id: int | None = None
+    if sys.platform != "win32":
+        try:
+            group_id = os.getpgid(process.pid)
+        except OSError:
+            group_id = process.pid
 
     out = _Capture(max_output_bytes)
     err = _Capture(max_output_bytes)
@@ -265,6 +274,13 @@ def run(
     for thread in threads:
         thread.join(timeout=10)
 
+    # After *every* path, not only timeout and cancellation. A command whose
+    # main process exits normally can leave a detached child behind -- and a
+    # worker that wanted one would arrange exactly that, then have it wait for
+    # the environment rebuild and edit the interpreter before checks run. The
+    # group this call created is this call's to clean up.
+    _reap_group(group_id)
+
     return ProcResult(
         argv=list(argv),
         cwd=str(cwd),
@@ -278,6 +294,33 @@ def run(
         started_at=started,
         env_keys=sorted(env),
     )
+
+
+def _reap_group(group_id: int | None) -> None:
+    """Terminate anything still alive in the group this run created.
+
+    Silent when the group is already gone, which is the ordinary case: a
+    well-behaved command leaves nothing behind and this costs one failed
+    `killpg`.
+    """
+    if group_id is None or sys.platform == "win32":  # pragma: no cover - POSIX host
+        return
+    try:
+        os.killpg(group_id, 0)
+    except OSError:
+        return  # nothing left
+    for signal_number in (signal.SIGTERM, signal.SIGKILL):
+        try:
+            os.killpg(group_id, signal_number)
+        except OSError:
+            return
+        deadline = time.monotonic() + (5.0 if signal_number == signal.SIGTERM else 2.0)
+        while time.monotonic() < deadline:
+            try:
+                os.killpg(group_id, 0)
+            except OSError:
+                return
+            time.sleep(0.05)
 
 
 def _terminate_tree(process: subprocess.Popen) -> None:

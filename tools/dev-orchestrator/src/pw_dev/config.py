@@ -48,6 +48,10 @@ class Limits:
     verification_seconds: int = 3600
     max_context_file_bytes: int = 120_000
     max_context_files: int = 40
+    #: Wall clock allowed for giving one checkout a Python environment. This is
+    #: filesystem work -- no installs, no network -- so the generous bound is a
+    #: guard against a pathological filesystem, not a budget anyone spends.
+    environment_seconds: int = 300
 
 
 @dataclass(frozen=True)

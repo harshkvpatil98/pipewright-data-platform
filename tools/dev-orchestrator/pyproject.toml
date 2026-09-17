@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pw-dev-orchestrator"
+version = "1.0.0"
+description = "Pipewright development orchestrator: an OpenAI planner/reviewer, Claude implementers, and a deterministic controller that owns state, verification and publication."
+# Matches every other Python package in this repo, and CI runs 3.11.
+requires-python = ">=3.11"
+# Deliberately dependency-free at runtime: this tool schedules and verifies the
+# repository's own checks, so it must be installable into a throwaway venv that
+# shares nothing with the product's dependency tree. Schema validation uses the
+# bundled stdlib validator unless `jsonschema` happens to be importable.
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3,<9.0",
+  # Same pin as apps/api-gateway: ruff expands its default rules between minors.
+  "ruff>=0.11,<0.12",
+]
+# Opt-in: when present, the reference validator is used instead of the bundled one.
+jsonschema = ["jsonschema>=4.21,<5.0"]
+
+[project.scripts]
+pw-dev = "pw_dev.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+pw_dev = ["schemas/*.json", "prompts/*.md", "policies/*.toml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

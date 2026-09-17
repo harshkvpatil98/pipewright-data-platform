@@ -38,3 +38,6 @@ pip install -e services/service-workflows
 pip install -e services/service-lineage
 pip install -e services/service-intelligence
 pip install -e 'apps/api-gateway[dev]'
+# Development tooling, not part of the product runtime. Installed because
+# scripts/test.sh runs its tests and they import pw_dev.
+pip install -e tools/dev-orchestrator

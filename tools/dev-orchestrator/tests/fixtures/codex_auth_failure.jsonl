@@ -1,0 +1,3 @@
+{"type":"thread.started","thread_id":"01a0acea-0000-7000-8000-000000000002"}
+{"type":"error","message":"401 Unauthorized: not logged in. Please run `codex login`."}
+{"type":"turn.failed","error":{"message":"401 Unauthorized: authentication failed"}}

@@ -51,6 +51,24 @@ npm run dev
 **Requires Homebrew `python@3.12`.** The system Python will not work. If `npm run setup` fails
 on the venv, that is usually why.
 
+### The development orchestrator
+
+`tools/dev-orchestrator/` holds `pw-dev`, which runs a phase through an OpenAI
+planner, Claude implementation workers in isolated worktrees, controller-executed
+verification, an independent OpenAI review, and a gated commit and push. See
+[`tools/dev-orchestrator/README.md`](../tools/dev-orchestrator/README.md) and
+[`AGENTS.md`](../AGENTS.md).
+
+```bash
+.venv/bin/pw-dev doctor --probe        # what this machine can actually do
+.venv/bin/pw-dev plan --next           # a reviewable specification, nothing implemented
+.venv/bin/pw-dev run --next --publish feature-branch
+```
+
+It is development tooling, outside the product runtime. Its own lint and tests
+are wired into `scripts/verify-release.sh` and `scripts/test.sh`, so
+`npm run verify` covers them.
+
 ### The verification gate — run this after every change
 
 ```bash

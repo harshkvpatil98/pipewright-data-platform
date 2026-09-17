@@ -1,0 +1,176 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pw-dev/task_assignment/v1",
+  "title": "Task assignment (v1)",
+  "description": "The context packet handed to one worker. Built by the controller, never by a model. It carries the fingerprints that later bind the worker's output to a specific tree.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "run_id",
+    "task_id",
+    "title",
+    "role",
+    "objective",
+    "base_commit",
+    "prerequisite_fingerprint",
+    "spec_digest",
+    "requirements",
+    "acceptance_criteria",
+    "allowed_paths",
+    "forbidden_paths",
+    "verification_ids",
+    "context_files",
+    "prerequisite_artifacts",
+    "limits",
+    "rules"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "task_assignment/v1",
+      "type": "string"
+    },
+    "run_id": {
+      "type": "string"
+    },
+    "task_id": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "role": {
+      "enum": [
+        "contract",
+        "backend",
+        "frontend",
+        "verification",
+        "integration",
+        "docs"
+      ],
+      "type": "string"
+    },
+    "objective": {
+      "type": "string"
+    },
+    "base_commit": {
+      "type": "string"
+    },
+    "prerequisite_fingerprint": {
+      "type": "string",
+      "description": "Tree fingerprint of the checkout this worker starts from. Downstream tasks start from their prerequisites' integrated tree, not from the original base."
+    },
+    "spec_digest": {
+      "type": "string"
+    },
+    "requirements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "statement"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "statement": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "acceptance_criteria": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "allowed_paths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "forbidden_paths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "verification_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "context_files": {
+      "type": "array",
+      "description": "Task-relevant excerpts supplied on demand. Not the whole repository.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "reason"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "prerequisite_artifacts": {
+      "type": "array",
+      "description": "Artifact hashes produced by upstream tasks (contracts, decisions) that this task must honour.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "task_id",
+          "kind",
+          "digest"
+        ],
+        "properties": {
+          "task_id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "digest": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deadline_seconds",
+        "max_output_bytes"
+      ],
+      "properties": {
+        "deadline_seconds": {
+          "type": "integer"
+        },
+        "max_output_bytes": {
+          "type": "integer"
+        }
+      }
+    },
+    "rules": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

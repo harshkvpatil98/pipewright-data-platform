@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pw-dev/publication_receipt/v1",
+  "title": "Publication receipt (v1)",
+  "description": "What the deterministic publisher recorded. Written after the remote ref was read back, not after the push command returned zero.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "run_id",
+    "published",
+    "mode",
+    "base_commit",
+    "commit_sha",
+    "tree_fingerprint",
+    "approved_fingerprint",
+    "branch",
+    "remote",
+    "remote_url",
+    "remote_sha_after_push",
+    "new_commits",
+    "identity",
+    "checks",
+    "ci_status",
+    "notes"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "publication_receipt/v1",
+      "type": "string"
+    },
+    "run_id": {
+      "type": "string"
+    },
+    "published": {
+      "type": "boolean"
+    },
+    "mode": {
+      "enum": [
+        "none",
+        "local_commit",
+        "feature_branch"
+      ],
+      "type": "string"
+    },
+    "base_commit": {
+      "type": "string"
+    },
+    "commit_sha": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "tree_fingerprint": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "approved_fingerprint": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "branch": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "remote": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "remote_url": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "remote_sha_after_push": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "new_commits": {
+      "type": "array",
+      "description": "Every commit reachable from the published ref but not from the captured base, with the metadata that was inspected.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sha",
+          "author",
+          "committer",
+          "subject",
+          "attribution_clean"
+        ],
+        "properties": {
+          "sha": {
+            "type": "string"
+          },
+          "author": {
+            "type": "string"
+          },
+          "committer": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "attribution_clean": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expected_name",
+        "expected_email",
+        "verified"
+      ],
+      "properties": {
+        "expected_name": {
+          "type": "string"
+        },
+        "expected_email": {
+          "type": "string"
+        },
+        "verified": {
+          "type": "boolean"
+        }
+      }
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "passed",
+          "detail"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "passed": {
+            "type": "boolean"
+          },
+          "detail": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "ci_status": {
+      "enum": [
+        "not_triggered",
+        "unknown",
+        "pending",
+        "passed",
+        "failed"
+      ],
+      "description": "A pushed feature branch does not run this repository's push CI, which is restricted to main/master and pull requests. 'not_triggered' is the honest value there.",
+      "type": "string"
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

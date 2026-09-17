@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pw-dev/review_findings/v1",
+  "title": "Review findings (v1)",
+  "description": "An independent reviewer's verdict on one specific candidate. The binding fields are checked by the controller before the verdict is allowed to gate anything; an approval of a different tree is stale and rejected.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "run_id",
+    "verdict",
+    "base_commit",
+    "candidate_fingerprint",
+    "spec_digest",
+    "summary",
+    "findings",
+    "requirements_checked",
+    "evidence_reviewed",
+    "context_requests"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "review_findings/v1",
+      "type": "string"
+    },
+    "run_id": {
+      "type": "string"
+    },
+    "verdict": {
+      "enum": [
+        "APPROVE",
+        "REQUEST_CHANGES",
+        "BLOCKED"
+      ],
+      "type": "string"
+    },
+    "base_commit": {
+      "type": "string"
+    },
+    "candidate_fingerprint": {
+      "type": "string"
+    },
+    "spec_digest": {
+      "type": "string"
+    },
+    "summary": {
+      "type": "string"
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "severity",
+          "kind",
+          "requirement_or_rule",
+          "path",
+          "location",
+          "failure_scenario",
+          "evidence",
+          "requested_correction"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "blocker",
+              "major",
+              "minor",
+              "nit"
+            ],
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "defect",
+              "requirement_gap",
+              "invariant_violation",
+              "security",
+              "test_gap",
+              "preference"
+            ],
+            "description": "'preference' exists so a speculative opinion cannot be dressed up as a defect. A preference never blocks.",
+            "type": "string"
+          },
+          "requirement_or_rule": {
+            "type": "string"
+          },
+          "path": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "location": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "failure_scenario": {
+            "type": "string",
+            "description": "Concrete inputs or state, and the wrong result they produce."
+          },
+          "evidence": {
+            "type": "string"
+          },
+          "requested_correction": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "requirements_checked": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "evidence_reviewed": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "context_requests": {
+      "type": "array",
+      "description": "Repository paths the reviewer still needs. A non-empty list with verdict BLOCKED means the review could not be completed.",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

@@ -1,0 +1,1 @@
+{"type":"result","subtype":"success","is_error":true,"duration_ms":800,"num_turns":1,"result":"Usage limit reached. Your limit resets at 4pm.","session_id":"6a7d5a4e-0000-4000-8000-000000000004","total_cost_usd":0,"usage":{"input_tokens":0,"output_tokens":0,"cache_read_input_tokens":0},"modelUsage":{},"permission_denials":[],"terminal_reason":"api_error"}

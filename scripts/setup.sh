@@ -59,6 +59,9 @@ pip install -e services/service-workflows
 pip install -e services/service-lineage
 pip install -e services/service-intelligence
 pip install -e 'apps/api-gateway[dev]'
+# Development tooling, not part of the product runtime: the `pw-dev` orchestrator.
+# Installed here because scripts/test.sh runs its tests.
+pip install -e tools/dev-orchestrator
 
 # APP_SECRET_ENCRYPTION_KEY ships empty in .env.example; saved destination / BI /
 # webhook secrets are encrypted with it, so generate one on first setup.

@@ -131,7 +131,16 @@ class VerificationRunner:
             check.id, checkout=checkout, run_dir=self.run_dir,
             mode=self.isolation_mode, scratch=self.scratch_root(checkout),
         )
-        facts = self._environment(checkout, modules_to_resolve, boundary)
+        # Nothing from the checkout runs until the boundary is known good. The
+        # environment probe executes `<checkout>/.venv/bin/python`, so gathering
+        # facts first meant a boundary that could not be built still let one
+        # candidate-owned program run unconfined before the refusal was written.
+        facts = (
+            EnvironmentFacts(python=None, python_executable=None, node=None,
+                             platform="unknown; nothing was executed", resolved_modules=[])
+            if boundary.failed
+            else self._environment(checkout, modules_to_resolve, boundary)
+        )
         started = utc_now()
 
         document = {

@@ -270,6 +270,7 @@ def third_party_sites(interpreter: Path) -> list[Path]:
     the guarantee this whole module exists for, and a poisoned manifest naming
     another checkout's `src` would undo it silently.
     """
+    importable = _import_path_of(interpreter)
     for site_dir in _site_packages_list(interpreter):
         recorded = site_dir / THIRD_PARTY_NAME
         try:
@@ -281,14 +282,43 @@ def third_party_sites(interpreter: Path) -> list[Path]:
                 f"{recorded} is not a list of directories; an environment is not "
                 f"built on a manifest nobody can read."
             )
-        resolved = [_trusted_site(entry, recorded) for entry in entries]
+        resolved = [_trusted_site(entry, recorded, importable) for entry in entries]
         usable = [path for path in resolved if path is not None]
         if usable:
             return usable
     return _site_packages_list(interpreter)
 
 
-def _trusted_site(entry: object, recorded: Path) -> Path | None:
+def _import_path_of(interpreter: Path) -> set[Path]:
+    """What the base interpreter *actually* imports from, asked of the interpreter.
+
+    This is the provenance check the recorded file cannot provide about itself.
+    A manifest is a claim; `sys.path` is what Python resolved after processing
+    the environment's own configuration, so a directory named in the manifest
+    that the base does not import from was not inherited from anywhere — it was
+    added.
+    """
+    try:
+        result = subprocess.run(  # noqa: S603 - fixed argv
+            [str(interpreter), "-c", "import sys, json; print(json.dumps(sys.path))"],
+            capture_output=True, text=True, timeout=60, check=False,
+        )
+        entries = json.loads(result.stdout.strip().splitlines()[-1])
+    except (OSError, subprocess.SubprocessError, ValueError, IndexError):
+        return set()
+    resolved: set[Path] = set()
+    for entry in entries:
+        if not entry:
+            continue
+        try:
+            resolved.add(Path(entry).resolve())
+        except OSError:
+            continue
+    return resolved
+
+
+def _trusted_site(entry: object, recorded: Path,
+                  importable: set[Path]) -> Path | None:
     """Accept an inherited directory only if it is one packages are installed in.
 
     The test is structural, not a name match on a string a checkout supplied:
@@ -313,6 +343,14 @@ def _trusted_site(entry: object, recorded: Path) -> Path | None:
         raise IdentityUnavailable(
             f"{recorded} names {path}, which is not an installed-package "
             f"directory. A source tree does not become one by being listed here."
+        )
+    if importable and path not in importable:
+        # Named in the file, but not somewhere the base interpreter imports
+        # from. Being called `site-packages` is a name, not a provenance.
+        raise IdentityUnavailable(
+            f"{recorded} names {path}, which the environment it claims to "
+            f"describe does not import from. A directory is inherited because "
+            f"the base uses it, not because a file in a checkout says so."
         )
     return path
 

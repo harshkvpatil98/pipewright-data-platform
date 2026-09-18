@@ -808,6 +808,31 @@ def test_a_poisoned_inheritance_manifest_cannot_add_a_source_tree(
     assert "source tree" in str(refused.value)
 
 
+def test_a_directory_merely_named_site_packages_is_not_inherited(
+        synthetic: Path, tmp_path: Path):
+    """The basename check alone was not provenance, and a name is cheap.
+
+    A checkout can create `fake/site-packages` holding a link to another
+    checkout's source. What makes a directory inheritable is that the base
+    interpreter actually imports from it.
+    """
+    report = pyenv.prepare(synthetic, shared_venv=SHARED_VENV)
+    if not report.prepared:
+        pytest.skip(f"the shared venv is not usable here: {report.problems}")
+
+    counterfeit = tmp_path / "fake" / "site-packages"
+    counterfeit.mkdir(parents=True)
+    (counterfeit / "shared_python").symlink_to(tmp_path)
+
+    site_dir = pyenv.site_packages_of(report.interpreter)
+    (site_dir / pyenv.THIRD_PARTY_NAME).write_text(
+        json.dumps([str(counterfeit)]), encoding="utf-8")
+
+    with pytest.raises(pyenv.IdentityUnavailable) as refused:
+        pyenv.third_party_sites(report.interpreter)
+    assert "does not import from" in str(refused.value)
+
+
 def test_an_inheritance_manifest_that_is_not_a_list_is_refused(
         synthetic: Path):
     report = pyenv.prepare(synthetic, shared_venv=SHARED_VENV)

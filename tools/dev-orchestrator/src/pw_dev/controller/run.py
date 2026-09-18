@@ -1253,6 +1253,10 @@ class Controller:
             self.notes.append(note)
             self.store.event(self.run_id, "baseline.failing", note)
         self.store.put_json_artifact(self.run_id, "baseline", self.baseline)
+        # Stored beside the baseline it was measured with. A resumed run does
+        # not recapture the baseline, so a budget that lived only in memory came
+        # back empty -- and an empty budget lets any number of new skips through.
+        self.store.put_json_artifact(self.run_id, "skip-budget", self.skip_budget)
 
     def integrate_and_verify(self) -> None:
         assert self.spec is not None
@@ -1610,6 +1614,11 @@ class Controller:
         if baseline is not None:
             self.baseline = json.loads(
                 Path(baseline["path"]).read_text(encoding="utf-8")
+            )
+        budget = self.store.latest_artifact(self.run_id, "skip-budget")
+        if budget is not None:
+            self.skip_budget = json.loads(
+                Path(budget["path"]).read_text(encoding="utf-8")
             )
         for row_ in self.store.get_tasks(self.run_id):
             digest = row_["report_digest"]

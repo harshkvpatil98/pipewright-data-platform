@@ -74,6 +74,10 @@ _STARTUP_HOOK_PATTERNS = tuple(
 ALWAYS_FORBIDDEN = (
     ".git/**", ".git",
     ".pw-dev/**", ".pw-dev",
+    # The controller prepares this, and what it contains decides what the next
+    # check executes and where its imports resolve from. Nobody assigned work
+    # in a checkout is assigned its interpreter.
+    ".venv/**", ".venv", "**/.venv/**", "**/.venv",
     "tools/dev-orchestrator/src/pw_dev/verify/**",
     "tools/dev-orchestrator/src/pw_dev/publish/**",
     "tools/dev-orchestrator/pw-dev.toml",

@@ -56,6 +56,24 @@ from ..workspace.sandbox import sandbox_wrapper
 #: afterwards.
 CARVED_OUT = (".venv", ".git")
 
+#: Also carved out, and for the same reason. A dependency tree holds programs
+#: later checks execute -- `next`, `tsc`, `eslint` -- and `node_modules` is
+#: excluded from the tree fingerprint, so replacing one of them would change
+#: what runs without changing anything a later comparison looks at. The trees
+#: are the controller's copy; a check reads them and does not edit them.
+CARVED_OUT_TREES = ("node_modules",)
+
+#: Re-opened inside a carved-out dependency tree. Some tools insist on keeping
+#: their cache beside the code they read — Vitest writes its results to
+#: `node_modules/.vite`, and denying it stops the suite running at all. These
+#: are caches; `node_modules/.bin`, where the executables live, is not among
+#: them and stays closed.
+TREE_CACHES = (".vite", ".cache", ".tmp")
+
+#: Workspaces live one or two levels in; deeper than this belongs to a
+#: dependency of a dependency, which is inside a tree already carved out.
+TREE_SEARCH_DEPTH = 3
+
 
 @dataclass(frozen=True)
 class Confinement:
@@ -114,6 +132,29 @@ def disposable_home(root: Path, check_id: str) -> Path:
     return home
 
 
+def _dependency_trees(checkout: Path) -> list[Path]:
+    """Every dependency tree inside the checkout, at any workspace depth."""
+    found: list[Path] = []
+
+    def walk(directory: Path, depth: int) -> None:
+        if depth > TREE_SEARCH_DEPTH:
+            return
+        try:
+            entries = sorted(directory.iterdir())
+        except OSError:
+            return
+        for entry in entries:
+            if entry.name in CARVED_OUT_TREES:
+                found.append(entry)
+                continue
+            if entry.name.startswith(".") or entry.is_symlink() or not entry.is_dir():
+                continue
+            walk(entry, depth + 1)
+
+    walk(checkout, 1)
+    return found
+
+
 def for_check(
     check_id: str, *, checkout: Path, run_dir: Path, mode: str,
     scratch: Path | None = None,
@@ -145,7 +186,10 @@ def for_check(
         )
 
     denials = [checkout / name for name in CARVED_OUT]
-    wrap = sandbox_wrapper(write_roots, profile_path, denials)
+    trees = _dependency_trees(checkout)
+    denials.extend(trees)
+    regrants = [tree / cache for tree in trees for cache in TREE_CACHES]
+    wrap = sandbox_wrapper(write_roots, profile_path, denials, regrants)
     if wrap is None:
         return Confinement(
             mode="enforced", home=home, write_roots=tuple(write_roots),

@@ -59,7 +59,7 @@ _PROFILE = """(version 1)
     (literal "/dev/dtracehelper"))
 (allow file-write* (regex #"^/dev/tty"))
 (allow file-ioctl (literal "/dev/dtracehelper"))
-{denied}"""
+{denied}{regranted}"""
 
 
 def detect_sandbox_support(*, probe: bool = True) -> SandboxSupport:
@@ -135,7 +135,8 @@ def _probe_macos(binary: str) -> tuple[str, str] | tuple[bool, str]:
                   "and carve-outs inside a granted root are denied")
 
 
-def build_profile(write_roots: list[Path], deny_paths: list[Path] | None = None) -> str:
+def build_profile(write_roots: list[Path], deny_paths: list[Path] | None = None,
+                  regrant_paths: list[Path] | None = None) -> str:
     """Render a Seatbelt profile granting writes only under `write_roots`.
 
     `deny_paths` are carved back out *after* the grants. Seatbelt applies the
@@ -164,7 +165,21 @@ def build_profile(write_roots: list[Path], deny_paths: list[Path] | None = None)
             ";; matching rule, so these deny rules beat the subpath allows.\n"
             f"(deny file-write*\n{rules})\n"
         )
-    return _PROFILE.format(write_roots=clauses, denied=denied)
+    regranted = ""
+    if regrant_paths:
+        # Last matching rule wins, so these come after the denials: a directory
+        # can be closed and one cache inside it opened again. Used where a tool
+        # insists on writing beside the code it reads -- Vitest keeps its results
+        # cache in `node_modules/.vite` -- without reopening the code itself.
+        rules = "\n".join(
+            f'    (subpath "{_escape(str(Path(path).resolve()))}")'
+            for path in regrant_paths
+        )
+        regranted = (
+            "\n;; Re-granted after the denials above, which they override.\n"
+            f"(allow file-write*\n{rules})\n"
+        )
+    return _PROFILE.format(write_roots=clauses, denied=denied, regranted=regranted)
 
 
 def _escape(value: str) -> str:
@@ -198,7 +213,8 @@ def claude_config_denials(config_dir: Path) -> list[Path]:
 
 
 def sandbox_wrapper(write_roots: list[Path], profile_path: Path,
-                    deny_paths: list[Path] | None = None):
+                    deny_paths: list[Path] | None = None,
+                    regrant_paths: list[Path] | None = None):
     """Return a callable that wraps an argv in the enforced sandbox.
 
     Returns `None` when the host cannot enforce anything, so a caller cannot
@@ -209,7 +225,8 @@ def sandbox_wrapper(write_roots: list[Path], profile_path: Path,
         return None
     profile_path = Path(profile_path)
     profile_path.parent.mkdir(parents=True, exist_ok=True)
-    profile_path.write_text(build_profile(write_roots, deny_paths), encoding="utf-8")
+    profile_path.write_text(
+        build_profile(write_roots, deny_paths, regrant_paths), encoding="utf-8")
     binary = shutil.which("sandbox-exec") or "/usr/bin/sandbox-exec"
 
     def wrap(argv: list[str]) -> list[str]:

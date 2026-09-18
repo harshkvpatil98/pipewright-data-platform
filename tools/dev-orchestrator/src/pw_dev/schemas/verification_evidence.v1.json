@@ -26,7 +26,9 @@
     "spec_digest",
     "environment_digest",
     "environment",
-    "detail"
+    "detail",
+    "confinement",
+    "skipped"
   ],
   "properties": {
     "schema_version": {
@@ -178,6 +180,66 @@
         "string",
         "null"
       ]
+    },
+    "confinement": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The write boundary this check ran behind. Recorded because a check that was supposed to be confined and was not has not produced the evidence it claims to; and because 'enforced' must not be read as more than it is.",
+      "required": [
+        "mode",
+        "enforced",
+        "home",
+        "write_roots",
+        "profile",
+        "detail",
+        "covers",
+        "does_not_cover"
+      ],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "enforced",
+            "supervised",
+            "off"
+          ]
+        },
+        "enforced": {
+          "type": "boolean"
+        },
+        "home": {
+          "type": "string",
+          "description": "The disposable HOME this check was given."
+        },
+        "write_roots": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "profile": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "detail": {
+          "type": "string"
+        },
+        "covers": {
+          "type": "string"
+        },
+        "does_not_cover": {
+          "type": "string"
+        }
+      }
+    },
+    "skipped": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Cases that were skipped when the check otherwise passed. Recorded so a coverage gap stays visible in the evidence rather than only in a log."
     }
   }
 }

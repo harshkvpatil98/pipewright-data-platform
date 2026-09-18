@@ -67,6 +67,8 @@ test.
 
 from __future__ import annotations
 
+import errno
+import hashlib
 import importlib.machinery as machinery
 import json
 import os
@@ -78,11 +80,14 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..util.hashing import digest_file, digest_json
+from ..util.hashing import digest_json
 
 #: Written into the checkout's site-packages. One file, so the composition is
 #: readable with `cat` when something looks wrong.
 PTH_NAME = "_pw_dev_sources.pth"
+#: The third-party site directories an environment actually imports from,
+#: recorded so an environment built *on top of* this one can inherit them.
+THIRD_PARTY_NAME = "_pw_dev_third_party.json"
 
 #: Records what the environment was built from, so reuse is a decision rather
 #: than an assumption.
@@ -223,16 +228,55 @@ def startup_hooks_in(roots: list[Path]) -> list[str]:
 
 def site_packages_of(interpreter: Path) -> Path | None:
     """Ask an interpreter where its site-packages is, rather than guessing."""
+    sites = _site_packages_list(interpreter)
+    return sites[0] if sites else None
+
+
+def _site_packages_list(interpreter: Path) -> list[Path]:
     try:
         result = subprocess.run(  # noqa: S603 - fixed argv
-            [str(interpreter), "-c", "import site;print(site.getsitepackages()[0])"],
+            [str(interpreter), "-c",
+             "import site, json; print(json.dumps(site.getsitepackages()))"],
             capture_output=True, text=True, timeout=60, check=False,
         )
     except (OSError, subprocess.SubprocessError):
-        return None
+        return []
     if result.returncode != 0 or not result.stdout.strip():
-        return None
-    return Path(result.stdout.strip().splitlines()[-1])
+        return []
+    try:
+        entries = json.loads(result.stdout.strip().splitlines()[-1])
+    except ValueError:
+        return []
+    return [Path(entry) for entry in entries if Path(entry).is_dir()]
+
+
+def third_party_sites(interpreter: Path) -> list[Path]:
+    """Where an environment built on this one should look for installed packages.
+
+    `site.getsitepackages()` answers for an ordinary installation. It does not
+    answer for an environment this module built, because such an environment
+    keeps nothing of its own: its packages come from the directories named in
+    its `.pth`, and adding a directory to `sys.path` does not make it a site
+    directory, so *its* `.pth` is never processed in turn. Layering one prepared
+    environment on another therefore lost every third-party package —
+    `packaging`, `pytest`, `pydantic` — and the checks that needed them failed
+    for a reason that had nothing to do with the code under test.
+
+    So each prepared environment writes down the chain it actually uses, and the
+    next one reads it. Only site directories propagate. Source roots never do,
+    which is the guarantee that keeps one checkout's editable installs out of
+    another checkout's `sys.path`.
+    """
+    for site_dir in _site_packages_list(interpreter):
+        recorded = site_dir / THIRD_PARTY_NAME
+        try:
+            entries = json.loads(recorded.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        resolved = [Path(entry) for entry in entries if Path(entry).is_dir()]
+        if resolved:
+            return resolved
+    return _site_packages_list(interpreter)
 
 
 def declared_requirements(checkout: Path) -> list[str]:
@@ -310,23 +354,71 @@ def stamp_for(checkout: Path, shared: Path, interpreter_version: str,
         "base_interpreter": _interpreter_identity(base),
         "source_roots": sorted(str(p) for p in roots),
         "launchers": _launcher_manifest(base.parent if base else None),
-        "layout": 5,
+        "layout": 6,
     })
 
 
+class IdentityUnavailable(RuntimeError):
+    """A file an environment's identity depends on could not be established.
+
+    Raised rather than skipped. Omitting an entry made an unreadable launcher
+    indistinguishable from an absent one, and an environment whose identity is
+    partly unknown must not be reused on the strength of the part that is.
+    """
+
+
+def _digest_descriptor(path: Path) -> tuple[str, os.stat_result]:
+    """Hash a regular file and stat it *through the same descriptor*.
+
+    `Path.open` follows a final symlink, so a branch chosen by `lstat` and then
+    read by name is a check/use gap: swapping the entry for a symlink in between
+    made the caller hash a file somewhere else entirely. Opening with
+    `O_NOFOLLOW` refuses that swap, and taking the metadata from `fstat` on the
+    open descriptor means the digest and the metadata describe one object.
+    """
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+    try:
+        stat_result = os.fstat(fd)
+        if not stat.S_ISREG(stat_result.st_mode):
+            raise OSError(errno.EINVAL, "not a regular file", str(path))
+        digest = hashlib.sha256()
+        while True:
+            chunk = os.read(fd, 1 << 20)
+            if not chunk:
+                break
+            digest.update(chunk)
+        return digest.hexdigest(), stat_result
+    finally:
+        os.close(fd)
+
+
 def _interpreter_identity(base: Path | None) -> dict | None:
-    """The interpreter an environment was built from, beyond its path."""
+    """What the interpreter an environment was built from *is*.
+
+    Path, size and modification time are all chosen by whoever writes the file,
+    so an in-place replacement at the same size with the timestamp restored left
+    every one of them unchanged. The bytes are not chosen twice: they are what
+    would actually run.
+    """
     if base is None:
         return None
     base = Path(base)
     try:
-        stat_result = base.stat()
-    except OSError:
-        return {"path": str(base), "stat": None}
+        link = os.readlink(base) if base.is_symlink() else None
+        resolved = base.resolve(strict=True)
+        content, stat_result = _digest_descriptor(resolved)
+    except OSError as exc:
+        raise IdentityUnavailable(
+            f"the base interpreter {base} could not be identified: {exc}. An "
+            f"environment is not reused on an interpreter nobody can describe."
+        ) from None
     return {
-        "path": str(base.resolve()),
+        "path": str(resolved),
+        "link": link,
         "size": stat_result.st_size,
         "mtime_ns": stat_result.st_mtime_ns,
+        "mode": stat_result.st_mode,
+        "content": content,
     }
 
 
@@ -352,13 +444,28 @@ def _launcher_manifest(bin_dir: Path | None) -> list[list]:
         try:
             stat_result = entry.lstat()
             if stat.S_ISLNK(stat_result.st_mode):
+                # Recorded by target, never followed: reading through it would
+                # describe the program it points at rather than the link that
+                # could be repointed at another one.
                 content = f"link:{os.readlink(entry)}"
             elif stat.S_ISREG(stat_result.st_mode):
-                content = digest_file(entry)
+                # Digest and metadata both come from one descriptor, and the
+                # open refuses a symlink -- so an entry swapped for a link
+                # between the `lstat` above and this line fails here instead of
+                # being hashed from wherever it now points.
+                content, stat_result = _digest_descriptor(entry)
             else:
-                content = f"kind:{stat.S_IFMT(stat_result.st_mode)}"
-        except OSError:
-            continue
+                # `_install_launchers` skips anything `is_file()` rejects, so
+                # this entry would not be copied. It is still described, because
+                # an entry that exists and is passed over is not the same as an
+                # entry that is not there.
+                content = "kind:skipped"
+        except OSError as exc:
+            raise IdentityUnavailable(
+                f"the launcher {entry} could not be identified: {exc}. Skipping it "
+                f"made an unreadable launcher look like an absent one, and an "
+                f"environment is not reused on an identity that is partly unknown."
+            ) from None
         manifest.append([entry.name, stat_result.st_size, stat_result.st_mtime_ns,
                          stat_result.st_mode, content])
     return manifest
@@ -430,7 +537,16 @@ def prepare(checkout: Path, *, shared_venv: Path, timeout_seconds: float = 300.0
         )
 
     target = checkout / ".venv"
-    stamp = stamp_for(checkout, shared_site, version, roots, base=base)
+    try:
+        stamp = stamp_for(checkout, shared_site, version, roots, base=base)
+    except IdentityUnavailable as unknown:
+        # Fail closed. The alternative -- carry on with a stamp computed over
+        # whatever could be read -- reuses an environment on a partial identity,
+        # which is the failure this stamp exists to prevent.
+        return EnvironmentReport(
+            checkout=checkout, prepared=False, problems=(str(unknown),),
+            duration_seconds=time.monotonic() - started,
+        )
     interpreter = target / "bin" / "python"
 
     if reuse and _stamp_matches(target, stamp) and interpreter.exists():
@@ -483,8 +599,13 @@ def prepare(checkout: Path, *, shared_venv: Path, timeout_seconds: float = 300.0
             )
         site_dir = found[0]
 
-    lines = [str(root) for root in roots] + [str(shared_site)]
+    inherited = third_party_sites(base) or [shared_site]
+    lines = [str(root) for root in roots] + [str(path) for path in inherited]
     (site_dir / PTH_NAME).write_text("\n".join(lines) + "\n", encoding="utf-8")
+    # Handed on, so an environment built from this one finds the same packages
+    # instead of finding nothing.
+    (site_dir / THIRD_PARTY_NAME).write_text(
+        json.dumps([str(path) for path in inherited], indent=2), encoding="utf-8")
 
     scripts = _install_launchers(shared_venv, target, problems)
     (target / STAMP_NAME).write_text(

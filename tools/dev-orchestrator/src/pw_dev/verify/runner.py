@@ -34,6 +34,7 @@ from ..util import proc
 from ..util.hashing import digest_json, digest_text
 from ..util.jsonio import utc_now
 from ..util.redact import redact
+from . import confine
 from .registry import Check, Registry
 
 
@@ -54,6 +55,7 @@ _PYTEST_SUMMARY = re.compile(
     r"(?m)^=+ .*?(?P<body>\d+ (?:passed|failed|error|skipped).*?) =+\s*$"
 )
 _SKIP_COUNT = re.compile(r"(?<!\w)(\d+)\s+skipped")
+_PASS_COUNT = re.compile(r"(?<!\w)(\d+)\s+passed")
 _FAIL_COUNT = re.compile(r"(?<!\w)(\d+)\s+(?:failed|error(?:s|ed)?)")
 
 
@@ -88,6 +90,8 @@ class VerificationRunner:
     def __init__(
         self, registry: Registry, *, store, run_id: str, base_commit: str,
         spec_digest: str, artifacts_dir: Path, parameters: dict[str, str] | None = None,
+        isolation_mode: str = "off", run_dir: Path | None = None,
+        repo_root: Path | None = None,
     ) -> None:
         self.registry = registry
         self.store = store
@@ -97,6 +101,13 @@ class VerificationRunner:
         self.parameters = dict(parameters or {})
         self.artifacts_dir = Path(artifacts_dir)
         self.artifacts_dir.mkdir(parents=True, exist_ok=True)
+        # Verification runs the phase's own code, so it gets the same kind of
+        # boundary a worker gets. `run_dir` holds the disposable HOME and the
+        # rendered profile; `repo_root` is the checkout a candidate borrows
+        # shared caches from, and the one it must not be able to write.
+        self.isolation_mode = isolation_mode
+        self.run_dir = Path(run_dir) if run_dir is not None else self.artifacts_dir.parent
+        self.repo_root = Path(repo_root) if repo_root is not None else None
         self._env_cache: dict[str, EnvironmentFacts] = {}
 
     # ------------------------------------------------------------- execution
@@ -128,6 +139,7 @@ class VerificationRunner:
             "output_digest": None,
             "output_bytes": 0,
             "truncated": False,
+            "skipped": None,
             "candidate_fingerprint": candidate_fingerprint,
             "base_commit": self.base_commit,
             "spec_digest": self.spec_digest,
@@ -135,6 +147,23 @@ class VerificationRunner:
             "environment": facts.to_dict(),
             "detail": None,
         }
+
+        boundary = confine.for_check(
+            check.id, checkout=checkout, run_dir=self.run_dir,
+            mode=self.isolation_mode, repo_root=self.repo_root,
+            scratch=self.scratch_root(checkout),
+        )
+        document["confinement"] = boundary.to_dict()
+        if boundary.failed:
+            document["outcome"] = Outcome.ERROR
+            document["finished_at"] = utc_now()
+            document["detail"] = (
+                f"{boundary.detail}. The check was not run: an unconfined check "
+                f"executes the candidate's own test code with the controller's "
+                f"access, and a result obtained that way is not the result this "
+                f"check claims to produce."
+            )
+            return self._record(document)
 
         unbound = check.unbound_tokens(argv)
         if unbound:
@@ -168,6 +197,10 @@ class VerificationRunner:
             return self._record(document)
 
         env = proc.build_env(overrides={
+            # A HOME of its own, emptied before every check. Whatever the
+            # candidate's test code writes to `~` lands here and is discarded,
+            # and whatever it hoped to read from the operator's home is absent.
+            "HOME": str(boundary.home),
             # Each checkout gets its own caches and temp space, so two
             # concurrent runs do not share a Next.js build cache or a pytest
             # cache directory and report each other's results.
@@ -187,7 +220,7 @@ class VerificationRunner:
 
         try:
             result = proc.run(
-                argv, cwd=cwd, env=env, timeout=check.timeout_seconds,
+                boundary.apply(argv), cwd=cwd, env=env, timeout=check.timeout_seconds,
                 max_output_bytes=16 * 1024 * 1024, cancel_check=cancel_check,
             )
         except (FileNotFoundError, OSError) as exc:
@@ -240,17 +273,32 @@ class VerificationRunner:
                 f"ends quietly has not demonstrated that it ran."
             )
         else:
-            skipped = _skip_count(result.stdout + result.stderr)
-            if skipped:
+            output = result.stdout + result.stderr
+            skipped = _skip_count(output)
+            executed = _pass_count(output)
+            if skipped and not executed:
+                # Nothing ran. Whatever the exit status says, this check has
+                # not exercised anything, and an empty result is not a pass.
                 document["outcome"] = Outcome.SKIP
                 document["detail"] = (
-                    f"the command succeeded with {skipped} skipped case(s). Recorded as "
-                    f"'skip' so it cannot be read as full coverage."
+                    f"every one of the {skipped} case(s) was skipped and none ran. "
+                    f"Recorded as 'skip': a check that exercised nothing has not "
+                    f"demonstrated anything."
                     + (f" {check.infra_note}" if check.infra_note else "")
                 )
             else:
                 document["outcome"] = Outcome.PASS
                 document["detail"] = _success_detail(result)
+                if skipped:
+                    # Reported, and reported every time, because the gap is real
+                    # -- these cases were not exercised. What it is not is a
+                    # reason to call a run of 6,424 passing cases "no result".
+                    document["skipped"] = skipped
+                    document["detail"] += (
+                        f" {executed} case(s) ran and passed; {skipped} were skipped "
+                        f"and are not covered by this evidence."
+                        + (f" {check.infra_note}" if check.infra_note else "")
+                    )
 
         return self._record(document)
 
@@ -298,8 +346,22 @@ class VerificationRunner:
         self.store.record_evidence(document)
         return document
 
+    def scratch_root(self, checkout: Path) -> Path:
+        """Where a check's temporary files go: beside the run, not in the tree.
+
+        They used to go to `<checkout>/.pw-dev-scratch`, which had two costs.
+        The tree being verified changed while it was being verified, so its
+        fingerprint moved and the evidence bound to the previous fingerprint
+        looked stale. And a test asking "is this path inside the repository?"
+        got the wrong answer for its own temporary directory, because pytest's
+        `tmp_path` now *was* inside the repository.
+        """
+        path = Path(self.run_dir) / "verify-scratch" / Path(checkout).name
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+
     def _scratch(self, checkout: Path, name: str) -> Path:
-        path = checkout / ".pw-dev-scratch" / name
+        path = self.scratch_root(checkout) / name
         path.mkdir(parents=True, exist_ok=True)
         return path
 
@@ -426,6 +488,14 @@ class VerificationRunner:
                     f"This environment is testing another checkout's code."
                 )
         return problems
+
+
+def _pass_count(output: str) -> int:
+    """How many cases actually ran and passed."""
+    match = _PYTEST_SUMMARY.search(output)
+    body = match.group("body") if match else output[-4000:]
+    passed = _PASS_COUNT.search(body)
+    return int(passed.group(1)) if passed else 0
 
 
 def _skip_count(output: str) -> int:

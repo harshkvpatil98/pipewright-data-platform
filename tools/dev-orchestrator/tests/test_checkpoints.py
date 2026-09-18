@@ -656,8 +656,6 @@ def test_a_process_left_behind_by_a_finished_command_is_reaped():
     that wanted one would arrange exactly that, then have it wait for the
     environment rebuild and edit the interpreter before checks ran.
     """
-    import os
-    import subprocess
     import sys
     import tempfile
     import time
@@ -666,11 +664,16 @@ def test_a_process_left_behind_by_a_finished_command_is_reaped():
 
     with tempfile.TemporaryDirectory() as raw:
         marker = Path(raw) / "still-alive"
+        # The child records *its own pid*. Asking the kernel whether that exact
+        # process is alive is a more precise question than scanning `ps` output
+        # for a string -- and `ps` is setuid root, which a sandboxed check
+        # cannot execute at all, so a test that depended on it could not run
+        # under the confinement verification now uses.
         script = (
             f"import subprocess, sys, os\n"
             f"subprocess.Popen([sys.executable, '-c',"
-            f" \"import time, pathlib;\"\n"
-            f"  \"pathlib.Path({str(marker)!r}).write_text('yes');\"\n"
+            f" \"import time, pathlib, os;\"\n"
+            f"  \"pathlib.Path({str(marker)!r}).write_text(str(os.getpid()));\"\n"
             f"  \"time.sleep(120)\"],\n"
             f" stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)\n"
             f"raise SystemExit(0)\n"
@@ -689,10 +692,29 @@ def test_a_process_left_behind_by_a_finished_command_is_reaped():
 
             _pytest.skip("the detached child never started; nothing to reap")
 
-        survivors = subprocess.run(  # noqa: S603 - fixed argv
-            ["/bin/ps", "-o", "command="], capture_output=True, text=True, check=False,
-        ).stdout
-        assert str(marker) not in survivors, (
-            "the group this run created must not outlive it"
+        stray = int(marker.read_text(encoding="utf-8").strip())
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline and _alive(stray):
+            time.sleep(0.1)
+        assert not _alive(stray), (
+            f"pid {stray} outlived the run that created it; the group must be reaped"
         )
-        assert os.path.exists(marker)
+
+
+def _alive(pid: int) -> bool:
+    """Whether a process still exists, asked of the kernel directly.
+
+    `os.kill(pid, 0)` performs the permission and existence check without
+    sending anything. `ProcessLookupError` is the answer we are looking for;
+    `PermissionError` means it exists and belongs to somebody else, which for
+    this purpose still counts as alive.
+    """
+    import os
+
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True

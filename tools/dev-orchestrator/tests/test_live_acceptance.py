@@ -47,6 +47,13 @@ DATABASE_URL = os.environ["DATABASE_URL"]
 JWT_SECRET = os.environ["AUTH_JWT_SECRET"]
 TOKEN = "fixture-token-" + PASSWORD[:8]
 
+# Recorded so a test can ask the kernel whether *this* process is still alive.
+# The alternative was scanning `ps` output for a command line, and `ps` is
+# setuid root, which a check running under verification's confinement cannot
+# execute at all.
+with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "app.pid"), "w") as fh:
+    fh.write(str(os.getpid()))
+
 
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *args):
@@ -334,11 +341,10 @@ def test_a_forked_server_that_outlives_its_launcher_is_still_reaped(candidate: P
     (candidate / "real_app.py").write_text(FIXTURE_APP, encoding="utf-8")
     write_scenario(candidate, "forked", _scenario())
 
-    before = _python_children()
     result = invoke(candidate, "forked")
-    time.sleep(1.5)
-    leaked = _python_children() - before
-    assert not any("real_app" in line for line in leaked), leaked
+    assert _gone_within(_recorded_pid(candidate)), (
+        "the forked server outlived its launcher; teardown must signal the group"
+    )
     assert result.returncode != live_acceptance.EXIT_PASS
 
 
@@ -466,18 +472,40 @@ def test_teardown_removes_only_what_this_invocation_created(
 
 def test_the_runner_leaves_no_child_process_behind(candidate: Path):
     write_scenario(candidate, "tidy", _scenario())
-    before = _python_children()
     assert invoke(candidate, "tidy").returncode == live_acceptance.EXIT_PASS
-    time.sleep(1.0)
-    leaked = _python_children() - before
-    assert not any("fixture_app" in line for line in leaked), leaked
-
-
-def _python_children() -> set[str]:
-    listing = subprocess.run(  # noqa: S603 - fixed argv
-        ["/bin/ps", "-o", "command="], capture_output=True, text=True, check=False,
+    assert _gone_within(_recorded_pid(candidate)), (
+        "the runner left the fixture application running"
     )
-    return {line for line in listing.stdout.splitlines() if "fixture_app" in line}
+
+
+def _alive(pid: int) -> bool:
+    """Whether a process still exists, asked of the kernel rather than of `ps`.
+
+    `os.kill(pid, 0)` checks existence and permission without sending a signal.
+    `ProcessLookupError` means gone; `PermissionError` means alive and owned by
+    somebody else, which still counts as alive.
+    """
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def _recorded_pid(candidate: Path) -> int:
+    """The pid the fixture application wrote when it started."""
+    recorded = candidate / "app.pid"
+    assert recorded.exists(), "the fixture application never started"
+    return int(recorded.read_text(encoding="utf-8").strip())
+
+
+def _gone_within(pid: int, seconds: float = 10.0) -> bool:
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline and _alive(pid):
+        time.sleep(0.1)
+    return not _alive(pid)
 
 
 def test_the_runner_is_inside_the_never_writable_verification_package():

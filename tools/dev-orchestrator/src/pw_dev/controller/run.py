@@ -20,6 +20,7 @@ import concurrent.futures
 import json
 import os
 import re
+import shutil
 import threading
 import time
 from dataclasses import dataclass, field
@@ -41,6 +42,7 @@ from ..verify.registry import registry_for
 from ..verify.runner import SUCCESS_OUTCOMES, VerificationRunner
 from ..workspace import git, pyenv
 from ..workspace.guard import PathGuard, PathViolation, resolve_within
+from ..workspace.node_modules import provide as provide_node_modules
 from ..workspace.pyenv import EnvironmentReport
 from ..workspace.patches import (CONTROLLER_SCRATCH, PatchBundle, apply_bundle,
                                  conflicting_paths, export_bundle, would_conflict)
@@ -259,6 +261,8 @@ class Controller:
             self.registry, store=self.store, run_id=self.run_id,
             base_commit=self.base_commit, spec_digest=self.spec_digest,
             artifacts_dir=self.evidence_dir, parameters=self.check_parameters(),
+            isolation_mode=self.isolation_mode, run_dir=self.run_dir,
+            repo_root=self.config.repo_root,
         )
 
     def gate_checks(self) -> list[str]:
@@ -1038,17 +1042,20 @@ class Controller:
                 f"will fail here, visibly; adding a dependency needs the repository's own "
                 f"environment rebuilt."
             )
-        for name in ("node_modules",):
-            source = self.repo_root / name
-            target = checkout / name
-            if source.exists() and not target.exists():
-                try:
-                    target.symlink_to(source, target_is_directory=True)
-                except OSError as exc:
-                    self.store.event(
-                        self.run_id, "environment.link_failed",
-                        f"could not link {name} into {checkout.name}: {exc}",
-                    )
+        try:
+            provided = provide_node_modules(self.repo_root, checkout)
+        except (OSError, shutil.Error) as exc:
+            self.store.event(
+                self.run_id, "environment.link_failed",
+                f"could not provide node_modules to {checkout.name}: {exc}",
+            )
+        else:
+            if provided:
+                self.store.event(
+                    self.run_id, "environment.node_modules",
+                    f"{checkout.name} was given its own copy of {len(provided)} "
+                    f"dependency tree(s): {', '.join(provided)}",
+                )
         return report
 
     def python_environment_needed(self) -> bool:

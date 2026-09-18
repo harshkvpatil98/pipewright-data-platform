@@ -78,14 +78,33 @@ def test_a_failing_command_is_fail(store, tmp_path):
     assert record["exit_status"] == 3
 
 
-def test_skipped_cases_are_skip_not_pass(store, tmp_path):
-    """A pytest run that skipped everything exits 0. It is not full coverage."""
-    output = "===== 3 passed, 12 skipped in 1.20s ====="
+def test_a_run_that_exercised_nothing_is_a_skip(store, tmp_path):
+    """Everything skipped and nothing ran. Exit zero does not make that a result."""
+    output = "===== 12 skipped in 1.20s ====="
     runner = _runner(store, tmp_path, (_check("skips", (sys.executable, "-c", f"print({output!r})")),))
     record = runner.run_check("skips", checkout=tmp_path, candidate_fingerprint="tree:x")
     assert record["outcome"] == Outcome.SKIP
     assert record["outcome"] not in SUCCESS_OUTCOMES
-    assert "12 skipped" in record["detail"]
+    assert "12" in record["detail"]
+
+
+def test_a_run_with_passes_and_skips_passes_and_records_the_gap(store, tmp_path):
+    """The correction. Three cases ran and passed; twelve did not run.
+
+    Reading that as "no result" was too strong, and not in a way that made the
+    tool stricter: this repository's own suite skips 578 cases whenever the
+    optional MySQL and MariaDB servers are absent, so every gate was
+    permanently unclosable on an ordinary machine and no run could ever reach
+    COMMIT. The gap is real and stays in the evidence; it is not a reason to
+    discard the 3 results that exist.
+    """
+    output = "===== 3 passed, 12 skipped in 1.20s ====="
+    runner = _runner(store, tmp_path, (_check("mixed", (sys.executable, "-c", f"print({output!r})")),))
+    record = runner.run_check("mixed", checkout=tmp_path, candidate_fingerprint="tree:x")
+    assert record["outcome"] == Outcome.PASS
+    assert record["skipped"] == 12
+    assert "12 were skipped" in record["detail"]
+    assert "not covered by this evidence" in record["detail"]
 
 
 def test_a_failure_summary_is_not_mistaken_for_a_skip(store, tmp_path):
@@ -245,3 +264,33 @@ def test_baseline_capture_keeps_a_pre_existing_failure_visible(store, tmp_path):
         ["was-failing", "was-passing"], checkout=tmp_path, candidate_fingerprint="tree:base",
     )
     assert baseline == {"was-failing": Outcome.FAIL, "was-passing": Outcome.PASS}
+
+
+# ===================== a skip is a gap in coverage, not an absent result ======
+def test_a_run_where_nothing_executed_is_a_skip():
+    """No case ran, so there is no result, whatever the exit status says."""
+    from pw_dev.verify import runner as runner_module
+
+    assert runner_module._pass_count("= 12 skipped in 0.1s =") == 0
+    assert runner_module._skip_count("= 12 skipped in 0.1s =") == 12
+
+
+def test_a_run_with_passes_and_skips_is_a_pass_that_records_the_gap():
+    """6,424 cases ran and passed. Calling that "no result" made every gate
+    permanently unreachable on any machine without the optional databases,
+    which is not a stricter standard -- it is an unusable one.
+    """
+    from pw_dev.verify import runner as runner_module
+
+    summary = "= 6424 passed, 578 skipped, 21 warnings in 239.69s ="
+    assert runner_module._pass_count(summary) == 6424
+    assert runner_module._skip_count(summary) == 578
+
+
+def test_a_failure_is_still_a_failure_even_with_skips():
+    from pw_dev.verify import runner as runner_module
+
+    summary = "= 17 failed, 6424 passed, 578 skipped in 239.69s ="
+    assert runner_module._skip_count(summary) == 0, (
+        "a failure is reported as a failure, never softened into a skip"
+    )

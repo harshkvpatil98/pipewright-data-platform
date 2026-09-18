@@ -218,6 +218,45 @@ def sandbox_wrapper(write_roots: list[Path], profile_path: Path,
     return wrap
 
 
+def already_sandboxed() -> bool:
+    """Whether this process is itself running inside a Seatbelt sandbox.
+
+    Nesting does not work: a profile applied inside an existing sandbox fails
+    to initialise and `sandbox-exec` exits 71 without running the command. That
+    matters because verification is now confined, so the orchestrator's own
+    tests -- which prove worker isolation by *using* `sandbox-exec` -- run one
+    level inside it when the suite runs as a check.
+
+    Detected by trying it, once, rather than by reading an environment variable
+    a caller could set. A host with no `sandbox-exec` at all answers `False`:
+    there is no sandbox to be inside.
+    """
+    global _NESTED
+    if _NESTED is not None:
+        return _NESTED
+    binary = shutil.which("sandbox-exec")
+    if binary is None or sys.platform != "darwin":
+        _NESTED = False
+        return _NESTED
+    with tempfile.NamedTemporaryFile("w", suffix=".sb", delete=False) as handle:
+        handle.write("(version 1)\n(allow default)\n")
+        profile = handle.name
+    try:
+        probe = subprocess.run(  # noqa: S603 - fixed argv
+            [binary, "-f", profile, "/usr/bin/true"],
+            capture_output=True, text=True, timeout=30, check=False,
+        )
+        _NESTED = probe.returncode != 0
+    except (OSError, subprocess.SubprocessError):
+        _NESTED = True
+    finally:
+        Path(profile).unlink(missing_ok=True)
+    return _NESTED
+
+
+_NESTED: bool | None = None
+
+
 def resolve_mode(configured: str, support: SandboxSupport) -> str:
     """Turn `auto` into a concrete mode, and refuse a mode the host cannot honour."""
     if configured == "off":

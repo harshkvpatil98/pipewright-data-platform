@@ -18,6 +18,7 @@ Two kinds of fixture here, deliberately:
 
 from __future__ import annotations
 
+import errno
 import json
 import os
 import subprocess
@@ -27,6 +28,7 @@ from pathlib import Path
 import pytest
 
 from pw_dev.workspace import pyenv
+from pw_dev.workspace.sandbox import already_sandboxed
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SHARED_VENV = REPO_ROOT / ".venv"
@@ -392,6 +394,10 @@ def test_the_controller_extends_the_denials_rather_than_replacing_them():
 
 
 @needs_shared_venv
+@pytest.mark.skipif(
+    already_sandboxed(),
+    reason="Seatbelt profiles do not nest; this proof needs an unsandboxed host",
+)
 def test_seatbelt_denies_writes_to_a_carved_out_environment(tmp_path: Path):
     """Not asserted from the profile text: exercised, like `doctor` does."""
     import subprocess as sp
@@ -727,6 +733,140 @@ def test_a_launcher_rewrite_that_restores_its_timestamp_still_rebuilds(
         "the point of the test is that every metadata field is identical")
 
     assert not pyenv.prepare(synthetic, shared_venv=shared).reused
+
+
+@needs_shared_venv
+def test_an_environment_built_on_a_prepared_one_still_finds_its_packages(
+        synthetic: Path, tmp_path: Path):
+    """Layering. The candidate's own suite runs inside a prepared environment.
+
+    A prepared environment keeps no packages of its own: it names the
+    directories to import from in a `.pth`. A directory on `sys.path` is not a
+    site directory, so that `.pth` is not processed again for the next layer —
+    and every third-party package vanished one level down. `packaging` missing
+    is what it looked like from the outside.
+    """
+    first = pyenv.prepare(synthetic, shared_venv=SHARED_VENV)
+    assert first.prepared, first.problems
+
+    second_checkout = tmp_path / "layered"
+    (second_checkout / "services" / "svc" / "src").mkdir(parents=True)
+    (second_checkout / "pyproject.toml").write_text(
+        "[project]\nname = 'layered'\nversion = '0'\n", encoding="utf-8")
+
+    # The prepared environment is now the *base* for the next one.
+    second = pyenv.prepare(second_checkout, shared_venv=synthetic / ".venv")
+    assert second.prepared, second.problems
+
+    origins = pyenv.module_origins(second.interpreter, ("pytest",))
+    assert origins["pytest"], (
+        "a package reachable from the base environment must stay reachable one "
+        "layer up; losing it is what made the orchestrator's own suite fail "
+        "inside a candidate"
+    )
+
+
+def test_layering_carries_packages_but_never_source_roots(
+        synthetic: Path, tmp_path: Path):
+    """The inheritance must not undo the isolation it is layered on top of."""
+    first = pyenv.prepare(synthetic, shared_venv=SHARED_VENV)
+    if not first.prepared:
+        pytest.skip(f"the shared venv is not usable here: {first.problems}")
+
+    inherited = pyenv.third_party_sites(first.interpreter)
+    assert inherited, "the chain must be recorded"
+    for entry in inherited:
+        assert str(synthetic.resolve()) not in str(entry), (
+            f"{entry} is inside the checkout; only site directories propagate"
+        )
+        assert entry.name == "site-packages" or "site-packages" in str(entry), entry
+
+
+def test_hashing_a_launcher_refuses_to_follow_a_symlink(tmp_path: Path):
+    """The branch is chosen by lstat; the read must not go somewhere else.
+
+    `Path.open` follows a final symlink, so selecting the regular-file branch
+    and then reading by name left a window: swap the entry for a symlink in
+    between and the caller hashes whatever it points at, outside the directory
+    entirely. Opening with O_NOFOLLOW closes the window by refusing.
+    """
+    (tmp_path / "outside.txt").write_text("not mine to read\n", encoding="utf-8")
+    link = tmp_path / "atool"
+    link.symlink_to(tmp_path / "outside.txt")
+
+    with pytest.raises(OSError) as refused:
+        pyenv._digest_descriptor(link)
+    assert refused.value.errno == errno.ELOOP
+
+    plain = tmp_path / "plain"
+    plain.write_text("mine\n", encoding="utf-8")
+    digest, stat_result = pyenv._digest_descriptor(plain)
+    assert digest and stat_result.st_size == len("mine\n"), (
+        "a regular file is still hashed, and its metadata comes from the "
+        "descriptor that was hashed"
+    )
+
+
+def test_a_launcher_that_cannot_be_read_refuses_the_environment(
+        synthetic: Path, tmp_path: Path):
+    """An unreadable launcher is not an absent one, and must not be skipped.
+
+    Omitting it left the stamp describing only the launchers that happened to
+    be readable, so an environment whose identity was partly unknown could be
+    reused on the strength of the part that was known.
+    """
+    shared = tmp_path / "shared"
+    (shared / "bin").mkdir(parents=True)
+    for name in ("python", "python3"):
+        (shared / "bin" / name).symlink_to(SHARED_VENV / "bin" / "python")
+    launcher = shared / "bin" / "atool"
+    launcher.write_text(f"#!{shared}/bin/python\nprint('v1')\n", encoding="utf-8")
+
+    first = pyenv.prepare(synthetic, shared_venv=shared)
+    if not first.prepared:
+        pytest.skip(f"the minimal shared venv is not usable here: {first.problems}")
+
+    launcher.chmod(0o000)
+    try:
+        report = pyenv.prepare(synthetic, shared_venv=shared)
+    finally:
+        launcher.chmod(0o644)
+
+    assert not report.prepared
+    assert not report.usable
+    assert any("atool" in problem for problem in report.problems), report.problems
+    assert any("could not be identified" in problem for problem in report.problems)
+
+
+def test_an_interpreter_rewritten_in_place_changes_its_identity(tmp_path: Path):
+    """Path, size and timestamp are all chosen by whoever writes the file.
+
+    Replacing the interpreter's bytes at the same size and putting the
+    timestamp back left every recorded field identical, so an environment built
+    on one interpreter was reused against another.
+    """
+    interpreter = tmp_path / "python"
+    interpreter.write_bytes(b"#!/bin/sh\necho one\n")
+    interpreter.chmod(0o755)
+    before_stat = interpreter.stat()
+    before = pyenv._interpreter_identity(interpreter)
+
+    interpreter.write_bytes(b"#!/bin/sh\necho two\n")
+    os.utime(interpreter, ns=(before_stat.st_atime_ns, before_stat.st_mtime_ns))
+    os.chmod(interpreter, before_stat.st_mode)
+    after = pyenv._interpreter_identity(interpreter)
+
+    assert (after["size"], after["mtime_ns"], after["mode"], after["path"]) == (
+        before["size"], before["mtime_ns"], before["mode"], before["path"]), (
+        "the point of the test is that every metadata field is identical")
+    assert after["content"] != before["content"]
+
+
+def test_an_unidentifiable_interpreter_refuses_rather_than_guessing(tmp_path: Path):
+    """No identity means no reuse decision, so it is an error, not a blank."""
+    missing = tmp_path / "gone"
+    with pytest.raises(pyenv.IdentityUnavailable):
+        pyenv._interpreter_identity(missing)
 
 
 def test_a_launcher_symlink_is_stamped_by_its_target_not_its_contents(

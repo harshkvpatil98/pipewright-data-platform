@@ -18,7 +18,7 @@ from typing import Any, Iterable
 _IGNORED_DIR_NAMES = {
     ".git", "node_modules", "__pycache__", ".venv", ".pytest_cache",
     ".ruff_cache", ".rush-global", ".next", ".turbo", "dist", "build",
-    ".mypy_cache", ".pw-dev",
+    ".mypy_cache", ".pw-dev", ".pw-dev-scratch",
 }
 
 

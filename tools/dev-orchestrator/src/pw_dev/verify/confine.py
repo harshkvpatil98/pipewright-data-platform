@@ -25,6 +25,18 @@ advance what running it may touch":
   supposed to run confined and did not has not produced the evidence it claims
   to produce, so the runner records that rather than a pass.
 
+One more thing it cannot do, and it is worth naming precisely because it looks
+like it should: **a write rule names a path, and a file has as many paths as
+something cares to give it.** Anything writable on this filesystem can hold a
+hard link to a file in a denied directory — same inode, different name — and
+writing through the link changes the denied file. That is not a hole in a
+particular rule, it is what path-based write confinement is; carving the link's
+directory out only moves where the link is made. Containing it needs the
+immutable files somewhere a check cannot link from: a read-only mount, or a
+container. Until then, a dependency tree or a source file can be modified by a
+check that means to, and `node_modules` is outside the fingerprint, so that
+particular modification is not visible afterwards either.
+
 What this does *not* do is restrict reads, network access, or process control.
 A check that builds the web application reaches a package cache; one that runs
 live acceptance starts a server and talks to it over a local socket. Candidate
@@ -108,9 +120,10 @@ class Confinement:
             "detail": self.detail,
             # Said plainly, in the evidence, so nobody reads "enforced" as more
             # than it is.
-            "covers": "file writes",
-            "does_not_cover": ("reads, network and local services, and process "
-                               "control"),
+            "covers": "file writes, by path",
+            "does_not_cover": ("reads, network and local services, process control, "
+                               "and writes reaching a denied file through another "
+                               "name for it such as a hard link"),
         }
 
 

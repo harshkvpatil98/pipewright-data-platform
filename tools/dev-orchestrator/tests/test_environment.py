@@ -782,6 +782,38 @@ def test_layering_carries_packages_but_never_source_roots(
         assert entry.name == "site-packages" or "site-packages" in str(entry), entry
 
 
+def test_a_decoy_site_directory_does_not_answer_for_the_real_one(synthetic: Path):
+    """First-sorted selection let a clean decoy hide a poisoned real directory.
+
+    `lib/python0/site-packages` sorts before `lib/python3.12/site-packages`, so
+    the inventory described the decoy while `bin/python` read the other one.
+    """
+    first = pyenv.prepare(synthetic, shared_venv=SHARED_VENV)
+    if not first.prepared:
+        pytest.skip(f"the shared venv is not usable here: {first.problems}")
+    assert pyenv.prepare(synthetic, shared_venv=SHARED_VENV).reused
+
+    decoy = synthetic / ".venv" / "lib" / "python0" / "site-packages"
+    decoy.mkdir(parents=True)
+
+    assert pyenv._target_site_dir(synthetic / ".venv") is None, (
+        "more than one site directory is the finding, not a tie to break"
+    )
+    assert not pyenv.prepare(synthetic, shared_venv=SHARED_VENV).reused
+
+
+def test_a_tagged_extension_hook_is_still_recognised(synthetic: Path):
+    """`Path.stem` strips one suffix, so a tagged `.so` name slipped past."""
+    first = pyenv.prepare(synthetic, shared_venv=SHARED_VENV)
+    if not first.prepared:
+        pytest.skip(f"the shared venv is not usable here: {first.problems}")
+    site_dir = pyenv.site_packages_of(first.interpreter)
+    planted = site_dir / "sitecustomize.cpython-312-darwin.so"
+    planted.write_bytes(b"\x00")
+
+    assert planted.name in pyenv.unexpected_startup_files(synthetic / ".venv")
+
+
 def test_an_unexpected_pth_stops_the_environment_being_reused(synthetic: Path):
     """Python executes a `.pth` at interpreter start, before any check runs.
 

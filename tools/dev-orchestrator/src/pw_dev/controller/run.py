@@ -39,7 +39,7 @@ from ..state.machine import RunState, TaskState, describe, is_terminal
 from ..util.hashing import digest_json, tree_fingerprint
 from ..util.jsonio import write_json_atomic
 from ..verify.registry import registry_for
-from ..verify.runner import SUCCESS_OUTCOMES, VerificationRunner
+from ..verify.runner import SUCCESS_OUTCOMES, Outcome, VerificationRunner
 from ..workspace import git, pyenv
 from ..workspace.guard import PathGuard, PathViolation, resolve_within
 from ..workspace.node_modules import NodeModulesUnsafe
@@ -1012,7 +1012,14 @@ class Controller:
         """
         if reuse and self.candidate_dir.is_dir() and (self.candidate_dir / ".git").exists():
             self.integration_commits["__latest__"] = git.head_sha(self.candidate_dir)
-            self._require_environment(self.candidate_dir, what="the resumed candidate")
+            # Rebuilt, not reused. The environment that survives a pause is one
+            # checks have already run against, and its own stamp is stored
+            # inside it -- so anything that altered both would be describing
+            # itself. A resumed run does not execute an interpreter it cannot
+            # vouch for; building a fresh one costs a fraction of a second.
+            self._require_environment(
+                self.candidate_dir, what="the resumed candidate", rebuild=True,
+            )
             return
         if self.candidate_dir.exists():
             self.worktrees.destroy(self.candidate_dir)
@@ -1269,8 +1276,13 @@ class Controller:
             {cid for cid in gates if cid not in outcomes}
             | {cid for cid in gates if cid not in skips}
         )
+        known = {
+            value for name, value in vars(Outcome).items()
+            if not name.startswith("_") and isinstance(value, str)
+        }
         malformed = sorted(
-            {cid for cid, value in outcomes.items() if not isinstance(value, str)}
+            {cid for cid, value in outcomes.items()
+             if not isinstance(value, str) or value not in known}
             | {cid for cid, value in skips.items()
                if not isinstance(value, int) or isinstance(value, bool) or value < 0}
         )

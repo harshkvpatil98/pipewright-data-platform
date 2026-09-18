@@ -796,6 +796,22 @@ def _target_contents(target: Path) -> dict | None:
     return contents
 
 
+def _is_startup_hook(entry: Path) -> bool:
+    """Whether this entry would be imported as a startup hook.
+
+    `Path.stem` strips one suffix, so `sitecustomize.cpython-312-darwin.so`
+    stemmed to `sitecustomize.cpython-312-darwin` and was missed. The whole
+    importable suffix has to come off the name instead.
+    """
+    name = entry.name
+    if entry.is_dir():
+        return name in STARTUP_HOOKS
+    for suffix in _IMPORTABLE_SUFFIXES:
+        if name.endswith(suffix) and name[: -len(suffix)] in STARTUP_HOOKS:
+            return True
+    return False
+
+
 def unexpected_startup_files(target: Path) -> list[str]:
     """Files in a prepared environment that would run without being asked to.
 
@@ -815,16 +831,25 @@ def unexpected_startup_files(target: Path) -> list[str]:
     for entry in entries:
         if entry.suffix == ".pth" and entry.name != PTH_NAME:
             found.append(entry.name)
-        elif entry.stem in STARTUP_HOOKS and (
-                entry.suffix in _IMPORTABLE_SUFFIXES or entry.is_dir()):
+        elif _is_startup_hook(entry):
             found.append(entry.name)
     return found
 
 
 def _target_site_dir(target: Path) -> Path | None:
-    for candidate in sorted((target / "lib").glob("python*/site-packages")):
-        return candidate
-    return None
+    """The one site directory a prepared environment has.
+
+    Taking the first sorted match let a decoy answer for the real one: keep
+    clean copies under `lib/python0/site-packages`, poison the actual
+    `lib/python3.12/site-packages`, and every recorded digest still matched
+    while `bin/python` read the poisoned directory. More than one match is not
+    a tie to break -- `venv` creates one, so a second is itself the finding.
+    """
+    found = sorted((target / "lib").glob("python*/site-packages"))
+    if len(found) != 1:
+        return None
+    return found[0]
+
 
 
 def _count_scripts(target: Path) -> int:

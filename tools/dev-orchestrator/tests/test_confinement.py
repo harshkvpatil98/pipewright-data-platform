@@ -272,8 +272,12 @@ def test_the_report_states_what_the_boundary_does_not_cover(
     boundary = confine.for_check(
         "repo:verify", checkout=checkout, run_dir=tmp_path / "run", mode="off")
     recorded = boundary.to_dict()
-    assert recorded["covers"] == "file writes"
-    assert "network" in recorded["does_not_cover"]
+    assert recorded["covers"] == "file writes, by path"
+    for uncovered in ("reads", "network", "process control", "hard link"):
+        assert uncovered in recorded["does_not_cover"], (
+            f"the evidence must name {uncovered!r} among what it does not cover; "
+            f"a boundary that overstates itself is worse than a narrower one"
+        )
 
 
 def test_a_check_id_with_a_colon_becomes_a_usable_directory_name():

@@ -796,6 +796,18 @@ def test_a_partial_baseline_is_measured_again_rather_than_half_believed(
     assert controller.baseline == {} and controller.skip_budget == {}
     assert any("incomplete" in note for note in controller.notes)
 
+    # an outcome outside the vocabulary: discarded, because "corrupt" is not
+    # `pass` and would otherwise read as "this gate was already failing"
+    for bogus in ("corrupt", "", "passed"):
+        controller.baseline, controller.skip_budget, controller.notes = {}, {}, []
+        outcomes = {cid: "pass" for cid in gates}
+        outcomes[gates[0]] = bogus
+        artifact.write_text(json.dumps({
+            "version": 2, "outcomes": outcomes, "skips": {cid: 0 for cid in gates},
+        }), encoding="utf-8")
+        controller._restore_baseline()
+        assert controller.baseline == {}, f"{bogus!r} must not be restored"
+
     # a nonsense skip count: also measured again
     controller.baseline, controller.skip_budget, controller.notes = {}, {}, []
     artifact.write_text(json.dumps({

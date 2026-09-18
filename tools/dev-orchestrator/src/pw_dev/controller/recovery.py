@@ -104,6 +104,24 @@ def reconcile(config: Config, store: RunStore, run_id: str, *,
             "reset after an expired lease; the previous attempt is preserved as an artifact",
         )
 
+    # An exclusive resource is held by a *running* task, and nothing is running:
+    # the process that held this run's lock is gone, which is why we are
+    # reconciling at all. Locks that outlived it belong to nobody.
+    #
+    # Leaving them was a deadlock with no way out. A task reset to PENDING above
+    # still held its own resources, so the scheduler refused to dispatch it --
+    # "T-01: waiting on exclusive resource: alembic (held by T-01)" -- and every
+    # later task waited on T-01 for ever.
+    stranded = store.held_resources(run_id)
+    if stranded:
+        for resource, holder in sorted(stranded.items()):
+            store.release_resource(run_id, resource, holder)
+        report.actions.append(
+            f"released {len(stranded)} exclusive resource(s) still recorded as held by "
+            f"{', '.join(sorted(set(stranded.values())))}; the run that held them is gone, "
+            f"and the scheduler re-acquires what it needs"
+        )
+
     candidate = config.runs_dir() / run_id / "candidate"
     if candidate.is_dir():
         fingerprint = tree_fingerprint(candidate)

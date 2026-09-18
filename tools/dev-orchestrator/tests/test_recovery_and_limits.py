@@ -513,3 +513,40 @@ def test_a_resumed_run_uses_the_configuration_it_started_with(fixture_repo: Path
     assert frozen.repo_root == config.repo_root
     assert frozen.publication.author_email == "harshkvpatil@gmail.com"
     store.close()
+
+
+# =================== a killed run must not strand its exclusive resources =====
+def test_reconcile_releases_resources_held_by_a_run_that_is_gone(tmp_path, fixture_repo):
+    """The deadlock a killed run left behind, with no way out.
+
+    Reconciliation resets an interrupted task to PENDING so it can be
+    dispatched again -- but the resources it had acquired stayed recorded
+    against it. The scheduler then refused to dispatch the very task that held
+    them ("T-01: waiting on exclusive resource: alembic (held by T-01)"), and
+    every task downstream waited on T-01 for ever.
+
+    An exclusive resource is held by a running task. When reconciliation runs,
+    nothing is running -- that is why it is running -- so a lock that outlived
+    the process belongs to nobody.
+    """
+    bin_dir = tmp_path / "bin"
+    config = make_run_config(fixture_repo, tmp_path, fake_codex(bin_dir, {}),
+                             fake_claude(bin_dir, edits={}), mode="none")
+    store = RunStore(config.db_path(), config.runs_dir())
+    run_id = store.create_run(brain="automatic", config_snapshot=config.snapshot(),
+                              publication_mode="none", deadline_epoch=None)
+    store.set_run_state(run_id, RunState.IMPLEMENT, "implementing", force=True)
+    store.create_tasks(run_id, [{"id": "T-01", "title": "t", "role": "contract",
+                                "exclusive_resources": ["alembic", "contracts"]}])
+    store.set_task_state(run_id, "T-01", TaskState.RUNNING, "working")
+    for resource in ("alembic", "contracts"):
+        assert store.acquire_resource(run_id, resource, "T-01")
+    assert store.held_resources(run_id) == {"alembic": "T-01", "contracts": "T-01"}
+
+    report = reconcile(config, store, run_id)
+
+    assert store.held_resources(run_id) == {}, (
+        "a lock that outlived the process that took it belongs to nobody"
+    )
+    assert any("released 2 exclusive resource" in line for line in report.actions)
+    store.close()

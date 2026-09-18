@@ -747,3 +747,61 @@ def test_a_pass_measured_against_another_tree_does_not_complete_the_run(config, 
 def config_registry(config):
     from pw_dev.verify.registry import registry_for
     return registry_for(config.verification_profile)
+
+
+def test_a_partial_baseline_is_measured_again_rather_than_half_believed(
+        tmp_path, config, store):
+    """A gate with no recorded outcome read as "was already failing".
+
+    That is the state a waiver is available from, so a partial artifact was
+    worse than none: the run did not recapture, and a gate that had never been
+    measured became scopeable.
+    """
+    from pw_dev.controller.run import Controller
+
+    controller = object.__new__(Controller)
+    controller.spec = {"required_verifications": [], "accepted_preexisting_failures": []}
+    controller.registry = config_registry(config)
+    controller.notes = []
+    controller.baseline = {}
+    controller.skip_budget = {}
+    controller.run_id = "run-x"
+
+    gates = controller.gate_checks()
+    artifact = tmp_path / "baseline.json"
+
+    class _Store:
+        def latest_artifact(self, run_id, name):
+            return {"path": str(artifact)}
+
+    controller.store = _Store()
+
+    # complete: restored
+    artifact.write_text(json.dumps({
+        "version": 2,
+        "outcomes": {cid: "pass" for cid in gates},
+        "skips": {cid: 0 for cid in gates},
+    }), encoding="utf-8")
+    controller._restore_baseline()
+    assert controller.baseline and controller.skip_budget
+
+    # one outcome missing: not restored, so the run measures again
+    controller.baseline, controller.skip_budget, controller.notes = {}, {}, []
+    partial = {cid: "pass" for cid in gates}
+    partial.pop(gates[0])
+    artifact.write_text(json.dumps({
+        "version": 2, "outcomes": partial, "skips": {cid: 0 for cid in gates},
+    }), encoding="utf-8")
+    controller._restore_baseline()
+    assert controller.baseline == {} and controller.skip_budget == {}
+    assert any("incomplete" in note for note in controller.notes)
+
+    # a nonsense skip count: also measured again
+    controller.baseline, controller.skip_budget, controller.notes = {}, {}, []
+    artifact.write_text(json.dumps({
+        "version": 2,
+        "outcomes": {cid: "pass" for cid in gates},
+        "skips": {cid: (-1 if cid == gates[0] else 0) for cid in gates},
+    }), encoding="utf-8")
+    controller._restore_baseline()
+    assert controller.baseline == {}

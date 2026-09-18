@@ -782,6 +782,48 @@ def test_layering_carries_packages_but_never_source_roots(
         assert entry.name == "site-packages" or "site-packages" in str(entry), entry
 
 
+def test_an_unexpected_pth_stops_the_environment_being_reused(synthetic: Path):
+    """Python executes a `.pth` at interpreter start, before any check runs.
+
+    An inventory of expected *names* did not notice a file nobody looked for,
+    so a planted one left every recorded digest unchanged.
+    """
+    first = pyenv.prepare(synthetic, shared_venv=SHARED_VENV)
+    if not first.prepared:
+        pytest.skip(f"the shared venv is not usable here: {first.problems}")
+    assert pyenv.prepare(synthetic, shared_venv=SHARED_VENV).reused
+
+    site_dir = pyenv.site_packages_of(first.interpreter)
+    (site_dir / "zz-extra.pth").write_text("import os\n", encoding="utf-8")
+
+    assert pyenv.unexpected_startup_files(synthetic / ".venv") == ["zz-extra.pth"]
+    assert not pyenv.prepare(synthetic, shared_venv=SHARED_VENV).reused
+
+
+def test_a_startup_hook_planted_in_the_environment_stops_reuse(synthetic: Path):
+    first = pyenv.prepare(synthetic, shared_venv=SHARED_VENV)
+    if not first.prepared:
+        pytest.skip(f"the shared venv is not usable here: {first.problems}")
+    site_dir = pyenv.site_packages_of(first.interpreter)
+    (site_dir / "sitecustomize.py").write_text("x = 1\n", encoding="utf-8")
+
+    assert "sitecustomize.py" in pyenv.unexpected_startup_files(synthetic / ".venv")
+    assert not pyenv.prepare(synthetic, shared_venv=SHARED_VENV).reused
+
+
+def test_an_unreadable_environment_is_rebuilt_rather_than_matched(synthetic: Path):
+    """`None == None` compared equal, so unreadable counted as unchanged."""
+    first = pyenv.prepare(synthetic, shared_venv=SHARED_VENV)
+    if not first.prepared:
+        pytest.skip(f"the shared venv is not usable here: {first.problems}")
+    stamp_path = synthetic / ".venv" / pyenv.STAMP_NAME
+    recorded = json.loads(stamp_path.read_text(encoding="utf-8"))
+    recorded["contents"] = None
+    stamp_path.write_text(json.dumps(recorded), encoding="utf-8")
+
+    assert not pyenv._stamp_matches(synthetic / ".venv", recorded["stamp"])
+
+
 def test_a_rewritten_pth_is_not_reused_however_the_stamp_reads(synthetic: Path):
     """The stamp described what the environment was built from, not what it is.
 

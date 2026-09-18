@@ -183,13 +183,20 @@ def _safe_regrants(trees: list[Path]) -> list[Path]:
         canonical_tree = tree.resolve()
         for name in TREE_CACHES:
             cache = tree / name
-            if cache.is_symlink():
+            # Emptied and recreated for every check, by the controller. A
+            # re-granted directory is writable, and a writable directory inside
+            # an otherwise denied tree can hold a *hard link* to a denied file —
+            # same inode, reachable under a permitted name. Removing the
+            # directory removes the alias with it, so no link survives from one
+            # check to the next.
+            try:
+                if cache.is_symlink() or cache.is_file():
+                    cache.unlink()
+                elif cache.is_dir():
+                    shutil.rmtree(cache)
+                cache.mkdir(parents=True)
+            except OSError:
                 continue
-            if not cache.exists():
-                try:
-                    cache.mkdir(parents=True, exist_ok=True)
-                except OSError:
-                    continue
             try:
                 canonical = cache.resolve(strict=True)
             except OSError:

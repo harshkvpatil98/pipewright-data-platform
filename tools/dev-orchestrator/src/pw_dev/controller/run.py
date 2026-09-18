@@ -1074,7 +1074,12 @@ class Controller:
                 f"environment rebuilt."
             )
         try:
-            provided = provide_node_modules(self.repo_root, checkout)
+            provided = provide_node_modules(
+                self.repo_root, checkout,
+                # Staged in the run's own area: a holder inside the
+                # checkout can be replaced by something still running there.
+                staging_root=self.run_dir / "staging",
+            )
         except (OSError, shutil.Error, NodeModulesUnsafe) as exc:
             self.store.event(
                 self.run_id, "environment.link_failed",
@@ -1254,11 +1259,27 @@ class Controller:
         skips = document.get("skips")
         if not isinstance(outcomes, dict) or not isinstance(skips, dict):
             return
-        missing = [cid for cid in self.gate_checks() if cid not in skips]
-        if missing:
+        # Every current gate must appear in both halves, and the values have to
+        # be the right kind of thing. A partial artifact was worse than none:
+        # `self.baseline` stayed truthy so the run did not measure again, and a
+        # gate with no recorded outcome read as "was already failing" -- which
+        # is what makes a waiver available.
+        gates = self.gate_checks()
+        missing = sorted(
+            {cid for cid in gates if cid not in outcomes}
+            | {cid for cid in gates if cid not in skips}
+        )
+        malformed = sorted(
+            {cid for cid, value in outcomes.items() if not isinstance(value, str)}
+            | {cid for cid, value in skips.items()
+               if not isinstance(value, int) or isinstance(value, bool) or value < 0}
+        )
+        if missing or malformed:
             self.notes.append(
-                f"the stored baseline has no skip budget for {', '.join(missing)}; "
-                f"it is being measured again"
+                "the stored baseline is incomplete"
+                + (f" (no entry for {', '.join(missing)})" if missing else "")
+                + (f" (unusable values for {', '.join(malformed)})" if malformed else "")
+                + "; it is being measured again rather than resumed in part"
             )
             return
         self.baseline = outcomes

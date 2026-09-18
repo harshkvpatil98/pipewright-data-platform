@@ -690,7 +690,17 @@ def prepare(checkout: Path, *, shared_venv: Path, timeout_seconds: float = 300.0
             )
         site_dir = found[0]
 
-    inherited = third_party_sites(base) or [shared_site]
+    try:
+        inherited = third_party_sites(base) or [shared_site]
+    except IdentityUnavailable as unknown:
+        # Secure, but `prepare` promises a report rather than an exception, and
+        # the controller acts on `prepared=False`. Letting it escape turned a
+        # probe that could not run into a crash.
+        problems.append(str(unknown))
+        return EnvironmentReport(
+            checkout=checkout, prepared=False, problems=tuple(problems),
+            duration_seconds=time.monotonic() - started,
+        )
     lines = [str(root) for root in roots] + [str(path) for path in inherited]
     (site_dir / PTH_NAME).write_text("\n".join(lines) + "\n", encoding="utf-8")
     # Handed on, so an environment built from this one finds the same packages
@@ -732,36 +742,83 @@ def _stamp_matches(target: Path, stamp: str) -> bool:
         return False
     if recorded.get("stamp") != stamp:
         return False
-    return recorded.get("contents") == _target_contents(target)
+    if unexpected_startup_files(target):
+        # Something that runs at interpreter start, that this module did not
+        # write. Refused outright rather than compared: whatever the manifest
+        # says, this is not the environment that was built.
+        return False
+    current = _target_contents(target)
+    expected = recorded.get("contents")
+    if not isinstance(current, dict) or not isinstance(expected, dict):
+        # `None == None` compared equal, so an unreadable target beside a stamp
+        # with no inventory counted as a match.
+        return False
+    return current == expected
 
 
 def _target_contents(target: Path) -> dict | None:
-    """Digests of everything this environment generated for itself.
+    """Everything this environment generated for itself, inventoried exactly.
 
-    `None` when any of it cannot be read, which fails the comparison: an
-    environment nobody can describe is rebuilt rather than trusted.
+    An inventory of *expected names* was not enough: a file nobody looked for
+    left every recorded digest unchanged. An extra `.pth` is the case that
+    matters, because Python executes one at interpreter start — before any
+    check, and during the controller's own probes.
+
+    So the whole of `bin/`, the whole of the target's site-packages, and
+    `pyvenv.cfg` are described, and anything unexpected there is reported as
+    such rather than passed over. `None` when any of it cannot be read, which
+    fails the comparison: an environment nobody can describe is rebuilt.
     """
     contents: dict[str, str] = {}
     try:
         site_dir = _target_site_dir(target)
         if site_dir is None:
             return None
-        for name in (PTH_NAME, THIRD_PARTY_NAME):
-            path = site_dir / name
+        for name, path in (("pyvenv.cfg", target / "pyvenv.cfg"),):
             if path.exists():
                 contents[name] = _digest_descriptor(path)[0]
-        bin_dir = target / "bin"
-        for entry in sorted(bin_dir.iterdir()) if bin_dir.is_dir() else []:
-            stat_result = entry.lstat()
-            if stat.S_ISLNK(stat_result.st_mode):
-                contents[f"bin/{entry.name}"] = f"link:{os.readlink(entry)}"
-            elif stat.S_ISREG(stat_result.st_mode):
-                contents[f"bin/{entry.name}"] = _digest_descriptor(entry)[0]
-            else:
-                contents[f"bin/{entry.name}"] = "kind:skipped"
+        for label, root in (("site", site_dir), ("bin", target / "bin")):
+            if not root.is_dir():
+                continue
+            for entry in sorted(root.rglob("*")):
+                key = f"{label}/{entry.relative_to(root).as_posix()}"
+                stat_result = entry.lstat()
+                if stat.S_ISLNK(stat_result.st_mode):
+                    contents[key] = f"link:{os.readlink(entry)}"
+                elif stat.S_ISDIR(stat_result.st_mode):
+                    contents[key] = "dir"
+                elif stat.S_ISREG(stat_result.st_mode):
+                    contents[key] = _digest_descriptor(entry)[0]
+                else:
+                    contents[key] = f"kind:{stat.S_IFMT(stat_result.st_mode)}"
     except OSError:
         return None
     return contents
+
+
+def unexpected_startup_files(target: Path) -> list[str]:
+    """Files in a prepared environment that would run without being asked to.
+
+    A `.pth` this module did not write, or a startup hook in any importable
+    form. Either executes at interpreter start, which is before every check and
+    during the controller's own probing, so their presence means the
+    environment is not the one that was built and is not reused.
+    """
+    site_dir = _target_site_dir(target)
+    if site_dir is None:
+        return []
+    found: list[str] = []
+    try:
+        entries = sorted(site_dir.iterdir())
+    except OSError:
+        return []
+    for entry in entries:
+        if entry.suffix == ".pth" and entry.name != PTH_NAME:
+            found.append(entry.name)
+        elif entry.stem in STARTUP_HOOKS and (
+                entry.suffix in _IMPORTABLE_SUFFIXES or entry.is_dir()):
+            found.append(entry.name)
+    return found
 
 
 def _target_site_dir(target: Path) -> Path | None:

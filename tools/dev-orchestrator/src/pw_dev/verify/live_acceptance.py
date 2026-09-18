@@ -92,6 +92,7 @@ import shutil
 import signal
 import socket
 import subprocess
+import uuid
 import sys
 import tempfile
 import time
@@ -125,6 +126,9 @@ LAUNCHERS: dict[str, dict] = {
         "args": ["api_gateway.main:app", "--host", "127.0.0.1", "--port", "{port}"],
         "cwd": "apps/api-gateway",
         "modules": ("api_gateway", "shared_python", "service_auth", "service_datasets"),
+        # This one needs a schema and an administrator before it can answer
+        # anything: see `provision`.
+        "provision": True,
     },
     # Selected only by this package's own tests, which pass it explicitly. The
     # registered check never does, so a scenario cannot reach it.
@@ -134,6 +138,10 @@ LAUNCHERS: dict[str, dict] = {
         "args": ["--port", "{port}"],
         "cwd": ".",
         "modules": ("fixture_app",),
+        # A three-file HTTP handler with no database and no migrations. It gets
+        # the disposable SQLite path it has always had, and none of the
+        # provisioning the real application needs.
+        "provision": False,
     },
 }
 
@@ -344,7 +352,7 @@ def _launcher_env(workdir: str, mapping: dict[str, str]) -> dict[str, str]:
         "TMPDIR": workdir,
         "PYTHONDONTWRITEBYTECODE": "1",
         # Disposable stores. Absolute, and under the directory teardown removes.
-        "DATABASE_URL": f"sqlite+pysqlite:///{workdir}/acceptance.db",
+        "DATABASE_URL": mapping["database_url"],
         "UPLOAD_ROOT_PATH": f"{workdir}/uploads",
         "APP_ENV": "test",
         "LOG_LEVEL": "WARNING",
@@ -363,6 +371,110 @@ def build_argv(repo: Path, launcher: dict, mapping: dict[str, str]) -> list[str]
     interpreter = candidate_interpreter(repo)
     args = [str(arg).replace("{port}", mapping["port"]) for arg in launcher["args"]]
     return [str(interpreter), "-m", launcher["module"], *args]
+
+
+#: Where to ask for a disposable database. The maintenance database on a local
+#: server, never the operator's own — this creates one of its own and drops it
+#: again. The default matches the repository's documented local development
+#: server; an operator whose server differs sets this instead.
+ADMIN_URL_VAR = "PW_DEV_LIVE_POSTGRES_ADMIN_URL"
+DEFAULT_ADMIN_URL = "postgresql://platform:platform@localhost:5432/postgres"
+
+
+def create_disposable_database() -> tuple[str, str, str]:
+    """Make a database this invocation owns, and say how to reach it.
+
+    SQLite cannot hold this product's schema. Its migrations declare `JSONB`,
+    which no SQLite dialect can render, so the file the harness used to create
+    could never have been migrated — `CompileError: ... can't render element of
+    type JSONB` — and the application met an empty database on every request.
+
+    A real server is therefore required, and a database on it is *created here*,
+    used, and dropped in teardown. The operator's own database is never opened:
+    the only connection made to theirs is to the maintenance database, to issue
+    `CREATE DATABASE`.
+    """
+    import psycopg
+
+    admin_url = os.environ.get(ADMIN_URL_VAR, DEFAULT_ADMIN_URL)
+    name = f"pw_dev_live_{uuid.uuid4().hex[:16]}"
+    with psycopg.connect(admin_url, connect_timeout=10, autocommit=True) as conn:
+        conn.execute(f'CREATE DATABASE "{name}"')
+    base, _, _ = admin_url.rpartition("/")
+    return name, admin_url, f"{base}/{name}".replace("postgresql://", "postgresql+psycopg://")
+
+
+def drop_disposable_database(name: str | None, admin_url: str | None) -> None:
+    """Remove it, whatever happened. A database left behind is litter."""
+    if not name or not admin_url:
+        return
+    try:
+        import psycopg
+
+        with psycopg.connect(admin_url, connect_timeout=10, autocommit=True) as conn:
+            conn.execute(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)')
+    except Exception:  # noqa: BLE001 - teardown reports nothing and hides nothing
+        pass
+
+
+def provision(repo: Path, launcher: dict, mapping: dict[str, str],
+              workdir: Path) -> None:
+    """Give the disposable database a schema and an administrator.
+
+    Without this the harness started the application against an empty SQLite
+    file. Health answered -- it touches no table -- and the first real request
+    returned 500 with `no such table: users`, which reads as a defect in the
+    phase under test and is nothing of the sort.
+
+    It went unnoticed because the check had never got this far: with no scenario
+    on disk it recorded `not_run` every time, and no phase had written one until
+    now. The first scenario ever written found it.
+
+    Both steps use the repository's own tooling rather than anything invented
+    here: its Alembic configuration, and the `bootstrap_user` script it ships
+    for exactly this. Nothing a scenario supplies reaches either.
+    """
+    if not launcher.get("provision", True):
+        return
+    interpreter = candidate_interpreter(repo)
+    cwd = repo / launcher.get("cwd", ".")
+    env = _launcher_env(str(workdir), mapping)
+
+    # The repository's own entry points, as its own documentation invokes them.
+    # `python -m api_gateway.scripts.bootstrap_user` looks equivalent and is not:
+    # that module defines `main()` and never calls it, so `-m` imported it,
+    # exited 0, and created nobody. The console script is the one that runs.
+    bin_dir = interpreter.parent
+    steps: list[tuple[str, list[str]]] = [
+        ("apply the migrations", [str(bin_dir / "alembic"), "upgrade", "head"]),
+        ("create the administrator", [
+            str(bin_dir / "platform-bootstrap-user"),
+            "--username", mapping["test_username"],
+            "--password", mapping["test_password"],
+            "--role", "admin",
+        ]),
+    ]
+    for _, argv in steps:
+        if not Path(argv[0]).exists():
+            raise ProvisioningError(
+                f"{argv[0]} is not present in the candidate's environment, so the "
+                f"disposable database cannot be prepared with the repository's own "
+                f"tooling. Nothing was started."
+            )
+    for what, argv in steps:
+        result = subprocess.run(  # noqa: S603 - fixed argv, controller-owned
+            argv, cwd=cwd, env=env, capture_output=True, text=True,
+            timeout=600, check=False,
+        )
+        if result.returncode != 0:
+            raise ProvisioningError(
+                f"could not {what} for the disposable database: exit "
+                f"{result.returncode}\n{(result.stderr or result.stdout)[-2000:]}"
+            )
+
+
+class ProvisioningError(RuntimeError):
+    """The disposable environment could not be prepared, so nothing was run."""
 
 
 def start_server(repo: Path, launcher: dict, mapping: dict[str, str],
@@ -496,7 +608,12 @@ def run_step(step: dict, base_url: str, mapping: dict[str, str]) -> tuple[StepRe
                           f"expected HTTP {expected_status}, got {status}; body "
                           f"{raw[:200]!r}", status, duration), {}
 
-    for expectation in step.get("expect") or []:
+    for raw_expectation in step.get("expect") or []:
+        # Expectations get the same substitution the request did. The username
+        # and password are generated per invocation, so `{test_username}` is the
+        # only way a scenario can say "the user I logged in as" -- and without
+        # this it was compared literally, against a value it could never equal.
+        expectation = substitute(raw_expectation, mapping)
         target = expectation.get("pointer", "")
         try:
             actual = pointer(document, target)
@@ -533,6 +650,10 @@ def execute(repo: Path, name: str, launcher_name: str,
     workdir = Path(tempfile.mkdtemp(prefix=f"pw-dev-live-{name}-"))
     process: subprocess.Popen | None = None
     pgid: int | None = None
+    # Named before the try: teardown drops the database whatever happened, and
+    # a failure before creation must not raise a second time on the way out.
+    db_name: str | None = None
+    admin_url: str | None = None
     try:
         launcher = LAUNCHERS.get(launcher_name)
         if launcher is None:
@@ -560,7 +681,14 @@ def execute(repo: Path, name: str, launcher_name: str,
         (workdir / "uploads").mkdir(parents=True, exist_ok=True)
         (workdir / "store").mkdir(parents=True, exist_ok=True)
 
+        if launcher.get("provision", True):
+            db_name, admin_url, database_url = create_disposable_database()
+            mapping["database_url"] = database_url
+        else:
+            mapping["database_url"] = f"sqlite+pysqlite:///{workdir}/acceptance.db"
+
         server_log = workdir / "server.log"
+        provision(repo, launcher, mapping, workdir)
         process, cwd = start_server(repo, launcher, mapping, server_log)
         evidence.server_pid = process.pid
         evidence.server_cwd = str(cwd)
@@ -620,6 +748,7 @@ def execute(repo: Path, name: str, launcher_name: str,
         return EXIT_ERROR, evidence
     finally:
         _teardown(process, pgid)
+        drop_disposable_database(db_name, admin_url)
         if evidence_path is not None:
             try:
                 evidence_path.parent.mkdir(parents=True, exist_ok=True)

@@ -589,3 +589,67 @@ def test_the_run_loop_refuses_the_waiver_even_for_an_imported_specification():
         "an ordinary stated pre-existing failure is still scoped out"
     )
     assert any("was not waived" in note for note in controller.notes)
+
+
+# ============ provisioning the disposable database the application needs =====
+def test_a_launcher_that_needs_no_database_is_not_given_one(monkeypatch):
+    """The fixture application has no schema and must not pay for one."""
+    calls = []
+    monkeypatch.setattr(live_acceptance, "create_disposable_database",
+                        lambda: calls.append("created") or ("x", "y", "z"))
+    launcher = live_acceptance.LAUNCHERS["pw-dev-fixture"]
+    assert launcher.get("provision") is False
+    assert not calls
+
+
+def test_the_gateway_launcher_declares_that_it_needs_provisioning():
+    """Without a schema the application answers 500 to the first real request.
+
+    Health replies regardless -- it touches no table -- so the harness looked
+    ready and every scenario step failed with `no such table: users`.
+    """
+    assert live_acceptance.LAUNCHERS["pipewright-gateway"]["provision"] is True
+
+
+def test_provisioning_uses_the_repositorys_own_entry_points(tmp_path, monkeypatch):
+    """`python -m ...bootstrap_user` imports a module whose main() is never called.
+
+    It exited 0 and created nobody, so login returned 401 against a schema that
+    was otherwise correct. The console script the repository documents is the
+    one that runs.
+    """
+    seen: list[list[str]] = []
+
+    class _Result:
+        returncode = 0
+        stdout = ""
+        stderr = ""
+
+    monkeypatch.setattr(live_acceptance.subprocess, "run",
+                        lambda argv, **kw: seen.append(argv) or _Result())
+    repo = tmp_path / "repo"
+    (repo / ".venv" / "bin").mkdir(parents=True)
+    for name in ("python", "alembic", "platform-bootstrap-user"):
+        (repo / ".venv" / "bin" / name).write_text("#!/bin/sh\n", encoding="utf-8")
+    (repo / "apps" / "api-gateway").mkdir(parents=True)
+
+    live_acceptance.provision(
+        repo, live_acceptance.LAUNCHERS["pipewright-gateway"],
+        {"test_username": "u", "test_password": "p",
+         "database_url": "postgresql+psycopg://x/y", "jwt_secret": "s", "port": "1"},
+        tmp_path / "work",
+    )
+    assert [Path(argv[0]).name for argv in seen] == ["alembic", "platform-bootstrap-user"]
+    assert "upgrade" in seen[0] and "head" in seen[0]
+    assert "--role" in seen[1] and "admin" in seen[1]
+
+
+def test_an_expectation_may_reference_a_generated_credential():
+    """`{test_username}` is generated per invocation, so a scenario has no other
+    way to assert "the user I logged in as". It was compared literally.
+    """
+    substituted = live_acceptance.substitute(
+        {"pointer": "/user/username", "equals": "{test_username}"},
+        {"test_username": "pw-dev-acceptance"},
+    )
+    assert substituted["equals"] == "pw-dev-acceptance"

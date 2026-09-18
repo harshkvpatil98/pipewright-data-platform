@@ -109,7 +109,8 @@ class Confinement:
             # Said plainly, in the evidence, so nobody reads "enforced" as more
             # than it is.
             "covers": "file writes",
-            "does_not_cover": "reads and network access",
+            "does_not_cover": ("reads, network and local services, and process "
+                               "control"),
         }
 
 
@@ -133,7 +134,13 @@ def disposable_home(root: Path, check_id: str) -> Path:
 
 
 def _dependency_trees(checkout: Path) -> list[Path]:
-    """Every dependency tree inside the checkout, at any workspace depth."""
+    """Every dependency tree inside the checkout, at any workspace depth.
+
+    A symlink named `node_modules` is not one. Following it would let the
+    checkout choose which directory got denied -- and, worse, which directory a
+    cache re-grant below it resolved into.
+    """
+    checkout = Path(checkout).resolve()
     found: list[Path] = []
 
     def walk(directory: Path, depth: int) -> None:
@@ -144,15 +151,55 @@ def _dependency_trees(checkout: Path) -> list[Path]:
         except OSError:
             return
         for entry in entries:
-            if entry.name in CARVED_OUT_TREES:
-                found.append(entry)
+            if entry.is_symlink():
                 continue
-            if entry.name.startswith(".") or entry.is_symlink() or not entry.is_dir():
+            if entry.name in CARVED_OUT_TREES:
+                if entry.is_dir():
+                    found.append(entry)
+                continue
+            if entry.name.startswith(".") or not entry.is_dir():
                 continue
             walk(entry, depth + 1)
 
     walk(checkout, 1)
     return found
+
+
+def _safe_regrants(trees: list[Path]) -> list[Path]:
+    """Caches that may be reopened inside a denied tree, canonically checked.
+
+    A re-grant is the last matching rule, so it overrides the denial above it.
+    That makes it exactly as dangerous as it is useful: a cache path that
+    resolved somewhere else would reopen wherever it pointed -- including
+    `node_modules/.bin`, or something outside the checkout entirely.
+
+    So the path is canonicalised and required to still be inside the canonical
+    tree it belongs to, and nothing on the way to it may be a link. A cache that
+    does not exist yet is created here, by the controller, so that the check
+    finds a real directory rather than an opportunity.
+    """
+    safe: list[Path] = []
+    for tree in trees:
+        canonical_tree = tree.resolve()
+        for name in TREE_CACHES:
+            cache = tree / name
+            if cache.is_symlink():
+                continue
+            if not cache.exists():
+                try:
+                    cache.mkdir(parents=True, exist_ok=True)
+                except OSError:
+                    continue
+            try:
+                canonical = cache.resolve(strict=True)
+            except OSError:
+                continue
+            if canonical != canonical_tree and canonical_tree not in canonical.parents:
+                continue
+            if canonical.name not in TREE_CACHES:
+                continue
+            safe.append(canonical)
+    return safe
 
 
 def for_check(
@@ -188,7 +235,7 @@ def for_check(
     denials = [checkout / name for name in CARVED_OUT]
     trees = _dependency_trees(checkout)
     denials.extend(trees)
-    regrants = [tree / cache for tree in trees for cache in TREE_CACHES]
+    regrants = _safe_regrants(trees)
     wrap = sandbox_wrapper(write_roots, profile_path, denials, regrants)
     if wrap is None:
         return Confinement(

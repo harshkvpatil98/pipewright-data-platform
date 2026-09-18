@@ -42,6 +42,7 @@ from ..verify.registry import registry_for
 from ..verify.runner import SUCCESS_OUTCOMES, VerificationRunner
 from ..workspace import git, pyenv
 from ..workspace.guard import PathGuard, PathViolation, resolve_within
+from ..workspace.node_modules import NodeModulesUnsafe
 from ..workspace.node_modules import provide as provide_node_modules
 from ..workspace.pyenv import EnvironmentReport
 from ..workspace.patches import (CONTROLLER_SCRATCH, PatchBundle, apply_bundle,
@@ -1074,7 +1075,7 @@ class Controller:
             )
         try:
             provided = provide_node_modules(self.repo_root, checkout)
-        except (OSError, shutil.Error) as exc:
+        except (OSError, shutil.Error, NodeModulesUnsafe) as exc:
             self.store.event(
                 self.run_id, "environment.link_failed",
                 f"could not provide node_modules to {checkout.name}: {exc}",
@@ -1227,6 +1228,42 @@ class Controller:
         )
 
     # ----------------------------------------------------------------- VERIFY
+    def _restore_baseline(self) -> None:
+        """Reload the baseline, or leave it unset so the run recaptures it.
+
+        Partial is refused rather than accepted: a resumed run does not
+        recapture a baseline it thinks it already has, so an artifact missing
+        its skip budget -- from a crash between writes, or from a run started
+        before the budget existed -- would have left every gate free to skip
+        as much as it liked.
+        """
+        stored = self.store.latest_artifact(self.run_id, "baseline")
+        if stored is None:
+            return
+        try:
+            document = json.loads(Path(stored["path"]).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            document = None
+        if not isinstance(document, dict) or document.get("version") != 2:
+            self.notes.append(
+                "the stored baseline predates the skip budget or could not be read; "
+                "it is being measured again rather than resumed without one"
+            )
+            return
+        outcomes = document.get("outcomes")
+        skips = document.get("skips")
+        if not isinstance(outcomes, dict) or not isinstance(skips, dict):
+            return
+        missing = [cid for cid in self.gate_checks() if cid not in skips]
+        if missing:
+            self.notes.append(
+                f"the stored baseline has no skip budget for {', '.join(missing)}; "
+                f"it is being measured again"
+            )
+            return
+        self.baseline = outcomes
+        self.skip_budget = skips
+
     def _capture_baseline(self) -> None:
         """Run the required checks before any change, so a pre-existing failure stays visible."""
         assert self.spec is not None
@@ -1252,11 +1289,15 @@ class Controller:
             )
             self.notes.append(note)
             self.store.event(self.run_id, "baseline.failing", note)
-        self.store.put_json_artifact(self.run_id, "baseline", self.baseline)
-        # Stored beside the baseline it was measured with. A resumed run does
-        # not recapture the baseline, so a budget that lived only in memory came
-        # back empty -- and an empty budget lets any number of new skips through.
-        self.store.put_json_artifact(self.run_id, "skip-budget", self.skip_budget)
+        # One artifact, because the two halves are one measurement. Written
+        # separately, a crash between the writes -- or a run started before the
+        # budget existed -- produced outcomes with no budget, and a missing
+        # budget let any number of new skips through.
+        self.store.put_json_artifact(self.run_id, "baseline", {
+            "version": 2,
+            "outcomes": self.baseline,
+            "skips": self.skip_budget,
+        })
 
     def integrate_and_verify(self) -> None:
         assert self.spec is not None
@@ -1610,16 +1651,7 @@ class Controller:
             return self.execute()
 
         self.spec = json.loads(spec_path.read_text(encoding="utf-8"))
-        baseline = self.store.latest_artifact(self.run_id, "baseline")
-        if baseline is not None:
-            self.baseline = json.loads(
-                Path(baseline["path"]).read_text(encoding="utf-8")
-            )
-        budget = self.store.latest_artifact(self.run_id, "skip-budget")
-        if budget is not None:
-            self.skip_budget = json.loads(
-                Path(budget["path"]).read_text(encoding="utf-8")
-            )
+        self._restore_baseline()
         for row_ in self.store.get_tasks(self.run_id):
             digest = row_["report_digest"]
             if digest and row_["state"] in (TaskState.INTEGRATED.value, TaskState.DONE.value):

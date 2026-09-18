@@ -213,8 +213,9 @@ class VerificationRunner:
 
         env = proc.build_env(overrides={
             # A HOME of its own, emptied before every check. Whatever the
-            # candidate's test code writes to `~` lands here and is discarded,
-            # and whatever it hoped to read from the operator's home is absent.
+            # candidate's test code writes to `~` lands here and is discarded.
+            # It redirects where `~` points; reads are not confined, so an
+            # absolute path into the operator's home still resolves.
             "HOME": str(boundary.home),
             # Each checkout gets its own caches and temp space, so two
             # concurrent runs do not share a Next.js build cache or a pytest

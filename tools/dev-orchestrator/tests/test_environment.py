@@ -782,6 +782,41 @@ def test_layering_carries_packages_but_never_source_roots(
         assert entry.name == "site-packages" or "site-packages" in str(entry), entry
 
 
+def test_a_rewritten_pth_is_not_reused_however_the_stamp_reads(synthetic: Path):
+    """The stamp described what the environment was built from, not what it is.
+
+    `.pth` decides where imports resolve. A matching stamp beside a rewritten
+    one still counted as reusable, which made the "the base imports from it"
+    provenance test circular.
+    """
+    first = pyenv.prepare(synthetic, shared_venv=SHARED_VENV)
+    if not first.prepared:
+        pytest.skip(f"the shared venv is not usable here: {first.problems}")
+    assert pyenv.prepare(synthetic, shared_venv=SHARED_VENV).reused
+
+    site_dir = pyenv.site_packages_of(first.interpreter)
+    pth = site_dir / pyenv.PTH_NAME
+    pth.write_text(pth.read_text(encoding="utf-8") + "/tmp\n", encoding="utf-8")
+
+    assert not pyenv.prepare(synthetic, shared_venv=SHARED_VENV).reused, (
+        "an environment whose own configuration changed is rebuilt, not reused"
+    )
+
+
+def test_a_replaced_launcher_in_the_prepared_environment_forces_a_rebuild(
+        synthetic: Path):
+    first = pyenv.prepare(synthetic, shared_venv=SHARED_VENV)
+    if not first.prepared:
+        pytest.skip(f"the shared venv is not usable here: {first.problems}")
+    assert pyenv.prepare(synthetic, shared_venv=SHARED_VENV).reused
+
+    bin_dir = synthetic / ".venv" / "bin"
+    planted = bin_dir / "pytest"
+    planted.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+
+    assert not pyenv.prepare(synthetic, shared_venv=SHARED_VENV).reused
+
+
 def test_a_poisoned_inheritance_manifest_cannot_add_a_source_tree(
         synthetic: Path, tmp_path: Path):
     """The manifest lives in a checkout, so it is evidence, not authority.

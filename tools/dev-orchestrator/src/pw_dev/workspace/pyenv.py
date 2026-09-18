@@ -303,9 +303,19 @@ def _import_path_of(interpreter: Path) -> set[Path]:
             [str(interpreter), "-c", "import sys, json; print(json.dumps(sys.path))"],
             capture_output=True, text=True, timeout=60, check=False,
         )
+        if result.returncode != 0:
+            raise ValueError(f"exit {result.returncode}: {result.stderr.strip()[:200]}")
         entries = json.loads(result.stdout.strip().splitlines()[-1])
-    except (OSError, subprocess.SubprocessError, ValueError, IndexError):
-        return set()
+        if not isinstance(entries, list) or not entries:
+            raise ValueError("no import path reported")
+    except (OSError, subprocess.SubprocessError, ValueError, IndexError) as exc:
+        # Fails closed. Returning "nothing known" used to disable the check that
+        # follows it, so a probe that would not run restored exactly the
+        # name-only acceptance this exists to replace.
+        raise IdentityUnavailable(
+            f"{interpreter} could not report where it imports from ({exc}), so no "
+            f"inherited directory can be checked against it."
+        ) from None
     resolved: set[Path] = set()
     for entry in entries:
         if not entry:
@@ -344,7 +354,7 @@ def _trusted_site(entry: object, recorded: Path,
             f"{recorded} names {path}, which is not an installed-package "
             f"directory. A source tree does not become one by being listed here."
         )
-    if importable and path not in importable:
+    if path not in importable:
         # Named in the file, but not somewhere the base interpreter imports
         # from. Being called `site-packages` is a name, not a provenance.
         raise IdentityUnavailable(
@@ -690,7 +700,8 @@ def prepare(checkout: Path, *, shared_venv: Path, timeout_seconds: float = 300.0
 
     scripts = _install_launchers(shared_venv, target, problems)
     (target / STAMP_NAME).write_text(
-        json.dumps({"stamp": stamp, "checkout": str(checkout),
+        json.dumps({"stamp": stamp, "contents": _target_contents(target),
+                    "checkout": str(checkout),
                     "shared_site_packages": str(shared_site), "python": version,
                     "source_roots": [str(p) for p in roots]}, indent=2),
         encoding="utf-8")
@@ -707,11 +718,56 @@ def prepare(checkout: Path, *, shared_venv: Path, timeout_seconds: float = 300.0
 
 
 def _stamp_matches(target: Path, stamp: str) -> bool:
+    """Whether this environment is the one that was built, unchanged.
+
+    The stamp says what the environment was built *from*. It said nothing about
+    the environment itself, so a matching stamp beside a rewritten `.pth`, a
+    replaced launcher or an edited inheritance manifest still counted as
+    "reuse this". Those files decide what runs and where imports resolve, so
+    they are digested too and compared before anything is reused.
+    """
     try:
         recorded = json.loads((target / STAMP_NAME).read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return False
-    return recorded.get("stamp") == stamp
+    if recorded.get("stamp") != stamp:
+        return False
+    return recorded.get("contents") == _target_contents(target)
+
+
+def _target_contents(target: Path) -> dict | None:
+    """Digests of everything this environment generated for itself.
+
+    `None` when any of it cannot be read, which fails the comparison: an
+    environment nobody can describe is rebuilt rather than trusted.
+    """
+    contents: dict[str, str] = {}
+    try:
+        site_dir = _target_site_dir(target)
+        if site_dir is None:
+            return None
+        for name in (PTH_NAME, THIRD_PARTY_NAME):
+            path = site_dir / name
+            if path.exists():
+                contents[name] = _digest_descriptor(path)[0]
+        bin_dir = target / "bin"
+        for entry in sorted(bin_dir.iterdir()) if bin_dir.is_dir() else []:
+            stat_result = entry.lstat()
+            if stat.S_ISLNK(stat_result.st_mode):
+                contents[f"bin/{entry.name}"] = f"link:{os.readlink(entry)}"
+            elif stat.S_ISREG(stat_result.st_mode):
+                contents[f"bin/{entry.name}"] = _digest_descriptor(entry)[0]
+            else:
+                contents[f"bin/{entry.name}"] = "kind:skipped"
+    except OSError:
+        return None
+    return contents
+
+
+def _target_site_dir(target: Path) -> Path | None:
+    for candidate in sorted((target / "lib").glob("python*/site-packages")):
+        return candidate
+    return None
 
 
 def _count_scripts(target: Path) -> int:

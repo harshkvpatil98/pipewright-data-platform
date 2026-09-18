@@ -45,7 +45,7 @@ from ..workspace.guard import PathGuard, PathViolation, resolve_within
 from ..workspace.node_modules import NodeModulesUnsafe
 from ..workspace.node_modules import provide as provide_node_modules
 from ..workspace.pyenv import EnvironmentReport
-from ..workspace.patches import (CONTROLLER_SCRATCH, PatchBundle, apply_bundle,
+from ..workspace.patches import (PatchBundle, apply_bundle,
                                  conflicting_paths, export_bundle, would_conflict)
 from ..workspace.sandbox import (SandboxSupport, claude_config_denials,
                                  detect_sandbox_support, resolve_mode, sandbox_wrapper)
@@ -1174,7 +1174,7 @@ class Controller:
         """
         from ..publish.identity import commit_env
 
-        git.git(self.candidate_dir, ["add", "-A", "--", ".", *CONTROLLER_SCRATCH])
+        git.stage_everything(self.candidate_dir)
         if not git.out(self.candidate_dir, ["diff", "--cached", "--name-only"], check=False):
             return git.head_sha(self.candidate_dir)
         git.git(
@@ -1335,7 +1335,7 @@ class Controller:
     def integrate_and_verify(self) -> None:
         assert self.spec is not None
         self._transition(RunState.INTEGRATE, "freezing the integrated candidate")
-        git.git(self.candidate_dir, ["add", "-A", "--", ".", *CONTROLLER_SCRATCH], check=False)
+        git.stage_everything(self.candidate_dir)
 
         isolation_problems = self._verification_runner().check_module_isolation(
             self.candidate_dir, ("shared_python", "api_gateway"),

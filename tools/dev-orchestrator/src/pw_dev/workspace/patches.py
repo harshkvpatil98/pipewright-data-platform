@@ -57,6 +57,20 @@ CONTROLLER_SCRATCH = tuple(
                  f":(exclude)**/{name}/**")
 ) + (":(exclude)*.pyc", ":(exclude)**/*.pyc")
 
+#: The same set, named positively, for unstaging rather than for querying.
+#:
+#: `git add` refuses a pathspec that names a path `.gitignore` already covers:
+#: it exits 1 with "the following paths are ignored by one of your .gitignore
+#: files" even though it staged exactly the right thing. So staging does not
+#: name them at all -- `git add -A -- .` never stages an ignored path anyway --
+#: and anything ephemeral that is *not* ignored is unstaged afterwards instead.
+CONTROLLER_SCRATCH_PATHS = tuple(
+    spec
+    for name in EPHEMERAL
+    for spec in (f":(glob){name}", f":(glob)**/{name}", f":(glob){name}/**",
+                 f":(glob)**/{name}/**")
+) + (":(glob)*.pyc", ":(glob)**/*.pyc")
+
 # Deliberately *not* excluded: `.orig`, `.rej`, `.DS_Store`, `.env`. Those are a
 # worker's leftovers or a mistake, and the publisher refuses to commit them.
 # Dropping them quietly would turn a signal into a silence.

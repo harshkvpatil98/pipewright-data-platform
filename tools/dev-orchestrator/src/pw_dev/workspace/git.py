@@ -194,3 +194,24 @@ def signing_configured(repo: Path) -> tuple[bool, str | None]:
     want = out(repo, ["config", "--get", "commit.gpgsign"], check=False).lower() == "true"
     fmt = out(repo, ["config", "--get", "gpg.format"], check=False) or "openpgp"
     return want, (fmt if want else None)
+
+
+def stage_everything(repo: Path) -> None:
+    """Stage the whole tree except the controller's own scratch.
+
+    Not done with `:(exclude)` pathspecs, which is the obvious way and fails:
+    `git add` exits 1 when a pathspec names a path `.gitignore` already covers,
+    reporting "the following paths are ignored" -- while having staged exactly
+    what was wanted. A candidate has `node_modules` and `.venv` in it, both
+    ignored, so every integration died on a complaint about work it had already
+    done correctly.
+
+    `git add -A -- .` does not stage an ignored path, so the ignored half needs
+    no mention. The ephemeral paths a repository does *not* ignore are unstaged
+    afterwards, which says the same thing without asking git to reconcile a
+    pathspec against its own ignore rules.
+    """
+    from .patches import CONTROLLER_SCRATCH_PATHS
+
+    git(repo, ["add", "-A", "--", "."])
+    git(repo, ["reset", "-q", "--", *CONTROLLER_SCRATCH_PATHS], check=False)

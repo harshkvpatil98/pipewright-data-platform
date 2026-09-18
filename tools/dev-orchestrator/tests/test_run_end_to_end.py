@@ -435,3 +435,47 @@ def test_an_interactive_run_pauses_at_the_plan_boundary(fixture_repo: Path, tmp_
         "the interactive brain does not call the planner CLI"
     )
     store.close()
+
+
+# ================== staging a candidate that contains ignored directories =====
+def test_integration_stages_a_tree_holding_ignored_directories(tmp_path):
+    """The bug that stopped the first integration this tool ever attempted.
+
+    Every candidate has `node_modules` and `.venv` in it, and both are in
+    `.gitignore`. Naming them in `:(exclude)` pathspecs made `git add` exit 1 --
+    "the following paths are ignored by one of your .gitignore files" -- after
+    staging exactly the right thing. Forty-two minutes of a worker's output was
+    integrated correctly and then thrown away on the complaint.
+    """
+    import subprocess
+
+    from pw_dev.workspace import git as g
+
+    repo = tmp_path / "candidate"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q", "."], cwd=repo, check=True)  # noqa: S603, S607
+    subprocess.run(["git", "config", "user.email", "t@example.com"], cwd=repo, check=True)  # noqa: S603, S607
+    subprocess.run(["git", "config", "user.name", "t"], cwd=repo, check=True)  # noqa: S603, S607
+    (repo / ".gitignore").write_text("node_modules\n.venv\n.ruff_cache\n", encoding="utf-8")
+    (repo / "src").mkdir()
+    (repo / "src" / "a.py").write_text("x = 1\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)  # noqa: S603, S607
+    subprocess.run(["git", "commit", "-qm", "base"], cwd=repo, check=True)  # noqa: S603, S607
+
+    # what a prepared, verified candidate actually looks like
+    for ignored in ("node_modules", ".venv", ".ruff_cache"):
+        (repo / ignored).mkdir()
+        (repo / ignored / "junk").write_text("x", encoding="utf-8")
+    # and ephemeral scratch this repository does *not* ignore
+    (repo / ".pw-dev-worktree").mkdir()
+    (repo / ".pw-dev-worktree" / "state").write_text("x", encoding="utf-8")
+    # the work itself
+    (repo / "src" / "b.py").write_text("y = 2\n", encoding="utf-8")
+
+    g.stage_everything(repo)
+
+    staged = g.out(repo, ["diff", "--cached", "--name-only"]).split()
+    assert "src/b.py" in staged, "the work must be staged"
+    for unwanted in ("node_modules/junk", ".venv/junk", ".ruff_cache/junk",
+                     ".pw-dev-worktree/state"):
+        assert unwanted not in staged, f"{unwanted} is the controller's, not the phase's"

@@ -550,3 +550,48 @@ def test_reconcile_releases_resources_held_by_a_run_that_is_gone(tmp_path, fixtu
     )
     assert any("released 2 exclusive resource" in line for line in report.actions)
     store.close()
+
+
+def test_reconcile_discards_a_half_applied_integration(tmp_path, fixture_repo):
+    """The conflicts a second bundle hit when the first was still lying there.
+
+    An interrupted integration leaves the bundle partly applied in the
+    candidate's working tree. Nothing about that is durable -- what has been
+    integrated is what has been committed -- but it was left in place, so the
+    re-dispatched task's fresh bundle was applied on top of the previous one's
+    debris and every file came out with conflict markers.
+    """
+    bin_dir = tmp_path / "bin"
+    config = make_run_config(fixture_repo, tmp_path, fake_codex(bin_dir, {}),
+                             fake_claude(bin_dir, edits={}), mode="none")
+    store = RunStore(config.db_path(), config.runs_dir())
+    run_id = store.create_run(brain="automatic", config_snapshot=config.snapshot(),
+                              publication_mode="none", deadline_epoch=None)
+    store.set_run_state(run_id, RunState.IMPLEMENT, "implementing", force=True)
+
+    candidate = config.runs_dir() / run_id / "candidate"
+    candidate.mkdir(parents=True)
+    subprocess.run(["git", "init", "-q", "."], cwd=candidate, check=True)  # noqa: S603, S607
+    subprocess.run(["git", "config", "user.email", "t@example.com"], cwd=candidate, check=True)  # noqa: S603, S607
+    subprocess.run(["git", "config", "user.name", "t"], cwd=candidate, check=True)  # noqa: S603, S607
+    (candidate / ".gitignore").write_text("node_modules\n", encoding="utf-8")
+    (candidate / "kept.py").write_text("x = 1\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=candidate, check=True)  # noqa: S603, S607
+    subprocess.run(["git", "commit", "-qm", "integrated"], cwd=candidate, check=True)  # noqa: S603, S607
+
+    # what an interrupted integration leaves behind
+    (candidate / "kept.py").write_text("x = 1\n<<<<<<< ours\n", encoding="utf-8")
+    (candidate / "half-applied.py").write_text("partial\n", encoding="utf-8")
+    (candidate / "node_modules").mkdir()
+    (candidate / "node_modules" / "dep.js").write_text("keep me\n", encoding="utf-8")
+
+    reconcile(config, store, run_id)
+
+    assert (candidate / "kept.py").read_text(encoding="utf-8") == "x = 1\n", (
+        "the last committed integration is what the candidate returns to"
+    )
+    assert not (candidate / "half-applied.py").exists(), "partial work is discarded"
+    assert (candidate / "node_modules" / "dep.js").exists(), (
+        "ignored files are the controller's to manage, not debris to clean"
+    )
+    store.close()

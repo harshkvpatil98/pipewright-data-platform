@@ -124,6 +124,11 @@ def reconcile(config: Config, store: RunStore, run_id: str, *,
 
     candidate = config.runs_dir() / run_id / "candidate"
     if candidate.is_dir():
+        # Order matters here. The tree is described and judged *before* anything
+        # is tidied, because a tree that no longer matches what was approved is
+        # a fact somebody has to see -- reverting it first would have answered
+        # the question by erasing it.
+        dirty = git.out(candidate, ["status", "--porcelain"], check=False).strip()
         fingerprint = tree_fingerprint(candidate)
         recorded = row["candidate_fingerprint"]
         report.observations.append(
@@ -136,6 +141,31 @@ def reconcile(config: Config, store: RunStore, run_id: str, *,
                 "approval bound to the old one are invalidated and will be re-run"
             )
             store.update_run_fields(run_id, approved_fingerprint=None)
+
+        # Only then is the debris removed. An integration that was interrupted
+        # leaves its bundle half applied in the working tree, and nothing about
+        # that is durable: what has really been integrated is what has been
+        # *committed* on the candidate branch.
+        #
+        # Leaving it was worse than useless. The task is re-dispatched and
+        # produces a fresh bundle, which is applied on top of the last one's
+        # remains -- "Applied patch to ... with conflicts", eighteen files of
+        # conflict markers, and an integration that cannot succeed however many
+        # times it is retried.
+        #
+        # `clean -fd` without `-x` leaves ignored files alone, so `node_modules`
+        # and the prepared `.venv` survive; rebuilding those is not the point.
+        if dirty:
+            git.git(candidate, ["reset", "--hard", "HEAD"], check=False)
+            git.git(candidate, ["clean", "-fd"], check=False)
+            report.observations.append(
+                f"the integration checkout held {len(dirty.splitlines())} uncommitted "
+                f"path(s) from an interrupted integration"
+            )
+            report.actions.append(
+                "discarded them and returned the candidate to its last integration "
+                "commit; the bundles are preserved and are re-applied from there"
+            )
 
     if state in (RunState.COMMIT, RunState.PUSH, RunState.COMPLETE):
         report.observations.extend(_reconcile_publication(config, store, run_id, row, candidate))

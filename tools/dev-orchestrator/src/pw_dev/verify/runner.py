@@ -105,6 +105,10 @@ class VerificationRunner:
         # boundary a worker gets. `run_dir` holds the disposable HOME and the
         # rendered profile; `repo_root` is the checkout a candidate borrows
         # shared caches from, and the one it must not be able to write.
+        #: Per-check ceiling on skipped cases, taken from the baseline run. A
+        #: check may skip what it already skipped before any change; skipping
+        #: *more* is coverage this run lost.
+        self.skip_budget: dict[str, int] = {}
         self.isolation_mode = isolation_mode
         self.run_dir = Path(run_dir) if run_dir is not None else self.artifacts_dir.parent
         self.repo_root = Path(repo_root) if repo_root is not None else None
@@ -120,7 +124,14 @@ class VerificationRunner:
             check = self.registry.get(check)
         checkout = Path(checkout).resolve()
         argv, cwd = check.render(checkout, self.parameters)
-        facts = self._environment(checkout, modules_to_resolve)
+        # Built before anything else runs: the interpreter facts below come from
+        # executing a program inside the checkout, and that execution belongs
+        # inside the boundary like every other.
+        boundary = confine.for_check(
+            check.id, checkout=checkout, run_dir=self.run_dir,
+            mode=self.isolation_mode, scratch=self.scratch_root(checkout),
+        )
+        facts = self._environment(checkout, modules_to_resolve, boundary)
         started = utc_now()
 
         document = {
@@ -148,11 +159,6 @@ class VerificationRunner:
             "detail": None,
         }
 
-        boundary = confine.for_check(
-            check.id, checkout=checkout, run_dir=self.run_dir,
-            mode=self.isolation_mode, repo_root=self.repo_root,
-            scratch=self.scratch_root(checkout),
-        )
         document["confinement"] = boundary.to_dict()
         if boundary.failed:
             document["outcome"] = Outcome.ERROR
@@ -261,6 +267,16 @@ class VerificationRunner:
         elif result.returncode != 0:
             document["outcome"] = Outcome.FAIL
             document["detail"] = _failure_detail(result)
+        elif _failure_count(result.stdout + result.stderr):
+            # Exit zero with a summary that reports failures. The summary is the
+            # check's own account of what happened; a zero exit beside it is the
+            # part that is wrong.
+            document["outcome"] = Outcome.FAIL
+            document["detail"] = (
+                f"exited 0, but its own summary reports "
+                f"{_failure_count(result.stdout + result.stderr)} failure(s): "
+                + _failure_detail(result)
+            )
         elif check.success_pattern and not re.search(
                 check.success_pattern, result.stdout + result.stderr):
             # Exit zero with none of the output that proves the check ran. The
@@ -276,6 +292,7 @@ class VerificationRunner:
             output = result.stdout + result.stderr
             skipped = _skip_count(output)
             executed = _pass_count(output)
+            budget = self.skip_budget.get(check.id)
             if skipped and not executed:
                 # Nothing ran. Whatever the exit status says, this check has
                 # not exercised anything, and an empty result is not a pass.
@@ -285,6 +302,17 @@ class VerificationRunner:
                     f"Recorded as 'skip': a check that exercised nothing has not "
                     f"demonstrated anything."
                     + (f" {check.infra_note}" if check.infra_note else "")
+                )
+            elif budget is not None and skipped > budget:
+                # More was skipped here than the same check skipped before any
+                # change. Whatever stopped running, it stopped running during
+                # this run, and that is a loss of coverage rather than a result.
+                document["outcome"] = Outcome.SKIP
+                document["skipped"] = skipped
+                document["detail"] = (
+                    f"{skipped} case(s) skipped against a baseline of {budget}. "
+                    f"{skipped - budget} stopped running during this run, so this "
+                    f"check covers less than it did before it."
                 )
             else:
                 document["outcome"] = Outcome.PASS
@@ -333,11 +361,15 @@ class VerificationRunner:
         not silently attributed to this run's work either.
         """
         baseline: dict[str, str] = {}
+        # Measured with no budget in force, then adopted as the budget. What a
+        # check skipped before any change is what it may skip afterwards.
+        self.skip_budget = {}
         for record in self.run_many(
             check_ids, checkout=checkout, candidate_fingerprint=candidate_fingerprint,
             task_id=None, on_start=on_start,
         ):
             baseline[record["verification_id"]] = record["outcome"]
+            self.skip_budget[record["verification_id"]] = record.get("skipped") or 0
         return baseline
 
     # --------------------------------------------------------------- helpers
@@ -404,7 +436,15 @@ class VerificationRunner:
                     unavailable.append(f"{service} (127.0.0.1:{port})")
         return unavailable
 
-    def _environment(self, checkout: Path, modules: tuple[str, ...]) -> EnvironmentFacts:
+    def _environment(self, checkout: Path, modules: tuple[str, ...],
+                     boundary: "confine.Confinement | None" = None) -> EnvironmentFacts:
+        """Facts about the checkout's interpreter -- gathered *inside* the boundary.
+
+        This probe executes `<checkout>/.venv/bin/python`, which is a program
+        inside the tree under verification. Running it before the boundary was
+        built meant the one execution that described the environment was the one
+        execution that was not confined.
+        """
         key = str(checkout)
         cached = self._env_cache.get(key)
         if cached is not None:
@@ -421,9 +461,14 @@ class VerificationRunner:
                 f"{list(modules)!r}" "}}))"
             )
             try:
+                argv = [str(python_exe), "-c", probe]
+                if boundary is not None:
+                    argv = boundary.apply(argv)
                 result = proc.run(
-                    [str(python_exe), "-c", probe], cwd=checkout,
-                    env=proc.build_env(), timeout=120, max_output_bytes=1 << 20,
+                    argv, cwd=checkout,
+                    env=proc.build_env(
+                        overrides={"HOME": str(boundary.home)} if boundary else None),
+                    timeout=120, max_output_bytes=1 << 20,
                 )
                 if result.ok:
                     import json as _json
@@ -488,6 +533,14 @@ class VerificationRunner:
                     f"This environment is testing another checkout's code."
                 )
         return problems
+
+
+def _failure_count(output: str) -> int:
+    """Failures the check reported about itself, whatever it exited with."""
+    match = _PYTEST_SUMMARY.search(output)
+    body = match.group("body") if match else output[-4000:]
+    failures = _FAIL_COUNT.search(body)
+    return int(failures.group(1)) if failures else 0
 
 
 def _pass_count(output: str) -> int:

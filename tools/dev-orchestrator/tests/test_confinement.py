@@ -72,7 +72,7 @@ def test_a_check_cannot_write_into_the_original_checkout(
     """The tree being verified is writable. The tree it came from is not."""
     boundary = confine.for_check(
         "python:tests", checkout=checkout, run_dir=tmp_path / "run",
-        mode="enforced", repo_root=original,
+        mode="enforced",
     )
     assert boundary.enforced
 
@@ -99,7 +99,7 @@ def test_a_check_cannot_write_the_controllers_run_state(
 
     boundary = confine.for_check(
         "repo:verify", checkout=checkout, run_dir=run_dir,
-        mode="enforced", repo_root=original,
+        mode="enforced",
     )
     assert _run_confined(
         boundary, f"open({str(ledger)!r}, 'w').write('{{}}')", cwd=checkout) != 0
@@ -117,7 +117,7 @@ def test_a_check_cannot_write_another_worktree(
 
     boundary = confine.for_check(
         "python:tests", checkout=checkout, run_dir=tmp_path / "run",
-        mode="enforced", repo_root=original,
+        mode="enforced",
     )
     assert _run_confined(
         boundary, f"open({str(owned)!r}, 'w').write('mine')", cwd=checkout) != 0
@@ -130,7 +130,7 @@ def test_a_check_writing_to_home_writes_to_a_disposable_one(
     """`~` exists, is writable, and is not the operator's."""
     boundary = confine.for_check(
         "web:build", checkout=checkout, run_dir=tmp_path / "run",
-        mode="enforced", repo_root=original,
+        mode="enforced",
     )
     script = (
         "import os, pathlib;"
@@ -163,7 +163,7 @@ def test_a_check_may_write_its_own_scratch_and_caches(
     """Build output, temp files and databases all live inside the checkout."""
     boundary = confine.for_check(
         "repo:verify", checkout=checkout, run_dir=tmp_path / "run",
-        mode="enforced", repo_root=original,
+        mode="enforced",
     )
     script = (
         "import pathlib;"
@@ -179,46 +179,78 @@ def test_a_check_may_write_its_own_scratch_and_caches(
     assert (checkout / "test.db").exists()
 
 
-# ------------------------------------------------------- shared trees
-def test_a_copied_dependency_tree_needs_no_hole_in_the_original(
-        checkout: Path, original: Path, tmp_path: Path):
-    """The reason `node_modules` is copied rather than linked, stated as a test.
+# ------------------------------------------------------- dependency trees
+def test_a_dependency_tree_symlink_is_replaced_not_preserved(tmp_path: Path):
+    """The escape the boundary would otherwise have handed back.
 
-    A link would have to be followed on write, so the original directory would
-    have to be granted. A real directory is already inside the checkout, so the
-    boundary opens nothing.
+    `provide()` used to leave an existing entry alone, and the boundary used to
+    grant the target of a `node_modules` symlink as a shared cache. Together
+    that let a checkout point its own `node_modules` at the original repository
+    and get write access to it during verification. Dependencies are copied
+    now, and a link is not kept.
     """
-    (original / "node_modules").mkdir()
-    (checkout / "node_modules").mkdir()
-    assert confine.shared_cache_roots(checkout, original) == []
+    from pw_dev.workspace import node_modules
 
-    boundary = confine.for_check(
-        "web:build", checkout=checkout, run_dir=tmp_path / "run",
-        mode="enforced", repo_root=original,
-    )
-    assert original not in boundary.write_roots
-    assert not any(original in root.parents for root in boundary.write_roots)
+    repo = tmp_path / "repo"
+    (repo / "node_modules" / "pkg").mkdir(parents=True)
+    (repo / "package.json").write_text('{"name": "r"}', encoding="utf-8")
+    (repo / "secret.txt").write_text("not yours\n", encoding="utf-8")
+
+    checkout = tmp_path / "candidate"
+    checkout.mkdir()
+    (checkout / "node_modules").symlink_to(repo)  # points at the whole repository
+
+    node_modules.provide(repo, checkout)
+
+    target = checkout / "node_modules"
+    assert not target.is_symlink(), "a link must not survive into the checkout"
+    assert target.is_dir()
+    assert (target / "pkg").is_dir()
+    assert not (target / "secret.txt").exists()
 
 
-def test_a_linked_dependency_tree_is_granted_and_nothing_else_is(
-        checkout: Path, original: Path, tmp_path: Path):
-    """A checkout that does borrow through a link gets that one directory."""
-    (original / "node_modules").mkdir()
-    (original / "secrets").mkdir()
+@needs_enforcement
+def test_the_boundary_grants_nothing_outside_the_checkout_and_its_scratch(
+        checkout: Path, tmp_path: Path):
+    """Whatever the checkout contains, the grant is the checkout itself."""
+    original = tmp_path / "original"
+    (original / "node_modules").mkdir(parents=True)
     (checkout / "node_modules").symlink_to(original / "node_modules")
 
-    granted = confine.shared_cache_roots(checkout, original)
-    assert granted == [(original / "node_modules").resolve()]
-    assert (original / "secrets").resolve() not in granted
+    boundary = confine.for_check(
+        "web:build", checkout=checkout, run_dir=tmp_path / "run", mode="enforced")
+
+    for root in boundary.write_roots:
+        assert original not in root.parents and root != original, root
 
 
-def test_a_link_pointing_outside_the_original_is_not_granted(
-        checkout: Path, original: Path, tmp_path: Path):
-    """Only the repository's own directories, not wherever a link happens to go."""
-    elsewhere = tmp_path / "elsewhere"
-    elsewhere.mkdir()
-    (checkout / "node_modules").symlink_to(elsewhere)
-    assert confine.shared_cache_roots(checkout, original) == []
+@needs_enforcement
+def test_a_check_cannot_rewrite_the_interpreter_the_next_check_will_run(
+        checkout: Path, tmp_path: Path):
+    """`.venv` and `.git` are carved out of the grant on the checkout.
+
+    Neither counts towards the tree fingerprint, so a check that replaced the
+    interpreter would leave nothing for a later comparison to notice.
+    """
+    (checkout / ".venv" / "bin").mkdir(parents=True)
+    interpreter = checkout / ".venv" / "bin" / "python"
+    interpreter.write_text("#!/bin/sh\nexec /usr/bin/true\n", encoding="utf-8")
+    (checkout / ".git").mkdir()
+    head = checkout / ".git" / "HEAD"
+    head.write_text("ref: refs/heads/main\n", encoding="utf-8")
+
+    boundary = confine.for_check(
+        "python:tests", checkout=checkout, run_dir=tmp_path / "run", mode="enforced")
+
+    assert _run_confined(
+        boundary, f"open({str(interpreter)!r}, 'w').write('replaced')",
+        cwd=checkout) != 0
+    assert "replaced" not in interpreter.read_text(encoding="utf-8")
+
+    assert _run_confined(
+        boundary, f"open({str(head)!r}, 'w').write('ref: refs/heads/other')",
+        cwd=checkout) != 0
+    assert head.read_text(encoding="utf-8") == "ref: refs/heads/main\n"
 
 
 # ------------------------------------------------------- honesty
@@ -228,7 +260,7 @@ def test_confinement_that_could_not_be_applied_is_not_silently_skipped(
     monkeypatch.setattr(confine, "sandbox_wrapper", lambda *a, **k: None)
     boundary = confine.for_check(
         "repo:verify", checkout=checkout, run_dir=tmp_path / "run",
-        mode="enforced", repo_root=None,
+        mode="enforced",
     )
     assert boundary.failed
     assert not boundary.enforced

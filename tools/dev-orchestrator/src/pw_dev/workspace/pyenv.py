@@ -263,9 +263,12 @@ def third_party_sites(interpreter: Path) -> list[Path]:
     for a reason that had nothing to do with the code under test.
 
     So each prepared environment writes down the chain it actually uses, and the
-    next one reads it. Only site directories propagate. Source roots never do,
-    which is the guarantee that keeps one checkout's editable installs out of
-    another checkout's `sys.path`.
+    next one reads it. The recorded file is **not trusted**: it lives in a
+    checkout, and a checkout is not the controller. Every entry has to still
+    look like an installed-package directory, and an entry that does not is
+    refused rather than inherited. Source roots must never propagate — that is
+    the guarantee this whole module exists for, and a poisoned manifest naming
+    another checkout's `src` would undo it silently.
     """
     for site_dir in _site_packages_list(interpreter):
         recorded = site_dir / THIRD_PARTY_NAME
@@ -273,10 +276,50 @@ def third_party_sites(interpreter: Path) -> list[Path]:
             entries = json.loads(recorded.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             continue
-        resolved = [Path(entry) for entry in entries if Path(entry).is_dir()]
-        if resolved:
-            return resolved
+        if not isinstance(entries, list):
+            raise IdentityUnavailable(
+                f"{recorded} is not a list of directories; an environment is not "
+                f"built on a manifest nobody can read."
+            )
+        resolved = [_trusted_site(entry, recorded) for entry in entries]
+        usable = [path for path in resolved if path is not None]
+        if usable:
+            return usable
     return _site_packages_list(interpreter)
+
+
+def _trusted_site(entry: object, recorded: Path) -> Path | None:
+    """Accept an inherited directory only if it is one packages are installed in.
+
+    The test is structural, not a name match on a string a checkout supplied:
+    the directory has to exist, and it has to be a real site-packages directory
+    rather than a source tree that happens to be named like one.
+    """
+    if not isinstance(entry, str) or not entry:
+        raise IdentityUnavailable(
+            f"{recorded} names {entry!r}, which is not a path. Refusing to build "
+            f"an environment on it."
+        )
+    path = Path(entry)
+    if not path.is_absolute():
+        raise IdentityUnavailable(
+            f"{recorded} names the relative path {entry!r}; an inherited site "
+            f"directory is absolute or it is nothing."
+        )
+    path = path.resolve()
+    if not path.is_dir():
+        return None
+    if path.name not in _SITE_DIR_NAMES:
+        raise IdentityUnavailable(
+            f"{recorded} names {path}, which is not an installed-package "
+            f"directory. A source tree does not become one by being listed here."
+        )
+    return path
+
+
+#: What a directory packages are installed into is called, on the interpreters
+#: this tool supports. A `src` tree is not one of them, whatever a manifest says.
+_SITE_DIR_NAMES = frozenset({"site-packages", "dist-packages"})
 
 
 def declared_requirements(checkout: Path) -> list[str]:

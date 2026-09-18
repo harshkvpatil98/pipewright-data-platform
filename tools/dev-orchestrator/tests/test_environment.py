@@ -782,6 +782,55 @@ def test_layering_carries_packages_but_never_source_roots(
         assert entry.name == "site-packages" or "site-packages" in str(entry), entry
 
 
+def test_a_poisoned_inheritance_manifest_cannot_add_a_source_tree(
+        synthetic: Path, tmp_path: Path):
+    """The manifest lives in a checkout, so it is evidence, not authority.
+
+    Verification grants the checkout write access. If the recorded chain were
+    taken at face value, a checkout could name another checkout's `src` and put
+    it on the next layer's `sys.path` -- undoing the isolation the whole module
+    exists to provide.
+    """
+    report = pyenv.prepare(synthetic, shared_venv=SHARED_VENV)
+    if not report.prepared:
+        pytest.skip(f"the shared venv is not usable here: {report.problems}")
+
+    site_dir = pyenv.site_packages_of(report.interpreter)
+    manifest = site_dir / pyenv.THIRD_PARTY_NAME
+    assert manifest.exists(), "the honest chain is recorded"
+
+    intruder = tmp_path / "somebody-else" / "src"
+    intruder.mkdir(parents=True)
+    manifest.write_text(json.dumps([str(intruder)]), encoding="utf-8")
+
+    with pytest.raises(pyenv.IdentityUnavailable) as refused:
+        pyenv.third_party_sites(report.interpreter)
+    assert "source tree" in str(refused.value)
+
+
+def test_an_inheritance_manifest_that_is_not_a_list_is_refused(
+        synthetic: Path):
+    report = pyenv.prepare(synthetic, shared_venv=SHARED_VENV)
+    if not report.prepared:
+        pytest.skip(f"the shared venv is not usable here: {report.problems}")
+    site_dir = pyenv.site_packages_of(report.interpreter)
+    (site_dir / pyenv.THIRD_PARTY_NAME).write_text('"just a string"', encoding="utf-8")
+
+    with pytest.raises(pyenv.IdentityUnavailable):
+        pyenv.third_party_sites(report.interpreter)
+
+
+def test_a_relative_entry_in_the_manifest_is_refused(synthetic: Path):
+    report = pyenv.prepare(synthetic, shared_venv=SHARED_VENV)
+    if not report.prepared:
+        pytest.skip(f"the shared venv is not usable here: {report.problems}")
+    site_dir = pyenv.site_packages_of(report.interpreter)
+    (site_dir / pyenv.THIRD_PARTY_NAME).write_text('["../elsewhere"]', encoding="utf-8")
+
+    with pytest.raises(pyenv.IdentityUnavailable):
+        pyenv.third_party_sites(report.interpreter)
+
+
 def test_hashing_a_launcher_refuses_to_follow_a_symlink(tmp_path: Path):
     """The branch is chosen by lstat; the read must not go somewhere else.
 

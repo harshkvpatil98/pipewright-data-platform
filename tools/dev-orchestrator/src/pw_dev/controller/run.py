@@ -142,6 +142,9 @@ class Controller:
         self.spec_digest: str = ""
         self.base_commit: str = ""
         self.baseline: dict[str, str] = {}
+        #: Per-check ceiling on skipped cases, measured at baseline. Skipping
+        #: more than the unchanged tree skipped is coverage this run lost.
+        self.skip_budget: dict[str, int] = {}
         self.worker_reports: dict[str, dict] = {}
         self.integration_commits: dict[str, str] = {}
         self.sentinel: Sentinel | None = None
@@ -257,13 +260,17 @@ class Controller:
         return {"scenario": slug or "phase"}
 
     def _verification_runner(self) -> VerificationRunner:
-        return VerificationRunner(
+        runner = VerificationRunner(
             self.registry, store=self.store, run_id=self.run_id,
             base_commit=self.base_commit, spec_digest=self.spec_digest,
             artifacts_dir=self.evidence_dir, parameters=self.check_parameters(),
             isolation_mode=self.isolation_mode, run_dir=self.run_dir,
             repo_root=self.config.repo_root,
         )
+        # Carried across runners: each one is built fresh, and the ceiling a
+        # check is held to was measured once, at baseline.
+        runner.skip_budget = dict(self.skip_budget)
+        return runner
 
     def gate_checks(self) -> list[str]:
         """Everything the integrated candidate must pass.
@@ -276,6 +283,25 @@ class Controller:
             *self.spec["required_verifications"],
             *(check.id for check in self.registry.gates()),
         ]))
+
+    def _evidence_not_describing(self, approved: str) -> list[str]:
+        """Gate checks whose passing evidence is bound to some other tree.
+
+        A check writes down the fingerprint of the tree it ran against. Nothing
+        stopped a later check -- or something a check left running -- changing
+        the candidate afterwards, and the completion test only read outcomes.
+        Comparing the two closes that: a pass counts for the tree it was
+        measured on and no other.
+        """
+        mismatched: list[str] = []
+        for check_id in self.gate_checks():
+            record = self.final_records.get(check_id)
+            if not record or record.get("outcome") not in SUCCESS_OUTCOMES:
+                continue  # a non-pass is reported by the gate test, not here
+            recorded = record.get("candidate_fingerprint")
+            if recorded and recorded != approved:
+                mismatched.append(f"{check_id} (ran against {str(recorded)[:20]})")
+        return mismatched
 
     def outstanding_gate_failures(self) -> list[str]:
         """Gate checks that are not passing on the final candidate.
@@ -998,9 +1024,13 @@ class Controller:
     def _link_environment(self, checkout: Path, *, rebuild: bool = False) -> EnvironmentReport:
         """Give a checkout everything its checks need to run against *its own* code.
 
-        `node_modules` is shared from the original checkout: JavaScript
-        dependencies are not editable installs of this repository's source, so
-        borrowing them cannot make a check describe the wrong tree.
+        `node_modules` is *copied* from the original checkout, every workspace's
+        and not only the root one. JavaScript dependencies are not editable
+        installs of this repository's source, so taking them cannot make a check
+        describe the wrong tree — but they have to arrive as real directories:
+        Turbopack refuses a symlink that leaves the project root, and a link
+        would also be followed on write, back into the tree a checkout must not
+        be able to change.
 
         Python is not shareable that way and is not shared. `workspace.pyenv`
         builds this checkout its own interpreter whose `sys.path` puts *this*
@@ -1208,6 +1238,7 @@ class Controller:
             candidate_fingerprint=fingerprint,
             on_start=lambda cid: setattr(self.progress, "current_check", f"baseline:{cid}"),
         )
+        self.skip_budget = dict(runner.skip_budget)
         self.progress.current_check = None
         already_failing = sorted(
             cid for cid, outcome in self.baseline.items() if outcome not in SUCCESS_OUTCOMES
@@ -1618,6 +1649,22 @@ class Controller:
     def publish(self, verdict: dict) -> RunState:
         assert self.spec is not None
         approved = self.store.get_run(self.run_id)["approved_fingerprint"]
+
+        stale = self._evidence_not_describing(approved)
+        if stale:
+            detail = (
+                "the evidence for " + "; ".join(stale) + " describes a different tree "
+                f"than the approved candidate {approved[:20]}. A check that passed and "
+                f"then saw the tree change has not shown that *this* tree passes, so "
+                f"the run does not complete on it."
+            )
+            self._write_receipt(
+                published=False, commit_sha=None, approved=approved, push=None,
+                checks=[{"name": "evidence describes the approved tree",
+                         "passed": False, "detail": detail}],
+                ci_status="not_triggered", new_commits=[], notes=[detail, *self.notes],
+            )
+            raise PolicyViolation(detail)
 
         outstanding = self.outstanding_gate_failures()
         if outstanding:

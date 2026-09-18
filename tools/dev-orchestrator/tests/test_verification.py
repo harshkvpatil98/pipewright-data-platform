@@ -294,3 +294,81 @@ def test_a_failure_is_still_a_failure_even_with_skips():
     assert runner_module._skip_count(summary) == 0, (
         "a failure is reported as a failure, never softened into a skip"
     )
+
+
+def test_a_failure_summary_with_exit_zero_is_still_a_failure(store, tmp_path):
+    """The summary is the check's own account. A zero beside it is the lie.
+
+    `os._exit(0)` after a failing run, or a wrapper that swallows the status,
+    used to reach the skip/pass branch with failures sitting in the output.
+    """
+    output = "===== 3 failed, 10 passed in 0.4s ====="
+    runner = _runner(store, tmp_path, (
+        _check("liar", (sys.executable, "-c", f"print({output!r})")),
+    ))
+    record = runner.run_check("liar", checkout=tmp_path, candidate_fingerprint="tree:x")
+    assert record["outcome"] == Outcome.FAIL
+    assert "3 failure(s)" in record["detail"]
+
+
+def test_skipping_more_than_the_baseline_is_not_a_pass(store, tmp_path):
+    """The answer to "1 passed, 6000 skipped closes a gate".
+
+    A check may skip what it already skipped before anything changed. Skipping
+    *more* means something stopped running during this run, which is coverage
+    lost rather than a result earned.
+    """
+    output = "===== 40 passed, 12 skipped in 1.0s ====="
+    runner = _runner(store, tmp_path, (
+        _check("budgeted", (sys.executable, "-c", f"print({output!r})")),
+    ))
+    runner.skip_budget = {"budgeted": 4}
+    record = runner.run_check("budgeted", checkout=tmp_path, candidate_fingerprint="tree:x")
+    assert record["outcome"] == Outcome.SKIP
+    assert record["outcome"] not in SUCCESS_OUTCOMES
+    assert "baseline of 4" in record["detail"]
+    assert "8 stopped running" in record["detail"]
+
+
+def test_skipping_exactly_the_baseline_still_passes(store, tmp_path):
+    """The structural skips of this repository are not a new regression."""
+    output = "===== 40 passed, 12 skipped in 1.0s ====="
+    runner = _runner(store, tmp_path, (
+        _check("budgeted", (sys.executable, "-c", f"print({output!r})")),
+    ))
+    runner.skip_budget = {"budgeted": 12}
+    record = runner.run_check("budgeted", checkout=tmp_path, candidate_fingerprint="tree:x")
+    assert record["outcome"] == Outcome.PASS
+    assert record["skipped"] == 12
+
+
+def test_the_baseline_run_adopts_what_it_measured_as_the_budget(store, tmp_path):
+    output = "===== 40 passed, 7 skipped in 1.0s ====="
+    runner = _runner(store, tmp_path, (
+        _check("measured", (sys.executable, "-c", f"print({output!r})")),
+    ))
+    runner.capture_baseline(["measured"], checkout=tmp_path, candidate_fingerprint="tree:x")
+    assert runner.skip_budget["measured"] == 7
+
+
+def test_verification_scratch_is_outside_the_tree_being_verified(store, tmp_path):
+    """Writing temp files into the checkout moved the fingerprint it is bound to."""
+    from pw_dev.util.hashing import tree_fingerprint
+
+    checkout = tmp_path / "candidate"
+    (checkout / "src").mkdir(parents=True)
+    (checkout / "src" / "a.py").write_text("x = 1\n", encoding="utf-8")
+    before = tree_fingerprint(checkout)
+
+    runner = _runner(store, tmp_path, (
+        _check("quiet", (sys.executable, "-c", "print('1 passed')")),
+    ))
+    scratch = runner.scratch_root(checkout)
+    assert checkout not in scratch.parents and scratch != checkout, (
+        f"{scratch} is inside the tree under verification"
+    )
+
+    runner.run_check("quiet", checkout=checkout, candidate_fingerprint=before)
+    assert tree_fingerprint(checkout) == before, (
+        "running a check must not change the tree it is describing"
+    )

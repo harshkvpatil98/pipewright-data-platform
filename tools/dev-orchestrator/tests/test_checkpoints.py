@@ -718,3 +718,32 @@ def _alive(pid: int) -> bool:
     except PermissionError:
         return True
     return True
+
+
+def test_a_pass_measured_against_another_tree_does_not_complete_the_run(config, store):
+    """Evidence names the tree it ran against; completion compares the two.
+
+    A check that passed and then saw the candidate change has not shown that the
+    approved tree passes. `.git` and `.venv` are outside the fingerprint, so
+    without this comparison a mutation there would leave nothing to notice.
+    """
+    from pw_dev.controller.run import Controller
+
+    controller = object.__new__(Controller)
+    controller.spec = {"required_verifications": ["repo:verify"],
+                       "accepted_preexisting_failures": []}
+    controller.registry = config_registry(config)
+    controller.final_records = {
+        "repo:verify": {"outcome": "pass", "candidate_fingerprint": "tree:OLD"},
+    }
+    mismatched = controller._evidence_not_describing("tree:APPROVED")
+    assert any("repo:verify" in entry for entry in mismatched)
+    assert "tree:OLD" in mismatched[0]
+
+    controller.final_records["repo:verify"]["candidate_fingerprint"] = "tree:APPROVED"
+    assert controller._evidence_not_describing("tree:APPROVED") == []
+
+
+def config_registry(config):
+    from pw_dev.verify.registry import registry_for
+    return registry_for(config.verification_profile)

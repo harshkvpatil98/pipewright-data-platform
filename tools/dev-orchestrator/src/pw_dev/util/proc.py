@@ -36,6 +36,14 @@ DEFAULT_MAX_OUTPUT_BYTES = 8 * 1024 * 1024
 BASE_ENV_ALLOWLIST = (
     "PATH", "HOME", "USER", "LOGNAME", "SHELL", "LANG", "LC_ALL", "TZ",
     "TERM", "TMPDIR",
+    # Where the connector verification servers are, when an operator has
+    # started them. `connectors:servers` and the container tests read these and
+    # record `infra_unavailable` without them -- which is honest, and was
+    # unreachable: the operator could start the servers, export the URLs that
+    # `docker-compose.connectors.yml` documents, and the check still could not
+    # see them because nothing forwarded the names. CI sets the same three.
+    "CONNECTORS_TEST_POSTGRES_URL", "CONNECTORS_TEST_MYSQL_URL",
+    "CONNECTORS_TEST_MARIADB_URL",
 )
 
 # Never forwarded, even if a caller adds them to the allowlist. The Git ones

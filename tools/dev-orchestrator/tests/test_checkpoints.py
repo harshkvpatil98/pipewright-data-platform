@@ -1018,3 +1018,32 @@ def test_a_stale_checkpoint_is_re_checked_not_re_run(tmp_path: Path):
     assert node.id not in controller.checkpoints, (
         "and the stale pass is not inherited"
     )
+
+
+def test_the_no_progress_guard_ignores_durations_and_not_counts():
+    """It compared raw detail text, which carries how long the run took.
+
+    "42 failed, 6770 passed in 559.31s" never equals itself twice, so three
+    repair rounds were spent watching an identical failure go round while the
+    guard saw three different states.
+
+    The first fix flattened every digit and broke the other half: 42 failures
+    and 12 failures both became "## failed", so the guard would have stopped on
+    exactly the round that fixed thirty tests.
+    """
+    from pw_dev.controller.run import _failure_signature
+
+    same_run_twice = (
+        [{"verification_id": "repo:verify", "detail": "42 failed, 6770 passed in 559.31s"}],
+        [{"verification_id": "repo:verify", "detail": "42 failed, 6770 passed in 612.77s"}],
+    )
+    assert _failure_signature(same_run_twice[0], []) == _failure_signature(
+        same_run_twice[1], []), "a different duration is not a different state"
+
+    progress = [{"verification_id": "repo:verify",
+                 "detail": "12 failed, 6800 passed in 601.02s"}]
+    assert _failure_signature(same_run_twice[0], []) != _failure_signature(progress, []), (
+        "thirty fewer failures is progress and must not read as a repeat"
+    )
+
+    assert _failure_signature([], ["repo:verify"]) != _failure_signature(progress, [])

@@ -106,6 +106,31 @@ class RunAborted(Exception):
         super().__init__(detail)
 
 
+def _failure_signature(failed: list[dict], missing: list[str]) -> str:
+    """What failed, in a form that is the same when the same thing fails again.
+
+    The detail carries a duration -- "42 failed, 6770 passed in 559.31s" -- and
+    that number differs on every run. Comparing the raw text made every
+    repetition look like a new state, so the no-progress guard never fired and
+    three rounds were spent watching an identical failure go round unchanged.
+
+    Only the durations are normalised, and deliberately not the counts: going
+    from 42 failures to 12 is exactly the progress this guard exists to notice,
+    and flattening every digit erased it -- "## failed" matched "## failed"
+    however many there were. Fractional seconds are the volatile part; integers
+    are the part that means something.
+    """
+    def flatten(text: str | None) -> str:
+        return re.sub(r"\d+\.\d+", "#", text or "")[:600]
+
+    parts = [
+        f"{record['verification_id']}:{flatten(record.get('detail'))}"
+        for record in sorted(failed, key=lambda r: r["verification_id"])
+    ]
+    parts.extend(f"{check_id}:missing" for check_id in sorted(missing))
+    return "; ".join(parts)
+
+
 class Controller:
     """One run, from DISCOVER to a recorded stopping state."""
 
@@ -798,10 +823,7 @@ class Controller:
             # every other, so a repair that moved the gate from failing on its
             # first step to failing on its twenty-eighth was read as no progress
             # and the loop stopped on real movement.
-            signature = "; ".join(
-                f"{r['verification_id']}:{(r.get('detail') or '')[:400]}"
-                for r in sorted(failed, key=lambda r: r["verification_id"])
-            ) + "".join(f"|{c}:missing" for c in sorted(missing))
+            signature = _failure_signature(failed, missing)
 
             # A checkpoint that fails gets the same bounded repair a failing
             # required check gets after integration. It did not, and that was a

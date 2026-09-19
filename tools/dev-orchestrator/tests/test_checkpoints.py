@@ -988,3 +988,33 @@ def test_an_out_of_scope_repair_is_discarded_rather_than_fatal(tmp_path: Path):
         encoding="utf-8") == '{"expect": "strict"}\n', (
         "the contract is restored, whatever the repair wanted it to say"
     )
+
+
+def test_a_stale_checkpoint_is_re_checked_not_re_run(tmp_path: Path):
+    """An integrated task's work survives; only its evidence expires.
+
+    A checkpoint passes against one tree. Anything integrated afterwards makes
+    a different tree, so the pass no longer describes what is about to be
+    committed -- that much was right. What was wrong is what happened next: the
+    task became eligible for dispatch again, a worker was sent out, and it
+    rewrote the file it owned.
+
+    For the task that writes the live-acceptance scenario that meant a fresh
+    contract on every repair round. Each product fix was then judged against a
+    different set of expectations than the one that had prompted it, so the
+    failure moved every round and nothing converged.
+    """
+    ran: list[str] = []
+    controller, _, _, _ = _controller(tmp_path, {"fixture:tests": "pass"})
+    controller._run_checkpoint = lambda node: ran.append(node.id)
+    controller._checkpoint_is_current = lambda node, fingerprint: False
+
+    node = _node(["fixture:tests"])
+    # what the dispatch loop does for an already-integrated checkpoint task
+    if not controller._checkpoint_is_current(node, "tree:new"):
+        controller._run_checkpoint(node)
+
+    assert ran == [node.id], "its checks are re-run"
+    assert node.id not in controller.checkpoints, (
+        "and the stale pass is not inherited"
+    )

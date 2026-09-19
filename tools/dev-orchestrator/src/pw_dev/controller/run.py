@@ -585,12 +585,26 @@ class Controller:
                     if not self._checkpoint_is_current(node, fingerprint):
                         self.store.event(
                             self.run_id, "checkpoint.stale",
-                            f"{node.id} passed against an earlier candidate; it is "
-                            f"re-checked against {fingerprint[:20]} rather than inherited",
+                            f"{node.id} passed against an earlier candidate; its checks "
+                            f"are re-run against {fingerprint[:20]} rather than inherited",
                             task_id=node.id,
                         )
-                        continue
-                    self.checkpoints[node.id] = fingerprint
+                        # Re-check, not re-run. Falling through to dispatch made
+                        # the task eligible again as though it had never
+                        # finished, so a worker was sent out and *rewrote what it
+                        # owned*. For the task that writes the live-acceptance
+                        # scenario that meant a new contract on every repair --
+                        # 379 lines replaced by 480 in one round -- so each fix
+                        # was judged against a different set of expectations than
+                        # the one that had prompted it, and nothing could
+                        # converge.
+                        #
+                        # The work is integrated and stays integrated. What
+                        # expired is the evidence, so the evidence is what is
+                        # earned again.
+                        self._run_checkpoint(node)
+                    else:
+                        self.checkpoints[node.id] = fingerprint
                 done.add(row["task_id"])
         if done:
             self.store.event(

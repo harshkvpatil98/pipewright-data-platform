@@ -894,3 +894,47 @@ def test_a_failing_checkpoint_dispatches_a_repair_and_then_passes(
               if row["kind"] == "checkpoint.repair"]
     assert events and "dispatching repair round 1" in events[0], events
     store.close()
+
+
+def test_a_repair_may_not_edit_the_scenario_it_is_judged_against(tmp_path: Path):
+    """Saying so in the packet was not enough; a round edited it anyway.
+
+    A repair is dispatched *because* a gate failed. If it can change the
+    scenario that gate runs, the shortest route to a passing check is to change
+    what the check asserts -- so the scenario is out of scope for repairs, and
+    a scope is enforced where a sentence is merely read.
+    """
+    controller = Controller.__new__(Controller)
+    controller.spec = {
+        "tasks": [
+            {"allowed_paths": ["services/svc/src/**", "scripts/live-acceptance/18.json"]},
+            {"allowed_paths": ["scripts/live-acceptance/**"]},
+            {"allowed_paths": ["apps/web/src/**"]},
+        ],
+    }
+    scope = controller._repair_scope()
+    assert "services/svc/src/**" in scope
+    assert "apps/web/src/**" in scope
+    assert not any(path.startswith("scripts/live-acceptance") for path in scope), scope
+
+
+def test_two_different_failures_of_one_check_are_not_no_progress():
+    """The guard compared `check_id: outcome`, so every failure looked alike.
+
+    A repair that moved live acceptance from failing on its first step to
+    failing on its twenty-eighth was read as having achieved nothing, and the
+    loop stopped on exactly the round that had made the most progress.
+    """
+    first = [{"verification_id": "repo:live-acceptance",
+              "detail": "step 1: expected HTTP 200, got 500"}]
+    later = [{"verification_id": "repo:live-acceptance",
+              "detail": "step 28: expected HTTP 200, got 500"}]
+
+    def signature(records):
+        return "; ".join(
+            f"{r['verification_id']}:{(r.get('detail') or '')[:400]}"
+            for r in sorted(records, key=lambda r: r["verification_id"])
+        )
+
+    assert signature(first) != signature(later)
+    assert signature(first) == signature(list(first)), "identical failures still match"

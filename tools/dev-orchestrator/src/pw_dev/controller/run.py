@@ -776,6 +776,15 @@ class Controller:
                 break
 
             detail = "; ".join(failing + [f"{c}: never executed" for c in missing])
+            # What the checks *said*, not merely that they failed. Comparing
+            # `check_id: outcome` made every failure of one check look like
+            # every other, so a repair that moved the gate from failing on its
+            # first step to failing on its twenty-eighth was read as no progress
+            # and the loop stopped on real movement.
+            signature = "; ".join(
+                f"{r['verification_id']}:{(r.get('detail') or '')[:400]}"
+                for r in sorted(failed, key=lambda r: r["verification_id"])
+            ) + "".join(f"|{c}:missing" for c in sorted(missing))
 
             # A checkpoint that fails gets the same bounded repair a failing
             # required check gets after integration. It did not, and that was a
@@ -792,11 +801,11 @@ class Controller:
             # needs a repair budget, and the happy path should not depend on
             # anything a repair would.
             limit = self._repair_limit()
-            if missing or rounds >= limit or detail == previous_detail:
+            if missing or rounds >= limit or signature == previous_detail:
                 why = (
                     f"{len(missing)} check(s) never executed" if missing
-                    else f"repair round {rounds} reproduced the same failure set"
-                    if detail == previous_detail
+                    else f"repair round {rounds} reproduced the same failure"
+                    if signature == previous_detail
                     else f"{rounds} repair round(s) did not close it"
                 )
                 self.store.set_task_state(
@@ -811,7 +820,7 @@ class Controller:
                     f"is done."
                 )
 
-            previous_detail = detail
+            previous_detail = signature
             rounds += 1
             self._check_budget()
             self.store.event(
@@ -860,6 +869,25 @@ class Controller:
             f"{fingerprint[:20]}",
             task_id=node.id, payload={"checks": required, "candidate": fingerprint},
         )
+
+    def _repair_scope(self) -> list[str]:
+        """Everything a repair may write, which is not everything a task may.
+
+        The live-acceptance scenario is excluded. It is the contract the gate
+        is judging, and a repair dispatched *because* that gate failed must not
+        be able to edit the thing it is being judged against. Saying so in the
+        packet was not enough -- a round asked to fix a failing step changed the
+        scenario instead -- and a scope is enforced where a sentence is merely
+        read.
+
+        The task that owns the scenario still owns it. This applies to repairs,
+        which exist to fix the code a check is about.
+        """
+        assert self.spec is not None
+        excluded = {"scripts/live-acceptance/**", "scripts/live-acceptance"}
+        scope = [path for path in scope_union(self.spec)
+                 if path not in excluded and not path.startswith("scripts/live-acceptance")]
+        return scope
 
     def _repair_limit(self) -> int:
         """How many repair rounds one failure may have, by the stricter of the two."""
@@ -1521,7 +1549,7 @@ class Controller:
 
     def _run_repair_round(self, findings: list[dict], *, label: str) -> None:
         assert self.spec is not None
-        scope = scope_union(self.spec)
+        scope = self._repair_scope()
         assignment = build_task_assignment(
             run_id=self.run_id,
             task={

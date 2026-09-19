@@ -880,7 +880,7 @@ class Controller:
                             f"{record['verification_id']} to pass and it reports "
                             f"{record['outcome']}"
                         ),
-                        "evidence": (record.get("detail") or "")[:1500],
+                        "evidence": self._failure_excerpt(record),
                         "requested_correction": (
                             "Fix the cause in the code the check is about. Do not "
                             "weaken the check, do not edit the scenario to match the "
@@ -927,6 +927,40 @@ class Controller:
             f"{fingerprint[:20]}",
             task_id=node.id, payload={"checks": required, "candidate": fingerprint},
         )
+
+    def _failure_excerpt(self, record: dict, *, limit: int = 60) -> str:
+        """The failure itself, not the count of failures.
+
+        A check's `detail` is its summary line -- "42 failed, 6770 passed" --
+        and that was the whole of what a repair round was told. Three rounds
+        against `repo:verify` changed nothing, which is the only thing a worker
+        can do when it knows how many tests failed and not which.
+
+        The named failures come out of the evidence the runner already wrote.
+        """
+        detail = (record.get("detail") or "")[:600]
+        evidence_id = record.get("evidence_id")
+        if not evidence_id:
+            return detail
+        path = self.evidence_dir / f"{evidence_id}.log"
+        try:
+            lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+        except OSError:
+            return detail
+        named = [
+            line for line in lines
+            if line.startswith(("FAILED", "ERROR")) or line.lstrip().startswith("E   ")
+        ]
+        if not named:
+            return detail
+        shown = named[:limit]
+        more = len(named) - len(shown)
+        return "\n".join([
+            detail, "",
+            f"{len(named)} reported failure line(s)"
+            + (f", first {len(shown)} shown" if more else "") + ":",
+            *shown,
+        ])[:6000]
 
     def _repair_scope(self) -> list[str]:
         """Everything a repair may write, which is not everything a task may.

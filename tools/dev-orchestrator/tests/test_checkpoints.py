@@ -1047,3 +1047,34 @@ def test_the_no_progress_guard_ignores_durations_and_not_counts():
     )
 
     assert _failure_signature([], ["repo:verify"]) != _failure_signature(progress, [])
+
+
+def test_a_repair_is_told_which_tests_failed_not_only_how_many(tmp_path: Path):
+    """"42 failed" is a count, and a worker cannot act on a count.
+
+    That was the entire evidence three repair rounds against `repo:verify`
+    received, and all three changed nothing -- which is the only honest
+    outcome available to somebody told how many tests broke and not which.
+    """
+    controller = Controller.__new__(Controller)
+    controller.evidence_dir = tmp_path / "evidence"
+    controller.evidence_dir.mkdir()
+    (controller.evidence_dir / "ev-1.log").write_text(
+        "\n".join([
+            "$ npm run verify",
+            "FAILED services/service-datasets/tests/test_version_gc.py::test_blob_deletion_races",
+            "E       sqlite3.ProgrammingError: SQLite objects created in a thread",
+            "FAILED services/service-datasets/tests/test_version_erasure.py::test_erase_recovery",
+            "= 42 failed, 6770 passed in 559.31s =",
+        ]), encoding="utf-8")
+
+    excerpt = controller._failure_excerpt(
+        {"detail": "42 failed, 6770 passed in 559.31s", "evidence_id": "ev-1"})
+
+    assert "test_blob_deletion_races" in excerpt
+    assert "test_erase_recovery" in excerpt
+    assert "SQLite objects created in a thread" in excerpt
+    assert "42 failed" in excerpt, "the summary is still there"
+
+    # no evidence to read: the summary is better than nothing, and is not a lie
+    assert controller._failure_excerpt({"detail": "x failed"}) == "x failed"

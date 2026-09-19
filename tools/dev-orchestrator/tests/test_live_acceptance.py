@@ -653,3 +653,28 @@ def test_an_expectation_may_reference_a_generated_credential():
         {"test_username": "pw-dev-acceptance"},
     )
     assert substituted["equals"] == "pw-dev-acceptance"
+
+
+def test_the_check_runs_this_installations_runner_not_the_candidates():
+    """A candidate is built from a base commit that may predate the controller.
+
+    Running the candidate's copy of the runner meant running whichever version
+    of the gate that base happened to carry. A harness defect the controller had
+    already fixed was still reported, and a repair worker -- shown a problem
+    that no longer existed -- changed the product to satisfy it, adding
+    `create_all` and a startup admin behind a test environment variable.
+
+    The runner is controller-owned verification code. The candidate is the
+    subject: passed as an argument, its interpreter starts the server, its
+    scenario runs.
+    """
+    from pw_dev.verify.registry import registry_for
+
+    check = registry_for("pipewright").get("repo:live-acceptance")
+    runner = Path(check.argv[1])
+    assert runner.is_absolute() and runner.exists()
+    assert runner == Path(live_acceptance.__file__).resolve(), (
+        "the gate must be this installation's runner"
+    )
+    assert "{repo}" not in check.argv[1], "not resolved from the candidate's tree"
+    assert check.argv[2] == "{repo}", "the candidate is still the subject"

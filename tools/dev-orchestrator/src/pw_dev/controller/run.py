@@ -831,9 +831,17 @@ class Controller:
                             f"{record['outcome']}"
                         ),
                         "evidence": (record.get("detail") or "")[:1500],
-                        "requested_correction": "fix the cause; do not weaken the check "
-                                                "and do not edit the scenario to match "
-                                                "the behaviour",
+                        "requested_correction": (
+                            "Fix the cause in the code the check is about. Do not "
+                            "weaken the check, do not edit the scenario to match the "
+                            "behaviour, and do not add product code whose only purpose "
+                            "is to make verification pass -- a branch on a test "
+                            "environment variable, a schema built with create_all "
+                            "instead of the migrations, or a user created at startup "
+                            "are all the harness's job and not the product's. If the "
+                            "check itself looks wrong, say so in your report and change "
+                            "nothing."
+                        ),
                     }
                     for index, record in enumerate(failed, start=1)
                 ],

@@ -13,6 +13,7 @@ while the integrated candidate pays for the whole gate.
 from __future__ import annotations
 
 import re
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -93,6 +94,11 @@ class Check:
                 if match.group(1) not in seen:
                     seen.append(match.group(1))
         return seen
+
+
+def _runner() -> str:
+    """Where this installation keeps the live-acceptance runner."""
+    return str((Path(__file__).parent / "live_acceptance.py").resolve())
 
 
 def _venv(repo_token: str = "{repo}") -> str:
@@ -238,8 +244,17 @@ PIPEWRIGHT_CHECKS: tuple[Check, ...] = (
         # The launcher is a literal here, in controller-owned code. It is not a
         # parameter and not a scenario field: a worker who could choose what to
         # start could satisfy this gate with `python -m http.server`.
-        argv=(f"{_venv()}",
-              "{repo}/tools/dev-orchestrator/src/pw_dev/verify/live_acceptance.py",
+        # The runner is *this* installation's copy, not the candidate's. It is
+        # controller-owned verification code, and a candidate is built from a
+        # base commit that may predate it -- so running the candidate's copy
+        # meant running whatever version of the gate that base happened to
+        # carry. A defect the controller had already fixed was still being
+        # reported, and the repair worker, shown a problem that no longer
+        # existed, changed the product to satisfy it.
+        #
+        # The candidate is the *subject*: it is passed as an argument, its
+        # interpreter starts the server, and its scenario is what runs.
+        argv=(sys.executable, _runner(),
               "{repo}", "{scenario}", "pipewright-gateway",
               "{repo}/.pw-dev-scratch/live-acceptance-evidence.json"),
         timeout_seconds=1800,

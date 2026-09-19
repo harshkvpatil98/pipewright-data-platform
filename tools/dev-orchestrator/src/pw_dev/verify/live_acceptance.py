@@ -726,6 +726,15 @@ def execute(repo: Path, name: str, launcher_name: str,
 
         if failed:
             evidence.problems.append(f"{failed[0].name}: {failed[0].detail}")
+            # The server's own account of what went wrong, which is the part
+            # anybody fixing this needs. Without it a failing step says only
+            # "expected HTTP 200, got 500" -- true, and not enough to act on:
+            # a repair round given that much can do nothing but guess, and did.
+            trace = _server_failure(server_log)
+            if trace:
+                evidence.problems.append(trace)
+                print(f"live-acceptance[{name}]: the server reported:\n{trace}",
+                      file=sys.stderr)
             return EXIT_FAIL, evidence
         if skipped:
             evidence.problems.append(
@@ -757,6 +766,24 @@ def execute(repo: Path, name: str, launcher_name: str,
             except OSError:
                 pass
         shutil.rmtree(workdir, ignore_errors=True)
+
+
+def _server_failure(server_log: Path, *, limit: int = 40) -> str:
+    """The last traceback the server logged, if it logged one.
+
+    Read from the log the runner already captures. Only the final traceback is
+    returned, and only its tail: a scenario's own failure message says which
+    step broke, and this says why.
+    """
+    try:
+        lines = server_log.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return ""
+    starts = [i for i, line in enumerate(lines) if line.startswith("Traceback")]
+    if not starts:
+        return ""
+    tail = lines[starts[-1]:][:limit]
+    return "\n".join(tail)
 
 
 def _teardown(process: subprocess.Popen | None, pgid: int | None) -> None:

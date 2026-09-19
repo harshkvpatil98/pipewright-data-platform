@@ -146,6 +146,13 @@ def _controller(tmp_path: Path, outcomes: dict[str, str], spec: dict | None = No
     controller.checkpoints = {}
     controller.notes = []
     controller.registry = Registry()
+    # No repair budget here on purpose. These tests are about the gate itself --
+    # what a failing checkpoint refuses, and what it says -- so the checkpoint
+    # blocks on the first failure rather than reaching for a provider. The
+    # repair loop has its own end-to-end test below.
+    controller.config = type("C", (), {
+        "limits": type("L", (), {"repair_rounds_per_task": 0})(),
+    })()
     controller.progress = type("P", (), {"current_check": None, "state": "", "activity": ""})()
     controller._cancelled = type("E", (), {"is_set": lambda self: False})()
     controller.report = lambda line: None
@@ -409,10 +416,18 @@ def test_a_failing_checkpoint_blocks_the_documentation_task(fixture_repo: Path,
     )
 
     calls = json.loads((bin_dir / "claude-calls.json").read_text(encoding="utf-8"))
-    assert [c["task_id"] for c in calls] == ["T-01"], (
-        "only T-01 was dispatched: the checkpoint needs no worker and T-03 never "
-        "became eligible"
+    dispatched = [c["task_id"] for c in calls]
+    assert dispatched[0] == "T-01"
+    assert "T-03" not in dispatched, (
+        "documentation never became eligible behind a checkpoint that did not pass"
     )
+    assert "T-02" not in dispatched, "a checkpoint owns nothing and needs no worker"
+    # The rest are repair attempts. A failing checkpoint is allowed a bounded
+    # number of them, dispatched as "repair" because they are scoped to the
+    # specification rather than to one assignment -- and the checkpoint still
+    # had to pass afterwards, which it did not, so the run still blocked.
+    assert set(dispatched[1:]) <= {"repair"}, dispatched
+    assert dispatched.count("repair") <= 3, "repairs are bounded"
     store.close()
 
 
@@ -817,3 +832,65 @@ def test_a_partial_baseline_is_measured_again_rather_than_half_believed(
     }), encoding="utf-8")
     controller._restore_baseline()
     assert controller.baseline == {}
+
+
+# ========== a failing checkpoint may be repaired, and still has to pass =======
+def test_a_failing_checkpoint_dispatches_a_repair_and_then_passes(
+        fixture_repo: Path, tmp_path: Path):
+    """The gap that made a checkpoint failure terminal in practice.
+
+    A checkpoint owns nothing, so no worker is dispatched for it; the code it
+    gates was written by somebody else. When it failed the run went to BLOCKED
+    and stayed there, because resume re-ran the same check against the same
+    candidate and product code can only be changed by a worker. A real defect
+    found by a real gate had no route to a fix.
+
+    It gets the same bounded repair a failing required check gets after
+    integration. The gate does not move: the checkpoint still has to pass, and
+    here it does only because the repair actually fixed the test it broke.
+    """
+    from pw_dev.state.db import RunStore
+
+    base = git.head_sha(fixture_repo)
+    spec = _checkpoint_spec(base, broken=True)
+    bin_dir = tmp_path / "bin"
+    per_task = {
+        # T-01 leaves the suite failing, exactly as in the blocking test.
+        "T-01": {"src/app.py": "VALUE = 2\n", "tests/test_app.py": BROKEN_TEST},
+        # The repair round mends it. Keyed by the label the controller uses.
+        "repair": {"tests/test_app.py": PASSING_EDIT["tests/test_app.py"]["fixed"]},
+        "T-03": {"docs/DONE.md": "# Phase recorded\n"},
+    }
+    claude = fake_claude_per_task(bin_dir, per_task)
+    codex = fake_codex(bin_dir, {"planner": spec, "reviewer": approval(
+        spec, "PLACEHOLDER", "PLACEHOLDER")})
+    config = make_run_config(fixture_repo, tmp_path, codex, claude, mode="none")
+
+    store = RunStore(config.db_path(), config.runs_dir())
+    run_id = store.create_run(brain="automatic", config_snapshot=config.snapshot(),
+                              publication_mode="none", deadline_epoch=None)
+    controller = Controller(config, store=store, run_id=run_id, brain="automatic",
+                            reporter=lambda line: None)
+    controller.acquire()
+    try:
+        state = controller.execute(imported_spec=spec)
+    finally:
+        controller.release()
+
+    tasks = {row["task_id"]: row["state"] for row in store.get_tasks(run_id)}
+    assert tasks["T-02"] == TaskState.INTEGRATED.value, (
+        f"the checkpoint should have passed after the repair; run ended {state}"
+    )
+    assert tasks["T-03"] != TaskState.PENDING.value, (
+        "documentation is released once the checkpoint it waits on has passed"
+    )
+
+    calls = json.loads((bin_dir / "claude-calls.json").read_text(encoding="utf-8"))
+    dispatched = [c["task_id"] for c in calls]
+    assert "repair" in dispatched, "the checkpoint failure dispatched a repair"
+    assert dispatched.index("T-01") < dispatched.index("repair")
+
+    events = [row["message"] for row in store.events(run_id)
+              if row["kind"] == "checkpoint.repair"]
+    assert events and "dispatching repair round 1" in events[0], events
+    store.close()

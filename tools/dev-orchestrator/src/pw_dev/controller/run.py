@@ -754,34 +754,90 @@ class Controller:
             )
             return
 
-        fingerprint = tree_fingerprint(self.candidate_dir)
-        self._emit(activity=f"checkpoint {node.id}: {len(required)} required check(s)")
-        runner = self._verification_runner()
-        records = runner.run_many(
-            required, checkout=self.candidate_dir, candidate_fingerprint=fingerprint,
-            task_id=node.id, cancel_check=self._check_cancelled,
-            on_start=lambda cid: setattr(self.progress, "current_check", f"{node.id}:{cid}"),
-        )
-        self.progress.current_check = None
-
-        outcomes = {r["verification_id"]: r["outcome"] for r in records}
-        missing = [check_id for check_id in required if check_id not in outcomes]
-        failing = [
-            f"{check_id}: {outcomes[check_id]}"
-            for check_id in required
-            if check_id in outcomes and outcomes[check_id] not in SUCCESS_OUTCOMES
-        ]
-        if missing or failing:
-            detail = "; ".join(failing + [f"{c}: never executed" for c in missing])
-            self.store.set_task_state(
-                self.run_id, node.id, TaskState.NEEDS_FIX,
-                f"checkpoint not met: {detail}"[:500],
+        rounds = 0
+        previous_detail: str | None = None
+        while True:
+            fingerprint = tree_fingerprint(self.candidate_dir)
+            self._emit(activity=f"checkpoint {node.id}: {len(required)} required check(s)")
+            runner = self._verification_runner()
+            records = runner.run_many(
+                required, checkout=self.candidate_dir, candidate_fingerprint=fingerprint,
+                task_id=node.id, cancel_check=self._check_cancelled,
+                on_start=lambda cid: setattr(self.progress, "current_check",
+                                             f"{node.id}:{cid}"),
             )
-            raise PolicyViolation(
-                f"{node.id} is a verification checkpoint and it did not pass against "
-                f"candidate {fingerprint[:20]}: {detail}. Its dependents "
-                f"({', '.join(self._dependents_of(node.id)) or 'none'}) are not released, "
-                f"because only a passing check says the work behind them is done."
+            self.progress.current_check = None
+
+            outcomes = {r["verification_id"]: r["outcome"] for r in records}
+            missing = [check_id for check_id in required if check_id not in outcomes]
+            failed = [r for r in records if r["outcome"] not in SUCCESS_OUTCOMES]
+            failing = [f"{r['verification_id']}: {r['outcome']}" for r in failed]
+            if not missing and not failing:
+                break
+
+            detail = "; ".join(failing + [f"{c}: never executed" for c in missing])
+
+            # A checkpoint that fails gets the same bounded repair a failing
+            # required check gets after integration. It did not, and that was a
+            # hole rather than a policy: the failure is in code a worker wrote,
+            # only a worker can change it, and the controller dispatches workers
+            # from task assignments -- so `BLOCKED` was terminal in practice and
+            # resume re-ran the same check against the same candidate for ever.
+            #
+            # What does not change: the checkpoint still has to *pass*. Repairs
+            # are bounded, a round that reproduces its own failure set stops the
+            # loop, and anything still failing at the end blocks exactly as
+            # before. This buys an attempt at the cause, not a way past the gate.
+            # Read here rather than up front: a checkpoint that passes never
+            # needs a repair budget, and the happy path should not depend on
+            # anything a repair would.
+            limit = self._repair_limit()
+            if missing or rounds >= limit or detail == previous_detail:
+                why = (
+                    f"{len(missing)} check(s) never executed" if missing
+                    else f"repair round {rounds} reproduced the same failure set"
+                    if detail == previous_detail
+                    else f"{rounds} repair round(s) did not close it"
+                )
+                self.store.set_task_state(
+                    self.run_id, node.id, TaskState.NEEDS_FIX,
+                    f"checkpoint not met: {detail}"[:500],
+                )
+                raise PolicyViolation(
+                    f"{node.id} is a verification checkpoint and it did not pass against "
+                    f"candidate {fingerprint[:20]}: {detail} ({why}). Its dependents "
+                    f"({', '.join(self._dependents_of(node.id)) or 'none'}) are not "
+                    f"released, because only a passing check says the work behind them "
+                    f"is done."
+                )
+
+            previous_detail = detail
+            rounds += 1
+            self._check_budget()
+            self.store.event(
+                self.run_id, "checkpoint.repair",
+                f"{node.id}: {detail}; dispatching repair round {rounds} of {limit}",
+                task_id=node.id,
+            )
+            self._run_repair_round(
+                [
+                    {
+                        "id": f"C-{index:02d}", "severity": "blocker", "kind": "defect",
+                        "requirement_or_rule": record["verification_id"],
+                        "path": None, "location": None,
+                        "failure_scenario": (
+                            f"the checkpoint {node.id} requires "
+                            f"{record['verification_id']} to pass and it reports "
+                            f"{record['outcome']}"
+                        ),
+                        "evidence": (record.get("detail") or "")[:1500],
+                        "requested_correction": "fix the cause; do not weaken the check "
+                                                "and do not edit the scenario to match "
+                                                "the behaviour",
+                    }
+                    for index, record in enumerate(failed, start=1)
+                ],
+                label=f"{node.id} checkpoint round {rounds}",
             )
 
         self.checkpoints[node.id] = fingerprint
@@ -795,6 +851,14 @@ class Controller:
             f"{node.id}: {', '.join(required)} passed against candidate "
             f"{fingerprint[:20]}",
             task_id=node.id, payload={"checks": required, "candidate": fingerprint},
+        )
+
+    def _repair_limit(self) -> int:
+        """How many repair rounds one failure may have, by the stricter of the two."""
+        assert self.spec is not None
+        return min(
+            self.spec["resource_limits"]["repair_rounds_per_task"],
+            self.config.limits.repair_rounds_per_task,
         )
 
     def _checkpoint_is_current(self, node: TaskNode, fingerprint: str) -> bool:

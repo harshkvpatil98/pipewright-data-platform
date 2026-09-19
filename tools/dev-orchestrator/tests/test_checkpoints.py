@@ -938,3 +938,53 @@ def test_two_different_failures_of_one_check_are_not_no_progress():
 
     assert signature(first) != signature(later)
     assert signature(first) == signature(list(first)), "identical failures still match"
+
+
+def test_an_out_of_scope_repair_is_discarded_rather_than_fatal(tmp_path: Path):
+    """A repair reaching outside its scope is a failed round, not a dead run.
+
+    It used to raise, which threw away every other change that round had made
+    and ended the run -- and the file being reached for is usually the scenario,
+    the one thing a repair may never touch. Discarding just those paths leaves
+    the loop bounded, lets the next round be told what happened, and keeps the
+    refusal absolute.
+    """
+    import subprocess
+
+    from pw_dev.workspace import git as g
+    from pw_dev.workspace.guard import PathGuard
+
+    repo = tmp_path / "candidate"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q", "."], cwd=repo, check=True)  # noqa: S603, S607
+    subprocess.run(["git", "config", "user.email", "t@e.com"], cwd=repo, check=True)  # noqa: S603, S607
+    subprocess.run(["git", "config", "user.name", "t"], cwd=repo, check=True)  # noqa: S603, S607
+    (repo / "src").mkdir()
+    (repo / "scripts" / "live-acceptance").mkdir(parents=True)
+    (repo / "src" / "a.py").write_text("x = 1\n", encoding="utf-8")
+    (repo / "scripts" / "live-acceptance" / "18.json").write_text(
+        '{"expect": "strict"}\n', encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)  # noqa: S603, S607
+    subprocess.run(["git", "commit", "-qm", "base"], cwd=repo, check=True)  # noqa: S603, S607
+
+    # a repair that fixed the code and also rewrote the contract
+    (repo / "src" / "a.py").write_text("x = 2\n", encoding="utf-8")
+    (repo / "scripts" / "live-acceptance" / "18.json").write_text(
+        '{"expect": "whatever the code does"}\n', encoding="utf-8")
+
+    scope = ["src/**"]
+    changed = g.changed_paths(repo, "HEAD")
+    _, violations = PathGuard(scope).partition(changed)
+    reverted = [v.path for v in violations]
+    assert reverted == ["scripts/live-acceptance/18.json"]
+
+    g.git(repo, ["checkout", "--", *reverted], check=False)
+    g.git(repo, ["clean", "-fd", "--", *reverted], check=False)
+
+    assert (repo / "src" / "a.py").read_text(encoding="utf-8") == "x = 2\n", (
+        "the in-scope fix survives"
+    )
+    assert (repo / "scripts" / "live-acceptance" / "18.json").read_text(
+        encoding="utf-8") == '{"expect": "strict"}\n', (
+        "the contract is restored, whatever the repair wanted it to say"
+    )

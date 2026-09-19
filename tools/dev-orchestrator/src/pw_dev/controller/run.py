@@ -146,6 +146,9 @@ class Controller:
         #: Per-check ceiling on skipped cases, measured at baseline. Skipping
         #: more than the unchanged tree skipped is coverage this run lost.
         self.skip_budget: dict[str, int] = {}
+        #: Set when a repair round reached outside its scope, so the next round
+        #: is told rather than left to make the same attempt again.
+        self.out_of_scope_repairs: str | None = None
         self.worker_reports: dict[str, dict] = {}
         self.integration_commits: dict[str, str] = {}
         self.sentinel: Sentinel | None = None
@@ -822,6 +825,8 @@ class Controller:
 
             previous_detail = signature
             rounds += 1
+            out_of_scope = getattr(self, "out_of_scope_repairs", None)
+            self.out_of_scope_repairs = None
             self._check_budget()
             self.store.event(
                 self.run_id, "checkpoint.repair",
@@ -853,7 +858,24 @@ class Controller:
                         ),
                     }
                     for index, record in enumerate(failed, start=1)
-                ],
+                ] + ([
+                    {
+                        "id": "C-scope", "severity": "blocker", "kind": "process",
+                        "requirement_or_rule": "repair scope",
+                        "path": None, "location": None,
+                        "failure_scenario": (
+                            f"the previous repair round wrote outside the scope it was "
+                            f"given and those changes were discarded: {out_of_scope}"
+                        ),
+                        "evidence": "",
+                        "requested_correction": (
+                            "Fix the code the check is about. The live-acceptance "
+                            "scenario is deliberately not yours to edit: it is the "
+                            "contract this gate judges, and changing it to agree with "
+                            "the code proves nothing."
+                        ),
+                    }
+                ] if out_of_scope else []),
                 label=f"{node.id} checkpoint round {rounds}",
             )
 
@@ -1580,13 +1602,30 @@ class Controller:
         if isinstance(report, dict):
             self.store.put_json_artifact(self.run_id, "worker_report", report)
             changed = git.changed_paths(self.candidate_dir, self.base_commit)
-            _, violations = PathGuard(scope).partition(changed)
+            allowed, violations = PathGuard(scope).partition(changed)
             if violations:
-                raise PathViolation(
-                    violations[0].path,
-                    "the repair round wrote outside the specification's scope: "
-                    + "; ".join(f"{v.path} ({v.reason})" for v in violations[:5]),
+                # Discarded, not fatal. A repair reaching outside its scope is a
+                # round that failed, and the loop that dispatched it is bounded
+                # and will try again with this named in the packet. Killing the
+                # run instead threw away every other repair the round had made
+                # -- and the thing being reached for here is usually the
+                # scenario, which is the one file a repair may never touch.
+                reverted = [v.path for v in violations]
+                git.git(self.candidate_dir,
+                        ["checkout", "--", *reverted], check=False)
+                git.git(self.candidate_dir, ["clean", "-fd", "--", *reverted],
+                        check=False)
+                detail = "; ".join(f"{v.path} ({v.reason})" for v in violations[:5])
+                self.out_of_scope_repairs = detail
+                self.notes.append(
+                    f"a repair round wrote outside the specification's scope and those "
+                    f"changes were discarded: {detail}"
                 )
+                self.store.event(
+                    self.run_id, "repair.out_of_scope",
+                    f"{label}: discarded {len(reverted)} out-of-scope path(s): {detail}",
+                )
+                changed = [path for path in changed if path not in set(reverted)]
             self._checkpoint(f"repair-{label}", changed)
             # A repair worker had write access to the candidate, including its
             # environment. Everything verified after this point runs through

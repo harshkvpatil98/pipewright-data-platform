@@ -7,8 +7,19 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from service_auth.schemas import UserRead
-from service_projects.schemas import ProjectCreate, ProjectDetail, ProjectListResponse
-from service_projects.service import create_project, get_project_by_id, list_projects
+from service_projects.schemas import (
+    ProjectCreate,
+    ProjectDetail,
+    ProjectListResponse,
+    ProjectUpdate,
+)
+from service_projects.service import (
+    create_project,
+    delete_project,
+    get_project_by_id,
+    list_projects,
+    update_project,
+)
 
 
 def build_router(get_db: Callable[..., Session], get_current_user: Callable[..., UserRead]) -> APIRouter:
@@ -36,5 +47,22 @@ def build_router(get_db: Callable[..., Session], get_current_user: Callable[...,
         current_user: UserRead = Depends(get_current_user),
     ) -> ProjectDetail:
         return get_project_by_id(db, project_id, current_user)
+
+    @router.patch("/{project_id}", response_model=ProjectDetail)
+    def patch_project(
+        project_id: uuid.UUID,
+        payload: ProjectUpdate,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> ProjectDetail:
+        return update_project(db, project_id, payload, current_user)
+
+    @router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
+    def remove_project(
+        project_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> None:
+        delete_project(db, project_id, current_user)
 
     return router

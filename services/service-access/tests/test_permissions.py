@@ -76,6 +76,22 @@ def test_deleting_the_project_itself_needs_an_admin():
     assert required_role("DELETE", f"{PROJECT}/workflows/abc") == "editor"
 
 
+def test_changing_the_project_itself_needs_an_admin():
+    """Renaming or archiving a project is administration, not editing.
+
+    The project's own record says what the workspace is and whether it is still
+    live; its pipelines and rules are what an editor edits. Both verbs are
+    pinned because a rule written for one of them is a rule the other slips
+    past -- `PUT` would otherwise fall through to the editor default.
+    """
+    assert required_role("PATCH", PROJECT) == "admin"
+    assert required_role("PUT", PROJECT) == "admin"
+    # And the contents stay editable by an editor, or this rule would lock
+    # them out of the platform rather than out of one record.
+    assert required_role("PATCH", f"{PROJECT}/pipelines/abc") == "editor"
+    assert required_role("PATCH", f"{PROJECT}/datasets/abc") == "editor"
+
+
 def test_member_management_wins_over_an_action_segment():
     """A path that is both must resolve to the stricter rule."""
     assert required_role("POST", f"{PROJECT}/members/abc/run") == "admin"

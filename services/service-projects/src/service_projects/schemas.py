@@ -18,6 +18,24 @@ class ProjectCreate(BaseModel):
     )
 
 
+class ProjectUpdate(BaseModel):
+    """What may be changed about a project after it exists.
+
+    Every field is optional and the caller's *unset* fields are left alone, so
+    renaming a project cannot blank its description by omission. `description`
+    is nullable on purpose: passing an explicit null clears it, which is a
+    different request from not mentioning it at all.
+
+    The slug is absent deliberately. It is the stable name this project is
+    referred to by, and rewriting it when the display name changes would break
+    every link and bookmark pointing at the old one.
+    """
+
+    name: str | None = Field(default=None, min_length=2, max_length=160)
+    description: str | None = Field(default=None, max_length=2000)
+    status: str | None = Field(default=None, pattern=r"^(active|draft|archived)$")
+
+
 class ProjectSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

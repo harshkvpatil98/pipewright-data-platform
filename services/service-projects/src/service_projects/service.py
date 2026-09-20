@@ -15,7 +15,13 @@ from service_projects.contracts import (
     ensure_owned_project,
 )
 from service_projects.models import Project
-from service_projects.schemas import ProjectCreate, ProjectDetail, ProjectListResponse, ProjectSummary
+from service_projects.schemas import (
+    ProjectCreate,
+    ProjectDetail,
+    ProjectListResponse,
+    ProjectSummary,
+    ProjectUpdate,
+)
 
 
 def _slugify(value: str) -> str:
@@ -103,3 +109,55 @@ def create_project(db: Session, payload: ProjectCreate, current_user: UserRead) 
     db.add(project)
     db.commit()
     return get_project_by_id(db, project.id, current_user)
+
+
+def update_project(
+    db: Session, project_id: uuid.UUID, payload: ProjectUpdate, current_user: UserRead
+) -> ProjectDetail:
+    """Rename a project, describe it, or archive it.
+
+    A project used to be write-once: created, and then permanent and unnamed
+    for ever. The project card invites you to "add one" to a project with no
+    description, and there was no request that could.
+
+    `exclude_unset` is what makes the three fields independent. Reading them off
+    the model directly would turn every omitted field into an explicit null, so
+    a rename would silently clear the description -- and `description=None` is
+    a request this endpoint has to honour, because clearing one is the only way
+    back from a mistake.
+    """
+    project = ensure_owned_project(db, project_id, current_user.id)
+    fields = payload.model_dump(exclude_unset=True)
+
+    if "name" in fields and fields["name"] is not None:
+        project.name = fields["name"].strip()
+    if "description" in fields:
+        description = fields["description"]
+        project.description = description.strip() if description else None
+    if "status" in fields and fields["status"] is not None:
+        project.status = fields["status"]
+
+    db.commit()
+    return get_project_by_id(db, project_id, current_user)
+
+
+def delete_project(db: Session, project_id: uuid.UUID, current_user: UserRead) -> None:
+    """Delete a project and everything inside it.
+
+    The contents go with it, and that is the database's job rather than this
+    function's: all forty-four `project_id` foreign keys across the services
+    already declare `ondelete="CASCADE"`, and the relationships on `Project`
+    declare `passive_deletes=True` so SQLAlchemy does not try to null them out
+    one table at a time on the way. Enumerating the dependents here instead
+    would be a second, weaker copy of that schema, wrong the first time a
+    service adds a table.
+
+    Who may call this is settled before the request reaches here, by the guard
+    in `service_access`: `DELETE` on a path whose second-to-last segment is
+    `projects` needs the admin role. `ensure_owned_project` is still the check
+    that this project is *visible* to the caller, and raises the same 404 a
+    stranger gets for one that does not exist.
+    """
+    project = ensure_owned_project(db, project_id, current_user.id)
+    db.delete(project)
+    db.commit()

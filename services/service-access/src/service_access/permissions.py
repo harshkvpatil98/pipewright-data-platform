@@ -193,9 +193,14 @@ def required_role(method: str, path: str) -> str:
     if verb in READ_METHODS:
         return "viewer"
 
-    # Deleting a project is not the same as deleting something inside it.
+    # Changing a project is not the same as changing something inside it. The
+    # project's own record -- its name, whether it is archived, whether it
+    # exists at all -- is administration, while its pipelines and rules are
+    # what an editor edits. Without the `parts[-2]` test this would read every
+    # write under `/projects/...` as admin-only and lock editors out of the
+    # whole platform.
     parts = _segments(path)
-    if verb == "DELETE" and len(parts) >= 2 and parts[-2] == "projects":
+    if verb in {"DELETE", "PATCH", "PUT"} and len(parts) >= 2 and parts[-2] == "projects":
         return "admin"
 
     if segments & READ_ONLY_SEGMENTS:

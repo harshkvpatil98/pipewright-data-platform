@@ -10,6 +10,7 @@ export const navigationItems = [
   { label: "Overview", href: "/", badge: "Live" },
   { label: "Projects", href: "/projects", badge: "Live" },
   { label: "People", href: "/people", badge: "Live" },
+  { label: "Organisations", href: "/organisations", badge: "Live" },
   { label: "System status", href: "/system-status", badge: "Ops" },
   { label: "Demo", href: "/demo", badge: "Guide" },
   { label: "Case study", href: "/case-study", badge: "Brief" },

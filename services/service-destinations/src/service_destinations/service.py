@@ -129,6 +129,24 @@ def update_destination(
     return _to_read(dest)
 
 
+def delete_destination(
+    db: Session, project_id: uuid.UUID, destination_id: uuid.UUID, current_user: UserRead
+) -> None:
+    """Remove a destination.
+
+    There was no way to, so a destination configured against a warehouse that
+    has since been decommissioned stayed in every publish picker, with its
+    stored credentials, indefinitely.
+
+    Nothing else in the schema points at `destination_configs`, so there is
+    nothing to cascade and nothing to strand.
+    """
+    ensure_owned_project(db, project_id, current_user.id)
+    dest = get_destination_model(db, project_id, destination_id)
+    db.delete(dest)
+    db.commit()
+
+
 def _run_connection_test(destination_type: str, config: dict[str, Any]) -> tuple[bool, str, float | None, list[str]]:
     if destination_type == "postgres":
         return check_postgres_connection(config)

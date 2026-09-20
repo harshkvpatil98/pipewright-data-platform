@@ -4,7 +4,7 @@ import uuid
 from collections.abc import Callable
 from typing import Any
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from service_auth.schemas import UserRead
@@ -23,6 +23,7 @@ from service_comparisons.schemas import (
 )
 from service_comparisons.saved_tests_service import (
     create_saved_statistical_test,
+    delete_saved_statistical_test,
     get_saved_statistical_test_detail,
     list_saved_statistical_test_runs,
     list_saved_statistical_tests,
@@ -145,6 +146,18 @@ def build_router(
         current_user: UserRead = Depends(get_current_user),
     ) -> SavedStatisticalTestRead:
         return update_saved_statistical_test(db, project_id, saved_test_id, payload, current_user)
+
+    @router.delete(
+        "/projects/{project_id}/tests/saved/{saved_test_id}",
+        status_code=status.HTTP_204_NO_CONTENT,
+    )
+    def remove_saved_test(
+        project_id: uuid.UUID,
+        saved_test_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> None:
+        delete_saved_statistical_test(db, project_id, saved_test_id, current_user)
 
     @router.post(
         "/projects/{project_id}/tests/saved/{saved_test_id}/run",

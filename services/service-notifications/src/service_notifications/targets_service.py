@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import Uuid, bindparam, select, text
 from sqlalchemy.orm import Session
 
 from service_auth.schemas import UserRead
@@ -30,7 +30,12 @@ from service_notifications.validators import (
     validate_target_type,
 )
 from service_projects.contracts import ensure_owned_project
-from shared_python.errors import BadRequestError, MisconfiguredEnvironmentError, NotFoundError
+from shared_python.errors import (
+    BadRequestError,
+    ConflictError,
+    MisconfiguredEnvironmentError,
+    NotFoundError,
+)
 
 
 def _to_read(row: ExternalNotificationTarget) -> ExternalNotificationTargetRead:
@@ -101,6 +106,49 @@ def get_target(
     if row is None or row.project_id != project_id:
         raise NotFoundError("Notification target not found.")
     return _to_read(row)
+
+
+#: Scheduled reports still delivering to a target. Raw SQL rather than an
+#: import of `service_reporting`, matching how `service_projects` counts rows
+#: it does not own: the alternative is a dependency between two services that
+#: have no business knowing about each other. The bind parameter is typed
+#: explicitly because an untyped one is passed straight to the driver, which
+#: works on Postgres and fails on the SQLite the tests run against.
+_COUNT_REPORTS_FOR_TARGET = text(
+    "SELECT COUNT(*) FROM scheduled_reports WHERE notification_target_id = :target_id"
+).bindparams(bindparam("target_id", type_=Uuid(as_uuid=True)))
+
+
+def delete_target(
+    db: Session, *, project_id: uuid.UUID, target_id: uuid.UUID, current_user: UserRead
+) -> None:
+    """Remove a notification target.
+
+    Refused while a scheduled report still delivers to it.
+    `scheduled_reports.notification_target_id` is a plain column with no foreign
+    key behind it, so nothing in the database would object and nothing would
+    report it -- the report would keep its schedule, keep running, and fail to
+    deliver to a target that no longer exists.
+
+    Disabling a target is the other way to silence it, and that one keeps the
+    reports pointing somewhere real.
+    """
+    ensure_owned_project(db, project_id, current_user.id)
+    row = db.get(ExternalNotificationTarget, target_id)
+    if row is None or row.project_id != project_id:
+        raise NotFoundError("Notification target not found.")
+
+    reports = db.execute(_COUNT_REPORTS_FOR_TARGET, {"target_id": target_id}).scalar_one() or 0
+    if reports:
+        raise ConflictError(
+            f"{row.name} still receives {reports} scheduled report(s). Point them "
+            f"at another target or remove them first, or disable this target "
+            f"instead -- deleting it now would leave those reports delivering "
+            f"nowhere."
+        )
+
+    db.delete(row)
+    db.commit()
 
 
 def update_target(

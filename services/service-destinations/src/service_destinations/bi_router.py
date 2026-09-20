@@ -18,6 +18,7 @@ from service_destinations.bi_service import (
     check_bi_connection,
     create_bi_connection,
     discover_bi_metadata,
+    delete_bi_connection,
     get_bi_connection,
     list_bi_connections,
     update_bi_connection,
@@ -70,6 +71,18 @@ def build_bi_router(
         current_user: UserRead = Depends(get_current_user),
     ) -> BiIntegrationRead:
         return update_bi_connection(db, project_id, connection_id, payload, current_user)
+
+    @router.delete(
+        "/projects/{project_id}/bi-connections/{connection_id}",
+        status_code=status.HTTP_204_NO_CONTENT,
+    )
+    def remove_project_bi_connection(
+        project_id: uuid.UUID,
+        connection_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> None:
+        delete_bi_connection(db, project_id, connection_id, current_user)
 
     @router.post(
         "/projects/{project_id}/bi-connections/{connection_id}/test",

@@ -241,6 +241,21 @@ def update_saved_statistical_test(
     return _to_saved_read(st, left_name=left.name, right_name=right.name)
 
 
+def delete_saved_statistical_test(
+    db: Session, project_id: uuid.UUID, saved_test_id: uuid.UUID, current_user: UserRead
+) -> None:
+    """Remove a saved test and the history of its runs.
+
+    The runs go with it: `saved_statistical_test_runs.saved_test_id` is
+    `ON DELETE CASCADE`, so there is no separate sweep to forget and no way to
+    leave a run pointing at a test that is gone.
+    """
+    ensure_owned_project(db, project_id, current_user.id)
+    saved = get_saved_test_model(db, project_id, saved_test_id)
+    db.delete(saved)
+    db.commit()
+
+
 def run_saved_statistical_test(
     db: Session,
     project_id: uuid.UUID,

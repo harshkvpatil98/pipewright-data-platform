@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from collections.abc import Callable
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from service_auth.schemas import UserRead
@@ -26,6 +26,7 @@ from service_notifications.target_schemas import (
 )
 from service_notifications.targets_service import (
     create_target,
+    delete_target,
     get_target,
     list_targets,
     send_notification_target_test,
@@ -116,6 +117,20 @@ def build_router(get_db: Callable[..., Session], get_current_user: Callable[...,
     ) -> ExternalNotificationTargetRead:
         return update_target(
             db, project_id=project_id, target_id=target_id, current_user=current_user, payload=payload
+        )
+
+    @router.delete(
+        "/projects/{project_id}/notification-targets/{target_id}",
+        status_code=status.HTTP_204_NO_CONTENT,
+    )
+    def remove_notification_target(
+        project_id: uuid.UUID,
+        target_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> None:
+        delete_target(
+            db, project_id=project_id, target_id=target_id, current_user=current_user
         )
 
     @router.post(

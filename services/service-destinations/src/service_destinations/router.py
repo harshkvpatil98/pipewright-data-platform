@@ -28,6 +28,7 @@ from service_destinations.schemas import (
 )
 from service_destinations.service import (
     create_destination,
+    delete_destination,
     get_destination,
     list_destinations,
     test_destination_connection,
@@ -81,6 +82,18 @@ def build_router(
         current_user: UserRead = Depends(get_current_user),
     ) -> DestinationRead:
         return update_destination(db, project_id, destination_id, payload, current_user)
+
+    @router.delete(
+        "/projects/{project_id}/destinations/{destination_id}",
+        status_code=status.HTTP_204_NO_CONTENT,
+    )
+    def remove_project_destination(
+        project_id: uuid.UUID,
+        destination_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> None:
+        delete_destination(db, project_id, destination_id, current_user)
 
     @router.post(
         "/projects/{project_id}/destinations/{destination_id}/test",

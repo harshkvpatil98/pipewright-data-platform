@@ -19,6 +19,7 @@ from service_schedules.schemas import (
 )
 from service_schedules.service import (
     create_schedule,
+    delete_schedule,
     get_schedule,
     list_schedules,
     toggle_schedule,
@@ -78,6 +79,20 @@ def build_router(
     ) -> ScheduledOperationRead:
         return update_schedule(
             db, project_id=project_id, schedule_id=schedule_id, payload=payload, current_user=current_user
+        )
+
+    @router.delete(
+        "/projects/{project_id}/schedules/{schedule_id}",
+        status_code=status.HTTP_204_NO_CONTENT,
+    )
+    def remove_schedule(
+        project_id: uuid.UUID,
+        schedule_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> None:
+        delete_schedule(
+            db, project_id=project_id, schedule_id=schedule_id, current_user=current_user
         )
 
     @router.post("/projects/{project_id}/schedules/{schedule_id}/toggle", response_model=ScheduledOperationRead)

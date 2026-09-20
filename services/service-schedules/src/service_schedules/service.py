@@ -109,6 +109,26 @@ def _get_schedule_model(
     return row
 
 
+def delete_schedule(
+    db: Session, *, project_id: uuid.UUID, schedule_id: uuid.UUID, current_user: UserRead
+) -> None:
+    """Remove a schedule for good.
+
+    Disabling one with `toggle` stops it running but leaves it in the list, and
+    that was the only way to retire a schedule -- so a project accumulated
+    every nightly job anyone had ever tried, all switched off, for ever.
+
+    Notifications that referred to this schedule keep their history: the
+    `related_schedule_id` foreign key is `ON DELETE SET NULL`, so what ran in
+    the past stays reported even though the schedule behind it is gone.
+    """
+    row = _get_schedule_model(
+        db, project_id=project_id, schedule_id=schedule_id, current_user=current_user
+    )
+    db.delete(row)
+    db.commit()
+
+
 def update_schedule(
     db: Session,
     *,

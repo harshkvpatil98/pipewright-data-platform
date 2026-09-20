@@ -105,6 +105,21 @@ def get_bi_connection(
     return _to_bi_read(row)
 
 
+def delete_bi_connection(
+    db: Session, project_id: uuid.UUID, connection_id: uuid.UUID, current_user: UserRead
+) -> None:
+    """Remove a BI connection.
+
+    Its row is a `DestinationConfig` of a BI type, so the lookup goes through
+    `get_bi_connection_model` rather than deleting by id: that keeps a request
+    naming an ordinary destination from removing it through the BI endpoint.
+    """
+    ensure_owned_project(db, project_id, current_user.id)
+    row = get_bi_connection_model(db, project_id, connection_id)
+    db.delete(row)
+    db.commit()
+
+
 def update_bi_connection(
     db: Session,
     project_id: uuid.UUID,

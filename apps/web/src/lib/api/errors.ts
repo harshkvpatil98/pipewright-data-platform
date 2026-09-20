@@ -35,7 +35,21 @@ export function extractErrorMessage(error: unknown): string {
 
 export async function parseApiResponse<T>(response: Response): Promise<T> {
   const contentType = response.headers.get("content-type") ?? "";
-  const payload = contentType.includes("application/json") ? await response.json() : await response.text();
+
+  // Read the body as text first, and only parse it if there is any.
+  //
+  // A 204 carries no body and the API still labels it `application/json`, so
+  // `response.json()` threw "Unexpected end of JSON input" -- on a request
+  // that had succeeded. Every DELETE in the API answers 204, which is why
+  // removing a project member appeared to fail while actually removing them:
+  // the row was gone, the parse threw, the page showed an error and skipped
+  // its reload, so the member stayed on screen until a refresh.
+  const raw = await response.text();
+  const payload = raw
+    ? contentType.includes("application/json")
+      ? (JSON.parse(raw) as unknown)
+      : raw
+    : undefined;
 
   if (!response.ok) {
     throw new ApiError(response.status, payload);

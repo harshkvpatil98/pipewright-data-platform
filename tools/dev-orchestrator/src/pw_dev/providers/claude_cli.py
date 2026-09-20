@@ -120,7 +120,21 @@ class ClaudeCliAdapter:
         argv = [
             self.config.executable, "-p",
             "--output-format", "json",
-            "--permission-mode", "acceptEdits" if writable else "manual",
+            # `acceptEdits` auto-accepts file edits and still sends every Bash
+            # command to the permission system. Claude Code waves through what
+            # it can prove is read-only -- `cat`, `echo` -- and asks for the
+            # rest, which is exactly the set a worker needs: running a test is
+            # arbitrary execution. Headless, there is nobody to ask, so the
+            # answer was always "This command requires approval" and `Bash`
+            # was a tool workers held and could not use.
+            #
+            # The boundary is not this flag. It is the seatbelt profile the
+            # controller wraps the whole process in, which a worker cannot
+            # negotiate with: `test_isolation.py` runs a real shell under it
+            # and shows the repository and the operator's home still refusing
+            # writes. A worker that may edit a file it cannot run is not safer,
+            # only blinder -- it edits code it cannot test and reports guesses.
+            "--permission-mode", "bypassPermissions" if writable else "manual",
             "--tools", *tools,
             "--disallowed-tools", *DENIED_TOOLS,
             # No user/project/local settings: no inherited hooks, plugins or

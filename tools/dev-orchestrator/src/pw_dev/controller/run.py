@@ -48,7 +48,8 @@ from ..workspace.pyenv import EnvironmentReport
 from ..workspace.patches import (PatchBundle, apply_bundle,
                                  conflicting_paths, export_bundle, would_conflict)
 from ..workspace.sandbox import (SandboxSupport, claude_config_denials,
-                                 detect_sandbox_support, resolve_mode, sandbox_wrapper)
+                                 claude_bash_workspace, detect_sandbox_support,
+                                 resolve_mode, sandbox_wrapper)
 from ..workspace.sentinel import Sentinel, protected_locations
 from ..workspace.worktrees import WorktreeManager
 from . import roles
@@ -2144,6 +2145,11 @@ class Controller:
         denials: list[Path] = [Path(root) / ".venv" for root in (sandbox_roots or [])]
         if isinstance(adapter, ClaudeCliAdapter):
             write_roots.append(claude_config)
+            # Its Bash tool keeps the shell's working state here and takes the
+            # location from the platform temp dir, not from the `TMPDIR` we set.
+            # Denied, every command fails before it runs and the worker is left
+            # holding a tool it cannot use. See `claude_bash_workspace`.
+            write_roots.append(claude_bash_workspace())
             # extend, never assign: assigning dropped the `.venv` carve-out
             # above for the one adapter that actually writes, which is the only
             # adapter it mattered for.

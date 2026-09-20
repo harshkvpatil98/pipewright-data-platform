@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import subprocess
+import os
+import shutil
 import sys
 from pathlib import Path
 
 import pytest
 
 from pw_dev.workspace.guard import PathGuard, PathViolation, normalise, resolve_within
-from pw_dev.workspace.sandbox import build_profile, detect_sandbox_support, resolve_mode, sandbox_wrapper
+from pw_dev.workspace.sandbox import (build_profile, claude_bash_workspace,
+                                      detect_sandbox_support, resolve_mode, sandbox_wrapper)
 from pw_dev.workspace.sentinel import Sentinel
 from pw_dev.workspace.worktrees import WorktreeManager
 
@@ -253,3 +256,54 @@ def test_a_downstream_task_starts_from_its_prerequisite_not_the_base(fixture_rep
     finally:
         manager.cleanup()
         manager.prune_branches()
+
+
+def test_a_confined_worker_can_run_a_shell_and_still_cannot_escape(tmp_path: Path):
+    """`Bash` was in the tool list, granted, and unusable.
+
+    Claude Code's Bash tool keeps the shell's working state under the platform
+    temporary directory -- `<tmp>/claude-<uid>/<slug>` plus a `<tmp>/claude-
+    <hex>-cwd` file -- and it does not take that location from the `TMPDIR` the
+    controller sets for the child. Confined without it, every command failed
+    before it ran:
+
+        EPERM: operation not permitted, mkdir '/private/tmp/claude-501/...'
+
+    and the unsandboxed fallback needed an approval no headless worker can be
+    given. So workers edited code they could never run: four repair rounds
+    traced a failing test correctly, concluded the code was right, and missed
+    the cause because reaching it took one command.
+
+    The grant is only useful if it did not also open the things the boundary
+    exists for, so this asserts both halves against a real `sandbox-exec`.
+    """
+    support = detect_sandbox_support(probe=True)
+    if not support.available or sys.platform != "darwin":
+        pytest.skip(f"this host cannot enforce writes: {support.detail}")
+
+    worktree = tmp_path / "worktree"
+    worktree.mkdir()
+    repository = tmp_path / "repository"
+    repository.mkdir()
+
+    wrap = sandbox_wrapper([worktree, claude_bash_workspace()], tmp_path / "profile.sb")
+    assert wrap is not None
+
+    def run(script: str) -> subprocess.CompletedProcess:
+        return subprocess.run(  # noqa: S603
+            wrap(["/bin/sh", "-c", script]), capture_output=True, text=True, check=False,
+        )
+
+    shell_state = claude_bash_workspace() / f"claude-{os.getuid()}" / "pw-dev-suite-probe"
+    assert run(f"mkdir -p '{shell_state}'").returncode == 0, (
+        "the shell's own working directory must be creatable, or Bash never starts"
+    )
+    assert run(f"echo ok > '{worktree / 'f.txt'}'").returncode == 0
+    assert (worktree / "f.txt").is_file()
+
+    escape = run(f"echo bad > '{repository / 'f.txt'}'")
+    assert escape.returncode != 0, "a shell must not reach outside its worktree"
+    assert not (repository / "f.txt").exists(), (
+        "granting the shell its scratch must not grant it the repository"
+    )
+    shutil.rmtree(shell_state, ignore_errors=True)

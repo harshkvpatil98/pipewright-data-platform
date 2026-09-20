@@ -263,7 +263,7 @@ def test_claude_garbage_on_stdout_is_malformed_not_a_crash(fake_claude, tmp_path
     assert result.failure_kind == FailureKind.MALFORMED_OUTPUT
 
 
-def test_claude_worker_cannot_delegate_or_reach_the_network(fake_claude, tmp_path):
+def test_claude_worker_cannot_delegate(fake_claude, tmp_path):
     """Delegation tools are removed so nested agents cannot evade the budget."""
     recorded = tmp_path / "argv.json"
     binary = fake_claude("claude_success", record_argv=recorded)
@@ -274,9 +274,53 @@ def test_claude_worker_cannot_delegate_or_reach_the_network(fake_claude, tmp_pat
     denied = argv[denied_at + 1 : denied_at + 10]
     for tool in ("Task", "Agent", "WebFetch", "WebSearch"):
         assert tool in denied, f"{tool} must be denied to a worker"
-    assert "--dangerously-skip-permissions" not in argv
     assert "--bare" not in argv, "--bare would silently switch to API authentication"
-    assert argv[argv.index("--permission-mode") + 1] == "acceptEdits"
+
+
+def test_a_writing_worker_runs_without_a_permission_prompt(fake_claude, tmp_path):
+    """Deliberate, and the reasoning belongs next to the flag.
+
+    This used to pin `acceptEdits` and assert `--dangerously-skip-permissions`
+    was absent. The effect was a worker that could edit any file it owned and
+    run nothing: `acceptEdits` sends every Bash command to the permission
+    system, and headless -- with `--setting-sources ""`, so not one allow rule
+    is loaded -- there is nobody to answer it. `Bash` sat in `WORKER_TOOLS`
+    and returned "This command requires approval" every time, so workers wrote
+    code they could not execute or test. Four repair rounds on one failing test
+    each reasoned carefully to the wrong conclusion and said so honestly,
+    because confirming it needed a single command.
+
+    `bypassPermissions` is the same grant `--dangerously-skip-permissions`
+    gives; naming it the other way would only hide it. What keeps a worker
+    inside its worktree was never this flag -- it is the seatbelt profile the
+    controller wraps the process in, which the worker cannot negotiate with,
+    and `test_isolation.py` runs a real shell under it to show the repository
+    and the operator's home still refusing writes.
+
+    What this genuinely widens, stated rather than implied: a shell can reach
+    the network whatever `WebFetch` is set to, can read anything the operator
+    can read, and can start processes. That is the same boundary every
+    verification evidence document already describes as "file writes, by
+    path" -- it does not cover reads, network, or process control.
+    """
+    recorded = tmp_path / "argv.json"
+    binary = fake_claude("claude_success", record_argv=recorded)
+    _claude(binary).invoke(role="worker", prompt="hi", cwd=tmp_path, timeout=30,
+                           writable=True, config_dir=tmp_path / "cfg")
+    argv = json.loads(recorded.read_text())
+    assert argv[argv.index("--permission-mode") + 1] == "bypassPermissions"
+    assert "Bash" in argv, "a worker that cannot run anything cannot verify anything"
+
+
+def test_a_read_only_worker_still_gets_no_such_grant(fake_claude, tmp_path):
+    """The widening is for workers that write; analysis roles keep the old posture."""
+    recorded = tmp_path / "argv.json"
+    binary = fake_claude("claude_success", record_argv=recorded)
+    _claude(binary).invoke(role="analysis", prompt="hi", cwd=tmp_path, timeout=30,
+                           writable=False, config_dir=tmp_path / "cfg")
+    argv = json.loads(recorded.read_text())
+    assert argv[argv.index("--permission-mode") + 1] == "manual"
+    assert "Bash" not in argv[argv.index("--tools") + 1: argv.index("--disallowed-tools")]
 
 
 def test_claude_worker_loads_no_settings_plugins_or_mcp(fake_claude, tmp_path):

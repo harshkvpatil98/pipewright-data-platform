@@ -186,6 +186,36 @@ def _escape(value: str) -> str:
     return value.replace("\\", "\\\\").replace('"', '\\"')
 
 
+def claude_bash_workspace() -> Path:
+    """Where Claude Code's Bash tool insists on keeping the shell's state.
+
+    It creates `<tmp>/claude-<uid>/<slugified-cwd>` for the shell's working
+    directory and a `<tmp>/claude-<hex>-cwd` file beside it -- and it takes
+    `<tmp>` from the platform temporary directory, **not** from `TMPDIR`.
+    Pointing the child's `TMPDIR` at a confined scratch does not move them,
+    which is what made this look like an environment problem rather than a
+    missing grant.
+
+    Without it every Bash call failed before running anything:
+
+        EPERM: operation not permitted, mkdir '/private/tmp/claude-501/...'
+
+    and the unsandboxed fallback asked for an approval no headless worker can
+    be given. So `Bash` sat in `WORKER_TOOLS`, granted and unusable, and
+    workers edited code they could not run or test. Four repair rounds reasoned
+    correctly about a failing test's symptom and never found its cause, because
+    finding it needed one command.
+
+    Granting the shared temporary directory is a real widening and a small one.
+    It is world-writable already, so nothing here is newly reachable to anything
+    else on the machine, and the repository, the operator's home and everything
+    else outside the worktree stay denied -- which `test_isolation.py` asserts
+    rather than assumes. Callers pass this alongside the worktree; the profile
+    resolves it, so the `/tmp` -> `/private/tmp` symlink needs no special care.
+    """
+    return Path("/tmp")
+
+
 def claude_config_denials(config_dir: Path) -> list[Path]:
     """Files inside the Claude config directory a worker must not change.
 

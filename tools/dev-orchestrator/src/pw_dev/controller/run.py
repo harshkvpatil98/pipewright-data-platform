@@ -1475,8 +1475,14 @@ class Controller:
         malformed = sorted(
             {cid for cid, value in outcomes.items()
              if not isinstance(value, str) or value not in known}
+            # `None` is a legitimate recorded value: the baseline produced
+            # nothing countable for that check, so there is no ceiling to
+            # enforce. Rejecting it as malformed would discard the whole
+            # artifact and recapture -- and recapture measures the *candidate*,
+            # which by then holds the very changes a baseline exists to predate.
             | {cid for cid, value in skips.items()
-               if not isinstance(value, int) or isinstance(value, bool) or value < 0}
+               if value is not None
+               and (not isinstance(value, int) or isinstance(value, bool) or value < 0)}
         )
         if missing or malformed:
             self.notes.append(

@@ -307,6 +307,18 @@ class VerificationRunner:
             "truncated": result.truncated,
         })
 
+        # Recorded before the outcome is decided, because the baseline adopts
+        # it as a budget and a *failing* baseline is exactly when it matters.
+        # Parsed only on the passing path, a check that failed at baseline
+        # recorded `None`, the budget became 0, and the first run that fixed
+        # the failure was refused for skipping the 581 cases it had always
+        # skipped -- "581 case(s) skipped against a baseline of 0" -- with no
+        # way to ever satisfy it. `None` stays `None` when there is no output
+        # to read (cancelled, timed out, never started): unknown is not zero,
+        # and a budget must not be invented from silence.
+        if not result.cancelled and not result.timed_out:
+            document["skipped"] = _skipped_cases(result.stdout + result.stderr)
+
         if result.cancelled:
             document["outcome"] = Outcome.NOT_RUN
             document["detail"] = "cancelled before the check finished"
@@ -366,7 +378,6 @@ class VerificationRunner:
                 # change. Whatever stopped running, it stopped running during
                 # this run, and that is a loss of coverage rather than a result.
                 document["outcome"] = Outcome.SKIP
-                document["skipped"] = skipped
                 document["detail"] = (
                     f"{skipped} case(s) skipped against a baseline of {budget}. "
                     f"{skipped - budget} stopped running during this run, so this "
@@ -379,7 +390,6 @@ class VerificationRunner:
                     # Reported, and reported every time, because the gap is real
                     # -- these cases were not exercised. What it is not is a
                     # reason to call a run of 6,424 passing cases "no result".
-                    document["skipped"] = skipped
                     document["detail"] += (
                         f" {executed} case(s) ran and passed; {skipped} were skipped "
                         f"and are not covered by this evidence."
@@ -427,7 +437,11 @@ class VerificationRunner:
             task_id=None, on_start=on_start,
         ):
             baseline[record["verification_id"]] = record["outcome"]
-            self.skip_budget[record["verification_id"]] = record.get("skipped") or 0
+            # `None` means the baseline produced nothing to read, not that it
+            # skipped nothing. Left as `None` there is no budget to exceed,
+            # which is the safe direction: a budget invented from silence is
+            # unsatisfiable, and this one was.
+            self.skip_budget[record["verification_id"]] = record.get("skipped")
         return baseline
 
     # --------------------------------------------------------------- helpers
@@ -624,6 +638,29 @@ def _pass_count(output: str) -> int:
     body = match.group("body") if match else output[-4000:]
     passed = _PASS_COUNT.search(body)
     return int(passed.group(1)) if passed else 0
+
+
+def _skipped_cases(output: str) -> int | None:
+    """How many cases the run's own summary says it skipped.
+
+    A different question from `_skip_count` below, which asks "should this be
+    *classified* as a skip?" and deliberately answers 0 when the same summary
+    also reports failures -- so that a failing check is reported as failing.
+    Right for classifying, wrong for recording: the baseline adopts this number
+    as a ceiling, so a check that failed at baseline recorded zero skips and
+    the ceiling could never be met once the failure was fixed.
+
+    `None` when there is nothing countable in the output at all. Unknown is not
+    zero, and a ceiling must not be invented from silence.
+    """
+    match = _PYTEST_SUMMARY.search(output)
+    body = match.group("body") if match else output[-4000:]
+    countable = (match or _PASS_COUNT.search(body) or _FAIL_COUNT.search(body)
+                 or _SKIP_COUNT.search(body))
+    if not countable:
+        return None
+    skips = _SKIP_COUNT.search(body)
+    return int(skips.group(1)) if skips else 0
 
 
 def _skip_count(output: str) -> int:

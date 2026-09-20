@@ -595,3 +595,41 @@ def test_reconcile_discards_a_half_applied_integration(tmp_path, fixture_repo):
         "ignored files are the controller's to manage, not debris to clean"
     )
     store.close()
+
+
+def test_a_baseline_with_an_unmeasured_skip_count_is_restored_not_recaptured(
+    tmp_path, fixture_repo
+):
+    """Recapture is not a neutral fallback, so "unknown" must be storable.
+
+    A check whose baseline produced nothing countable records `None`: unknown
+    is not zero, and a ceiling invented from silence is unsatisfiable. The
+    validator only accepted `int`, so such an artifact read as malformed and
+    the run measured again -- against `candidate_dir`, which by resume time
+    holds the phase's own work. The baseline exists precisely to predate that,
+    so the fallback would have quietly adopted the changes as the "before".
+    """
+    bin_dir = tmp_path / "bin"
+    config = make_run_config(fixture_repo, tmp_path, fake_codex(bin_dir, {}),
+                             fake_claude(bin_dir, edits={}), mode="none")
+    store = RunStore(config.db_path(), config.runs_dir())
+    run_id = store.create_run(brain="automatic", config_snapshot=config.snapshot(),
+                              publication_mode="none", deadline_epoch=None)
+    controller = Controller(config, store=store, run_id=run_id, brain="automatic")
+    controller.spec = spec_for(["repo:verify"])
+    gates = controller.gate_checks()
+
+    document = {
+        "version": 2,
+        "outcomes": {cid: "pass" for cid in gates},
+        "skips": {cid: None for cid in gates},
+    }
+    store.put_json_artifact(run_id, "baseline", document)
+
+    controller._restore_baseline()
+
+    assert controller.baseline == document["outcomes"], (
+        "an unmeasured skip count must not discard the whole baseline"
+    )
+    assert all(v is None for v in controller.skip_budget.values())
+    store.close()

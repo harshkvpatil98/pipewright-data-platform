@@ -400,3 +400,47 @@ def test_verification_scratch_is_outside_the_tree_being_verified(store, tmp_path
     assert tree_fingerprint(checkout) == before, (
         "running a check must not change the tree it is describing"
     )
+
+
+def test_a_failing_baseline_still_records_what_it_skipped(store, tmp_path):
+    """The budget a check could never satisfy.
+
+    `capture_baseline` adopts each check's skip count as the ceiling for the
+    rest of the run. The count was only parsed on the passing path, so a check
+    that *failed* at baseline recorded `None`, `None or 0` made the ceiling
+    zero, and the first run that actually fixed the failure was refused:
+
+        581 case(s) skipped against a baseline of 0. 581 stopped running
+        during this run, so this check covers less than it did before it.
+
+    Those 581 had skipped at baseline too -- 586 of them, so coverage had gone
+    *up*. Nothing could satisfy the ceiling, and the check was unclosable for
+    the life of the run.
+    """
+    failing = _check(
+        "measured",
+        (sys.executable, "-c",
+         "print('4 failed, 10 passed, 7 skipped in 1s'); raise SystemExit(1)"),
+    )
+    runner = _runner(store, tmp_path, (failing,))
+    baseline = runner.capture_baseline(["measured"], checkout=tmp_path,
+                                       candidate_fingerprint="tree:x")
+
+    assert baseline["measured"] == "fail"
+    assert runner.skip_budget["measured"] == 7, (
+        "what a failing baseline skipped is still what it skipped"
+    )
+
+
+def test_a_baseline_that_produced_nothing_sets_no_budget(store, tmp_path):
+    """Unknown is not zero, and a ceiling must not be invented from silence."""
+    runner = _runner(store, tmp_path, (
+        _check("quiet", (sys.executable, "-c", "raise SystemExit(7)")),
+    ))
+    runner.capture_baseline(["quiet"], checkout=tmp_path, candidate_fingerprint="tree:x")
+
+    assert runner.skip_budget["quiet"] is None
+
+    # and with no budget, a later run that skips cases is judged on its own terms
+    record = runner.run_check("quiet", checkout=tmp_path, candidate_fingerprint="tree:y")
+    assert record["outcome"] == "fail"

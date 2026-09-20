@@ -17,10 +17,14 @@ from service_datasets.schemas import (
     DatasetPreviewResponse,
     DatasetProfileResponse,
     DatasetSummaryRead,
+    DatasetUpdate,
 )
 from service_projects.contracts import ensure_owned_project
 from service_sources.contracts import get_source_for_project
 from shared_python.errors import NotFoundError
+from shared_python.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 def _to_summary(dataset: Dataset) -> DatasetSummaryRead:
@@ -55,6 +59,73 @@ def get_dataset_by_project(
 ) -> DatasetDetailRead:
     ensure_owned_project(db, project_id, current_user.id)
     return _to_detail(get_dataset_model_for_project(db, project_id, dataset_id))
+
+
+def update_dataset(
+    db: Session,
+    project_id: uuid.UUID,
+    dataset_id: uuid.UUID,
+    payload: DatasetUpdate,
+    current_user: UserRead,
+) -> DatasetDetailRead:
+    """Rename a dataset.
+
+    A dataset took its name from whatever the uploaded file was called, and
+    there was no way to change it afterwards -- so `export_final_v2 (3).csv`
+    was the permanent name of a table people had to work with every day.
+    """
+    ensure_owned_project(db, project_id, current_user.id)
+    dataset = get_dataset_model_for_project(db, project_id, dataset_id)
+    fields = payload.model_dump(exclude_unset=True)
+    if "name" in fields and fields["name"] is not None:
+        dataset.name = fields["name"].strip()
+    db.commit()
+    return _to_detail(dataset)
+
+
+def delete_dataset(
+    db: Session,
+    project_id: uuid.UUID,
+    dataset_id: uuid.UUID,
+    current_user: UserRead,
+    *,
+    storage_backend=None,
+) -> None:
+    """Remove a dataset, its dependent rows, and the file behind it.
+
+    The row goes first and the bytes second, which is the order that fails
+    safely. A stored file with no dataset row is wasted disk somebody can
+    reclaim later; a dataset row whose file has been deleted underneath it is a
+    dataset that looks fine in every list and fails the moment anyone opens it.
+
+    The file is only removed once nothing else points at it. A derived dataset
+    can be materialised from the same artifact as its parent, and deleting the
+    copy must not take the original's bytes with it.
+
+    Storage failures are logged rather than raised: the dataset is already gone
+    by then, so turning a leaked file into a 500 would report the whole
+    deletion as failed when the part the caller asked for succeeded.
+    """
+    ensure_owned_project(db, project_id, current_user.id)
+    dataset = get_dataset_model_for_project(db, project_id, dataset_id)
+    file_path = dataset.file_path
+
+    db.delete(dataset)
+    db.commit()
+
+    if storage_backend is None or not file_path:
+        return
+    still_referenced = db.scalar(
+        select(Dataset.id).where(Dataset.file_path == file_path).limit(1)
+    )
+    if still_referenced is not None:
+        return
+    try:
+        storage_backend.delete(file_path)
+    except Exception:  # noqa: BLE001 - the row is gone; this is cleanup, not the request
+        logger.warning(
+            "dataset_artifact_not_removed dataset_id=%s path=%s", dataset_id, file_path
+        )
 
 
 def get_dataset_preview(

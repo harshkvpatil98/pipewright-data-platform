@@ -15,6 +15,7 @@ from service_datasets.schemas import (
     DatasetListResponse,
     DatasetPreviewResponse,
     DatasetProfileResponse,
+    DatasetUpdate,
 )
 from service_datasets.reporting.html_renderer import (
     build_dataset_audit_export_filename,
@@ -22,16 +23,22 @@ from service_datasets.reporting.html_renderer import (
 )
 from service_datasets.service import (
     create_dataset,
+    delete_dataset,
     get_dataset_audit_summary,
     get_dataset_by_project,
     get_dataset_preview,
     get_dataset_profile,
     list_datasets_by_project,
+    update_dataset,
 )
 from shared_python.errors import BadRequestError
 
 
-def build_router(get_db: Callable[..., Session], get_current_user: Callable[..., UserRead]) -> APIRouter:
+def build_router(
+    get_db: Callable[..., Session],
+    get_current_user: Callable[..., UserRead],
+    get_storage_backend: Callable | None = None,
+) -> APIRouter:
     router = APIRouter(tags=["datasets"])
 
     @router.get("/projects/{project_id}/datasets", response_model=DatasetListResponse)
@@ -121,5 +128,53 @@ def build_router(get_db: Callable[..., Session], get_current_user: Callable[...,
         current_user: UserRead = Depends(get_current_user),
     ) -> DatasetDetailRead:
         return create_dataset(db, project_id, payload, current_user)
+
+    @router.patch(
+        "/projects/{project_id}/datasets/{dataset_id}",
+        response_model=DatasetDetailRead,
+    )
+    def patch_project_dataset(
+        project_id: uuid.UUID,
+        dataset_id: uuid.UUID,
+        payload: DatasetUpdate,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> DatasetDetailRead:
+        return update_dataset(db, project_id, dataset_id, payload, current_user)
+
+    # The storage dependency is declared only when one was supplied. Declaring
+    # it unconditionally would make `Depends(None)` a request-time failure for
+    # the callers that build this router without storage -- the gateway's own
+    # tests among them -- and a dataset that cannot be deleted was the bug.
+    if get_storage_backend is None:
+
+        @router.delete(
+            "/projects/{project_id}/datasets/{dataset_id}",
+            status_code=status.HTTP_204_NO_CONTENT,
+        )
+        def remove_project_dataset(
+            project_id: uuid.UUID,
+            dataset_id: uuid.UUID,
+            db: Session = Depends(get_db),
+            current_user: UserRead = Depends(get_current_user),
+        ) -> None:
+            delete_dataset(db, project_id, dataset_id, current_user)
+
+    else:
+
+        @router.delete(
+            "/projects/{project_id}/datasets/{dataset_id}",
+            status_code=status.HTTP_204_NO_CONTENT,
+        )
+        def remove_project_dataset(  # type: ignore[misc]
+            project_id: uuid.UUID,
+            dataset_id: uuid.UUID,
+            db: Session = Depends(get_db),
+            current_user: UserRead = Depends(get_current_user),
+            storage_backend=Depends(get_storage_backend),
+        ) -> None:
+            delete_dataset(
+                db, project_id, dataset_id, current_user, storage_backend=storage_backend
+            )
 
     return router

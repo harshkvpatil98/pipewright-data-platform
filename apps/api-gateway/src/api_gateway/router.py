@@ -50,7 +50,7 @@ def build_api_router(settings) -> APIRouter:
     api_router.include_router(build_connectors_router(get_db, current_user))
     api_router.include_router(build_destinations_router(get_db, current_user, get_storage_backend))
     api_router.include_router(build_bi_router(get_db, current_user))
-    api_router.include_router(build_datasets_router(get_db, current_user))
+    api_router.include_router(build_datasets_router(get_db, current_user, get_storage_backend))
     api_router.include_router(build_comparisons_router(get_db, current_user, get_storage_backend))
     api_router.include_router(build_ingestion_router(get_db, current_user, get_storage_backend, settings))
     api_router.include_router(build_extraction_router(get_db, current_user, get_storage_backend, settings))

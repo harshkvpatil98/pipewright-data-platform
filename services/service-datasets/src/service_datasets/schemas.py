@@ -17,6 +17,19 @@ class DatasetCreate(BaseModel):
     schema_snapshot: dict[str, Any] | None = None
 
 
+class DatasetUpdate(BaseModel):
+    """What may be changed about a dataset once it is registered.
+
+    Only the name, and deliberately. The rest of a dataset's record -- its row
+    and column counts, its inferred schema, where its bytes are -- describes a
+    file that was actually read. Letting those be edited would let the record
+    disagree with the data it stands for, and every profile, rule and lineage
+    edge downstream is derived from them.
+    """
+
+    name: str | None = Field(default=None, min_length=2, max_length=160)
+
+
 class DatasetSummaryRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

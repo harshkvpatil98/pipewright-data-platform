@@ -305,6 +305,36 @@ export function WorkflowEditorPage({
     }
   }, [dirty, projectId, workflow.id, toast, watchRun]);
 
+  /**
+   * Stop a run before a worker picks it up.
+   *
+   * Only while it is queued. The API refuses anything else -- "Only queued
+   * runs can be cancelled; this one is 'running'" -- because a run already
+   * executing is executing inside a worker that this request cannot reach.
+   * The button is hidden rather than disabled once that moment passes, and
+   * the refusal is still surfaced for the case where the worker claims the
+   * run between the render and the click.
+   */
+  const cancelRun = useCallback(async () => {
+    if (!activeRun) return;
+    try {
+      const cancelled = await apiFetch<WorkflowRunRecord>(
+        `/projects/${projectId}/workflow-runs/${activeRun.id}/cancel`,
+        { method: "POST" },
+      );
+      if (pollRef.current) clearTimeout(pollRef.current);
+      setActiveRun((current) =>
+        current ? { ...current, status: cancelled.status } : current,
+      );
+      toast.info("Run cancelled", "It was still queued, so nothing had started.");
+      void loadRuns();
+    } catch (caught) {
+      // Most likely a worker claimed it first, which the message says plainly.
+      toast.error("Could not cancel the run", extractErrorMessage(caught));
+      void watchRun(activeRun.id);
+    }
+  }, [activeRun, projectId, toast, loadRuns, watchRun]);
+
   // ------------------------------------------------------------------ ribbon
 
   const ribbon = useMemo<RibbonGroup[]>(
@@ -328,6 +358,20 @@ export function WorkflowEditorPage({
             disabled: !validation.valid || nodes.length === 0,
             onClick: runNow,
           },
+          // Only while a worker could still be stopped from starting: the API
+          // refuses to cancel a run that is already executing, so offering it
+          // then would be a button whose only outcome is an error. Spread
+          // rather than a `hidden` flag, which `RibbonAction` does not have.
+          ...(activeRun?.status === "queued"
+            ? [
+                {
+                  id: "cancel",
+                  label: "Cancel run",
+                  icon: "close" as const,
+                  onClick: cancelRun,
+                },
+              ]
+            : []),
           {
             id: "backfill",
             label: "Backfill",

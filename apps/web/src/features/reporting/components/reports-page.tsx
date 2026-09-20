@@ -7,7 +7,9 @@ import type {
   ChartListResponse,
   DashboardListResponse,
   DatasetRecord,
+  DeliveryListResponse,
   ExportFormat,
+  ReportDelivery,
   ReportListResponse,
   ReportSource,
   ScheduledReport,
@@ -255,6 +257,32 @@ function ReportRow({
   report: ScheduledReport;
   onDeleted: () => void;
 }) {
+  // Deliveries are fetched only when asked for. A report can have a long
+  // history and most of the time nobody is looking at it; loading every row's
+  // history to render a list would be a request per report on every visit.
+  const [deliveries, setDeliveries] = useState<ReportDelivery[] | null>(null);
+  const [loadingDeliveries, setLoadingDeliveries] = useState(false);
+  const [deliveryError, setDeliveryError] = useState<string | null>(null);
+
+  const toggleDeliveries = async () => {
+    if (deliveries !== null) {
+      setDeliveries(null);
+      return;
+    }
+    setLoadingDeliveries(true);
+    setDeliveryError(null);
+    try {
+      const response = await apiFetch<DeliveryListResponse>(
+        `/projects/${projectId}/reports/${report.id}/deliveries`,
+      );
+      setDeliveries(response.items);
+    } catch (caught) {
+      setDeliveryError(extractErrorMessage(caught));
+    } finally {
+      setLoadingDeliveries(false);
+    }
+  };
+
   return (
     <li className="flex flex-wrap items-center gap-3 rounded-xl border border-line bg-surface px-3.5 py-3">
       <div className="min-w-0 flex-1">
@@ -294,6 +322,14 @@ function ReportRow({
       >
         Generate now
       </button>
+      <button
+        type="button"
+        onClick={() => void toggleDeliveries()}
+        disabled={loadingDeliveries}
+        className="shrink-0 rounded-lg border border-line px-2.5 py-1.5 text-[12px] text-ink transition hover:bg-surface-2 disabled:opacity-50"
+      >
+        {loadingDeliveries ? "Loading…" : deliveries !== null ? "Hide history" : "History"}
+      </button>
       <DeleteRowButton
         path={`/projects/${projectId}/reports/${report.id}`}
         name={report.name}
@@ -301,6 +337,47 @@ function ReportRow({
         consequences={["Its delivery history stays; the schedule stops existing."]}
         onDeleted={onDeleted}
       />
+
+      {deliveryError ? (
+        <p role="alert" className="w-full text-[11.5px] text-danger">
+          {deliveryError}
+        </p>
+      ) : null}
+
+      {deliveries !== null ? (
+        <div className="w-full border-t border-line pt-2">
+          {deliveries.length === 0 ? (
+            <p className="text-[11.5px] text-muted">
+              This report has not been generated yet.
+            </p>
+          ) : (
+            <ul className="space-y-1">
+              {deliveries.map((delivery) => (
+                <li
+                  key={delivery.id}
+                  className="flex flex-wrap items-center gap-2 text-[11.5px] text-ink-3"
+                >
+                  <span
+                    className={
+                      delivery.status === "succeeded" ? "text-success" : "text-danger"
+                    }
+                  >
+                    {delivery.status}
+                  </span>
+                  <span className="text-muted">{formatDate(delivery.created_at)}</span>
+                  {delivery.row_count !== null ? <span>{delivery.row_count} row(s)</span> : null}
+                  {delivery.generated_ms !== null ? (
+                    <span>{Math.round(delivery.generated_ms)} ms</span>
+                  ) : null}
+                  {delivery.message ? (
+                    <span className="text-danger">{delivery.message}</span>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : null}
     </li>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import type {
@@ -15,6 +16,10 @@ import type {
 import { Button, SectionPanel, StatCard, StatusBadge } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
+import { extractErrorMessage } from "@/lib/api/errors";
+import { apiFetch } from "@/lib/api/client";
+import { Modal } from "@/components/ui/modal";
+import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { DatasetPipelinesRunSection } from "@/features/datasets/components/dataset-pipelines-run-section";
 import { DatasetSuggestedTransformations } from "@/features/datasets/components/dataset-suggested-transformations";
 import { PreviewTransformModal } from "@/features/datasets/components/preview-transform-modal";
@@ -54,6 +59,11 @@ export function DatasetDetailPageView({
   lineagePipeline,
   transformationSuggestions,
 }: DatasetDetailPageViewProps) {
+  const router = useRouter();
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState(dataset.name);
+  const [renameBusy, setRenameBusy] = useState(false);
+  const [renameError, setRenameError] = useState<string | null>(null);
   const [isPreviewTransformOpen, setIsPreviewTransformOpen] = useState(false);
   const [isPublishOpen, setIsPublishOpen] = useState(false);
   const [isPublishPowerBiOpen, setIsPublishPowerBiOpen] = useState(false);
@@ -109,6 +119,20 @@ export function DatasetDetailPageView({
               <Button size="sm">Create Pipeline</Button>
             </Link>
           ) : null}
+          <Button variant="secondary" size="sm" onClick={() => setIsRenaming(true)}>
+            Rename
+          </Button>
+          <DeleteRowButton
+            path={`/projects/${projectId}/datasets/${dataset.id}`}
+            name={dataset.name}
+            kind="dataset"
+            requireTypedName
+            consequences={[
+              "Its stored file, profile, schema and preview go with it.",
+              "Pipelines and rules built on it will no longer have a source.",
+            ]}
+            onDeleted={() => router.push(`/projects/${projectId}`)}
+          />
         </div>
       }
       meta={
@@ -510,6 +534,55 @@ export function DatasetDetailPageView({
           </div>
         </div>
       </SectionPanel>
+      <Modal
+        open={isRenaming}
+        title="Rename dataset"
+        description="A dataset takes its name from the file it was read from, which is rarely the name people want to work with."
+        onClose={() => setIsRenaming(false)}
+        widthClassName="max-w-md"
+        footer={
+          <div className="flex items-center justify-end gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setIsRenaming(false)} disabled={renameBusy}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              disabled={renameBusy || renameValue.trim().length < 2}
+              onClick={() => {
+                setRenameBusy(true);
+                setRenameError(null);
+                void apiFetch(`/projects/${projectId}/datasets/${dataset.id}`, {
+                  method: "PATCH",
+                  body: JSON.stringify({ name: renameValue.trim() }),
+                })
+                  .then(() => {
+                    setIsRenaming(false);
+                    router.refresh();
+                  })
+                  .catch((caught) => setRenameError(extractErrorMessage(caught)))
+                  .finally(() => setRenameBusy(false));
+              }}
+            >
+              {renameBusy ? "Saving…" : "Save"}
+            </Button>
+          </div>
+        }
+      >
+        <label className="block space-y-1.5">
+          <span className="text-[12px] text-ink-3">Name</span>
+          <input
+            value={renameValue}
+            onChange={(event) => setRenameValue(event.target.value)}
+            aria-label="Dataset name"
+            className="h-9 w-full rounded-lg border border-line bg-sunken px-3 text-sm text-ink outline-none focus:border-accent"
+          />
+        </label>
+        {renameError ? (
+          <p role="alert" className="mt-3 text-sm text-danger">
+            {renameError}
+          </p>
+        ) : null}
+      </Modal>
     </AppShell>
   );
 }

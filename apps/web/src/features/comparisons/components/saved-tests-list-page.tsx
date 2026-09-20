@@ -8,6 +8,7 @@ import type { AuthUser, SavedStatisticalTestListItem } from "@platform/shared-ty
 import { Button, SectionPanel } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
+import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { OperationalEmpty, OperationalError } from "@/components/operational/operational-messages";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
@@ -19,7 +20,13 @@ type SavedTestsListPageViewProps = {
   items: SavedStatisticalTestListItem[];
 };
 
-export function SavedTestsListPageView({ currentUser, projectId, items }: SavedTestsListPageViewProps) {
+export function SavedTestsListPageView({
+  currentUser,
+  projectId,
+  items: initialItems,
+}: SavedTestsListPageViewProps) {
+  // Held locally so a deleted row leaves the table without a reload.
+  const [items, setItems] = useState(initialItems);
   const router = useRouter();
   const [runningId, setRunningId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -106,6 +113,15 @@ export function SavedTestsListPageView({ currentUser, projectId, items }: SavedT
                         >
                           {runningId === row.id ? "Running…" : "Run again"}
                         </Button>
+                        <DeleteRowButton
+                          path={`/projects/${projectId}/tests/saved/${row.id}`}
+                          name={row.name}
+                          kind="saved test"
+                          consequences={["Every recorded run of this test goes with it."]}
+                          onDeleted={() =>
+                            setItems((current) => current.filter((item) => item.id !== row.id))
+                          }
+                        />
                       </div>
                     </td>
                   </tr>

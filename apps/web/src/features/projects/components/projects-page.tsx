@@ -14,9 +14,12 @@ type ProjectsPageViewProps = {
   projects: ProjectSummary[];
 };
 
-export function ProjectsPageView({ currentUser, projects }: ProjectsPageViewProps) {
+export function ProjectsPageView({ currentUser, projects: initialProjects }: ProjectsPageViewProps) {
   const [query, setQuery] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  // The server component hands these down once. Holding them in state lets a
+  // deleted card leave immediately, rather than sitting there until a reload.
+  const [projects, setProjects] = useState(initialProjects);
 
   const filteredProjects = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -81,7 +84,13 @@ export function ProjectsPageView({ currentUser, projects }: ProjectsPageViewProp
           ) : (
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {filteredProjects.map((project) => (
-                <ProjectCard key={project.id} project={project} />
+                <ProjectCard
+                  key={project.id}
+                  project={project}
+                  onDeleted={(projectId) =>
+                    setProjects((current) => current.filter((row) => row.id !== projectId))
+                  }
+                />
               ))}
             </div>
           )}

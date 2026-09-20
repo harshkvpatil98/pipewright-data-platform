@@ -10,6 +10,7 @@ import { useToast } from "@/components/providers/toast-provider";
 import { AppFrame } from "@/components/shell/app-frame";
 import type { RibbonGroup } from "@/components/shell/ribbon";
 import { Icon } from "@/components/ui/icon";
+import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { formatDate } from "@/lib/format";
@@ -336,6 +337,17 @@ export function WorkflowListPage({
                     {workflow.enabled ? "Pause" : "Resume"}
                   </button>
                 ) : null}
+
+                <DeleteRowButton
+                  path={`/projects/${projectId}/workflows/${workflow.id}`}
+                  name={workflow.name}
+                  kind="workflow"
+                  consequences={["Its run history stays; the workflow definition stops existing."]}
+                  onDeleted={() =>
+                    setWorkflows((current) => current.filter((item) => item.id !== workflow.id))
+                  }
+                  className="relative z-10 shrink-0 rounded-lg border border-line p-1.5 text-muted transition hover:border-danger-line hover:text-danger"
+                />
 
                 <Icon
                   name="chevronRight"

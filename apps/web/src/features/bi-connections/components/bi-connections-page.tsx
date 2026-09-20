@@ -16,6 +16,7 @@ import type {
 import { Button, FormField, Modal, SectionPanel, Select } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
+import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { OperationalError } from "@/components/operational/operational-messages";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
@@ -531,6 +532,15 @@ export function BiConnectionsPageView({ currentUser, projectId, initialItems }: 
                           >
                             {metaId === row.id ? "Discover…" : "Discover"}
                           </Button>
+                          <DeleteRowButton
+                            path={`/projects/${projectId}/bi-connections/${row.id}`}
+                            name={row.name}
+                            kind="BI connection"
+                            consequences={["Its stored credentials go with it. Published content is not removed."]}
+                            onDeleted={() =>
+                              setItems((current) => current.filter((item) => item.id !== row.id))
+                            }
+                          />
                         </div>
                       </td>
                     </tr>

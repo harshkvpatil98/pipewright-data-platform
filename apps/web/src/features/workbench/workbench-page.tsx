@@ -8,6 +8,7 @@ import { Button, EmptyState, Input, Select } from "@platform/shared-ui";
 import { AppFrame } from "@/components/shell/app-frame";
 import type { RibbonGroup } from "@/components/shell/ribbon";
 import { useToast } from "@/components/providers/toast-provider";
+import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { Icon } from "@/components/ui/icon";
 import { DataGrid } from "@/features/studio/grid/data-grid";
 import { apiFetch } from "@/lib/api/client";
@@ -474,17 +475,26 @@ export function WorkbenchPage({
               ) : null}
               <ul className="flex flex-col gap-1">
                 {saved.map((entry) => (
-                  <li key={entry.id}>
+                  <li key={entry.id} className="flex items-center gap-1">
                     <button
                       type="button"
                       onClick={() => setSql(entry.sql)}
-                      className="w-full rounded-lg px-2 py-1.5 text-left text-xs text-ink transition hover:bg-sunken"
+                      className="min-w-0 flex-1 rounded-lg px-2 py-1.5 text-left text-xs text-ink transition hover:bg-sunken"
                     >
                       <span className="block truncate">{entry.name}</span>
                       <span className="block text-[10px] text-muted">
                         run {entry.run_count} time{entry.run_count === 1 ? "" : "s"}
                       </span>
                     </button>
+                    <DeleteRowButton
+                      path={`${base}/queries/${entry.id}`}
+                      name={entry.name}
+                      kind="saved query"
+                      onDeleted={() =>
+                        setSaved((current) => current.filter((item) => item.id !== entry.id))
+                      }
+                      className="shrink-0 rounded-lg p-1 text-muted transition hover:text-danger"
+                    />
                   </li>
                 ))}
               </ul>

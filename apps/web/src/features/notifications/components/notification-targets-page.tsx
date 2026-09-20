@@ -15,6 +15,7 @@ import { EXTERNAL_NOTIFICATION_EVENT_TYPES } from "@platform/shared-types";
 import { Button, FormField, Input, Modal, SectionPanel, Select } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
+import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { formatDate, titleCase } from "@/lib/format";
@@ -267,6 +268,17 @@ export function NotificationTargetsPageView({
                           >
                             {testingId === row.id ? "Testing…" : "Test"}
                           </Button>
+                          <DeleteRowButton
+                            path={`/projects/${projectId}/notification-targets/${row.id}`}
+                            name={row.name}
+                            kind="notification target"
+                            consequences={[
+                              "Any scheduled report still delivering here must be pointed elsewhere first.",
+                            ]}
+                            onDeleted={() =>
+                              setItems((current) => current.filter((item) => item.id !== row.id))
+                            }
+                          />
                         </div>
                       </td>
                     </tr>

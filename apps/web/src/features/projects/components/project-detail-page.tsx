@@ -18,6 +18,7 @@ import { getPipelineRunSecondaryText, isDatasetIngestionRunSummary } from "@/fea
 import { UploadDatasetModal } from "@/features/datasets/components/upload-dataset-modal";
 import { CreateDatasetModal } from "@/features/projects/components/create-dataset-modal";
 import { CreateSourceModal } from "@/features/projects/components/create-source-modal";
+import { ProjectSettingsPanel } from "@/features/projects/components/project-settings-panel";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { formatDate, formatNumber, titleCase } from "@/lib/format";
@@ -490,6 +491,8 @@ export function ProjectDetailPageView({
             )
           ) : null}
         </SectionPanel>
+
+        {activeTab === "overview" ? <ProjectSettingsPanel project={project} /> : null}
       </AppShell>
 
       <CreateSourceModal open={sourceModalOpen} onClose={() => setSourceModalOpen(false)} projectId={project.id} />

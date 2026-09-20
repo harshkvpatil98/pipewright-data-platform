@@ -15,6 +15,7 @@ import type {
 import { Button, SectionPanel } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
+import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { Icon } from "@/components/ui/icon";
 import { apiDownload, apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
@@ -221,7 +222,14 @@ export function ReportsPageView({
         ) : (
           <ul className="space-y-2">
             {reports.map((report) => (
-              <ReportRow key={report.id} projectId={projectId} report={report} />
+              <ReportRow
+                key={report.id}
+                projectId={projectId}
+                report={report}
+                onDeleted={() =>
+                  setReports((current) => current.filter((item) => item.id !== report.id))
+                }
+              />
             ))}
           </ul>
         )}
@@ -238,7 +246,15 @@ export function ReportsPageView({
   );
 }
 
-function ReportRow({ projectId, report }: { projectId: string; report: ScheduledReport }) {
+function ReportRow({
+  projectId,
+  report,
+  onDeleted,
+}: {
+  projectId: string;
+  report: ScheduledReport;
+  onDeleted: () => void;
+}) {
   return (
     <li className="flex flex-wrap items-center gap-3 rounded-xl border border-line bg-surface px-3.5 py-3">
       <div className="min-w-0 flex-1">
@@ -278,6 +294,13 @@ function ReportRow({ projectId, report }: { projectId: string; report: Scheduled
       >
         Generate now
       </button>
+      <DeleteRowButton
+        path={`/projects/${projectId}/reports/${report.id}`}
+        name={report.name}
+        kind="scheduled report"
+        consequences={["Its delivery history stays; the schedule stops existing."]}
+        onDeleted={onDeleted}
+      />
     </li>
   );
 }

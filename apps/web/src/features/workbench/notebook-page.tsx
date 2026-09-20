@@ -8,6 +8,7 @@ import { EmptyState, Input, Select } from "@platform/shared-ui";
 import { AppFrame } from "@/components/shell/app-frame";
 import type { RibbonGroup } from "@/components/shell/ribbon";
 import { useToast } from "@/components/providers/toast-provider";
+import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { Icon } from "@/components/ui/icon";
 import { DataGrid } from "@/features/studio/grid/data-grid";
 import { apiFetch } from "@/lib/api/client";
@@ -249,12 +250,12 @@ export function NotebookPage({
               <li className="text-sm text-muted">Nothing saved yet.</li>
             ) : null}
             {notebooks.map((notebook) => (
-              <li key={notebook.id}>
+              <li key={notebook.id} className="flex items-center gap-1">
                 <button
                   type="button"
                   onClick={() => open(notebook)}
                   className={cx(
-                    "w-full rounded-lg px-3 py-2 text-left text-sm transition",
+                    "min-w-0 flex-1 rounded-lg px-3 py-2 text-left text-sm transition",
                     notebook.id === openId
                       ? "bg-[color:var(--accent-faint)] text-ink"
                       : "text-ink-2 hover:bg-sunken",
@@ -265,6 +266,17 @@ export function NotebookPage({
                     {notebook.cells.length} cell{notebook.cells.length === 1 ? "" : "s"}
                   </span>
                 </button>
+                <DeleteRowButton
+                  path={`${base}/notebooks/${notebook.id}`}
+                  name={notebook.name}
+                  kind="notebook"
+                  consequences={["Every cell in it, and their saved output, go with it."]}
+                  onDeleted={() => {
+                    setNotebooks((current) => current.filter((item) => item.id !== notebook.id));
+                    if (notebook.id === openId) setOpenId(null);
+                  }}
+                  className="shrink-0 rounded-lg p-1 text-muted transition hover:text-danger"
+                />
               </li>
             ))}
           </ul>

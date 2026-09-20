@@ -20,6 +20,7 @@ import type {
 import { Button, FormField, Input, Modal, SectionPanel, Select, Textarea } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
+import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { OperationalEmpty, OperationalError } from "@/components/operational/operational-messages";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
@@ -452,6 +453,15 @@ export function SchedulesPageView({
                             >
                               {row.enabled ? "Disable" : "Enable"}
                             </Button>
+                            <DeleteRowButton
+                              path={`/projects/${projectId}/schedules/${row.id}`}
+                              name={row.name}
+                              kind="schedule"
+                              consequences={["Its run history stays; the schedule itself stops existing."]}
+                              onDeleted={() =>
+                                setItems((current) => current.filter((item) => item.id !== row.id))
+                              }
+                            />
                           </div>
                         </td>
                       </tr>

@@ -12,6 +12,7 @@ import type {
 import { SectionPanel } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
+import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { Icon } from "@/components/ui/icon";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
@@ -28,8 +29,10 @@ export function CatalogPageView({
   currentUser,
   projectId,
   initial,
-  terms,
+  terms: initialTerms,
 }: CatalogPageProps) {
+  // Local so a deleted term leaves the list without a reload.
+  const [terms, setTerms] = useState(initialTerms);
   const [query, setQuery] = useState("");
   const [certifiedOnly, setCertifiedOnly] = useState(false);
   const [tag, setTag] = useState<string | null>(null);
@@ -194,7 +197,17 @@ export function CatalogPageView({
         ) : (
           <ul className="space-y-2">
             {terms.items.map((term) => (
-              <TermRow key={term.id} term={term} />
+              <TermRow
+                key={term.id}
+                projectId={projectId}
+                term={term}
+                onDeleted={() =>
+                  setTerms((current) => ({
+                    ...current,
+                    items: current.items.filter((item) => item.id !== term.id),
+                  }))
+                }
+              />
             ))}
           </ul>
         )}
@@ -203,14 +216,32 @@ export function CatalogPageView({
   );
 }
 
-function TermRow({ term }: { term: GlossaryTerm }) {
+function TermRow({
+  projectId,
+  term,
+  onDeleted,
+}: {
+  projectId: string;
+  term: GlossaryTerm;
+  onDeleted: () => void;
+}) {
   return (
     <li className="rounded-xl border border-line bg-surface px-3.5 py-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <span className="text-[13.5px] font-medium text-ink">{term.term}</span>
-        {term.owner_username ? (
-          <span className="text-[11px] text-muted">{term.owner_username}</span>
-        ) : null}
+        <div className="flex items-center gap-2">
+          {term.owner_username ? (
+            <span className="text-[11px] text-muted">{term.owner_username}</span>
+          ) : null}
+          <DeleteRowButton
+            path={`/projects/${projectId}/glossary/${term.id}`}
+            name={term.term}
+            kind="glossary term"
+            consequences={["Columns bound to it keep their data; they stop being described by it."]}
+            onDeleted={onDeleted}
+            className="rounded-lg p-1 text-muted transition hover:text-danger"
+          />
+        </div>
       </div>
       <p className="mt-1 text-[12.5px] leading-5 text-ink-2">{term.definition}</p>
       {term.bindings.length > 0 ? (

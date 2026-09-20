@@ -15,6 +15,7 @@ import type {
 import { Button, Modal, SectionPanel } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
+import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { formatDate, titleCase } from "@/lib/format";
@@ -456,6 +457,15 @@ export function DestinationsPageView({ currentUser, projectId, initialItems }: D
                         >
                           {testId === row.id ? "Testing…" : "Test connection"}
                         </Button>
+                        <DeleteRowButton
+                          path={`/projects/${projectId}/destinations/${row.id}`}
+                          name={row.name}
+                          kind="destination"
+                          consequences={["Its stored connection details and credentials go with it."]}
+                          onDeleted={() =>
+                            setItems((current) => current.filter((item) => item.id !== row.id))
+                          }
+                        />
                       </div>
                     </td>
                   </tr>

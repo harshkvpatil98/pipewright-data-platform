@@ -18,6 +18,7 @@ import type {
 import { Button, FormField, Input, SectionPanel, Select, StatusBadge } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
+import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { formatDate } from "@/lib/format";
@@ -500,6 +501,24 @@ export function ExtractionPageView({
                       >
                         {busy === `tables-${connection.id}` ? "Reading…" : "Discover"}
                       </Button>
+                      <DeleteRowButton
+                        path={`/projects/${projectId}/extraction/connections/${connection.id}`}
+                        name={connection.name}
+                        kind="extraction connection"
+                        consequences={[
+                          "Its stored credentials go with it.",
+                          "Extraction jobs configured against it will no longer have a source.",
+                        ]}
+                        onDeleted={() => {
+                          const left = connections.filter((row) => row.id !== connection.id);
+                          setConnections(left);
+                          // "" is this page's "nothing selected"; falling back
+                          // to whatever survives keeps the table panel useful.
+                          if (selectedConnectionId === connection.id) {
+                            setSelectedConnectionId(left[0]?.id ?? "");
+                          }
+                        }}
+                      />
                     </div>
                   </div>
                 </article>
@@ -694,6 +713,15 @@ export function ExtractionPageView({
                           Reset watermark
                         </Button>
                       ) : null}
+                      <DeleteRowButton
+                        path={`/projects/${projectId}/extraction/jobs/${job.id}`}
+                        name={job.name}
+                        kind="extraction job"
+                        consequences={["Its watermark and run history go with it."]}
+                        onDeleted={() =>
+                          setJobs((current) => current.filter((row) => row.id !== job.id))
+                        }
+                      />
                     </div>
                   </div>
                 </article>

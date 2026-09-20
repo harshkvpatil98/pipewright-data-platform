@@ -15,6 +15,7 @@ import type {
 import { Button, SectionPanel } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
+import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { Icon } from "@/components/ui/icon";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
@@ -332,9 +333,23 @@ export function ChartBuilderPageView({
               >
                 <div className="flex items-start justify-between gap-2">
                   <span className="text-[13px] text-ink">{chart.name}</span>
-                  <span className="shrink-0 rounded bg-surface-2 px-1.5 py-0.5 text-[10px] capitalize text-ink-3">
-                    {chart.chart_type}
-                  </span>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[10px] capitalize text-ink-3">
+                      {chart.chart_type}
+                    </span>
+                    <DeleteRowButton
+                      path={`/projects/${projectId}/charts/${chart.id}`}
+                      name={chart.name}
+                      kind="chart"
+                      consequences={[
+                        "Any dashboard tile or scheduled report built on it stops having a subject.",
+                      ]}
+                      onDeleted={() =>
+                        setSaved((current) => current.filter((row) => row.id !== chart.id))
+                      }
+                      className="rounded-lg p-1 text-muted transition hover:text-danger"
+                    />
+                  </div>
                 </div>
                 <div className="mt-1 text-[11.5px] text-muted">
                   {chart.dataset_name} · {chart.query.measures[0]?.aggregation} of{" "}

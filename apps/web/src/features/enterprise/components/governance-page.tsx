@@ -13,6 +13,7 @@ import type {
 import { Button, SectionPanel } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
+import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { Icon } from "@/components/ui/icon";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
@@ -42,11 +43,13 @@ const ACTION_TONE: Record<string, string> = {
 export function GovernancePageView({
   currentUser,
   projectId,
-  policies,
+  policies: initialPolicies,
   retention,
   erasures,
   usage,
 }: GovernancePageProps) {
+  // Local so a deleted policy leaves the list without a reload.
+  const [policies, setPolicies] = useState(initialPolicies);
   const [retentionState, setRetentionState] = useState(retention);
   const [erasureState, setErasureState] = useState(erasures.items);
   const [subject, setSubject] = useState("");
@@ -143,9 +146,26 @@ export function GovernancePageView({
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-[13px] text-ink">{policy.name}</span>
-                  <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[10.5px] capitalize text-ink-3">
-                    applies to {policy.role}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[10.5px] capitalize text-ink-3">
+                      applies to {policy.role}
+                    </span>
+                    <DeleteRowButton
+                      path={`/projects/${projectId}/security-policies/${policy.id}`}
+                      name={policy.name}
+                      kind="security policy"
+                      consequences={[
+                        "Everyone with access to this project sees every row and column it was hiding.",
+                      ]}
+                      onDeleted={() =>
+                        setPolicies((current) => ({
+                          ...current,
+                          items: current.items.filter((row) => row.id !== policy.id),
+                        }))
+                      }
+                      className="rounded-lg p-1 text-muted transition hover:text-danger"
+                    />
+                  </div>
                 </div>
                 {policy.row_rules.length > 0 ? (
                   <div className="mt-1.5 text-[11.5px] text-ink-3">

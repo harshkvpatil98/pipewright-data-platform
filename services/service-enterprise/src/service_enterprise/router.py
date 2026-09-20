@@ -32,12 +32,15 @@ from service_enterprise.service import (
     assign_project,
     assign_user,
     create_organisation,
+    delete_organisation,
     create_policy,
     create_retention,
     delete_policy,
     limits,
     list_erasures,
     list_organisations,
+    unassign_project,
+    unassign_user,
     list_policies,
     list_retention,
     preview_policies,
@@ -100,6 +103,46 @@ def build_router(
         current_user: UserRead = Depends(get_current_user),
     ) -> OrganisationRead:
         return assign_project(db, organisation_id, project_id, current_user)
+
+    @router.delete(
+        "/organisations/{organisation_id}/users/{user_id}",
+        response_model=OrganisationRead,
+    )
+    def remove_member(
+        organisation_id: uuid.UUID,
+        user_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> OrganisationRead:
+        """Revoke somebody's membership of a tenant.
+
+        The missing half of `add_member`. Without it, joining an organisation
+        was permanent and an offboarded colleague kept reaching every project
+        in it.
+        """
+        return unassign_user(db, organisation_id, user_id, current_user)
+
+    @router.delete(
+        "/organisations/{organisation_id}/projects/{project_id}",
+        response_model=OrganisationRead,
+    )
+    def remove_project(
+        organisation_id: uuid.UUID,
+        project_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> OrganisationRead:
+        return unassign_project(db, organisation_id, project_id, current_user)
+
+    @router.delete(
+        "/organisations/{organisation_id}", status_code=status.HTTP_204_NO_CONTENT
+    )
+    def remove_organisation(
+        organisation_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> None:
+        delete_organisation(db, organisation_id, current_user)
 
     @router.get("/organisations/limits", response_model=LimitsResponse)
     def read_limits(

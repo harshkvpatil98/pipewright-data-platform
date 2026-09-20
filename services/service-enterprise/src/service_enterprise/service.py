@@ -16,7 +16,12 @@ from service_auth.schemas import UserRead
 from service_datasets.models import Dataset
 from service_projects.contracts import ensure_owned_project, project_role
 from service_projects.models import Project
-from shared_python.errors import BadRequestError, ForbiddenError, NotFoundError
+from shared_python.errors import (
+    BadRequestError,
+    ConflictError,
+    ForbiddenError,
+    NotFoundError,
+)
 
 from service_enterprise import retention as retention_ops
 from service_enterprise import security, tenancy, usage
@@ -151,6 +156,118 @@ def assign_project(
     project.organisation_id = organisation_id
     db.commit()
     return _organisation_read(db, organisation)
+
+
+def unassign_user(
+    db: Session, organisation_id: uuid.UUID, user_id: uuid.UUID, current_user: UserRead
+) -> OrganisationRead:
+    """Take a user back out of an organisation.
+
+    Membership was append-only: `assign_user` put somebody into a tenant and
+    nothing took them out again, so an offboarded colleague kept access to
+    every project in the organisation for as long as the account existed.
+
+    Revoking is enough to cut that access off. `same_tenant` compares the
+    project's organisation with the user's, so a user with no organisation
+    stops matching every project that has one -- no membership row needs
+    touching.
+
+    The organisation in the path has to be the one they are actually in.
+    Without that check, a request naming the wrong tenant would still remove
+    them from whichever one they belonged to.
+    """
+    _require_platform_admin(current_user)
+    organisation = db.get(Organisation, organisation_id)
+    if organisation is None:
+        raise NotFoundError("Organisation not found.")
+
+    user = db.get(User, user_id)
+    if user is None:
+        raise NotFoundError("User not found.")
+    if user.organisation_id != organisation_id:
+        raise NotFoundError("That user is not a member of this organisation.")
+
+    user.organisation_id = None
+    db.commit()
+    return _organisation_read(db, organisation)
+
+
+def unassign_project(
+    db: Session, organisation_id: uuid.UUID, project_id: uuid.UUID, current_user: UserRead
+) -> OrganisationRead:
+    """Take a project back out of an organisation.
+
+    Refused when it would strand the project. `same_tenant` compares the
+    project's organisation with the caller's, so a project with none is
+    reachable only by users who also have none -- and if its owner is in an
+    organisation, removing the project from that organisation hides it from
+    the owner, its members and every admin at once, with its data still in the
+    database.
+
+    Moving it somewhere else is what that case wants, and `assign_project`
+    already does it, so the refusal points there rather than inventing a
+    second way to do the same thing.
+    """
+    _require_platform_admin(current_user)
+    organisation = db.get(Organisation, organisation_id)
+    if organisation is None:
+        raise NotFoundError("Organisation not found.")
+
+    project = db.get(Project, project_id)
+    if project is None:
+        raise NotFoundError("Project not found.")
+    if project.organisation_id != organisation_id:
+        raise NotFoundError("That project does not belong to this organisation.")
+
+    owner = db.get(User, project.owner_user_id) if project.owner_user_id else None
+    if owner is not None and owner.organisation_id is not None:
+        raise ConflictError(
+            f"{project.name} would become unreachable: its owner belongs to an "
+            f"organisation, and a project with none is only visible to users "
+            f"with none. Assign it to another organisation instead."
+        )
+
+    project.organisation_id = None
+    db.commit()
+    return _organisation_read(db, organisation)
+
+
+def delete_organisation(
+    db: Session, organisation_id: uuid.UUID, current_user: UserRead
+) -> None:
+    """Remove an empty organisation.
+
+    `organisation_id` is a plain column on both `users` and `projects`, with no
+    foreign key behind it -- so nothing in the database would stop this from
+    leaving rows pointing at a tenant that no longer exists, and nothing would
+    report it afterwards. Those users and projects would simply stop matching
+    any tenant, which is the same silent disappearance `unassign_project`
+    refuses.
+
+    So emptying it first is the caller's job, and the refusal says how much is
+    left to move.
+    """
+    _require_platform_admin(current_user)
+    organisation = db.get(Organisation, organisation_id)
+    if organisation is None:
+        raise NotFoundError("Organisation not found.")
+
+    projects = db.scalar(
+        select(func.count(Project.id)).where(Project.organisation_id == organisation_id)
+    ) or 0
+    members = db.scalar(
+        select(func.count(User.id)).where(User.organisation_id == organisation_id)
+    ) or 0
+    if projects or members:
+        raise ConflictError(
+            f"{organisation.name} still holds {projects} project(s) and "
+            f"{members} member(s). Move them to another organisation first; "
+            f"deleting it now would leave them pointing at a tenant that no "
+            f"longer exists, reachable by nobody."
+        )
+
+    db.delete(organisation)
+    db.commit()
 
 
 def limits(db: Session, current_user: UserRead) -> LimitsResponse:

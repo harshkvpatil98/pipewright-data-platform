@@ -597,6 +597,89 @@ def test_reconcile_discards_a_half_applied_integration(tmp_path, fixture_repo):
     store.close()
 
 
+def test_a_dry_run_reconciliation_changes_nothing(tmp_path, fixture_repo):
+    """`--dry-run` said "reconcile and report only" and did neither.
+
+    `cmd_resume` called `reconcile` unconditionally and checked `--dry-run`
+    only afterwards, so the flag skipped the resume and nothing else. Every
+    write reconciliation makes had already happened by the time the report was
+    printed: an expired lease's task reset to PENDING, stranded exclusive
+    resources released, an approval bound to a moved candidate dropped, and the
+    integration checkout `reset --hard` and `clean -fd`.
+
+    The last of those is the one that costs something. Asking what a resume
+    would do discarded the uncommitted work first and then described the
+    discarding in the past tense -- which was accurate, and was the bug.
+    """
+    bin_dir = tmp_path / "bin"
+    config = make_run_config(fixture_repo, tmp_path, fake_codex(bin_dir, {}),
+                             fake_claude(bin_dir, edits={}), mode="none")
+    store = RunStore(config.db_path(), config.runs_dir())
+    run_id = store.create_run(brain="automatic", config_snapshot=config.snapshot(),
+                              publication_mode="none", deadline_epoch=None)
+    store.set_run_state(run_id, RunState.IMPLEMENT, "implementing", force=True)
+    store.create_tasks(run_id, [{"id": "T-01", "title": "t", "role": "contract",
+                                 "exclusive_resources": ["alembic"]}])
+    store.set_task_state(run_id, "T-01", TaskState.RUNNING, "working")
+    assert store.acquire_resource(run_id, "alembic", "T-01")
+    store.update_run_fields(run_id, candidate_fingerprint="tree:recorded",
+                            approved_fingerprint="tree:recorded")
+    # an expired lease left by a process that is gone: what reconciliation
+    # resets the task for
+    with store.transaction() as conn:
+        conn.execute(
+            "INSERT INTO leases(run_id, task_id, lease_token, owner_pid, child_pid,"
+            " acquired_at, heartbeat_at, expires_at_epoch) VALUES(?,?,?,?,?,?,?,?)",
+            (run_id, "T-01", "t", 999999, None, "t", "t", time.time() - 10),
+        )
+    assert [r["task_id"] for r in store.stale_leases(run_id)] == ["T-01"]
+
+    candidate = config.runs_dir() / run_id / "candidate"
+    candidate.mkdir(parents=True)
+    subprocess.run(["git", "init", "-q", "."], cwd=candidate, check=True)  # noqa: S603, S607
+    subprocess.run(["git", "config", "user.email", "t@example.com"], cwd=candidate, check=True)  # noqa: S603, S607
+    subprocess.run(["git", "config", "user.name", "t"], cwd=candidate, check=True)  # noqa: S603, S607
+    (candidate / "kept.py").write_text("x = 1\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=candidate, check=True)  # noqa: S603, S607
+    subprocess.run(["git", "commit", "-qm", "integrated"], cwd=candidate, check=True)  # noqa: S603, S607
+    (candidate / "kept.py").write_text("x = 1\n<<<<<<< ours\n", encoding="utf-8")
+    (candidate / "half-applied.py").write_text("partial\n", encoding="utf-8")
+
+    report = reconcile(config, store, run_id, apply=False)
+
+    assert (candidate / "half-applied.py").exists(), "a dry run may not discard work"
+    assert (candidate / "kept.py").read_text(encoding="utf-8") == "x = 1\n<<<<<<< ours\n", (
+        "a dry run may not reset the checkout it was asked about"
+    )
+    assert store.held_resources(run_id) == {"alembic": "T-01"}, (
+        "a dry run may not release a lock the scheduler is still reasoning about"
+    )
+    assert store.get_task(run_id, "T-01")["state"] == TaskState.RUNNING.value, (
+        "a dry run may not reset a task"
+    )
+    assert store.get_run(run_id)["approved_fingerprint"] == "tree:recorded", (
+        "a dry run may not invalidate an approval"
+    )
+
+    rendered = report.render()
+    assert report.applied is False
+    assert "nothing was changed" in rendered
+    assert "would:" in rendered and "action:" not in rendered, (
+        "'action' is a claim about the past; nothing was done"
+    )
+    assert "discard them" in rendered and "discarded them" not in rendered
+
+    # and the same reconciliation, applied, still does all of it
+    applied = reconcile(config, store, run_id, apply=True)
+    assert not (candidate / "half-applied.py").exists()
+    assert (candidate / "kept.py").read_text(encoding="utf-8") == "x = 1\n"
+    assert store.held_resources(run_id) == {}
+    assert store.get_task(run_id, "T-01")["state"] == TaskState.PENDING.value
+    assert store.get_run(run_id)["approved_fingerprint"] is None
+    assert "action:" in applied.render() and "discarded them" in applied.render()
+    store.close()
+
+
 def test_a_baseline_with_an_unmeasured_skip_count_is_restored_not_recaptured(
     tmp_path, fixture_repo
 ):

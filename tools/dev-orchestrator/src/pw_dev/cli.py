@@ -426,7 +426,7 @@ def cmd_review_import(args: argparse.Namespace) -> int:
 def cmd_resume(args: argparse.Namespace) -> int:
     config = _config(args)
     with _store(config) as store:
-        report = reconcile(config, store, args.run_id)
+        report = reconcile(config, store, args.run_id, apply=not args.dry_run)
         _echo(report.render())
         if not report.resumable:
             _echo("")
@@ -665,7 +665,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     resume = sub.add_parser("resume", help="reconcile and continue a stopped run")
     resume.add_argument("run_id")
-    resume.add_argument("--dry-run", action="store_true", help="reconcile and report only")
+    resume.add_argument("--dry-run", action="store_true",
+                        help="report what a resume would reconcile, and change nothing")
     resume.set_defaults(func=cmd_resume)
 
     cancel = sub.add_parser("cancel", help="stop a run, preserving its work")

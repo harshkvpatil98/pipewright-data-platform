@@ -35,28 +35,48 @@ class Reconciliation:
     observations: list[str] = field(default_factory=list)
     actions: list[str] = field(default_factory=list)
     blocked_reason: str | None = None
+    applied: bool = True
 
     def render(self) -> str:
         lines = [f"run {self.run_id} recorded as {self.recorded_state}"]
+        if not self.applied:
+            lines.append("  dry run:  nothing was changed; this is what a resume would do")
+        # "action" is a claim about the past. When nothing was applied it would
+        # be a false one, so the column says what is still only intended.
+        label = "action:  " if self.applied else "would:   "
         lines += [f"  observed: {o}" for o in self.observations]
-        lines += [f"  action:   {a}" for a in self.actions]
+        lines += [f"  {label} {a}" for a in self.actions]
         if self.blocked_reason:
             lines.append(f"  blocked:  {self.blocked_reason}")
         return "\n".join(lines)
 
 
+def _did(apply: bool, past: str, present: str) -> str:
+    """The same action, told as done or as merely intended."""
+    return past if apply else present
+
+
 def reconcile(config: Config, store: RunStore, run_id: str, *,
-              own_token: str | None = None) -> Reconciliation:
+              own_token: str | None = None, apply: bool = True) -> Reconciliation:
     """Work out what actually happened, before deciding anything.
 
     `own_token` is the caller's own controller lock, so a controller that has
     already claimed the run does not report itself as a competing owner.
+
+    `apply=False` is `pw-dev resume --dry-run`: look, and write nothing.
+    Reconciling is not a read. It resets tasks that held an expired lease,
+    releases stranded exclusive resources, drops an approval bound to a moved
+    candidate, and hard-resets the integration checkout. Skipping only the
+    resume that followed left every one of those writes in place, so asking
+    what a resume *would* do already did the irreversible part of it -- and
+    the report said "discarded", which was true, and was the problem.
     """
     row = store.get_run(run_id)
     state = RunState(row["state"])
     report = Reconciliation(
         run_id=run_id, recorded_state=state.value,
         resumable=state in RESUMABLE_RUN_STATES or not is_terminal(state),
+        applied=apply,
     )
 
     holder = store.run_lock_holder(run_id)
@@ -99,10 +119,11 @@ def reconcile(config: Config, store: RunStore, run_id: str, *,
             else:
                 report.observations.append("  its checkout is unchanged")
                 report.actions.append(f"  {task_id} will be re-dispatched")
-        store.set_task_state(
-            run_id, task_id, TaskState.PENDING,
-            "reset after an expired lease; the previous attempt is preserved as an artifact",
-        )
+        if apply:
+            store.set_task_state(
+                run_id, task_id, TaskState.PENDING,
+                "reset after an expired lease; the previous attempt is preserved as an artifact",
+            )
 
     # An exclusive resource is held by a *running* task, and nothing is running:
     # the process that held this run's lock is gone, which is why we are
@@ -114,10 +135,12 @@ def reconcile(config: Config, store: RunStore, run_id: str, *,
     # later task waited on T-01 for ever.
     stranded = store.held_resources(run_id)
     if stranded:
-        for resource, holder in sorted(stranded.items()):
-            store.release_resource(run_id, resource, holder)
+        if apply:
+            for resource, holder in sorted(stranded.items()):
+                store.release_resource(run_id, resource, holder)
         report.actions.append(
-            f"released {len(stranded)} exclusive resource(s) still recorded as held by "
+            f"{_did(apply, 'released', 'release')} {len(stranded)} exclusive resource(s) "
+            f"still recorded as held by "
             f"{', '.join(sorted(set(stranded.values())))}; the run that held them is gone, "
             f"and the scheduler re-acquires what it needs"
         )
@@ -140,7 +163,8 @@ def reconcile(config: Config, store: RunStore, run_id: str, *,
                 "the candidate changed since the recorded fingerprint; all evidence and any "
                 "approval bound to the old one are invalidated and will be re-run"
             )
-            store.update_run_fields(run_id, approved_fingerprint=None)
+            if apply:
+                store.update_run_fields(run_id, approved_fingerprint=None)
 
         # Only then is the debris removed. An integration that was interrupted
         # leaves its bundle half applied in the working tree, and nothing about
@@ -156,14 +180,16 @@ def reconcile(config: Config, store: RunStore, run_id: str, *,
         # `clean -fd` without `-x` leaves ignored files alone, so `node_modules`
         # and the prepared `.venv` survive; rebuilding those is not the point.
         if dirty:
-            git.git(candidate, ["reset", "--hard", "HEAD"], check=False)
-            git.git(candidate, ["clean", "-fd"], check=False)
+            if apply:
+                git.git(candidate, ["reset", "--hard", "HEAD"], check=False)
+                git.git(candidate, ["clean", "-fd"], check=False)
             report.observations.append(
                 f"the integration checkout held {len(dirty.splitlines())} uncommitted "
                 f"path(s) from an interrupted integration"
             )
             report.actions.append(
-                "discarded them and returned the candidate to its last integration "
+                f"{_did(apply, 'discarded', 'discard')} them and "
+                f"{_did(apply, 'returned', 'return')} the candidate to its last integration "
                 "commit; the bundles are preserved and are re-applied from there"
             )
 

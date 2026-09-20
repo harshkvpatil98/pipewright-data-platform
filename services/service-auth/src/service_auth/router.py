@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import uuid
 from collections.abc import Callable
 
 from fastapi import APIRouter, Depends, status
@@ -14,13 +15,16 @@ from service_auth.schemas import (
     UserCreateRequest,
     UserListResponse,
     UserRead,
+    UserUpdateRequest,
 )
 from service_auth.service import (
     authenticate_user,
     create_user,
+    delete_user,
     get_preferences,
     list_users,
     set_preferences,
+    update_user,
 )
 from shared_python.auth.security import create_access_token
 from shared_python.errors import ForbiddenError
@@ -102,6 +106,42 @@ def build_router(get_db: Callable[..., Session], settings) -> APIRouter:
         if actor.role != "admin":
             raise ForbiddenError("Only a platform admin can create accounts.")
         return UserRead.model_validate(create_user(db, payload))
+
+    @router.patch("/users/{user_id}", response_model=UserRead)
+    def change_user(
+        user_id: uuid.UUID,
+        payload: UserUpdateRequest,
+        db: Session = Depends(get_db),
+        actor: UserRead = Depends(current_user),
+    ) -> UserRead:
+        """Deactivate an account, reactivate it, or change its platform role.
+
+        Platform admins only, for the same reason creating one is: this decides
+        whether somebody can reach the platform at all.
+
+        Deactivating is the offboarding path. `is_active` was already checked on
+        every login and every authenticated request, and nothing could set it --
+        so an account, once created, could never be withdrawn.
+        """
+        if actor.role != "admin":
+            raise ForbiddenError("Only a platform admin can change accounts.")
+        return UserRead.model_validate(update_user(db, user_id, payload, actor))
+
+    @router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+    def remove_user(
+        user_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        actor: UserRead = Depends(current_user),
+    ) -> None:
+        """Delete an account.
+
+        Deactivation is usually the right call -- it keeps the person's name on
+        the projects and runs they own. This refuses outright when deleting
+        would strand something, rather than doing it quietly.
+        """
+        if actor.role != "admin":
+            raise ForbiddenError("Only a platform admin can delete accounts.")
+        delete_user(db, user_id, actor)
 
     @router.get("/protected", response_model=dict[str, str])
     def protected_example(user: UserRead = Depends(current_user)) -> dict[str, str]:

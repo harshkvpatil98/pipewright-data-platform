@@ -48,6 +48,23 @@ class UserListResponse(BaseModel):
     items: list[UserRead]
 
 
+class UserUpdateRequest(BaseModel):
+    """Change what an existing account may do, or switch it off.
+
+    `is_active=False` is the offboarding path, and the one to reach for first.
+    The flag was already checked on every login and on every authenticated
+    request; what was missing was any way to set it, so an account could be
+    created and never withdrawn. Deactivating keeps the person's name on the
+    projects and runs they own, which deleting them cannot.
+
+    Both fields are optional and unset fields are left alone, so switching an
+    account off does not silently re-grade it.
+    """
+
+    is_active: bool | None = None
+    role: str | None = Field(default=None, pattern=r"^(admin|operator|viewer)$")
+
+
 class UserCreateRequest(BaseModel):
     """Create a colleague an account.
 

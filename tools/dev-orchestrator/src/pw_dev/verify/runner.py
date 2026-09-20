@@ -19,11 +19,13 @@ be counted toward today's gate.
 
 from __future__ import annotations
 
+import hashlib
 import os
 import platform
 import re
 import shutil
 import sys
+import tempfile
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -82,6 +84,52 @@ class EnvironmentFacts:
             "node": self.node, "platform": self.platform,
             "resolved_modules": self.resolved_modules,
         }
+
+
+def _slug(name: str) -> str:
+    """A filesystem-safe, whitespace-free name."""
+    return re.sub(r"[^A-Za-z0-9._-]+", "-", name).strip("-") or "x"
+
+
+def _leaf(checkout: Path) -> str:
+    """A stable directory name for one checkout, readable and unambiguous.
+
+    The checkout's own name would do for the runs this makes today -- they are
+    `candidate` and task ids -- but it is the operator's spelling again, and
+    slugging alone could map two checkouts onto one directory. The digest of
+    the resolved path settles it without making the name unreadable.
+    """
+    resolved = str(Path(checkout).resolve())
+    digest = hashlib.sha256(resolved.encode("utf-8")).hexdigest()[:8]
+    return f"{_slug(Path(checkout).name)}-{digest}"
+
+
+def _scratch_base() -> Path:
+    """A private temporary root whose path contains no whitespace.
+
+    `tempfile.gettempdir()` is per-user on macOS and already outside any
+    repository. It honours `TMPDIR`, so an operator whose own temp directory
+    has a space in it would put the space straight back; `/tmp` is the
+    fallback for that, and a host where neither is clean is refused rather
+    than silently handed a path that breaks checks in the product's disfavour.
+    """
+    for base in (Path(tempfile.gettempdir()), Path("/tmp")):
+        try:
+            resolved = base.resolve()
+        except OSError:
+            continue
+        if any(character.isspace() for character in str(resolved)):
+            continue
+        root = resolved / f"pw-dev-{os.getuid()}"
+        root.mkdir(parents=True, exist_ok=True)
+        root.chmod(0o700)
+        return root
+    raise RuntimeError(
+        f"no temporary directory without whitespace in its path: tried "
+        f"{tempfile.gettempdir()!r} and '/tmp'. A check's TMPDIR becomes "
+        f"pytest's tmp_path, and a space in it makes tests fail for reasons "
+        f"that have nothing to do with the code under verification."
+    )
 
 
 class VerificationRunner:
@@ -389,7 +437,8 @@ class VerificationRunner:
         return document
 
     def scratch_root(self, checkout: Path) -> Path:
-        """Where a check's temporary files go: beside the run, not in the tree.
+        """Where a check's temporary files go: not in the tree, and not on a
+        path with whitespace in it.
 
         They used to go to `<checkout>/.pw-dev-scratch`, which had two costs.
         The tree being verified changed while it was being verified, so its
@@ -397,8 +446,24 @@ class VerificationRunner:
         looked stale. And a test asking "is this path inside the repository?"
         got the wrong answer for its own temporary directory, because pytest's
         `tmp_path` now *was* inside the repository.
+
+        Moving it beside the run fixed both and introduced a third. This
+        becomes `TMPDIR`, and therefore pytest's `tmp_path`, so every check
+        inherited the spelling of the repository's own path -- including a
+        space, when the repository sits in a directory like
+        "Intelligent ETL". Four `test_secret_vault.py` cases failed on every
+        run for exactly that reason: `file://<tmp_path>/db-password` stopped
+        matching the secret-reference pattern, `resolve()` passed it through
+        as an ordinary value, and the suite reported the product broken. It
+        was a real bug in `vault.py` -- and it was not the phase's, it could
+        not be reached from any task's declared paths, and a checkpoint needs
+        a literal pass, so the run could not close whatever else it fixed.
+
+        Where the repository lives is the operator's to spell. This path is
+        ours, so it is kept free of whitespace and the checks stop inheriting
+        the question.
         """
-        path = Path(self.run_dir) / "verify-scratch" / Path(checkout).name
+        path = _scratch_base() / _slug(self.run_id or Path(self.run_dir).name) / _leaf(checkout)
         path.mkdir(parents=True, exist_ok=True)
         return path
 

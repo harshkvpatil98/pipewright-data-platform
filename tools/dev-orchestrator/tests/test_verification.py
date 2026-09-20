@@ -351,6 +351,34 @@ def test_the_baseline_run_adopts_what_it_measured_as_the_budget(store, tmp_path)
     assert runner.skip_budget["measured"] == 7
 
 
+def test_verification_scratch_has_no_whitespace_in_its_path(store, tmp_path):
+    """What the repository is called must not decide whether checks pass.
+
+    The scratch root becomes `TMPDIR`, and therefore pytest's `tmp_path`. It
+    used to sit beside the run, inside the repository, so every check inherited
+    the spelling of the operator's own directory. In a checkout under
+    "Intelligent ETL" that put a space in `tmp_path`, and four
+    `test_secret_vault.py` cases failed on every single run: a `file://` URL
+    built from `tmp_path` stopped matching the secret-reference pattern and was
+    returned as a literal value. Those four were the entire baseline failure
+    set, and because no task owned `vault.py` they could not be repaired --
+    while a checkpoint needs a literal pass. The run could not close.
+    """
+    checkout = tmp_path / "a candidate with spaces"
+    checkout.mkdir()
+    runner = _runner(store, tmp_path / "a run dir with spaces")
+
+    scratch = runner.scratch_root(checkout)
+
+    assert not any(character.isspace() for character in str(scratch)), (
+        f"{scratch} puts a space into every check's TMPDIR"
+    )
+    assert scratch.is_dir()
+    assert runner.scratch_root(checkout) == scratch, (
+        "a resumed run must reuse the scratch its earlier attempt used"
+    )
+
+
 def test_verification_scratch_is_outside_the_tree_being_verified(store, tmp_path):
     """Writing temp files into the checkout moved the fingerprint it is bound to."""
     from pw_dev.util.hashing import tree_fingerprint

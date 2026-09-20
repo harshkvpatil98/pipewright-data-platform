@@ -35,7 +35,16 @@ from typing import Any, Callable
 from shared_python.errors import BadRequestError
 
 #: `scheme://path#key`, where the key is optional.
-_REFERENCE = re.compile(r"^(?P<scheme>[a-z0-9_]+)://(?P<path>[^#\s]+)(?:#(?P<key>[^\s]+))?$")
+#:
+#: The path may contain spaces. It used to be `[^#\s]+`, which meant a secret
+#: mounted at a path with a space in it -- `file:///mnt/my secrets/db-password`
+#: -- did not match, so `resolve()` took it for an ordinary value and handed
+#: the reference string back as if it were the password. Silent, and in the
+#: worst direction: the connector then authenticates with the literal text
+#: "file:///mnt/my secrets/db-password". Whitespace is not a delimiter here.
+#: The value has already been isolated as one config string, and where a file
+#: lives is not ours to restrict.
+_REFERENCE = re.compile(r"^(?P<scheme>[a-z0-9_]+)://(?P<path>[^#]+?)(?:#(?P<key>.+))?$")
 
 #: Schemes this understands. Anything else is a literal value, not a typo --
 #: a password genuinely can look like a URL, so an unknown scheme is left alone.

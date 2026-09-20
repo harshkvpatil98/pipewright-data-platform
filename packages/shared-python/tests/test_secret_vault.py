@@ -80,6 +80,34 @@ class TestResolving:
         with pytest.raises(vault.SecretsError, match="names a key"):
             vault.resolve(f"file://{path}#password")
 
+    def test_a_mount_path_with_a_space_in_it_is_still_a_reference(self, tmp_path) -> None:
+        """The silent one.
+
+        The path pattern excluded whitespace, so `file:///mnt/my secrets/db`
+        did not parse, `resolve()` decided it was an ordinary value, and the
+        caller got the reference string back to use as a password. Nothing
+        raised. A connector would have authenticated with the literal text
+        "file:///mnt/my secrets/db-password".
+        """
+        directory = tmp_path / "my secrets"
+        directory.mkdir()
+        path = directory / "db-password"
+        path.write_text("hunter2\n")
+        assert vault.parse_reference(f"file://{path}") is not None
+        assert vault.resolve(f"file://{path}") == "hunter2"
+
+    def test_a_key_may_contain_a_space(self, tmp_path) -> None:
+        path = tmp_path / "creds.json"
+        path.write_text(json.dumps({"the password": "hunter2"}))
+        assert vault.resolve(f"file://{path}#the password") == "hunter2"
+
+    def test_a_missing_file_on_a_spaced_path_still_says_so(self, tmp_path) -> None:
+        """Failing to parse it used to mean failing to complain about it."""
+        directory = tmp_path / "my secrets"
+        directory.mkdir()
+        with pytest.raises(vault.SecretsError, match="does not exist"):
+            vault.resolve(f"file://{directory / 'nope'}")
+
     def test_an_unconfigured_store_refuses_rather_than_falling_back(self) -> None:
         """The important one.
 

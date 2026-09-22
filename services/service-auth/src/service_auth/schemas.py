@@ -20,6 +20,8 @@ class UserRead(BaseModel):
     username: str
     role: str
     is_active: bool
+    email: str | None = None
+    display_name: str | None = None
     created_at: datetime
     updated_at: datetime
     # Which tenant this person belongs to. None on a single-tenant install.
@@ -76,6 +78,8 @@ class UserCreateRequest(BaseModel):
     username: str = Field(min_length=3, max_length=80)
     password: str = Field(min_length=8, max_length=128)
     role: str = Field(default="viewer", pattern=r"^(admin|operator|viewer)$")
+    email: str | None = Field(default=None, max_length=255)
+    display_name: str | None = Field(default=None, max_length=120)
 
 
 # "system" is the default and the only value that stays correct when someone
@@ -100,3 +104,70 @@ class PreferencesUpdate(BaseModel):
 
     theme: Theme | None = None
     density: Density | None = None
+
+
+class ProfileUpdate(BaseModel):
+    """A person edits their own display name and contact email."""
+
+    display_name: str | None = Field(default=None, max_length=120)
+    email: str | None = Field(default=None, max_length=255)
+
+
+class PasswordChangeRequest(BaseModel):
+    current_password: str = Field(min_length=1, max_length=128)
+    new_password: str = Field(min_length=8, max_length=128)
+
+
+class RedeemCodeRequest(BaseModel):
+    """Set a password using a one-time activation or reset code."""
+
+    code: str = Field(min_length=8, max_length=128)
+    new_password: str = Field(min_length=8, max_length=128)
+
+
+class InviteRequest(BaseModel):
+    """Invite a colleague: an inactive account plus a one-time activation code."""
+
+    username: str = Field(min_length=3, max_length=80)
+    role: str = Field(default="viewer", pattern=r"^(admin|operator|viewer)$")
+    email: str | None = Field(default=None, max_length=255)
+    display_name: str | None = Field(default=None, max_length=120)
+    organisation_id: uuid.UUID | None = None
+
+
+class OneTimeCodeResponse(BaseModel):
+    """The plaintext code, returned once. A real deployment emails it instead."""
+
+    user_id: uuid.UUID
+    username: str
+    code: str
+    purpose: str
+    expires_in_minutes: int
+
+
+class ApiTokenCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    scope: str = Field(default="read", pattern=r"^(read|write|admin)$")
+
+
+class ApiTokenRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    prefix: str
+    scope: str
+    last_used_at: datetime | None = None
+    revoked_at: datetime | None = None
+    created_at: datetime
+
+
+class ApiTokenListResponse(BaseModel):
+    items: list[ApiTokenRead]
+
+
+class ApiTokenCreatedResponse(BaseModel):
+    """Includes the secret exactly once, at creation."""
+
+    token: ApiTokenRead
+    secret: str

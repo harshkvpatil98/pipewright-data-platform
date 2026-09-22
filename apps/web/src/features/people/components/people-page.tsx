@@ -2,15 +2,16 @@
 
 import { useMemo, useState } from "react";
 
-import { Button, EmptyState, Input, SectionPanel, StatCard } from "@platform/shared-ui";
+import { Button, EmptyState, FormField, Input, Modal, SectionPanel, Select, StatCard } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
+import { OneTimeCodeModal } from "@/components/ui/one-time-code-modal";
 import { Icon } from "@/components/ui/icon";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { formatDate } from "@/lib/format";
-import type { AuthUser } from "@platform/shared-types";
+import type { AuthUser, OneTimeCode } from "@platform/shared-types";
 
 type PeoplePageViewProps = {
   currentUser: AuthUser;
@@ -41,6 +42,12 @@ export function PeoplePageView({ currentUser, users: initialUsers }: PeoplePageV
   const [error, setError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<AuthUser | null>(null);
+  const [codeResult, setCodeResult] = useState<OneTimeCode | null>(null);
+  const [inviting, setInviting] = useState(false);
+  const [inviteName, setInviteName] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState("viewer");
+  const [inviteError, setInviteError] = useState<string | null>(null);
 
   const isPlatformAdmin = currentUser.role === "admin";
 
@@ -74,6 +81,54 @@ export function PeoplePageView({ currentUser, users: initialUsers }: PeoplePageV
     }
   };
 
+  const invite = async () => {
+    setInviteError(null);
+    try {
+      const result = await apiFetch<OneTimeCode>("/auth/invite", {
+        method: "POST",
+        body: JSON.stringify({
+          username: inviteName.trim(),
+          email: inviteEmail.trim() || null,
+          role: inviteRole,
+        }),
+      });
+      setInviting(false);
+      setInviteName("");
+      setInviteEmail("");
+      setInviteRole("viewer");
+      setCodeResult(result);
+      // The new account exists immediately, though inactive until activated.
+      setUsers((current) => [
+        {
+          id: result.user_id,
+          username: result.username,
+          role: inviteRole,
+          is_active: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        } as AuthUser,
+        ...current,
+      ]);
+    } catch (caught) {
+      setInviteError(extractErrorMessage(caught));
+    }
+  };
+
+  const generateResetCode = async (user: AuthUser) => {
+    setBusyId(user.id);
+    setError(null);
+    try {
+      const result = await apiFetch<OneTimeCode>(`/auth/users/${user.id}/reset-code`, {
+        method: "POST",
+      });
+      setCodeResult(result);
+    } catch (caught) {
+      setError(extractErrorMessage(caught));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   return (
     <>
       <AppShell
@@ -101,13 +156,18 @@ export function PeoplePageView({ currentUser, users: initialUsers }: PeoplePageV
           title="Accounts"
           description="Deactivating keeps someone's name on the projects and runs they own; deleting is refused while they still own any."
           actions={
-            <div className="w-full min-w-[220px] lg:w-[280px]">
-              <Input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search by username"
-                aria-label="Search accounts by username"
-              />
+            <div className="flex w-full items-center gap-2 lg:w-auto">
+              <div className="min-w-[200px] flex-1 lg:w-[260px]">
+                <Input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Search by username"
+                  aria-label="Search accounts by username"
+                />
+              </div>
+              {isPlatformAdmin ? (
+                <Button onClick={() => setInviting(true)}>Invite person</Button>
+              ) : null}
             </div>
           }
         >
@@ -142,7 +202,10 @@ export function PeoplePageView({ currentUser, users: initialUsers }: PeoplePageV
                     return (
                       <tr key={user.id} className="border-b border-line">
                         <td className="py-3 pr-4 font-medium text-ink">
-                          {user.username}
+                          {user.display_name || user.username}
+                          {user.display_name ? (
+                            <span className="ml-2 text-[11px] text-muted">{user.username}</span>
+                          ) : null}
                           {isSelf ? <span className="ml-2 text-[11px] text-muted">(you)</span> : null}
                         </td>
                         <td className="py-3 pr-4">
@@ -196,6 +259,14 @@ export function PeoplePageView({ currentUser, users: initialUsers }: PeoplePageV
                             >
                               {busy ? "Saving…" : user.is_active ? "Deactivate" : "Reactivate"}
                             </Button>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              disabled={!isPlatformAdmin || busy}
+                              onClick={() => void generateResetCode(user)}
+                            >
+                              Reset code
+                            </Button>
                             <button
                               type="button"
                               disabled={!isPlatformAdmin || isSelf || busy}
@@ -216,6 +287,54 @@ export function PeoplePageView({ currentUser, users: initialUsers }: PeoplePageV
           )}
         </SectionPanel>
       </AppShell>
+
+      <Modal
+        open={inviting}
+        onClose={() => setInviting(false)}
+        title="Invite a person"
+        description="They get an account immediately, but cannot sign in until they set a password with the one-time code you will receive."
+        widthClassName="max-w-md"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setInviting(false)}>
+              Cancel
+            </Button>
+            <Button size="sm" onClick={() => void invite()} disabled={inviteName.trim().length < 3}>
+              Send invitation
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-3">
+          <FormField label="Username" htmlFor="invite-username">
+            <Input
+              id="invite-username"
+              value={inviteName}
+              onChange={(e) => setInviteName(e.target.value)}
+              placeholder="jordan"
+            />
+          </FormField>
+          <FormField label="Email (optional)" htmlFor="invite-email">
+            <Input
+              id="invite-email"
+              type="email"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              placeholder="jordan@company.com"
+            />
+          </FormField>
+          <FormField label="Platform role" htmlFor="invite-role">
+            <Select id="invite-role" value={inviteRole} onChange={(e) => setInviteRole(e.target.value)}>
+              <option value="viewer">Viewer</option>
+              <option value="operator">Operator</option>
+              <option value="admin">Admin</option>
+            </Select>
+          </FormField>
+          {inviteError ? <p role="alert" className="text-[12px] text-danger">{inviteError}</p> : null}
+        </div>
+      </Modal>
+
+      <OneTimeCodeModal code={codeResult} onClose={() => setCodeResult(null)} />
 
       <ConfirmDeleteDialog
         open={deleting !== null}

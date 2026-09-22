@@ -17,6 +17,13 @@ class TokenPayload(BaseModel):
     exp: int
     iss: str
     aud: str
+    # Bumped on every user whose sessions must all end at once (password
+    # change, forced reset, sign-out-everywhere). A token whose `ver` no longer
+    # matches the user's is refused even though its signature is still valid.
+    ver: int = 0
+    # A unique id per token, so an individual session can be named or revoked
+    # later without invalidating the rest.
+    jti: str | None = None
 
 
 def hash_password(password: str) -> str:
@@ -46,6 +53,7 @@ def create_access_token(
     issuer: str,
     audience: str,
     expires_minutes: int,
+    token_version: int = 0,
 ) -> tuple[str, int]:
     expires_at = datetime.now(UTC) + timedelta(minutes=expires_minutes)
     payload = {
@@ -54,6 +62,8 @@ def create_access_token(
         "iss": issuer,
         "aud": audience,
         "exp": int(expires_at.timestamp()),
+        "ver": token_version,
+        "jti": secrets.token_urlsafe(9),
     }
     token = jwt.encode(payload, secret_key, algorithm="HS256")
     return token, expires_minutes * 60

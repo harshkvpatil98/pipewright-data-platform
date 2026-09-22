@@ -22,6 +22,15 @@ class OrganisationCreate(BaseModel):
     max_datasets: int | None = Field(default=None, ge=1)
 
 
+class OrganisationUpdate(BaseModel):
+    """Rename a tenant, or adjust its plan and limits. Unset fields are left alone."""
+
+    name: str | None = Field(default=None, min_length=1, max_length=160)
+    plan: str | None = Field(default=None, max_length=32)
+    max_projects: int | None = Field(default=None, ge=1)
+    max_datasets: int | None = Field(default=None, ge=1)
+
+
 class OrganisationRead(BaseModel):
     id: uuid.UUID
     name: str

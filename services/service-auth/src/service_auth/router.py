@@ -6,11 +6,21 @@ from collections.abc import Callable
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
+from service_auth.codes import DEFAULT_TTL_MINUTES, RESET, issue_code
 from service_auth.dependencies import build_current_user_dependency
 from service_auth.schemas import (
+    ApiTokenCreate,
+    ApiTokenCreatedResponse,
+    ApiTokenListResponse,
+    ApiTokenRead,
+    InviteRequest,
     LoginRequest,
+    OneTimeCodeResponse,
+    PasswordChangeRequest,
     PreferencesRead,
     PreferencesUpdate,
+    ProfileUpdate,
+    RedeemCodeRequest,
     TokenResponse,
     UserCreateRequest,
     UserListResponse,
@@ -19,12 +29,23 @@ from service_auth.schemas import (
 )
 from service_auth.service import (
     authenticate_user,
+    change_password,
     create_user,
     delete_user,
     get_preferences,
+    get_user_by_id,
+    invite_user,
     list_users,
+    set_password_with_code,
     set_preferences,
+    sign_out_everywhere,
+    update_profile,
     update_user,
+)
+from service_auth.tokens import (
+    create_api_token,
+    list_api_tokens,
+    revoke_api_token,
 )
 from shared_python.auth.security import create_access_token
 from shared_python.errors import ForbiddenError
@@ -34,9 +55,7 @@ def build_router(get_db: Callable[..., Session], settings) -> APIRouter:
     router = APIRouter(prefix="/auth", tags=["auth"])
     current_user = build_current_user_dependency(get_db, settings)
 
-    @router.post("/login", response_model=TokenResponse, status_code=status.HTTP_200_OK)
-    def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse:
-        user = authenticate_user(db, payload.username, payload.password)
+    def _issue_token(user) -> TokenResponse:
         token, expires_in = create_access_token(
             user_id=str(user.id),
             username=user.username,
@@ -44,26 +63,66 @@ def build_router(get_db: Callable[..., Session], settings) -> APIRouter:
             issuer=settings.auth_jwt_issuer,
             audience=settings.auth_jwt_audience,
             expires_minutes=settings.auth_access_token_exp_minutes,
+            token_version=user.token_version,
         )
         return TokenResponse(
-            access_token=token,
-            expires_in=expires_in,
-            user=UserRead.model_validate(user),
+            access_token=token, expires_in=expires_in, user=UserRead.model_validate(user)
         )
 
+    def _require_admin(actor: UserRead, verb: str) -> None:
+        if actor.role != "admin":
+            raise ForbiddenError(f"Only a platform admin can {verb}.")
+
+    @router.post("/login", response_model=TokenResponse, status_code=status.HTTP_200_OK)
+    def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse:
+        user = authenticate_user(db, payload.username, payload.password)
+        return _issue_token(user)
+
     @router.get("/me", response_model=UserRead)
-    def me(
+    def me(db: Session = Depends(get_db), user: UserRead = Depends(current_user)) -> UserRead:
+        # Preferences ride along so the shell paints the right theme at once.
+        return user.model_copy(update={"preferences": get_preferences(db, user.id)})
+
+    @router.patch("/me", response_model=UserRead)
+    def edit_profile(
+        payload: ProfileUpdate,
         db: Session = Depends(get_db),
         user: UserRead = Depends(current_user),
     ) -> UserRead:
-        # Preferences ride along so the shell can paint the right theme
-        # immediately instead of fetching them and flashing the wrong one.
-        return user.model_copy(update={"preferences": get_preferences(db, user.id)})
+        return UserRead.model_validate(
+            update_profile(
+                db, user_id=user.id, display_name=payload.display_name, email=payload.email
+            )
+        )
+
+    @router.patch("/me/password", status_code=status.HTTP_204_NO_CONTENT)
+    def change_own_password(
+        payload: PasswordChangeRequest,
+        db: Session = Depends(get_db),
+        user: UserRead = Depends(current_user),
+    ) -> None:
+        change_password(
+            db, user_id=user.id, current=payload.current_password, new=payload.new_password
+        )
+
+    @router.post("/me/sign-out-everywhere", status_code=status.HTTP_204_NO_CONTENT)
+    def sign_out_all(
+        db: Session = Depends(get_db), user: UserRead = Depends(current_user)
+    ) -> None:
+        sign_out_everywhere(db, user_id=user.id)
+
+    @router.post("/redeem-code", response_model=TokenResponse)
+    def redeem_code_route(payload: RedeemCodeRequest, db: Session = Depends(get_db)) -> TokenResponse:
+        """Set a password from a one-time activation or reset code, then sign in.
+
+        Public by design: the whole point is that the person cannot sign in yet.
+        """
+        user = set_password_with_code(db, code=payload.code, new=payload.new_password)
+        return _issue_token(user)
 
     @router.get("/me/preferences", response_model=PreferencesRead)
     def read_preferences(
-        db: Session = Depends(get_db),
-        user: UserRead = Depends(current_user),
+        db: Session = Depends(get_db), user: UserRead = Depends(current_user)
     ) -> PreferencesRead:
         return get_preferences(db, user.id)
 
@@ -75,37 +134,71 @@ def build_router(get_db: Callable[..., Session], settings) -> APIRouter:
     ) -> PreferencesRead:
         return set_preferences(db, user.id, payload)
 
-    @router.get("/users", response_model=UserListResponse)
-    def read_users(
-        db: Session = Depends(get_db),
-        _user: UserRead = Depends(current_user),
-    ) -> UserListResponse:
-        """Everyone with an account.
+    # ---- API tokens (self-service) ----
 
-        Readable by any signed-in user: adding a colleague to a project means
-        typing their username, and a picker that only admins can see would make
-        that a guessing game. Only the username and status are exposed.
-        """
-        return UserListResponse(
-            items=[UserRead.model_validate(row) for row in list_users(db)]
+    @router.get("/tokens", response_model=ApiTokenListResponse)
+    def list_tokens(
+        db: Session = Depends(get_db), user: UserRead = Depends(current_user)
+    ) -> ApiTokenListResponse:
+        return ApiTokenListResponse(
+            items=[ApiTokenRead.model_validate(t) for t in list_api_tokens(db, user_id=user.id)]
         )
 
-    @router.post(
-        "/users", response_model=UserRead, status_code=status.HTTP_201_CREATED
-    )
+    @router.post("/tokens", response_model=ApiTokenCreatedResponse, status_code=status.HTTP_201_CREATED)
+    def create_token(
+        payload: ApiTokenCreate,
+        db: Session = Depends(get_db),
+        user: UserRead = Depends(current_user),
+    ) -> ApiTokenCreatedResponse:
+        record, secret = create_api_token(
+            db, user_id=user.id, name=payload.name, scope=payload.scope
+        )
+        return ApiTokenCreatedResponse(token=ApiTokenRead.model_validate(record), secret=secret)
+
+    @router.delete("/tokens/{token_id}", status_code=status.HTTP_204_NO_CONTENT)
+    def revoke_token(
+        token_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        user: UserRead = Depends(current_user),
+    ) -> None:
+        revoke_api_token(db, user_id=user.id, token_id=token_id)
+
+    # ---- account administration (platform admins) ----
+
+    @router.get("/users", response_model=UserListResponse)
+    def read_users(
+        db: Session = Depends(get_db), _user: UserRead = Depends(current_user)
+    ) -> UserListResponse:
+        """Everyone with an account. Readable by any signed-in user, because
+        inviting a colleague to a project means typing their username."""
+        return UserListResponse(items=[UserRead.model_validate(row) for row in list_users(db)])
+
+    @router.post("/users", response_model=UserRead, status_code=status.HTTP_201_CREATED)
     def add_user(
         payload: UserCreateRequest,
         db: Session = Depends(get_db),
         actor: UserRead = Depends(current_user),
     ) -> UserRead:
-        """Create an account for a colleague.
-
-        Platform admins only. Project membership decides what someone may do
-        inside a project; this decides whether they exist at all.
-        """
-        if actor.role != "admin":
-            raise ForbiddenError("Only a platform admin can create accounts.")
+        _require_admin(actor, "create accounts")
         return UserRead.model_validate(create_user(db, payload))
+
+    @router.post("/invite", response_model=OneTimeCodeResponse, status_code=status.HTTP_201_CREATED)
+    def invite(
+        payload: InviteRequest,
+        db: Session = Depends(get_db),
+        actor: UserRead = Depends(current_user),
+    ) -> OneTimeCodeResponse:
+        """Create an inactive account and a one-time activation code.
+
+        In a deployment with email configured the code is emailed; here it is
+        handed back so an admin can pass it on.
+        """
+        _require_admin(actor, "invite people")
+        user, code = invite_user(db, payload)
+        return OneTimeCodeResponse(
+            user_id=user.id, username=user.username, code=code,
+            purpose="activation", expires_in_minutes=DEFAULT_TTL_MINUTES,
+        )
 
     @router.patch("/users/{user_id}", response_model=UserRead)
     def change_user(
@@ -114,18 +207,29 @@ def build_router(get_db: Callable[..., Session], settings) -> APIRouter:
         db: Session = Depends(get_db),
         actor: UserRead = Depends(current_user),
     ) -> UserRead:
-        """Deactivate an account, reactivate it, or change its platform role.
-
-        Platform admins only, for the same reason creating one is: this decides
-        whether somebody can reach the platform at all.
-
-        Deactivating is the offboarding path. `is_active` was already checked on
-        every login and every authenticated request, and nothing could set it --
-        so an account, once created, could never be withdrawn.
-        """
-        if actor.role != "admin":
-            raise ForbiddenError("Only a platform admin can change accounts.")
+        _require_admin(actor, "change accounts")
         return UserRead.model_validate(update_user(db, user_id, payload, actor))
+
+    @router.post(
+        "/users/{user_id}/reset-code",
+        response_model=OneTimeCodeResponse,
+        status_code=status.HTTP_201_CREATED,
+    )
+    def issue_reset_code(
+        user_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        actor: UserRead = Depends(current_user),
+    ) -> OneTimeCodeResponse:
+        """Give an admin a one-time code to hand a locked-out colleague."""
+        _require_admin(actor, "reset passwords")
+        target = get_user_by_id(db, user_id)
+        if target is None:
+            raise ForbiddenError("User not found.")
+        code = issue_code(db, user_id=user_id, purpose=RESET)
+        return OneTimeCodeResponse(
+            user_id=user_id, username=target.username, code=code,
+            purpose="reset", expires_in_minutes=DEFAULT_TTL_MINUTES,
+        )
 
     @router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
     def remove_user(
@@ -133,14 +237,7 @@ def build_router(get_db: Callable[..., Session], settings) -> APIRouter:
         db: Session = Depends(get_db),
         actor: UserRead = Depends(current_user),
     ) -> None:
-        """Delete an account.
-
-        Deactivation is usually the right call -- it keeps the person's name on
-        the projects and runs they own. This refuses outright when deleting
-        would strand something, rather than doing it quietly.
-        """
-        if actor.role != "admin":
-            raise ForbiddenError("Only a platform admin can delete accounts.")
+        _require_admin(actor, "delete accounts")
         delete_user(db, user_id, actor)
 
     @router.get("/protected", response_model=dict[str, str])

@@ -67,8 +67,8 @@ session log).
 npm run verify     # ruff + pytest + ESLint + tsc + production build
 ```
 
-Everything must be green before moving on. Current baseline: **6,022 Python tests
-(573 skipped), 673 web tests, all passing, zero warnings.**
+Everything must be green before moving on. Current baseline: **6,038 Python tests
+(573 skipped), 678 web tests, all passing, zero warnings.**
 
 Other commands: `npm test` (tests only) · `npm run smoke` (end-to-end smoke) ·
 `npm run lint` · `npm run typecheck` · `scripts/backup.sh --verify` (real restore drill).
@@ -631,5 +631,7 @@ Report honestly. If something is unverified, say so and add it to §7.
 | 2026-09-22 | `7b73c2ff` | **Development orchestrator removed.** `tools/dev-orchestrator/` deleted; `pw-dev-orchestrator` uninstalled from `.venv`; `.pw-dev/` runtime state cleared after preservation. The unmerged Phase 18 run (28 commits), its staged docs patch, the full planning record and run evidence are preserved in `backups/orchestrator-removal-2026-09-22/` (see its `RECOVERY.md`); the `pw-dev/run-20260918-d770792f/*` branches were kept. Rules moved to `AGENTS.md`, workflow to `CLAUDE.md`; `docs/plans/phase-18-review-requirements.md` rewritten as runner-independent requirements. `npm run verify` green after removal: 6,583 → 6,021 Python tests (the orchestrator's own 562 left with it), 656 web |
 
 | 2026-09-23 | `7b73c2ff` | **Production-readiness P0 (Truth & trust).** Adoption review published; `docs/plans/production-readiness-workflow.md` written (P0–P9). Language pass (labels.ts: type/rule/severity names, friendly step messages; applied across Studio, upload, data-quality, login). DQ column dropdown. Schedule cron presets. Studio save-toast Run now/Schedule actions. Runtime visibility: oldest_queued_at + assessRuntime, Home Background-work card, stalled banners on Workflows/Schedules, linked health chip, honest health panel. System-status humanised (chips + collapsed drivers + raw toggle). Rail labelled by default + Administration section. Breadcrumb shows project name. Warning debt 20→0 (JWT keys, pydantic shadow filtered at site, starlette deprecation in pytest.ini). 6,021→6,022 Python, 656→673 web. Verified live in browser. |
+
+| 2026-09-23 | `7b73c2ff` | **Production-readiness P1 (Identity core).** Migration 0031: users gain email/display_name/token_version; new api_tokens + auth_codes tables. Self-service password change and sign-out-everywhere (token_version invalidates every prior JWT); admin one-time reset codes; invite flow (inactive account + activation code, redeemed on the login screen); scoped revocable API tokens (pw_ bearer, read/write/admin, shown once, hashed at rest); display name in greeting/People; org create+rename (PATCH /organisations/{id}); Settings Security + API-tokens panels; password-strength meter; docs/security.md. Audit middleware now records /auth admin actions (narrowed the credential skip to login/password/redeem/tokens only). 6,022→6,038 Python, 673→678 web, zero warnings. Every flow verified live: token mint/scope-403/revoke-401, invite→inactive→activate, password change 200→401, admin reset, org rename — plus Settings/People UI in the browser. |
 
 <!-- Add a row above when you finish a session. Keep it to one line. -->

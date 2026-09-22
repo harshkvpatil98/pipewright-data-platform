@@ -35,7 +35,16 @@ AUDITED_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 
 # Paths whose bodies are credentials. The log records that a login happened,
 # never the attempt's contents.
-SKIPPED_PREFIXES = ("/api/v1/auth/",)
+SKIPPED_PREFIXES = (
+    # Only the endpoints whose request or response carries a secret. The
+    # middleware logs method + path, never bodies, so admin account actions
+    # (deactivate, delete, role change, invite, reset-code) are safe — and
+    # important — to record; they are deliberately no longer skipped.
+    "/api/v1/auth/login",
+    "/api/v1/auth/me/password",
+    "/api/v1/auth/redeem-code",
+    "/api/v1/auth/tokens",
+)
 
 _UUID_PATTERN = re.compile(
     r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"

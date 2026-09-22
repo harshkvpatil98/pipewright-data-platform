@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from service_auth.models import User, UserPreference
 from service_auth.schemas import (
+    InviteRequest,
     BootstrapUserRequest,
     PreferencesRead,
     PreferencesUpdate,
@@ -40,6 +41,8 @@ def create_user(db: Session, payload: BootstrapUserRequest | UserCreateRequest) 
         password_hash=hash_password(payload.password),
         role=payload.role,
         is_active=True,
+        email=(getattr(payload, "email", None) or None),
+        display_name=(getattr(payload, "display_name", None) or None),
     )
     db.add(user)
     db.commit()
@@ -53,6 +56,105 @@ def authenticate_user(db: Session, username: str, password: str) -> User:
         raise UnauthorizedError("Invalid username or password.")
     if not user.is_active:
         raise UnauthorizedError("User account is inactive.")
+    return user
+
+
+def change_password(db: Session, *, user_id: uuid.UUID, current: str, new: str) -> None:
+    """Change a person's own password, ending every existing session.
+
+    The current password is required even though the caller is authenticated:
+    it stops a walked-up-to, still-logged-in browser from being used to lock
+    the real owner out. Bumping `token_version` invalidates the JWT this very
+    request arrived on, so the client re-authenticates with the new password.
+    """
+    user = _require_user(db, user_id)
+    if not verify_password(current, user.password_hash):
+        raise BadRequestError("Your current password is incorrect.")
+    if len(new) < 8:
+        raise BadRequestError("A password must be at least 8 characters.")
+    if verify_password(new, user.password_hash):
+        raise BadRequestError("The new password must be different from the old one.")
+    user.password_hash = hash_password(new)
+    user.token_version += 1
+    db.commit()
+
+
+def set_password_with_code(db: Session, *, code: str, new: str, purpose: str | None = None) -> User:
+    """Set a password by redeeming a one-time activation or reset code.
+
+    Activation also switches the account on: an invited account is created
+    inactive precisely so it cannot be signed into before its owner sets a
+    password. Either way every prior session ends.
+    """
+    from service_auth.codes import ACTIVATION, redeem_code
+
+    if len(new) < 8:
+        raise BadRequestError("A password must be at least 8 characters.")
+    user_id, redeemed_purpose = redeem_code(db, code=code, purpose=purpose)
+    user = _require_user(db, user_id)
+    user.password_hash = hash_password(new)
+    user.token_version += 1
+    if redeemed_purpose == ACTIVATION:
+        user.is_active = True
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def sign_out_everywhere(db: Session, *, user_id: uuid.UUID) -> None:
+    """End all of a user's sessions by bumping their token version."""
+    user = _require_user(db, user_id)
+    user.token_version += 1
+    db.commit()
+
+
+def invite_user(db: Session, payload: "InviteRequest") -> tuple[User, str]:
+    """Create an account that activates itself with a one-time code.
+
+    The account is inactive until the code is redeemed, so an invite that is
+    never accepted is never a way in. Returns the user and the plaintext code
+    (which a real deployment would email rather than hand back).
+    """
+    from service_auth.codes import ACTIVATION, issue_code
+
+    if get_user_by_username(db, payload.username) is not None:
+        raise ConflictError("A user with that username already exists.")
+    user = User(
+        username=payload.username.strip().lower(),
+        # A random unusable secret: the account cannot be signed into until the
+        # activation code sets a real password.
+        password_hash=hash_password(uuid.uuid4().hex + uuid.uuid4().hex),
+        role=payload.role,
+        is_active=False,
+        email=(payload.email or None),
+        display_name=(payload.display_name or None),
+        organisation_id=payload.organisation_id,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    code = issue_code(db, user_id=user.id, purpose=ACTIVATION)
+    return user, code
+
+
+def update_profile(
+    db: Session, *, user_id: uuid.UUID, display_name: str | None, email: str | None
+) -> User:
+    """A person edits their own name and contact email."""
+    user = _require_user(db, user_id)
+    if display_name is not None:
+        user.display_name = display_name.strip() or None
+    if email is not None:
+        user.email = email.strip() or None
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def _require_user(db: Session, user_id: uuid.UUID) -> User:
+    user = db.get(User, user_id)
+    if user is None:
+        raise NotFoundError("User not found.")
     return user
 
 

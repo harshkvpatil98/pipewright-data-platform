@@ -39,6 +39,7 @@ from service_enterprise.schemas import (
     OrganisationCreate,
     OrganisationListResponse,
     OrganisationRead,
+    OrganisationUpdate,
     PolicyCreate,
     PolicyListResponse,
     PolicyPreviewResponse,
@@ -229,6 +230,29 @@ def unassign_project(
 
     project.organisation_id = None
     db.commit()
+    return _organisation_read(db, organisation)
+
+
+def update_organisation(
+    db: Session, organisation_id: uuid.UUID, payload: "OrganisationUpdate", current_user: UserRead
+) -> OrganisationRead:
+    """Rename a tenant or adjust its limits. The slug is left alone, because it
+    is what other records refer to it by."""
+    _require_platform_admin(current_user)
+    organisation = db.get(Organisation, organisation_id)
+    if organisation is None:
+        raise NotFoundError("Organisation not found.")
+    fields = payload.model_dump(exclude_unset=True)
+    if fields.get("name"):
+        organisation.name = fields["name"].strip()
+    if fields.get("plan"):
+        organisation.plan = fields["plan"]
+    if "max_projects" in fields:
+        organisation.max_projects = fields["max_projects"]
+    if "max_datasets" in fields:
+        organisation.max_datasets = fields["max_datasets"]
+    db.commit()
+    db.refresh(organisation)
     return _organisation_read(db, organisation)
 
 

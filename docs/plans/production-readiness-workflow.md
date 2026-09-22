@@ -7,7 +7,7 @@ established alternatives for data work — not by claiming more, but by being
 the only honest, governed, spreadsheet-fast data platform that a business team
 can run without a data engineer on call.
 
-**Status:** P0 done (2026-09-23); P1 is next on “continue”. One phase executes per session-run;
+**Status:** P1 done (2026-09-23); P2 (Guided first win) is next on “continue”. One phase executes per session-run;
 the owner says **“continue”** to start the next. This file is the single
 source of truth for what each phase contains; the session log in
 `docs/HANDOFF.md` records what actually happened.
@@ -189,7 +189,7 @@ Ease 5→6.5 · Design 8→8.5.
 
 ---
 
-## P1 — Identity core *(next after P0)*
+## P1 — Identity core *(status: **done** 2026-09-23)*
 
 **Objective:** pass page one of a security questionnaire; onboard and offboard
 without `curl`.

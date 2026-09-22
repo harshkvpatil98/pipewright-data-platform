@@ -16,6 +16,7 @@ from service_enterprise.schemas import (
     OrganisationCreate,
     OrganisationListResponse,
     OrganisationRead,
+    OrganisationUpdate,
     PolicyCreate,
     PolicyListResponse,
     PolicyPreviewResponse,
@@ -33,6 +34,7 @@ from service_enterprise.service import (
     assign_user,
     create_organisation,
     delete_organisation,
+    update_organisation,
     create_policy,
     create_retention,
     delete_policy,
@@ -80,6 +82,15 @@ def build_router(
         current_user: UserRead = Depends(get_current_user),
     ) -> OrganisationRead:
         return create_organisation(db, payload, current_user)
+
+    @router.patch("/organisations/{organisation_id}", response_model=OrganisationRead)
+    def edit_organisation(
+        organisation_id: uuid.UUID,
+        payload: OrganisationUpdate,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> OrganisationRead:
+        return update_organisation(db, organisation_id, payload, current_user)
 
     @router.post(
         "/organisations/{organisation_id}/users/{user_id}", response_model=OrganisationRead

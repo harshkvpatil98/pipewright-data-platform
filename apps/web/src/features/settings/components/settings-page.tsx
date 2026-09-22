@@ -10,6 +10,8 @@ import { useTour } from "@/components/tour/tour-provider";
 import { WELCOME_TOUR_ID, welcomeTour } from "@/components/tour/tours";
 import { Icon } from "@/components/ui/icon";
 import { AppearanceControls } from "@/features/preferences/components/appearance-controls";
+import { AccountSecurity } from "@/features/settings/components/account-security";
+import { ApiTokensPanel } from "@/features/settings/components/api-tokens-panel";
 import { appConfig } from "@/lib/config";
 import { cx } from "@/lib/utils";
 
@@ -81,10 +83,28 @@ export function SettingsPageView({ currentUser }: SettingsPageProps) {
           </div>
         </Section>
 
-        <Section title="Account" description="Identity comes from your platform user record.">
+        <Section title="Account" description="Who you are on this platform.">
           <Row label="Username" value={currentUser.username} />
+          {currentUser.display_name ? (
+            <Row label="Display name" value={currentUser.display_name} />
+          ) : null}
+          {currentUser.email ? <Row label="Email" value={currentUser.email} /> : null}
           <Row label="Role" value={currentUser.role} />
           <Row label="Status" value={currentUser.is_active ? "Active" : "Disabled"} />
+        </Section>
+
+        <Section
+          title="Security"
+          description="Change your password, and end sessions if one was left open."
+        >
+          <AccountSecurity />
+        </Section>
+
+        <Section
+          title="API tokens"
+          description="Long-lived credentials for scripts and other systems. Use these instead of a password. See the OpenAPI docs to call the API."
+        >
+          <ApiTokensPanel />
         </Section>
 
         <Section
@@ -143,6 +163,19 @@ export function SettingsPageView({ currentUser }: SettingsPageProps) {
         <Section title="Connection" description="Where this interface sends its requests.">
           <Row label="API base URL" value={appConfig.apiBaseUrl} mono />
           <Row label="Application" value={appConfig.appName} />
+          <div className="flex items-center justify-between px-4 py-3">
+            <span className="text-[12px] text-muted">
+              How accounts, credentials and data are protected.
+            </span>
+            <a
+              href="https://github.com/harshkvpatil98/pipewright-data-platform/blob/main/docs/security.md"
+              target="_blank"
+              rel="noreferrer"
+              className="text-[12px] text-[color:var(--accent)] transition hover:underline"
+            >
+              Security overview →
+            </a>
+          </div>
         </Section>
 
         <Section title="Keyboard shortcuts" description="Available anywhere in the application.">

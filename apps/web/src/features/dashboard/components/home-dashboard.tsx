@@ -86,7 +86,7 @@ export function HomeDashboard({ currentUser, projects, status }: HomeDashboardPr
         <header className="mb-7">
           <h1 className="text-[26px] font-semibold tracking-tight text-ink">
             {greeting}
-            {currentUser ? `, ${currentUser.username}` : ""}
+            {currentUser ? `, ${currentUser.display_name || currentUser.username}` : ""}
           </h1>
           <p className="mt-2 text-[13px] text-ink-3">
             Here is the current state of your data platform.

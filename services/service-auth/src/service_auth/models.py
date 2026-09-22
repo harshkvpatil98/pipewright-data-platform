@@ -3,8 +3,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import uuid
+from datetime import datetime
 
-from sqlalchemy import JSON, Boolean, ForeignKey, Index, String
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Index, Integer, String
 from sqlalchemy import Uuid as UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -26,6 +27,13 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[str] = mapped_column(String(32), nullable=False, default="admin")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # Optional contact + human name. The username is the login handle; a person
+    # is greeted and listed by their display name when they have one.
+    email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    display_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    # Every issued token carries the value this had at issue time. Bumping it
+    # ends all of that user's sessions at once without a session table.
+    token_version: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     # Which tenant this person belongs to. Null on a single-tenant deployment,
     # where it matches the equally-null organisation on every project.
     organisation_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
@@ -59,5 +67,61 @@ class UserPreference(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     # Room for settings added later without a migration each time. Typed columns
     # above are the ones the server itself needs to reason about.
     extra_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
+    user: Mapped[User] = relationship()
+
+
+class ApiToken(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """A long-lived credential a person or script authenticates with.
+
+    A data platform is scripted against on day one; without this the only
+    credential is a user's short-lived login JWT, and customers end up putting
+    a password in a cron job. The secret is shown once at creation and only its
+    hash is stored, so a leaked database yields no usable tokens.
+    """
+
+    __tablename__ = "api_tokens"
+    __table_args__ = (
+        Index("ix_api_tokens_user", "user_id"),
+        Index("ix_api_tokens_hash", "token_hash", unique=True),
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    # The visible, non-secret half (e.g. "pw_ab12cd34"), so a token can be
+    # recognised in a list without revealing anything usable.
+    prefix: Mapped[str] = mapped_column(String(32), nullable=False)
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    # read | write | admin. Read cannot mutate; admin can reach admin routes.
+    scope: Mapped[str] = mapped_column(String(16), nullable=False, default="read")
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    user: Mapped[User] = relationship()
+
+
+class AuthCode(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """A one-time code that sets a password: account activation, or admin reset.
+
+    The plaintext is returned once (in a real deployment it would be emailed)
+    and only its hash is stored. Single use, short lived, and tied to a
+    purpose so an activation code cannot be spent as a password reset.
+    """
+
+    __tablename__ = "auth_codes"
+    __table_args__ = (
+        Index("ix_auth_codes_user", "user_id"),
+        Index("ix_auth_codes_hash", "code_hash", unique=True),
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    purpose: Mapped[str] = mapped_column(String(16), nullable=False)  # activation | reset
+    code_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     user: Mapped[User] = relationship()

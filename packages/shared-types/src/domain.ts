@@ -850,8 +850,32 @@ export type AuthUser = {
   username: string;
   role: string;
   is_active: boolean;
+  email?: string | null;
+  display_name?: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type ApiToken = {
+  id: string;
+  name: string;
+  prefix: string;
+  scope: "read" | "write" | "admin";
+  last_used_at: string | null;
+  revoked_at: string | null;
+  created_at: string;
+};
+
+export type ApiTokenListResponse = { items: ApiToken[] };
+
+export type ApiTokenCreatedResponse = { token: ApiToken; secret: string };
+
+export type OneTimeCode = {
+  user_id: string;
+  username: string;
+  code: string;
+  purpose: string;
+  expires_in_minutes: number;
 };
 
 export type UserNotificationRecord = {

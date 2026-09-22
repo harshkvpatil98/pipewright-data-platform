@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 
-import { Button, EmptyState, SectionPanel, Select, StatCard } from "@platform/shared-ui";
+import { Button, EmptyState, FormField, Input, Modal, SectionPanel, Select, StatCard } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
@@ -59,6 +59,10 @@ export function OrganisationsPageView({
   const [feedback, setFeedback] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<Organisation | null>(null);
   const [assigning, setAssigning] = useState<string>("");
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [renaming, setRenaming] = useState<Organisation | null>(null);
+  const [renameValue, setRenameValue] = useState("");
 
   const membersByOrg = useMemo(() => {
     const map = new Map<string, AuthUser[]>();
@@ -89,6 +93,44 @@ export function OrganisationsPageView({
     setOrganisations((current) =>
       current.map((org) => (org.id === updated.id ? updated : org)),
     );
+
+  const createOrganisation = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const created = await apiFetch<Organisation>("/organisations", {
+        method: "POST",
+        body: JSON.stringify({ name: newName.trim() }),
+      });
+      setOrganisations((current) => [created, ...current]);
+      setCreating(false);
+      setNewName("");
+      setFeedback(`${created.name} created.`);
+    } catch (caught) {
+      setError(extractErrorMessage(caught));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const renameOrganisation = async () => {
+    if (!renaming) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const updated = await apiFetch<Organisation>(`/organisations/${renaming.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ name: renameValue.trim() }),
+      });
+      applyCounts(updated);
+      setRenaming(null);
+      setFeedback(`Renamed to ${updated.name}.`);
+    } catch (caught) {
+      setError(extractErrorMessage(caught));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const revoke = async (organisationId: string, user: AuthUser) => {
     setBusy(true);
@@ -169,6 +211,7 @@ export function OrganisationsPageView({
             <SectionPanel
               title="Tenants"
               description="Removing somebody from an organisation cuts their access to every project in it, without touching any project membership row."
+              actions={<Button onClick={() => setCreating(true)}>New organisation</Button>}
             >
               {feedback ? <p className="mb-3 text-sm text-accent">{feedback}</p> : null}
               {error ? (
@@ -214,6 +257,16 @@ export function OrganisationsPageView({
                             {org.member_count} member(s) · {org.project_count} project(s) ·
                             created {formatDate(org.created_at)}
                           </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setRenaming(org);
+                              setRenameValue(org.name);
+                            }}
+                            className="rounded-lg border border-line px-2.5 py-1 text-[12px] text-ink transition hover:bg-surface-2"
+                          >
+                            Rename
+                          </button>
                           <button
                             type="button"
                             onClick={() => setDeleting(org)}
@@ -289,6 +342,45 @@ export function OrganisationsPageView({
           </>
         )}
       </AppShell>
+
+      <Modal
+        open={creating}
+        onClose={() => setCreating(false)}
+        title="New organisation"
+        description="A tenant boundary. Projects and people assigned to it see each other; nobody outside does."
+        widthClassName="max-w-md"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setCreating(false)}>Cancel</Button>
+            <Button size="sm" onClick={() => void createOrganisation()} disabled={busy || newName.trim().length < 2}>
+              Create
+            </Button>
+          </div>
+        }
+      >
+        <FormField label="Name" htmlFor="org-name">
+          <Input id="org-name" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Acme Corp" />
+        </FormField>
+      </Modal>
+
+      <Modal
+        open={renaming !== null}
+        onClose={() => setRenaming(null)}
+        title="Rename organisation"
+        widthClassName="max-w-md"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setRenaming(null)}>Cancel</Button>
+            <Button size="sm" onClick={() => void renameOrganisation()} disabled={busy || renameValue.trim().length < 2}>
+              Save
+            </Button>
+          </div>
+        }
+      >
+        <FormField label="Name" htmlFor="org-rename">
+          <Input id="org-rename" value={renameValue} onChange={(e) => setRenameValue(e.target.value)} />
+        </FormField>
+      </Modal>
 
       <ConfirmDeleteDialog
         open={deleting !== null}

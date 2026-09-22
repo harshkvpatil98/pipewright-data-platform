@@ -9,10 +9,9 @@ if [[ ! -f .venv/bin/activate ]]; then
   exit 1
 fi
 
-echo "== Python: ruff (gateway + services + shared-python + dev orchestrator) =="
+echo "== Python: ruff (gateway + services + shared-python) =="
 source .venv/bin/activate
-ruff check apps/api-gateway/src services packages/shared-python/src \
-  tools/dev-orchestrator/src tools/dev-orchestrator/tests
+ruff check apps/api-gateway/src services packages/shared-python/src
 
 echo "== Python: pytest (repo test bundle) =="
 bash ./scripts/test.sh

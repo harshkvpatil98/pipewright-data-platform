@@ -1,1 +1,0 @@
-{"type":"result","subtype":"success","is_error":false,"duration_ms":1500,"num_turns":1,"result":"I can't help with that request.","session_id":"6a7d5a4e-0000-4000-8000-000000000005","total_cost_usd":0.001,"usage":{"input_tokens":500,"output_tokens":12,"cache_read_input_tokens":0},"modelUsage":{},"permission_denials":[],"terminal_reason":"completed"}

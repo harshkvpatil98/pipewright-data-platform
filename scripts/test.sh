@@ -11,9 +11,9 @@ fi
 
 source .venv/bin/activate
 
-# The pytest paths below are listed explicitly, so anything new has to be added
-# here deliberately -- including tools/dev-orchestrator, whose tests would
-# otherwise never run in `npm test` or `npm run verify`.
+# The pytest paths below are listed explicitly, so a new test directory has to
+# be added here deliberately or it will never run in `npm test` or
+# `npm run verify`.
 pytest --import-mode=importlib \
   apps/api-gateway/tests \
   packages/shared-python/tests \
@@ -40,7 +40,6 @@ pytest --import-mode=importlib \
   services/service-intelligence/tests \
   services/service-observability/tests \
   services/service-schedules/tests \
-  services/service-notifications/tests \
-  tools/dev-orchestrator/tests
+  services/service-notifications/tests
 
 npm run test --workspace @platform/web

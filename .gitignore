@@ -50,14 +50,3 @@ Thumbs.db
 
 # Database dumps and file archives from scripts/backup.sh.
 backups/
-
-# Development orchestrator runtime state: the run database, event log, per-run
-# worktrees, patch bundles, verification logs, and prompts that carry repository
-# excerpts. The schemas, role prompts, policy template, tests and documentation
-# under tools/dev-orchestrator/ are committed; none of this is.
-.pw-dev/
-.pw-dev-scratch/
-.pw-dev-worktree
-
-# Editable-install metadata written into tools/dev-orchestrator/src by pip.
-*.egg-info/

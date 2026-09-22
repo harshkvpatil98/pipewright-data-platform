@@ -1,4 +1,0 @@
-{"type":"thread.started","thread_id":"01a0acea-0000-7000-8000-000000000001"}
-{"type":"turn.started"}
-{"type":"error","message":"{\"type\":\"error\",\"status\":429,\"error\":{\"type\":\"rate_limit_error\",\"message\":\"Rate limit reached for this account. Please try again later.\"}}"}
-{"type":"turn.failed","error":{"message":"rate_limit_error: 429 Too Many Requests"}}

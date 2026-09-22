@@ -6,6 +6,8 @@ import { useEffect, useState } from "react";
 import type { AuthUser, PlatformStatusResponse, ProjectSummary } from "@platform/shared-types";
 
 import { AppFrame } from "@/components/shell/app-frame";
+import { runtimeSignalsFromStatus } from "@/components/ui/runtime-banner";
+import { assessRuntime, humanDuration } from "@/lib/runtime-health";
 import { Icon, type IconName } from "@/components/ui/icon";
 import { cx } from "@/lib/utils";
 
@@ -40,6 +42,29 @@ export function HomeDashboard({ currentUser, projects, status }: HomeDashboardPr
   const healthy = status?.status === "healthy";
   const firstProject = projects[0];
 
+  // Background work: the one card that says whether queued work is moving.
+  const runtime = status ? assessRuntime(runtimeSignalsFromStatus(status)) : null;
+  const runtimeSignals = status ? runtimeSignalsFromStatus(status) : null;
+
+  // Health, honestly ordered: whatever is not healthy comes first and is
+  // never hidden by the display cap, and a degraded module says why.
+  const orderedServices = [...(status?.services ?? [])].sort((a, b) =>
+    (a.status === "healthy" ? 1 : 0) - (b.status === "healthy" ? 1 : 0),
+  );
+  const degradedServices = orderedServices.filter((s) => s.status !== "healthy");
+  const healthLabel = healthy
+    ? "All systems healthy"
+    : `${degradedServices.length} module${degradedServices.length === 1 ? "" : "s"} degraded`;
+  const degradedReason = (service: { name: string; details?: Record<string, unknown> }) => {
+    const d = (service.details ?? {}) as Record<string, unknown>;
+    if (typeof d.incidents_open === "number" && d.incidents_open > 0) {
+      const critical = typeof d.incidents_critical === "number" ? d.incidents_critical : 0;
+      return `${d.incidents_open} open incident${d.incidents_open === 1 ? "" : "s"}` +
+        (critical ? ` (${critical} critical)` : "");
+    }
+    return null;
+  };
+
   return (
     <AppFrame
       currentUser={currentUser}
@@ -55,10 +80,7 @@ export function HomeDashboard({ currentUser, projects, status }: HomeDashboardPr
           tone: attention > 0 ? "warn" : "good",
         },
       ]}
-      health={{
-        label: healthy ? "All systems healthy" : "Degraded",
-        healthy,
-      }}
+      health={{ label: healthLabel, healthy, href: "/system-status" }}
     >
       <div className="px-6 py-6 lg:px-8">
         <header className="mb-7">
@@ -184,12 +206,46 @@ export function HomeDashboard({ currentUser, projects, status }: HomeDashboardPr
           </section>
 
           <div className="space-y-5">
+            <section className="rounded-2xl border border-line bg-[color:var(--panel)] p-5">
+              <h2 className="text-[14px] font-semibold text-ink">Background work</h2>
+              {runtimeSignals ? (
+                <>
+                  <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                    {[
+                      { label: "Queued", value: runtimeSignals.queued },
+                      { label: "Running", value: runtimeSignals.running },
+                      { label: "Due now", value: runtimeSignals.dueNow },
+                    ].map((stat) => (
+                      <div key={stat.label} className="rounded-xl bg-surface-2 px-2 py-2.5">
+                        <div className="tabular text-[18px] font-semibold text-ink">{stat.value}</div>
+                        <div className="text-[10.5px] uppercase tracking-[0.12em] text-muted">{stat.label}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {runtime?.level === "stalled" ? (
+                    <p className="mt-3 rounded-lg border border-danger-line bg-danger-soft px-3 py-2 text-[12px] leading-5 text-danger">
+                      Nothing is picking it up — the oldest run has waited{" "}
+                      {humanDuration(runtime.oldestWaitMs)}. Start the worker (see System status).
+                    </p>
+                  ) : (
+                    <p className="mt-3 text-[11.5px] text-muted">
+                      {runtimeSignals.queued + runtimeSignals.running + runtimeSignals.dueNow === 0
+                        ? "Nothing waiting. Scheduled work will appear here."
+                        : "Work is moving normally."}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className="mt-3 text-[11.5px] text-muted">Status unavailable.</p>
+              )}
+            </section>
+
             <section className="rounded-2xl border border-line bg-[color:var(--panel)]">
               <div className="border-b border-line px-5 py-3.5">
                 <h2 className="text-[14px] font-semibold text-ink">Platform health</h2>
               </div>
               <div className="space-y-1 p-3">
-                {(status?.services ?? []).slice(0, 8).map((service) => (
+                {orderedServices.slice(0, Math.max(8, degradedServices.length)).map((service) => (
                   <div
                     key={service.name}
                     className="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5"
@@ -209,7 +265,9 @@ export function HomeDashboard({ currentUser, projects, status }: HomeDashboardPr
                         service.status === "healthy" ? "text-success" : "text-danger",
                       )}
                     >
-                      {service.status}
+                      {service.status === "healthy"
+                        ? "healthy"
+                        : degradedReason(service) ?? service.status}
                     </span>
                   </div>
                 ))}
@@ -241,14 +299,27 @@ export function HomeDashboard({ currentUser, projects, status }: HomeDashboardPr
                   { step: "Shape the data in Studio", icon: "transform" as IconName },
                   { step: "Add quality rules so bad data cannot pass", icon: "shield" as IconName },
                   { step: "Schedule it and publish downstream", icon: "clock" as IconName },
-                ].map((item, index) => (
-                  <li key={item.step} className="flex items-start gap-2.5">
-                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-surface-2 text-[10px] font-semibold text-ink-3">
-                      {index + 1}
-                    </span>
-                    <span className="text-[12px] leading-5 text-ink-2">{item.step}</span>
-                  </li>
-                ))}
+                ].map((item, index) => {
+                  const base = firstProject ? `/projects/${firstProject.id}` : "/projects";
+                  const hrefs = firstProject
+                    ? [base, `${base}/studio`, `${base}/data-quality`, `${base}/schedules`]
+                    : ["/projects", "/projects", "/projects", "/projects"];
+                  return (
+                    <li key={item.step}>
+                      <Link
+                        href={hrefs[index]}
+                        className="group flex items-start gap-2.5 rounded-lg px-1 py-0.5 transition hover:bg-surface-2"
+                      >
+                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-surface-2 text-[10px] font-semibold text-ink-3">
+                          {index + 1}
+                        </span>
+                        <span className="text-[12px] leading-5 text-ink-2 group-hover:text-ink">
+                          {item.step}
+                        </span>
+                      </Link>
+                    </li>
+                  );
+                })}
               </ol>
             </section>
           </div>

@@ -37,6 +37,7 @@ import {
   type Tool,
   type ToolCatalogue,
 } from "@/features/studio/tools/tool-catalogue";
+import { friendlyStepMessage, typeLabel } from "@/lib/labels";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { cx } from "@/lib/utils";
@@ -303,7 +304,27 @@ export function StudioPage({
           }),
         },
       );
-      toast.success("Pipeline saved", `“${created.name}” is ready to run or schedule.`);
+      toast.notify({
+        tone: "success",
+        title: "Pipeline saved",
+        description: `“${created.name}” is ready to run or schedule.`,
+        actions: [
+          {
+            label: "Run now",
+            onClick: () => {
+              void apiFetch(`/projects/${projectId}/pipelines/${created.id}/run`, {
+                method: "POST",
+              })
+                .then(() => toast.info("Run started", "Watch it under the project’s runs."))
+                .catch((caught) => toast.error("Could not start the run", extractErrorMessage(caught)));
+            },
+          },
+          {
+            label: "Schedule",
+            onClick: () => router.push(`/projects/${projectId}/schedules?new=1`),
+          },
+        ],
+      });
       router.refresh();
     } catch (caught) {
       toast.error("Could not save pipeline", extractErrorMessage(caught));
@@ -655,7 +676,7 @@ export function StudioPage({
                 <div className="font-medium">
                   {incomplete ? "Finish setting up this step" : "This step cannot run"}
                 </div>
-                <div className="mt-0.5 text-[12px] opacity-90">{error}</div>
+                <div className="mt-0.5 text-[12px] opacity-90">{friendlyStepMessage(error)}</div>
               </div>
             </div>
           ) : null}
@@ -809,8 +830,11 @@ function InspectorIdle({
                 className="flex items-center justify-between gap-2 rounded-md bg-surface px-2 py-1.5"
               >
                 <span className="truncate text-[12px] text-ink">{column.name}</span>
-                <span className="shrink-0 font-mono text-[10px] text-muted">
-                  {column.inferred_type}
+                <span
+                  className="shrink-0 text-[10.5px] text-muted"
+                  title={column.inferred_type}
+                >
+                  {typeLabel(column.inferred_type)}
                 </span>
               </li>
             ))}
@@ -907,7 +931,7 @@ function ExecutionPlanStrip({
         <span className="text-[12px] text-ink">
           {pushes
             ? `${plan.pushed_steps} step${plan.pushed_steps === 1 ? "" : "s"} would run in ${plan.source_type}`
-            : `Every step runs here — ${plan.source_type} cannot run them`}
+            : `All steps will run in Pipewright — a ${plan.source_type} source cannot run them at the source`}
         </span>
         {plan.local_steps > 0 ? (
           <span className="tabular text-[11px] text-muted">

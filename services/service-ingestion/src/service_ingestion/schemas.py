@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import warnings
+
 import uuid
 from typing import Any
 
@@ -7,6 +9,14 @@ from pydantic import BaseModel, Field
 
 from service_datasets.schemas import DatasetDetailRead
 from service_pipeline_runs.schemas import PipelineRunRead
+
+# `schema_json` is this API's public field name and cannot change; pydantic
+# warns because BaseModel still carries a deprecated method of the same name.
+# The clash is upstream and cosmetic, so exactly that message is filtered.
+warnings.filterwarnings(
+    "ignore", message=r'Field name "schema_json".*', category=UserWarning
+)
+
 
 
 class IngestionUpload(BaseModel):

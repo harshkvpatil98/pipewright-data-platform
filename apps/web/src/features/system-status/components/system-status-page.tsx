@@ -13,6 +13,61 @@ import { appConfig } from "@/lib/config";
 import { parseApiResponse } from "@/lib/api/errors";
 import { serviceHealthTone, toneClasses } from "@/features/system-status/system-status-helpers";
 
+/**
+ * Counters rendered as sentences, not payloads. The person on this page is
+ * deciding whether to trust the platform; raw JSON told them it was not for
+ * them. Known keys become labelled chips, long arrays collapse to a count,
+ * and the untouched payload stays one click away for operators.
+ */
+function ModuleDetails({ details }: { details: Record<string, unknown> }) {
+  const [showRaw, setShowRaw] = useState(false);
+  const entries = Object.entries(details);
+  if (entries.length === 0) return <span>—</span>;
+
+  const chips: string[] = [];
+  const label = (key: string) => key.replace(/_/g, " ");
+  for (const [key, value] of entries) {
+    if (Array.isArray(value)) {
+      chips.push(`${value.length} ${label(key)}`);
+    } else if (typeof value === "number" || typeof value === "boolean") {
+      chips.push(`${value} ${label(key)}`);
+    } else if (typeof value === "string" && value.length <= 60) {
+      chips.push(`${label(key)}: ${value}`);
+    } else if (value === null) {
+      chips.push(`${label(key)}: none`);
+    } else {
+      chips.push(label(key));
+    }
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex flex-wrap gap-1.5">
+        {chips.map((chip) => (
+          <span
+            key={chip}
+            className="rounded-md border border-line bg-surface px-1.5 py-0.5 font-sans text-[11px] text-ink-2"
+          >
+            {chip}
+          </span>
+        ))}
+        <button
+          type="button"
+          onClick={() => setShowRaw((v) => !v)}
+          className="rounded-md px-1.5 py-0.5 font-sans text-[11px] text-muted underline-offset-2 hover:underline"
+        >
+          {showRaw ? "hide raw" : "raw"}
+        </button>
+      </div>
+      {showRaw ? (
+        <pre className="max-w-full overflow-x-auto whitespace-pre-wrap break-all rounded-lg bg-surface-2 p-2 text-[10.5px] leading-4">
+          {JSON.stringify(details, null, 1)}
+        </pre>
+      ) : null}
+    </div>
+  );
+}
+
 async function fetchJson<T>(path: string): Promise<T> {
   const response = await fetch(`${appConfig.apiBaseUrl}${path}`, { cache: "no-store" });
   return parseApiResponse<T>(response);
@@ -145,8 +200,8 @@ export function SystemStatusPage() {
                           {s.status}
                         </span>
                       </td>
-                      <td className="py-2 font-mono text-xs text-ink-3">
-                        {Object.keys(s.details).length === 0 ? "—" : JSON.stringify(s.details)}
+                      <td className="py-2 text-xs text-ink-3">
+                        <ModuleDetails details={s.details} />
                       </td>
                     </tr>
                   ))}

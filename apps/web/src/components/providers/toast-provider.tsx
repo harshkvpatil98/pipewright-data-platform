@@ -7,11 +7,18 @@ import { cx } from "@/lib/utils";
 
 export type ToastTone = "success" | "error" | "info" | "warning";
 
+export type ToastAction = {
+  label: string;
+  onClick: () => void;
+};
+
 type Toast = {
   id: number;
   tone: ToastTone;
   title: string;
   description?: string;
+  /** Optional buttons; clicking one dismisses the toast. */
+  actions?: ToastAction[];
 };
 
 type ToastContextValue = {
@@ -45,7 +52,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       const id = nextId.current++;
       // Cap the stack so a burst of failures cannot cover the screen.
       setToasts((current) => [...current.slice(-3), { ...toast, id }]);
-      setTimeout(() => dismiss(id), AUTO_DISMISS_MS);
+      // A toast offering actions waits for the user; plain ones auto-dismiss.
+      const ttl = toast.actions?.length ? AUTO_DISMISS_MS * 3 : AUTO_DISMISS_MS;
+      setTimeout(() => dismiss(id), ttl);
     },
     [dismiss],
   );
@@ -84,6 +93,23 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                 <div className="text-sm font-medium">{toast.title}</div>
                 {toast.description ? (
                   <div className="mt-0.5 text-xs leading-5 opacity-80">{toast.description}</div>
+                ) : null}
+                {toast.actions?.length ? (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {toast.actions.map((action) => (
+                      <button
+                        key={action.label}
+                        type="button"
+                        onClick={() => {
+                          dismiss(toast.id);
+                          action.onClick();
+                        }}
+                        className="rounded-lg border border-current px-2.5 py-1 text-[11.5px] font-medium opacity-90 transition hover:opacity-100"
+                      >
+                        {action.label}
+                      </button>
+                    ))}
+                  </div>
                 ) : null}
               </div>
               <button

@@ -20,6 +20,7 @@ import type {
 import { Button, FormField, Input, Modal, SectionPanel, Select, Textarea } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
+import { RuntimeBanner } from "@/components/ui/runtime-banner";
 import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { OperationalEmpty, OperationalError } from "@/components/operational/operational-messages";
 import { apiFetch } from "@/lib/api/client";
@@ -65,6 +66,17 @@ function scheduleLeaseLabel(row: ScheduledOperationRecord): string {
   }
   return owner ? `Claimed (${tail})` : "Idle";
 }
+
+/**
+ * Nobody should need to know cron to say "every morning at nine". The presets
+ * write the expression; Custom exposes it exactly as before.
+ */
+const CRON_PRESETS: { label: string; expression: string }[] = [
+  { label: "Every hour, on the hour", expression: "0 * * * *" },
+  { label: "Every day at 09:00", expression: "0 9 * * *" },
+  { label: "Every Monday at 09:00", expression: "0 9 * * 1" },
+  { label: "First of the month at 09:00", expression: "0 9 1 * *" },
+];
 
 export function SchedulesPageView({
   currentUser,
@@ -360,6 +372,7 @@ export function SchedulesPageView({
           </div>
         ) : null}
 
+        <RuntimeBanner />
         <SectionPanel
           title="Saved schedules"
           description="Cron uses the standard five-field form. Automatic runs take a short DB lease so concurrent schedulers are less likely to double-execute the same due slot; stale leases become reclaimable when they expire. Manual Trigger now clears any lease metadata and does not advance the cron slot."
@@ -503,7 +516,30 @@ export function SchedulesPageView({
           <FormField label="Description" htmlFor="sched-desc">
             <Textarea id="sched-desc" value={description} onChange={(e) => setDescription(e.target.value)} rows={2} />
           </FormField>
-          <FormField label="Cron expression" htmlFor="sched-cron">
+          <FormField label="Runs" htmlFor="sched-preset">
+            <Select
+              id="sched-preset"
+              value={CRON_PRESETS.find((p) => p.expression === cronExpression)?.expression ?? "custom"}
+              onChange={(e) => {
+                if (e.target.value !== "custom") setCronExpression(e.target.value);
+              }}
+            >
+              {CRON_PRESETS.map((preset) => (
+                <option key={preset.expression} value={preset.expression}>
+                  {preset.label}
+                </option>
+              ))}
+              <option value="custom">Custom (cron expression)</option>
+            </Select>
+          </FormField>
+          <FormField
+            label="Cron expression"
+            htmlFor="sched-cron"
+            description={
+              CRON_PRESETS.find((p) => p.expression === cronExpression)?.label ??
+              "Five fields: minute, hour, day of month, month, day of week."
+            }
+          >
             <Input
               id="sched-cron"
               value={cronExpression}

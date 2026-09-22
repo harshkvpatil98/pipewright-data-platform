@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { Icon } from "@/components/ui/icon";
 import { cx } from "@/lib/utils";
 
@@ -13,7 +15,7 @@ export type StatusItem = {
 type StatusBarProps = {
   items: StatusItem[];
   /** Right-aligned live indicator, e.g. platform health. */
-  health?: { label: string; healthy: boolean };
+  health?: { label: string; healthy: boolean; href?: string };
 };
 
 const TONE_TEXT = {
@@ -43,18 +45,34 @@ export function StatusBar({ items, health }: StatusBarProps) {
       ))}
 
       {health ? (
-        <span className="ml-auto flex items-center gap-1.5 whitespace-nowrap">
-          <span
-            className={cx(
-              "h-1.5 w-1.5 rounded-full",
-              health.healthy ? "animate-live bg-success" : "bg-danger",
-            )}
-            aria-hidden="true"
-          />
-          <span className={health.healthy ? "text-success" : "text-danger"}>
-            {health.label}
-          </span>
-        </span>
+        (() => {
+          const body = (
+            <>
+              <span
+                className={cx(
+                  "h-1.5 w-1.5 rounded-full",
+                  health.healthy ? "animate-live bg-success" : "bg-danger",
+                )}
+                aria-hidden="true"
+              />
+              <span className={health.healthy ? "text-success" : "text-danger"}>
+                {health.label}
+              </span>
+            </>
+          );
+          // A red light that cannot be clicked is an accusation without a
+          // case file; the chip always leads to the page that explains it.
+          return health.href ? (
+            <Link
+              href={health.href}
+              className="ml-auto flex items-center gap-1.5 whitespace-nowrap hover:underline"
+            >
+              {body}
+            </Link>
+          ) : (
+            <span className="ml-auto flex items-center gap-1.5 whitespace-nowrap">{body}</span>
+          );
+        })()
       ) : null}
     </footer>
   );

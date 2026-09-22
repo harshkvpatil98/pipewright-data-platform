@@ -8,6 +8,8 @@ import type { AuthUser, WorkflowDetail, WorkflowSummary } from "@platform/shared
 
 import { useToast } from "@/components/providers/toast-provider";
 import { AppFrame } from "@/components/shell/app-frame";
+import { RuntimeBanner } from "@/components/ui/runtime-banner";
+import { humanDuration } from "@/lib/runtime-health";
 import type { RibbonGroup } from "@/components/shell/ribbon";
 import { Icon } from "@/components/ui/icon";
 import { DeleteRowButton } from "@/components/ui/delete-row-button";
@@ -129,6 +131,7 @@ export function WorkflowListPage({
       ]}
     >
       <div className="px-6 py-6 lg:px-8">
+        <RuntimeBanner />
         <header className="mb-6 max-w-3xl">
           <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.2em] text-[color:var(--accent-muted)]">
             Automate
@@ -315,6 +318,9 @@ export function WorkflowListPage({
                         )}
                       >
                         {workflow.last_run_status}
+                        {workflow.last_run_status === "queued" && workflow.last_run_at
+                          ? ` · waiting ${humanDuration(Date.now() - Date.parse(workflow.last_run_at))}`
+                          : ""}
                       </span>
                     ) : null}
                   </div>

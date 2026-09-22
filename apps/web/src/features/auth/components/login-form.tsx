@@ -49,7 +49,7 @@ export function LoginForm() {
       </div>
       <SectionPanel
         title="Sign in"
-        description="Authenticate with a bootstrapped platform user to access your owned projects and run history."
+        description="Sign in to your Pipewright workspace."
       >
         <form className="space-y-5" onSubmit={handleSubmit}>
           <FormField label="Username" htmlFor="username">

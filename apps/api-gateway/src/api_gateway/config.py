@@ -42,7 +42,7 @@ class Settings(BaseSettings):
     # compress well; below this the CPU cost outweighs the transfer saving.
     gzip_minimum_size_bytes: int = Field(default=1024, ge=0)
     backend_cors_origins: list[str] = ["http://localhost:3000"]
-    auth_jwt_secret: str = "change-this-for-production"
+    auth_jwt_secret: str = "change-this-development-only-secret-0123456789"
     # Deliberately still the pre-rebrand name. These two are *validated* on
     # every token decode, so changing them invalidates every issued token --
     # signing out every user of any deployment that did not override them.

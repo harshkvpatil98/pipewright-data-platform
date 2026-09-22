@@ -11,7 +11,7 @@ def test_jwt_round_trip() -> None:
     token, expires_in = create_access_token(
         user_id="123",
         username="platform-admin",
-        secret_key="test-secret",
+        secret_key="test-secret-of-at-least-32-bytes-len",
         issuer="platform",
         audience="web",
         expires_minutes=10,
@@ -19,7 +19,7 @@ def test_jwt_round_trip() -> None:
 
     payload = decode_access_token(
         token,
-        secret_key="test-secret",
+        secret_key="test-secret-of-at-least-32-bytes-len",
         issuer="platform",
         audience="web",
     )

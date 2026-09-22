@@ -7,6 +7,8 @@ import type {
 } from "@platform/shared-types";
 import { Select } from "@platform/shared-ui";
 
+import { typeLabel } from "@/lib/labels";
+
 import {
   CERTAINTY_LABEL,
   CERTAINTY_TONE,
@@ -181,13 +183,13 @@ export function IngestReviewPanel({ analysis, spec, onSpecChange }: Props) {
                       >
                         {COLUMN_TYPES.map((type) => (
                           <option key={type} value={type}>
-                            {type}
+                            {typeLabel(type)}
                           </option>
                         ))}
                         {COLUMN_TYPES.includes(
                           column.type as (typeof COLUMN_TYPES)[number],
                         ) ? null : (
-                          <option value={column.type}>{column.type}</option>
+                          <option value={column.type}>{typeLabel(column.type)}</option>
                         )}
                       </Select>
                     </td>

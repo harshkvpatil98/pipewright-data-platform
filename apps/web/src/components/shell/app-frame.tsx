@@ -22,7 +22,7 @@ type AppFrameProps = {
   /** Contextual ribbon for the current page. Omit for pages with no actions. */
   ribbon?: RibbonGroup[];
   statusItems?: StatusItem[];
-  health?: { label: string; healthy: boolean };
+  health?: { label: string; healthy: boolean; href?: string };
   inspector?: { title: string; content: React.ReactNode };
   /** Page-specific palette entries, merged with global navigation. */
   commands?: Command[];
@@ -38,7 +38,11 @@ type AppFrameProps = {
  * because pointing them all at the project list would put several identical
  * links in the rail.
  */
-function buildRailSections(projectId?: string, projectName?: string): RailSection[] {
+function buildRailSections(
+  projectId?: string,
+  projectName?: string,
+  isPlatformAdmin = false,
+): RailSection[] {
   const sections: RailSection[] = [
     {
       id: "workspace",
@@ -79,6 +83,17 @@ function buildRailSections(projectId?: string, projectName?: string): RailSectio
     });
   }
 
+  if (isPlatformAdmin) {
+    sections.push({
+      id: "admin",
+      label: "Administration",
+      items: [
+        { id: "people", label: "People", icon: "shield", href: "/people" },
+        { id: "organisations", label: "Organisations", icon: "grid", href: "/organisations" },
+      ],
+    });
+  }
+
   sections.push({
     id: "platform",
     label: "Platform",
@@ -104,7 +119,8 @@ export function AppFrame({
   disableWelcomeTour = false,
   children,
 }: AppFrameProps) {
-  const [railExpanded, setRailExpanded] = useState(false);
+  // Labels visible by default: an icon-only rail is a memory test.
+  const [railExpanded, setRailExpanded] = useState(true);
   const [inspectorOpen, setInspectorOpen] = useState(true);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [isMac, setIsMac] = useState(true);
@@ -127,8 +143,8 @@ export function AppFrame({
     useActiveProject();
 
   const railSections = useMemo(
-    () => buildRailSections(activeProject?.id, activeProject?.name),
-    [activeProject],
+    () => buildRailSections(activeProject?.id, activeProject?.name, currentUser?.role === "admin"),
+    [activeProject, currentUser?.role],
   );
 
   const railItems = useMemo(

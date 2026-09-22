@@ -318,6 +318,20 @@ def queue_depth(db: Session) -> int:
     ) or 0
 
 
+def oldest_queued_at(db: Session):
+    """When the longest-waiting queued run entered the queue, or None.
+
+    The age of the oldest waiter is the one number that separates "a run was
+    just queued" from "nothing has polled this queue in a month" -- the status
+    page exposes it so that second case cannot hide behind a healthy label.
+    """
+    from sqlalchemy import func
+
+    return db.scalar(
+        select(func.min(WorkflowRun.queued_at)).where(WorkflowRun.status == "queued")
+    )
+
+
 def running_count(db: Session) -> int:
     from sqlalchemy import func
 

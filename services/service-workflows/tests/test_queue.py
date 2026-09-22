@@ -16,6 +16,7 @@ from service_workflows.queue import (
     release_stalled_runs,
     claim_next_run,
     enqueue_workflow_run,
+    oldest_queued_at,
     queue_depth,
     running_count,
     worker_identity,
@@ -197,6 +198,25 @@ def test_queue_counters_reflect_state(db: Session, workflow: Workflow) -> None:
     claim_next_run(db)
     assert queue_depth(db) == 1
     assert running_count(db) == 1
+
+
+def test_oldest_queued_at_reports_the_longest_waiter(db: Session, workflow: Workflow) -> None:
+    """The stalled-queue signal: None when empty, the earliest queued_at otherwise."""
+    assert oldest_queued_at(db) is None
+
+    first = enqueue_workflow_run(db, workflow=workflow, triggered_by_user_id=None)
+    enqueue_workflow_run(db, workflow=workflow, triggered_by_user_id=None)
+    oldest = oldest_queued_at(db)
+    assert oldest is not None
+    assert oldest == first.queued_at
+
+    # Claiming the oldest run moves the marker to the next waiter, and an
+    # empty queue goes back to None rather than a stale timestamp.
+    claim_next_run(db)
+    remaining = oldest_queued_at(db)
+    assert remaining is not None and remaining >= oldest
+    claim_next_run(db)
+    assert oldest_queued_at(db) is None
 
 
 def test_worker_identity_is_stable_within_a_process() -> None:

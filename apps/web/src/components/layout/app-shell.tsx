@@ -6,6 +6,7 @@ import { useMemo } from "react";
 import type { AuthUser } from "@platform/shared-types";
 
 import { AppFrame } from "@/components/shell/app-frame";
+import { useActiveProject } from "@/lib/use-active-project";
 import type { Crumb } from "@/components/shell/top-bar";
 import type { RibbonGroup } from "@/components/shell/ribbon";
 import type { StatusItem } from "@/components/shell/status-bar";
@@ -42,6 +43,7 @@ export function AppShell({
   children,
 }: AppShellProps) {
   const pathname = usePathname();
+  const { active: activeProject } = useActiveProject();
 
   const crumbs = useMemo<Crumb[]>(() => {
     const segments = pathname.split("/").filter(Boolean);
@@ -50,9 +52,13 @@ export function AppShell({
     // /projects/<id>/<section> -> Projects / Workspace / <Title>
     if (segments[0] === "projects" && segments.length >= 2) {
       const projectId = segments[1];
+      // The middle crumb is the project itself; "Workspace" told nobody
+      // where they were.
+      const projectLabel =
+        activeProject && activeProject.id === projectId ? activeProject.name : "Project";
       const trail: Crumb[] = [
         { label: "Projects", href: "/projects" },
-        { label: "Workspace", href: `/projects/${projectId}` },
+        { label: projectLabel, href: `/projects/${projectId}` },
       ];
       if (segments.length > 2) trail.push({ label: title });
       else trail[1] = { label: title, href: `/projects/${projectId}` };
@@ -60,7 +66,7 @@ export function AppShell({
     }
 
     return [{ label: title }];
-  }, [pathname, title]);
+  }, [pathname, title, activeProject]);
 
   return (
     <AppFrame

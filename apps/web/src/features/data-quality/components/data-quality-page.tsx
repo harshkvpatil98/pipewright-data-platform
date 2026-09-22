@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useId, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useState } from "react";
 
 import type {
   AuthUser,
@@ -15,6 +15,7 @@ import { Button, FormField, Input, SectionPanel, Select, StatusBadge } from "@pl
 import { AppShell } from "@/components/layout/app-shell";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
+import { ruleTypeLabel } from "@/lib/labels";
 import { cx } from "@/lib/utils";
 
 type DataQualityPageProps = {
@@ -97,6 +98,27 @@ export function DataQualityPageView({
   const [datasetId, setDatasetId] = useState<string>(datasets[0]?.id ?? "");
   const [configValues, setConfigValues] = useState<Record<string, string>>({});
   const [quarantine, setQuarantine] = useState(false);
+
+  // The chosen dataset's columns, so a `column` field is a pick, not a typo.
+  const [datasetColumns, setDatasetColumns] = useState<string[]>([]);
+  useEffect(() => {
+    if (!datasetId) {
+      setDatasetColumns([]);
+      return;
+    }
+    let cancelled = false;
+    apiFetch<{ columns: string[] }>(`/projects/${projectId}/datasets/${datasetId}/preview`)
+      .then((preview) => {
+        if (!cancelled) setDatasetColumns(preview.columns ?? []);
+      })
+      .catch(() => {
+        // No preview (never ingested): fall back to the free-text field.
+        if (!cancelled) setDatasetColumns([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, datasetId]);
 
   const activeRuleType = useMemo(
     () => ruleTypes.find((item) => item.rule_type === ruleType),
@@ -226,7 +248,7 @@ export function DataQualityPageView({
               >
                 {ruleTypes.map((item) => (
                   <option key={item.rule_type} value={item.rule_type}>
-                    {item.rule_type}
+                    {ruleTypeLabel(item.rule_type)}
                   </option>
                 ))}
               </Select>
@@ -245,8 +267,8 @@ export function DataQualityPageView({
                 value={severity}
                 onChange={(event) => setSeverity(event.target.value as RuleSeverity)}
               >
-                <option value="error">error</option>
-                <option value="warning">warning</option>
+                <option value="error">Error — quarantine failing rows</option>
+                <option value="warning">Warning — report only</option>
               </Select>
             </FormField>
             <FormField
@@ -274,14 +296,31 @@ export function DataQualityPageView({
                 label={field.label}
                 htmlFor={`${fieldPrefix}-${field.key}`}
               >
-                <Input
-                  id={`${fieldPrefix}-${field.key}`}
-                  value={configValues[field.key] ?? ""}
-                  onChange={(event) =>
-                    setConfigValues((values) => ({ ...values, [field.key]: event.target.value }))
-                  }
-                  placeholder={field.placeholder}
-                />
+                {field.key === "column" && datasetColumns.length > 0 ? (
+                  <Select
+                    id={`${fieldPrefix}-${field.key}`}
+                    value={configValues[field.key] ?? ""}
+                    onChange={(event) =>
+                      setConfigValues((values) => ({ ...values, [field.key]: event.target.value }))
+                    }
+                  >
+                    <option value="">Choose a column…</option>
+                    {datasetColumns.map((column) => (
+                      <option key={column} value={column}>
+                        {column}
+                      </option>
+                    ))}
+                  </Select>
+                ) : (
+                  <Input
+                    id={`${fieldPrefix}-${field.key}`}
+                    value={configValues[field.key] ?? ""}
+                    onChange={(event) =>
+                      setConfigValues((values) => ({ ...values, [field.key]: event.target.value }))
+                    }
+                    placeholder={field.placeholder}
+                  />
+                )}
               </FormField>
             ))}
 

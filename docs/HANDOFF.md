@@ -4,8 +4,8 @@
 last one stopped. Keep it current. If you change project state, update the **Progress ledger**
 and **Session log** at the bottom before you finish.
 
-**Last updated:** 2026-09-16
-**Updated by:** session `add9b3f2` (Phases 10 and 11 complete; roadmap v2 phases 18-23 remain, 16 partial)
+**Last updated:** 2026-09-22
+**Updated by:** session `7b73c2ff` (development orchestrator removed; single-session workflow restored)
 
 ---
 
@@ -51,23 +51,15 @@ npm run dev
 **Requires Homebrew `python@3.12`.** The system Python will not work. If `npm run setup` fails
 on the venv, that is usually why.
 
-### The development orchestrator
+### How development works
 
-`tools/dev-orchestrator/` holds `pw-dev`, which runs a phase through an OpenAI
-planner, Claude implementation workers in isolated worktrees, controller-executed
-verification, an independent OpenAI review, and a gated commit and push. See
-[`tools/dev-orchestrator/README.md`](../tools/dev-orchestrator/README.md) and
-[`AGENTS.md`](../AGENTS.md).
-
-```bash
-.venv/bin/pw-dev doctor --probe        # what this machine can actually do
-.venv/bin/pw-dev plan --next           # a reviewable specification, nothing implemented
-.venv/bin/pw-dev run --next --publish feature-branch
-```
-
-It is development tooling, outside the product runtime. Its own lint and tests
-are wired into `scripts/verify-release.sh` and `scripts/test.sh`, so
-`npm run verify` covers them.
+One Claude Code session, working directly in the repository: read the context,
+plan briefly, implement, run the verification gate, review the diff, update
+this handoff. The rules live in [`AGENTS.md`](../AGENTS.md) and the workflow in
+[`CLAUDE.md`](../CLAUDE.md). There are no delegated agent roles and no
+orchestrator — the `pw-dev` development orchestrator that briefly ran phases
+through planner/worker/reviewer roles was removed on 2026-09-22 (see the
+session log).
 
 ### The verification gate — run this after every change
 
@@ -75,8 +67,8 @@ are wired into `scripts/verify-release.sh` and `scripts/test.sh`, so
 npm run verify     # ruff + pytest + ESLint + tsc + production build
 ```
 
-Everything must be green before moving on. Current baseline: **5,943 Python tests,
-652 web tests, all passing.**
+Everything must be green before moving on. Current baseline: **6,022 Python tests
+(573 skipped), 673 web tests, all passing, zero warnings.**
 
 Other commands: `npm test` (tests only) · `npm run smoke` (end-to-end smoke) ·
 `npm run lint` · `npm run typecheck` · `scripts/backup.sh --verify` (real restore drill).
@@ -634,5 +626,10 @@ Report honestly. If something is unverified, say so and add it to §7.
 | 2026-09-16 | `add9b3f2` | **Phase 10 complete.** Connector factory: 211 connectors from four generators, 50 at tier 2 backed by vendor-contract fixtures, real PostgreSQL/MySQL/MariaDB containers in CI, and the whole S3 family. OData and JSON:API protocol connectors, the schema watch with drift incidents and a nightly schedule type (migration 0029), secret references, and a `/connectors/watch` API plus UI. Found five live bugs — dropped pagination parameter names, seven manifests treating a next-page URL as a token, httpx wiping a follow-up query, a SQL connector `read()` that had never worked, and a URL check that banned `@` in every Basic-auth username — plus a tenancy leak and a stream-name collision in review. 4,701 → 5,621 Python tests |
 
 | 2026-09-16 | `add9b3f2` | **Phase 11 complete.** Ingestion intelligence: a sniffing pipeline where every stage reports confidence and evidence and an ambiguous date blocks rather than defaults; ten per-format readers; the ingest spec, stored against a column fingerprint and reused next month; chunked resumable upload with checksum; a streaming profiler using Welford; six nested-data tools (167 → 173); a 72-file awful corpus; migration 0030 and an analyse-before-commit UI. Found seven real bugs including every import being silently truncated to 5,000 rows, `10.0` narrowed to an integer, `01234` becoming 1234, and a preamble becoming the table. 5,621 → 5,943 Python, 636 → 652 web tests |
+
+| 2026-09-20 | `7b73c2ff` | Maintenance on branch `pw-dev/orchestrator-maintenance`: secret-vault path fix, project/dataset/user/org lifecycle endpoints (rename, archive, delete, deactivate, revoke), delete affordances across the UI, People and Organisations admin pages, dashboards page, workflow-run cancel, report delivery history, a 204-parse fix. 5,943 → 6,583 Python, 652 → 656 web tests |
+| 2026-09-22 | `7b73c2ff` | **Development orchestrator removed.** `tools/dev-orchestrator/` deleted; `pw-dev-orchestrator` uninstalled from `.venv`; `.pw-dev/` runtime state cleared after preservation. The unmerged Phase 18 run (28 commits), its staged docs patch, the full planning record and run evidence are preserved in `backups/orchestrator-removal-2026-09-22/` (see its `RECOVERY.md`); the `pw-dev/run-20260918-d770792f/*` branches were kept. Rules moved to `AGENTS.md`, workflow to `CLAUDE.md`; `docs/plans/phase-18-review-requirements.md` rewritten as runner-independent requirements. `npm run verify` green after removal: 6,583 → 6,021 Python tests (the orchestrator's own 562 left with it), 656 web |
+
+| 2026-09-23 | `7b73c2ff` | **Production-readiness P0 (Truth & trust).** Adoption review published; `docs/plans/production-readiness-workflow.md` written (P0–P9). Language pass (labels.ts: type/rule/severity names, friendly step messages; applied across Studio, upload, data-quality, login). DQ column dropdown. Schedule cron presets. Studio save-toast Run now/Schedule actions. Runtime visibility: oldest_queued_at + assessRuntime, Home Background-work card, stalled banners on Workflows/Schedules, linked health chip, honest health panel. System-status humanised (chips + collapsed drivers + raw toggle). Rail labelled by default + Administration section. Breadcrumb shows project name. Warning debt 20→0 (JWT keys, pydantic shadow filtered at site, starlette deprecation in pytest.ini). 6,021→6,022 Python, 656→673 web. Verified live in browser. |
 
 <!-- Add a row above when you finish a session. Keep it to one line. -->

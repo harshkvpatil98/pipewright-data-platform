@@ -7,7 +7,7 @@ established alternatives for data work — not by claiming more, but by being
 the only honest, governed, spreadsheet-fast data platform that a business team
 can run without a data engineer on call.
 
-**Status:** P2 done (2026-09-23); P3 (Operational backbone) is next on “continue”. One phase executes per session-run;
+**Status:** P3 done (2026-09-23); P4 (Enterprise identity) is next on “continue”. One phase executes per session-run;
 the owner says **“continue”** to start the next. This file is the single
 source of truth for what each phase contains; the session log in
 `docs/HANDOFF.md` records what actually happened.
@@ -267,10 +267,28 @@ upload is carried into P3 (see below).
 
 ---
 
-## P3 — Operational backbone
+## P3 — Operational backbone *(status: **done** 2026-09-23)*
 
 **Objective:** kill the worker mid-demo; the UI says so within a minute and
 recovers alone.
+
+**Delivered:** runtime heartbeats (workflow worker + schedule ticker each beat
+a `runtime_heartbeats` row every loop) give ground truth; `assessRuntime`
+consumes them first and falls back to queue-age inference. Packaged runtime:
+`scripts/worker.sh` supervises both processes, `dev.sh` starts them, docker
+compose gains `app`/`worker` profiles with restart policies. A System-status
+Runtime panel and the Home card show per-component heartbeat + queue depths. A
+stalled queue (>30 min, no beating worker) opens a "runtime" incident from the
+ticker and auto-resolves on drain. Workflow-run failures now notify in-app like
+every other run, and the first-run checklist offers Slack/email targets.
+Dashboard sharing is finished end to end (public `/shared/dashboards/{token}`
+viewer, robots-noindex, immediate revocation). Real cross-project `/runs`
+(status filter) and `/datasets` (search) replace the redirects, scoped by the
+project-access rule. Upload sessions moved to a durable `upload_sessions` table
+so a gateway restart resumes rather than orphans (this absorbed the resumable
+item carried from P2). *Deferred stretch:* the dead-letter view for failed
+workflow nodes with re-run — a genuine enhancement, not a gap in the objective,
+recorded here rather than silently dropped.
 
 - **Packaged runtime:** `scripts/worker.sh` + supervised processes in dev
   (`dev.sh` starts gateway + workflow worker + schedule ticker) and compose

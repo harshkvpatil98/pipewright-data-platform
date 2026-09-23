@@ -7,6 +7,10 @@ trustworthy, because pushdown rewrites the user's computation.
 
 from __future__ import annotations
 
+from contextlib import contextmanager
+from contextvars import ContextVar
+from typing import Iterator
+
 from typing import Any, Callable
 
 import pandas as pd
@@ -32,6 +36,34 @@ from service_transformations.ir.nodes import (
 #: Handlers for `Extension`, registered by the steps that need them. Keeping
 #: them out here means the IR never learns what a bespoke step does.
 _EXTENSIONS: dict[str, Callable[[pd.DataFrame, dict[str, Any]], pd.DataFrame]] = {}
+
+# -- warnings ---------------------------------------------------------------
+#
+# The engine used to hand back warnings beside every frame ("column x gained
+# 12 nulls", "join matched no rows"). The IR's execute returns a frame only, so
+# anything running inside it -- an Extension handler, a function that coerced
+# values -- says its piece through here, and the executor that opened the scope
+# collects it. Outside a scope a warning is dropped, which is right for a unit
+# test that only wants the frame.
+_WARNINGS: ContextVar[list[str] | None] = ContextVar("pipewright_ir_warnings", default=None)
+
+
+def warn(message: str) -> None:
+    """Record something the person should know about the step being run."""
+    sink = _WARNINGS.get()
+    if sink is not None and message and message not in sink:
+        sink.append(message)
+
+
+@contextmanager
+def warnings_scope() -> Iterator[list[str]]:
+    """Collect every `warn` raised while the block runs."""
+    sink: list[str] = []
+    token = _WARNINGS.set(sink)
+    try:
+        yield sink
+    finally:
+        _WARNINGS.reset(token)
 
 
 def register_extension(

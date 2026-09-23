@@ -336,4 +336,34 @@ def _finish(
 
     db.commit()
     db.refresh(run)
+    _notify_run_outcome(db, run, target, status, error)
     return run
+
+
+def _notify_run_outcome(
+    db: Session,
+    run: WorkflowRun,
+    workflow: Workflow | None,
+    status: str,
+    error: str | None,
+) -> None:
+    """In-app notification when a run does not fully succeed. Best effort: a
+    notification failure must never turn a finished run back into an error."""
+    if status not in ("failed", "partial"):
+        return
+    recipient = run.triggered_by_user_id or (workflow.created_by_user_id if workflow else None)
+    if recipient is None:
+        return
+    try:
+        from service_notifications.outcomes import notify_workflow_run_outcome
+
+        notify_workflow_run_outcome(
+            db,
+            user_id=recipient,
+            project_id=run.project_id,
+            workflow_name=workflow.name if workflow else "workflow",
+            status=status,
+            error=error,
+        )
+    except Exception:  # noqa: BLE001 - see docstring
+        logger.exception("workflow_run_notify_failed run_id=%s", run.id)

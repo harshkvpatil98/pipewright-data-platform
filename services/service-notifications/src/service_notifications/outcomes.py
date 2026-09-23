@@ -207,6 +207,49 @@ def notify_automated_schedule_outcome(
         )
 
 
+def notify_workflow_run_outcome(
+    db: Session,
+    *,
+    user_id: uuid.UUID,
+    project_id: uuid.UUID,
+    workflow_name: str,
+    status: str,
+    error: str | None = None,
+) -> None:
+    """Tell the owner when a workflow run does not fully succeed.
+
+    Scheduled and manual pipeline runs already notify; workflow (DAG) runs did
+    not, which meant the one kind of run most likely to fail silently -- the
+    multi-step one a worker executes with nobody watching -- was the one that
+    said nothing. Success is intentionally quiet (every green run would be
+    noise); only a failure or a partial finish is worth an interruption.
+    """
+    if status == "failed":
+        detail = f": {error}" if error else "."
+        _persist_notification(
+            db,
+            user_id=user_id,
+            project_id=project_id,
+            type="workflow_run_failed",
+            level="error",
+            title="Workflow run failed",
+            message=f"Workflow “{workflow_name}” failed{detail}",
+        )
+    elif status == "partial":
+        _persist_notification(
+            db,
+            user_id=user_id,
+            project_id=project_id,
+            type="workflow_run_partial",
+            level="warning",
+            title="Workflow run finished with problems",
+            message=(
+                f"Workflow “{workflow_name}” finished, but some steps failed or were skipped. "
+                "Open the run to see which."
+            ),
+        )
+
+
 def _uuid_or_none(value: Any) -> uuid.UUID | None:
     if value is None:
         return None

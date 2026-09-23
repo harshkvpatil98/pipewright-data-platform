@@ -171,6 +171,17 @@ export function ProjectChecklist({ projectId, datasetCount, onAddData }: Project
           );
         })}
       </ol>
+
+      <div className="mt-4 flex flex-wrap items-center gap-x-1.5 gap-y-1 border-t border-line pt-3 text-[11.5px] text-muted">
+        <Icon name="bell" size={12} className="text-ink-3" />
+        <span>Failures already show up in your notifications.</span>
+        <Link
+          href={`/projects/${projectId}/notification-targets`}
+          className="font-medium text-accent underline-offset-2 hover:underline"
+        >
+          Also send them to Slack or email →
+        </Link>
+      </div>
     </section>
   );
 }

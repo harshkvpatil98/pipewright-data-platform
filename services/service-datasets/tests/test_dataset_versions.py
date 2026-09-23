@@ -24,6 +24,7 @@ from service_auth.schemas import UserRead
 from service_datasets.models import Dataset, DatasetVersion
 from service_datasets.service import (
     apply_dataset_materialization_success,
+    delete_dataset,
     finalize_dataset_materialization_success,
     get_dataset_version,
     get_dataset_version_preview,
@@ -264,6 +265,52 @@ def test_reading_a_version_that_does_not_exist_is_a_404(db: Session, world: dict
         get_dataset_version_preview(db, world["project"].id, dataset.id, 99, _as_read(world["owner"]))
     with pytest.raises(NotFoundError):
         get_dataset_version(db, world["project"].id, dataset.id, 99, _as_read(world["owner"]))
+
+
+class _TrackingStorage:
+    """Remembers deletions, so a test can assert which artifacts were reclaimed."""
+
+    def __init__(self) -> None:
+        self.deleted: list[str] = []
+
+    def delete(self, path: str) -> None:
+        self.deleted.append(path)
+
+
+def test_deleting_a_dataset_reclaims_every_version_artifact(db: Session, world: dict):
+    # Without this, the head file is reclaimed but every older snapshot leaks
+    # on disk forever -- rows cascade away, bytes stay.
+    dataset = world["dataset"]
+    _materialise(db, dataset, path="uploads/v1.csv", data=b"one", owner_id=world["owner"].id)
+    _materialise(db, dataset, path="uploads/v2.csv", data=b"two", owner_id=world["owner"].id)
+
+    storage = _TrackingStorage()
+    delete_dataset(
+        db, world["project"].id, dataset.id, _as_read(world["owner"]),
+        storage_backend=storage,
+    )
+    assert sorted(storage.deleted) == ["uploads/v1.csv", "uploads/v2.csv"]
+
+
+def test_a_version_artifact_shared_with_another_dataset_is_kept(db: Session, world: dict):
+    dataset = world["dataset"]
+    _materialise(db, dataset, path="uploads/v1.csv", data=b"one", owner_id=world["owner"].id)
+    _materialise(db, dataset, path="uploads/v2.csv", data=b"two", owner_id=world["owner"].id)
+    # A second dataset's head points at the first dataset's old snapshot.
+    other = Dataset(
+        project_id=world["project"].id, name="copy", status="ready",
+        file_path="uploads/v1.csv",
+    )
+    db.add(other)
+    db.commit()
+
+    storage = _TrackingStorage()
+    delete_dataset(
+        db, world["project"].id, dataset.id, _as_read(world["owner"]),
+        storage_backend=storage,
+    )
+    # v1 is still referenced by the other dataset; only v2 is reclaimed.
+    assert storage.deleted == ["uploads/v2.csv"]
 
 
 def test_a_version_without_the_bytes_records_a_null_digest(db: Session, world: dict):

@@ -188,24 +188,42 @@ def delete_dataset(
     """
     ensure_owned_project(db, project_id, current_user.id)
     dataset = get_dataset_model_for_project(db, project_id, dataset_id)
-    file_path = dataset.file_path
+
+    # Version artifacts belong to this dataset's history; collect them before
+    # the cascade removes the rows that know where they are. Without this, the
+    # head file is reclaimed but every older snapshot leaks on disk forever.
+    candidate_paths = {path for path in [dataset.file_path] if path}
+    candidate_paths.update(
+        path
+        for path in db.scalars(
+            select(DatasetVersion.file_path).where(
+                DatasetVersion.dataset_id == dataset_id
+            )
+        ).all()
+        if path
+    )
 
     db.delete(dataset)
     db.commit()
 
-    if storage_backend is None or not file_path:
+    if storage_backend is None or not candidate_paths:
         return
-    still_referenced = db.scalar(
-        select(Dataset.id).where(Dataset.file_path == file_path).limit(1)
-    )
-    if still_referenced is not None:
-        return
-    try:
-        storage_backend.delete(file_path)
-    except Exception:  # noqa: BLE001 - the row is gone; this is cleanup, not the request
-        logger.warning(
-            "dataset_artifact_not_removed dataset_id=%s path=%s", dataset_id, file_path
+    for path in candidate_paths:
+        # Only remove bytes nothing else points at -- another dataset's head or
+        # another dataset's version can share an artifact path.
+        still_referenced = db.scalar(
+            select(Dataset.id).where(Dataset.file_path == path).limit(1)
+        ) or db.scalar(
+            select(DatasetVersion.id).where(DatasetVersion.file_path == path).limit(1)
         )
+        if still_referenced is not None:
+            continue
+        try:
+            storage_backend.delete(path)
+        except Exception:  # noqa: BLE001 - the row is gone; this is cleanup, not the request
+            logger.warning(
+                "dataset_artifact_not_removed dataset_id=%s path=%s", dataset_id, path
+            )
 
 
 def get_dataset_preview(

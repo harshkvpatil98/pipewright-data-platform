@@ -13,6 +13,7 @@ from service_auth.schemas import UserRead
 from service_extraction.connectors import sql_database
 from service_extraction.connectors.base import SENSITIVE_CONFIG_FIELDS
 from service_extraction.tiers import note_for
+from service_extraction.shaping import validate_job_steps
 from service_extraction.models import ExtractionConnection, ExtractionJob
 from service_extraction.schemas import (
     ConnectionTestResponse,
@@ -349,6 +350,7 @@ def create_job(
         cursor_column=payload.cursor_column,
         primary_key_columns=list(payload.primary_key_columns),
         max_rows=payload.max_rows,
+        steps_json=validate_job_steps(payload.steps, load_mode=payload.load_mode) or None,
         created_by_user_id=current_user.id,
     )
     db.add(job)
@@ -379,6 +381,13 @@ def update_job(
         job.primary_key_columns = list(payload.primary_key_columns)
     if payload.max_rows is not None:
         job.max_rows = payload.max_rows
+    if payload.steps is not None or payload.load_mode is not None:
+        # Re-checked whenever either side changes: a step that was fine for a
+        # full refresh is not fine for an incremental slice.
+        job.steps_json = validate_job_steps(
+            payload.steps if payload.steps is not None else list(job.steps_json or []),
+            load_mode=job.load_mode,
+        ) or None
     if payload.enabled is not None:
         job.enabled = payload.enabled
 

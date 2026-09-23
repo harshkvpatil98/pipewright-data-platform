@@ -80,6 +80,9 @@ export type ExtractionJob = {
   cursor_column: string | null;
   primary_key_columns: string[] | null;
   max_rows: number;
+  /** Transformation steps applied at extraction; the pushable prefix runs in
+   * the source database, the rest here, before the dataset is written. */
+  steps: { step_type: string; config: Record<string, unknown> }[];
   watermark_value: string | null;
   watermark_updated_at: string | null;
   target_dataset_id: string | null;
@@ -109,6 +112,19 @@ export type ExtractionRunResponse = {
   watermark_value: string | null;
   truncated: boolean;
   warnings: string[];
+  /** Where the job's steps ran, when it has any. */
+  shaping: ExtractionShapingPlan | null;
+};
+
+/** The planner's record of a shaped extraction: what the source ran as SQL,
+ * what ran here, and why for each placement. */
+export type ExtractionShapingPlan = {
+  surface: string;
+  pushed_steps: number;
+  local_steps: number;
+  sql: string | null;
+  placements: { node: string; pushed: boolean; reason: string }[];
+  note: string;
 };
 
 // --------------------------------------------------------------- data quality

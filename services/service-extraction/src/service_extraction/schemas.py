@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, model_validator
 
 from service_extraction.connectors.base import LOAD_MODES, SUPPORTED_CONNECTOR_TYPES
 
@@ -118,6 +118,9 @@ class ExtractionJobBase(BaseModel):
     cursor_column: str | None = Field(default=None, max_length=160)
     primary_key_columns: list[str] = Field(default_factory=list)
     max_rows: int = Field(default=1_000_000, ge=1, le=10_000_000)
+    #: Transformation steps to apply at extraction. The pushable prefix runs in
+    #: the source database; the rest runs here before the dataset is written.
+    steps: list[dict[str, Any]] = Field(default_factory=list, max_length=50)
 
     @model_validator(mode="after")
     def _validate_combination(self) -> ExtractionJobBase:
@@ -143,6 +146,7 @@ class ExtractionJobUpdate(BaseModel):
     cursor_column: str | None = Field(default=None, max_length=160)
     primary_key_columns: list[str] | None = None
     max_rows: int | None = Field(default=None, ge=1, le=10_000_000)
+    steps: list[dict[str, Any]] | None = Field(default=None, max_length=50)
     enabled: bool | None = None
 
 
@@ -162,6 +166,7 @@ class ExtractionJobRead(BaseModel):
     cursor_column: str | None
     primary_key_columns: list[str] | None
     max_rows: int
+    steps: list[dict[str, Any]] = Field(default_factory=list, validation_alias=AliasChoices("steps", "steps_json"))
     watermark_value: str | None
     watermark_updated_at: datetime | None
     target_dataset_id: uuid.UUID | None
@@ -193,3 +198,6 @@ class ExtractionRunResponse(BaseModel):
     watermark_value: str | None
     truncated: bool
     warnings: list[str] = Field(default_factory=list)
+    #: Where the job's steps ran, when it has any: pushed vs local, the SQL the
+    #: source ran, and the reason for every placement.
+    shaping: dict[str, Any] | None = None

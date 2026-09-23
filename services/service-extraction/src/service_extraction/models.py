@@ -71,6 +71,10 @@ class ExtractionJob(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     cursor_column: Mapped[str | None] = mapped_column(String(160), nullable=True)
     primary_key_columns: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     max_rows: Mapped[int] = mapped_column(Integer, nullable=False, default=1_000_000)
+    #: Transformation steps applied at extraction ("shape at the source"): the
+    #: pushable prefix runs in the source database, the rest here, before the
+    #: dataset is written. Null or empty means a plain extract.
+    steps_json: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
 
     # Incremental state. Stored as text so one column serves timestamps and ids.
     watermark_value: Mapped[str | None] = mapped_column(Text, nullable=True)

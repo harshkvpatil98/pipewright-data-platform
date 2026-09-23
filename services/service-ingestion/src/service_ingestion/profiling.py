@@ -221,7 +221,16 @@ def _json_safe_value(value: Any) -> Any:
         return [_json_safe_value(item) for item in value]
     if isinstance(value, dict):
         return {str(key): _json_safe_value(item) for key, item in value.items()}
-    return value
+    if isinstance(value, (str, bool, int, float)):
+        return value
+    # Anything else a driver hands back -- a UUID from PostgreSQL, a bytes
+    # blob, an IP address, a custom type -- is kept as its text form rather
+    # than left to fail the JSON write of the preview or profile later, which
+    # is how a whole extraction run from a table with a uuid primary key used
+    # to fail after the rows had already been read.
+    if isinstance(value, (bytes, bytearray, memoryview)):
+        return f"<{len(bytes(value))} bytes>"
+    return str(value)
 
 
 def _safe_float(value: float | None) -> float | None:

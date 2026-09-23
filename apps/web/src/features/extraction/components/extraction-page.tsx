@@ -128,6 +128,9 @@ export function ExtractionPageView({
     loadMode: "full_refresh" as LoadMode,
     cursorColumn: "",
     primaryKeyColumns: "",
+    // Recipe YAML (the same format the workbench exports); parsed server-side
+    // into steps when the job is created.
+    shapeYaml: "",
   });
 
   const selectedConnection = useMemo(
@@ -248,8 +251,16 @@ export function ExtractionPageView({
     }
     const created = await run(
       "create-job",
-      () =>
-        apiFetch<ExtractionJob>(`/projects/${projectId}/extraction/jobs`, {
+      async () => {
+        let steps: unknown[] = [];
+        if (jobForm.shapeYaml.trim()) {
+          const parsed = await apiFetch<{ steps: unknown[] }>("/workbench/recipe/parse", {
+            method: "POST",
+            body: JSON.stringify({ yaml: jobForm.shapeYaml }),
+          });
+          steps = parsed.steps;
+        }
+        return apiFetch<ExtractionJob>(`/projects/${projectId}/extraction/jobs`, {
           method: "POST",
           body: JSON.stringify({
             connection_id: selectedConnectionId,
@@ -261,8 +272,10 @@ export function ExtractionPageView({
             primary_key_columns: jobForm.primaryKeyColumns
               ? jobForm.primaryKeyColumns.split(",").map((value) => value.trim()).filter(Boolean)
               : [],
+            steps,
           }),
-        }),
+        });
+      },
       "Extraction job created.",
     );
     if (created) {
@@ -273,6 +286,7 @@ export function ExtractionPageView({
         loadMode: "full_refresh",
         cursorColumn: "",
         primaryKeyColumns: "",
+        shapeYaml: "",
       });
     }
   };
@@ -286,8 +300,13 @@ export function ExtractionPageView({
     if (result) {
       setLastRun(result);
       setJobs((current) => current.map((job) => (job.id === jobId ? result.job : job)));
+      const shaping = result.shaping
+        ? result.shaping.pushed_steps > 0
+          ? ` The ${result.shaping.surface} source ran ${result.shaping.pushed_steps} of ${result.shaping.pushed_steps + result.shaping.local_steps} step(s) as SQL; ${result.shaping.local_steps} ran here.`
+          : ` All ${result.shaping.local_steps} step(s) ran here (${result.shaping.note || "the source could not run them"}).`
+        : "";
       setFeedback(
-        `Extracted ${result.rows_extracted} row(s): ${result.rows_added} added, ${result.rows_updated} updated, ${result.total_rows} total.`,
+        `Extracted ${result.rows_extracted} row(s): ${result.rows_added} added, ${result.rows_updated} updated, ${result.total_rows} total.${shaping}`,
       );
     }
   };
@@ -656,6 +675,21 @@ export function ExtractionPageView({
                 />
               </FormField>
             ) : null}
+            <FormField
+              label="Shape at the source (optional)"
+              htmlFor={`${fieldPrefix}-job-shape`}
+              description="Recipe YAML, as the workbench exports it. Steps the database can run are pushed down as SQL around the extract; the rest run here before the dataset is written. Incremental loads accept row-wise steps only."
+            >
+              <textarea
+                id={`${fieldPrefix}-job-shape`}
+                value={jobForm.shapeYaml}
+                onChange={(event) => setJobForm((form) => ({ ...form, shapeYaml: event.target.value }))}
+                rows={5}
+                spellCheck={false}
+                placeholder={"steps:\n  - type: filter_rows\n    config:\n      conditions:\n        - {column: amount, operator: greater_than, value: 0}"}
+                className="w-full rounded-xl border border-line bg-sunken px-3 py-2 font-mono text-[12px] text-ink outline-none transition focus:border-[color:var(--accent)]"
+              />
+            </FormField>
             <Button
               className="w-full"
               onClick={createJob}
@@ -684,6 +718,14 @@ export function ExtractionPageView({
                           {LOAD_MODE_LABELS[job.load_mode]}
                         </span>
                         {job.last_run_status ? <StatusBadge value={job.last_run_status} /> : null}
+                        {job.steps && job.steps.length > 0 ? (
+                          <span
+                            className="rounded-full border border-line bg-sunken px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-ink-3"
+                            title={job.steps.map((step) => step.step_type).join(" → ")}
+                          >
+                            shapes {job.steps.length} step{job.steps.length === 1 ? "" : "s"}
+                          </span>
+                        ) : null}
                       </div>
                       <p className="mt-1 text-xs text-muted">
                         {job.source_table ?? "custom query"}

@@ -110,6 +110,25 @@ def _sweep_dataset_versions() -> None:
         db.close()
 
 
+def _sweep_streams() -> None:
+    """Poll every change-data-capture source and materialise what arrived.
+    Micro-batch: this loop's interval is the latency. Best effort."""
+    from service_extraction.streams import sweep_cdc_sources
+
+    db = SessionLocal()
+    try:
+        totals = sweep_cdc_sources(db, storage_backend=get_storage_backend(), settings=settings)
+        if totals["events"] or totals["failed"]:
+            logger.info(
+                "cdc_sweep sources=%s events=%s materialised=%s failed=%s",
+                totals["sources"], totals["events"], totals["materialised"], totals["failed"],
+            )
+    except Exception:  # noqa: BLE001 - a sweep failure must not stop the ticker
+        logger.exception("cdc_sweep_failed")
+    finally:
+        db.close()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Execute due Pipewright schedules.")
     parser.add_argument(
@@ -137,6 +156,7 @@ def main() -> None:
         _sweep_incidents()
         _sweep_audit()
         _sweep_dataset_versions()
+        _sweep_streams()
         try:
             summary = _drain_once()
             if summary.triggered_count or summary.failure_count:

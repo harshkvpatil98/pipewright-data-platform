@@ -3,12 +3,30 @@ from __future__ import annotations
 import uuid
 from collections.abc import Callable
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import Response, APIRouter, Depends, Query, status, Request
 from sqlalchemy.orm import Session
 
 from service_auth.schemas import UserRead
 from service_extraction.extract import run_extraction_job
+from service_extraction.streams import (
+    create_source,
+    delete_source,
+    get_source,
+    list_events,
+    list_sources,
+    materialise_source,
+    poll_source,
+    receive_webhook,
+)
 from service_extraction.schemas import (
+    StreamEventListResponse,
+    StreamEventRead,
+    StreamMaterialiseResponse,
+    StreamPollResponse,
+    StreamSourceCreate,
+    StreamSourceCreated,
+    StreamSourceListResponse,
+    StreamSourceRead,
     ConnectionTestResponse,
     DiscoveredColumnsResponse,
     DiscoveredTablesResponse,
@@ -234,5 +252,93 @@ def build_router(
         current_user: UserRead = Depends(get_current_user),
     ) -> ExtractionJobRead:
         return reset_job_watermark(db, project_id, job_id, current_user)
+
+    # ------------------------------------------------------- stream sources
+
+    @router.get("/projects/{project_id}/streams", response_model=StreamSourceListResponse)
+    def read_streams(
+        project_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> StreamSourceListResponse:
+        return list_sources(db, project_id, current_user)
+
+    @router.post("/projects/{project_id}/streams", response_model=StreamSourceCreated, status_code=status.HTTP_201_CREATED)
+    def add_stream(
+        project_id: uuid.UUID,
+        payload: StreamSourceCreate,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> StreamSourceCreated:
+        """A webhook's token comes back in this response and never again."""
+        return create_source(db, project_id, payload, current_user)
+
+    @router.get("/projects/{project_id}/streams/{source_id}", response_model=StreamSourceRead)
+    def read_stream(
+        project_id: uuid.UUID,
+        source_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> StreamSourceRead:
+        return get_source(db, project_id, source_id, current_user)
+
+    @router.delete("/projects/{project_id}/streams/{source_id}", status_code=status.HTTP_204_NO_CONTENT)
+    def remove_stream(
+        project_id: uuid.UUID,
+        source_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> Response:
+        delete_source(db, project_id, source_id, current_user)
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    @router.get("/projects/{project_id}/streams/{source_id}/events", response_model=StreamEventListResponse)
+    def read_stream_events(
+        project_id: uuid.UUID,
+        source_id: uuid.UUID,
+        limit: int = Query(default=50, ge=1, le=500),
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> StreamEventListResponse:
+        return list_events(db, project_id, source_id, current_user, limit=limit)
+
+    @router.post("/projects/{project_id}/streams/{source_id}/poll", response_model=StreamPollResponse)
+    def poll_stream(
+        project_id: uuid.UUID,
+        source_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> StreamPollResponse:
+        """Read the next batch of changes from the replication slot now
+        (operator: it is running the job by hand)."""
+        return poll_source(db, project_id, source_id, current_user)
+
+    @router.post("/projects/{project_id}/streams/{source_id}/materialise", response_model=StreamMaterialiseResponse)
+    def materialise_stream(
+        project_id: uuid.UUID,
+        source_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+        storage_backend=Depends(get_storage_backend),
+    ) -> StreamMaterialiseResponse:
+        """Write every event so far as a new immutable dataset version."""
+        return materialise_source(db, project_id, source_id, current_user, storage_backend, settings)
+
+    return router
+
+
+def build_public_router(get_db: Callable[..., Session]) -> APIRouter:
+    """The inbound webhook endpoint. No user: the token in the path IS the
+    authorisation, checked against a hash. Top-level (no project in the path)
+    so the project guard has nothing to gate; an unknown token is a 404."""
+    router = APIRouter(tags=["hooks"])
+
+    @router.post("/hooks/{token}", response_model=StreamEventRead, status_code=status.HTTP_202_ACCEPTED)
+    async def receive(token: str, request: Request, db: Session = Depends(get_db)) -> StreamEventRead:
+        body = await request.body()
+        return receive_webhook(
+            db, token=token, body=body, content_type=request.headers.get("content-type"),
+            headers={k: v for k, v in request.headers.items()},
+        )
 
     return router

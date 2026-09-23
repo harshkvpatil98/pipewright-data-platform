@@ -127,6 +127,73 @@ export type ExtractionShapingPlan = {
   note: string;
 };
 
+// ------------------------------------------------------------ stream sources
+
+export type StreamKind = "webhook" | "postgres_cdc";
+
+/** A source that delivers rows instead of being polled for them: a
+ * token-keyed webhook endpoint, or a PostgreSQL change log followed through a
+ * logical replication slot. Both materialise into one append-only dataset. */
+export type StreamSource = {
+  id: string;
+  project_id: string;
+  name: string;
+  kind: StreamKind;
+  status: string;
+  connection_id: string | null;
+  connection_name: string | null;
+  tables: string[];
+  slot_name: string | null;
+  webhook_path: string | null;
+  cursor: string | null;
+  dataset_id: string | null;
+  dataset_name: string | null;
+  events_count: number;
+  last_event_at: string | null;
+  last_polled_at: string | null;
+  last_materialised_at: string | null;
+  last_error: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+/** The create response: the read plus the one-time webhook token. */
+export type StreamSourceCreated = StreamSource & {
+  token: string | null;
+  webhook_path_with_token: string | null;
+};
+
+export type StreamSourceListResponse = { items: StreamSource[] };
+
+export type StreamEvent = {
+  id: string;
+  source_id: string;
+  seq: number;
+  kind: string;
+  table_name: string | null;
+  position: string | null;
+  payload_json: Record<string, unknown>;
+  received_at: string;
+};
+
+export type StreamPollResponse = {
+  source: StreamSource;
+  slot_created: boolean;
+  changes_read: number;
+  events_stored: number;
+  lines_consumed: number;
+  upto_lsn: string | null;
+  note: string;
+};
+
+export type StreamMaterialiseResponse = {
+  source: StreamSource;
+  dataset_id: string;
+  version_number: number;
+  rows: number;
+  columns: string[];
+};
+
 // --------------------------------------------------------------- data quality
 
 export type RuleSeverity = "error" | "warning";

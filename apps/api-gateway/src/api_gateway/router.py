@@ -16,6 +16,7 @@ from api_gateway.sso_router import build_router as build_sso_router
 from service_datasets import build_router as build_datasets_router
 from service_destinations import build_bi_router, build_router as build_destinations_router
 from service_enterprise import build_router as build_enterprise_router
+from service_extraction import build_public_router as build_public_hooks_router
 from service_extraction import build_router as build_extraction_router
 from service_governance import build_router as build_governance_router
 from service_ingestion.router import build_router as build_ingestion_router
@@ -77,6 +78,7 @@ def build_api_router(settings) -> APIRouter:
     )
     api_router.include_router(build_observability_router(get_db, current_user))
     api_router.include_router(build_public_reporting_router(get_db, get_storage_backend))
+    api_router.include_router(build_public_hooks_router(get_db))
     api_router.include_router(
         build_reporting_router(get_db, current_user, get_storage_backend)
     )

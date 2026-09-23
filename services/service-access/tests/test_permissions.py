@@ -55,6 +55,15 @@ def test_joining_a_discussion_is_an_operator_action_not_an_edit():
     assert required_role("POST", f"{PROJECT}/discussion/abc/resolve") == "operator"
 
 
+def test_stream_sources_follow_the_operator_and_editor_split():
+    streams = f"{PROJECT}/streams/abc"
+    assert required_role("GET", f"{PROJECT}/streams") == "viewer"
+    assert required_role("POST", f"{PROJECT}/streams") == "editor"      # defining a source
+    assert required_role("POST", f"{streams}/poll") == "operator"        # running it by hand
+    assert required_role("POST", f"{streams}/materialise") == "operator"
+    assert required_role("DELETE", streams) == "editor"
+
+
 def test_the_time_travel_role_matrix_is_the_intended_one():
     """Phase 18 §6: history and temporal reads are viewer; rewriting the head
     (rollback) or re-executing (replay) is editor. Pinned here so a route

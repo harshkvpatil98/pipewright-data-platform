@@ -9,6 +9,9 @@ services:
     image: postgres:16-alpine
     profiles: ["app", "worker"]
     restart: unless-stopped
+    # Logical WAL so Pipewright's own change-data-capture source can follow
+    # a database's change log (Phase 20). Harmless for everything else.
+    command: postgres -c wal_level=logical -c max_replication_slots=10 -c max_wal_senders=10
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-platform}
       POSTGRES_USER: ${POSTGRES_USER:-platform}

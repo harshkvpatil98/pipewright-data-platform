@@ -7,6 +7,7 @@ import { requireCurrentUser } from "@/lib/auth/server";
 import type {
   ExtractionConnectionListResponse,
   ExtractionJobListResponse,
+  StreamSourceListResponse,
 } from "@platform/shared-types";
 
 type PageProps = {
@@ -21,16 +22,18 @@ export default async function ProjectExtractionPage({ params }: PageProps) {
 
   try {
     // Independent reads, so fetch them together rather than in series.
-    const [connections, jobs] = await Promise.all([
+    const [connections, jobs, streams] = await Promise.all([
       serverApiFetch<ExtractionConnectionListResponse>(
         `/projects/${projectId}/extraction/connections`,
       ),
       serverApiFetch<ExtractionJobListResponse>(`/projects/${projectId}/extraction/jobs`),
+      serverApiFetch<StreamSourceListResponse>(`/projects/${projectId}/streams`),
     ]);
 
     return (
       <ExtractionPageView
         currentUser={currentUser}
+        initialStreams={streams.items}
         projectId={projectId}
         initialConnections={connections.items}
         initialJobs={jobs.items}

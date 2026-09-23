@@ -62,6 +62,10 @@ OPERATOR_SEGMENTS = frozenset(
         # is the nightly job, run by hand -- the same thing "run" means
         # everywhere else in this set, and not a change to any definition.
         "watch",
+        # Reading the next batch from a change-data-capture slot, and writing
+        # a stream's events out as a dataset version: running the job by hand.
+        "poll",
+        "materialise",
     }
 )
 

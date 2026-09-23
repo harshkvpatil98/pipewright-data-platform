@@ -4,7 +4,18 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, JSON, String, Text
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    JSON,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 # `Uuid`, not the postgresql-specific `UUID`: the dialect type declares a bare
 # UUID column, which SQLite gives NUMERIC affinity, so an identifier that
 # happens to be all decimal digits is silently converted to a float and comes
@@ -93,3 +104,70 @@ class ExtractionJob(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     last_row_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     last_error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     execution_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+
+class StreamSource(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """A source that delivers rows instead of being polled for them.
+
+    `webhook`: an endpoint keyed by a token (hashed at rest) whose posts are
+    stored as events. `postgres_cdc`: a logical replication slot on a
+    connection's database, read in micro-batches through `test_decoding` --
+    at-least-once, with `cursor` the last LSN consumed. Both materialise into
+    one append-only dataset (`dataset_id`), a new version per materialisation.
+    """
+
+    __tablename__ = "stream_sources"
+    __table_args__ = (
+        UniqueConstraint("token_hash", name="uq_stream_sources_token_hash"),
+        Index("ix_stream_sources_project_id", "project_id"),
+    )
+
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    kind: Mapped[str] = mapped_column(String(24), nullable=False)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, default="active", server_default="active")
+    connection_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("extraction_connections.id", ondelete="SET NULL"), nullable=True
+    )
+    config_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    token_hash: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    cursor: Mapped[str | None] = mapped_column(Text, nullable=True)
+    dataset_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("datasets.id", ondelete="SET NULL"), nullable=True
+    )
+    events_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    last_event_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_polled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_materialised_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+
+class StreamEvent(UUIDPrimaryKeyMixin, Base):
+    """One thing that arrived: a webhook post, or one row change from a
+    change log. `seq` orders events within a source; `position` is the
+    source's own cursor (an LSN) so a re-read after a crash is idempotent."""
+
+    __tablename__ = "stream_events"
+    __table_args__ = (
+        UniqueConstraint("source_id", "seq", name="uq_stream_events_source_seq"),
+        Index("ix_stream_events_source_id", "source_id", "seq"),
+        Index("ix_stream_events_position", "source_id", "position"),
+    )
+
+    source_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("stream_sources.id", ondelete="CASCADE"), nullable=False
+    )
+    seq: Mapped[int] = mapped_column(Integer, nullable=False)
+    #: `webhook`, `insert`, `update`, `delete`.
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    table_name: Mapped[str | None] = mapped_column(String(320), nullable=True)
+    position: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    payload_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    received_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, model_validator
 
@@ -201,3 +201,88 @@ class ExtractionRunResponse(BaseModel):
     #: Where the job's steps ran, when it has any: pushed vs local, the SQL the
     #: source ran, and the reason for every placement.
     shaping: dict[str, Any] | None = None
+
+
+# ------------------------------------------------------------ stream sources
+
+StreamKind = Literal["webhook", "postgres_cdc"]
+
+
+class StreamSourceCreate(BaseModel):
+    name: str = Field(min_length=2, max_length=160)
+    kind: StreamKind
+    #: postgres_cdc: the PostgreSQL connection whose change log to follow.
+    connection_id: uuid.UUID | None = None
+    #: postgres_cdc: tables to follow, `schema.table` or `table`.
+    tables: list[str] = Field(default_factory=list, max_length=50)
+    slot_name: str | None = Field(default=None, max_length=60)
+
+
+class StreamSourceRead(BaseModel):
+    id: uuid.UUID
+    project_id: uuid.UUID
+    name: str
+    kind: StreamKind
+    status: str
+    connection_id: uuid.UUID | None
+    connection_name: str | None = None
+    tables: list[str] = Field(default_factory=list)
+    slot_name: str | None = None
+    #: The endpoint's path with the token elided; the token is shown once, at creation.
+    webhook_path: str | None = None
+    cursor: str | None
+    dataset_id: uuid.UUID | None
+    dataset_name: str | None = None
+    events_count: int
+    last_event_at: datetime | None
+    last_polled_at: datetime | None
+    last_materialised_at: datetime | None
+    last_error: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class StreamSourceCreated(StreamSourceRead):
+    """The read plus the one-time secret: a webhook's token and full path."""
+
+    token: str | None = None
+    webhook_path_with_token: str | None = None
+
+
+class StreamSourceListResponse(BaseModel):
+    items: list[StreamSourceRead]
+
+
+class StreamEventRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    source_id: uuid.UUID
+    seq: int
+    kind: str
+    table_name: str | None
+    position: str | None
+    payload_json: dict[str, Any]
+    received_at: datetime
+
+
+class StreamEventListResponse(BaseModel):
+    items: list[StreamEventRead]
+
+
+class StreamPollResponse(BaseModel):
+    source: StreamSourceRead
+    slot_created: bool
+    changes_read: int
+    events_stored: int
+    lines_consumed: int
+    upto_lsn: str | None
+    note: str
+
+
+class StreamMaterialiseResponse(BaseModel):
+    source: StreamSourceRead
+    dataset_id: uuid.UUID
+    version_number: int
+    rows: int
+    columns: list[str]

@@ -14,10 +14,12 @@ import type {
   ExtractionPreviewResponse,
   ExtractionRunResponse,
   LoadMode,
+  StreamSource,
 } from "@platform/shared-types";
 import { Button, FormField, Input, SectionPanel, Select, StatusBadge } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
+import { LiveSourcesPanel } from "@/features/extraction/components/live-sources-panel";
 import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
@@ -29,6 +31,7 @@ type ExtractionPageProps = {
   projectId: string;
   initialConnections: ExtractionConnection[];
   initialJobs: ExtractionJob[];
+  initialStreams: StreamSource[];
 };
 
 const CONNECTOR_LABELS: Record<ConnectorType, string> = {
@@ -85,6 +88,7 @@ export function ExtractionPageView({
   projectId,
   initialConnections,
   initialJobs,
+  initialStreams,
 }: ExtractionPageProps) {
   const fieldPrefix = useId();
   const [connections, setConnections] = useState(initialConnections);
@@ -799,6 +803,11 @@ export function ExtractionPageView({
           ) : null}
         </SectionPanel>
       ) : null}
+      <LiveSourcesPanel
+        projectId={projectId}
+        connections={connections}
+        initial={initialStreams}
+      />
     </AppShell>
   );
 }

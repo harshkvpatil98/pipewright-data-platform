@@ -198,6 +198,7 @@ def build_router(
         if total_bytes > settings.max_upload_size_bytes:
             raise BadRequestError('Uploaded file exceeds the configured maximum size.')
         session = resumable.SESSIONS.create(
+            db,
             project_id=project_id,
             file_name=file_name,
             content_type=content_type,
@@ -222,7 +223,7 @@ def build_router(
 
         ensure_owned_project(db, project_id, current_user.id)
         return UploadSessionRead(
-            **resumable.SESSIONS.get(upload_id, project_id=project_id).to_dict()
+            **resumable.SESSIONS.get(db, upload_id, project_id=project_id).to_dict()
         )
 
     @router.put(
@@ -243,11 +244,14 @@ def build_router(
 
         ensure_owned_project(db, project_id, current_user.id)
         try:
-            session = resumable.SESSIONS.get(upload_id, project_id=project_id)
+            session = resumable.SESSIONS.get(db, upload_id, project_id=project_id)
             payload = await chunk.read()
             resumable.receive_chunk(
                 session, index=index, payload=payload, storage_backend=storage_backend
             )
+            # Persist the arrival before answering: a restart between now and the
+            # next chunk must still know this one landed.
+            resumable.SESSIONS.save(db, session)
             return UploadSessionRead(**session.to_dict())
         finally:
             await chunk.close()
@@ -271,7 +275,7 @@ def build_router(
         from service_projects.contracts import ensure_owned_project
 
         ensure_owned_project(db, project_id, current_user.id)
-        session = resumable.SESSIONS.get(upload_id, project_id=project_id)
+        session = resumable.SESSIONS.get(db, upload_id, project_id=project_id)
         payload = resumable.assemble(session, storage_backend=storage_backend)
 
         spec, record = _resolve_spec(
@@ -299,7 +303,7 @@ def build_router(
         finally:
             # The session is done either way: a failed ingest of assembled
             # bytes is not something re-sending chunks would fix.
-            resumable.SESSIONS.drop(upload_id)
+            resumable.SESSIONS.drop(db, upload_id)
         if record is not None:
             analysis_service.record_use(db, record)
             db.commit()
@@ -319,9 +323,9 @@ def build_router(
         from service_projects.contracts import ensure_owned_project
 
         ensure_owned_project(db, project_id, current_user.id)
-        session = resumable.SESSIONS.get(upload_id, project_id=project_id)
+        session = resumable.SESSIONS.get(db, upload_id, project_id=project_id)
         resumable.cleanup(session, storage_backend=storage_backend)
-        resumable.SESSIONS.drop(upload_id)
+        resumable.SESSIONS.drop(db, upload_id)
 
     return router
 

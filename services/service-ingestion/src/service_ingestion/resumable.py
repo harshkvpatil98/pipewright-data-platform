@@ -32,6 +32,10 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from service_ingestion.models import UploadSessionRecord
 from shared_python.errors import BadRequestError, NotFoundError
 
 #: Chunk size the client is told to use. Small enough that re-sending one after
@@ -96,22 +100,37 @@ class UploadSession:
         }
 
 
+def _to_session(row: UploadSessionRecord) -> UploadSession:
+    created = row.created_at if row.created_at.tzinfo else row.created_at.replace(tzinfo=UTC)
+    return UploadSession(
+        id=row.id,
+        project_id=row.project_id,
+        file_name=row.file_name,
+        content_type=row.content_type,
+        total_bytes=row.total_bytes,
+        chunk_bytes=row.chunk_bytes,
+        expected_sha256=row.expected_sha256,
+        created_at=created,
+        created_by_user_id=row.created_by_user_id,
+        received={int(index): int(length) for index, length in (row.received_json or {}).items()},
+        completed=row.completed,
+    )
+
+
 class SessionStore:
-    """Where in-progress sessions live.
+    """Where in-progress sessions live: the database.
 
-    In memory, deliberately. A session is worthless without its chunks, the
-    chunks are in this process's storage backend, and a session table would be
-    a database write per 8MB of upload for state that cannot outlive the parts
-    it describes. A deployment that runs several gateway processes behind a
-    load balancer needs sticky sessions for uploads, which is stated rather
-    than papered over -- see `docs/HANDOFF.md`.
+    The chunks were always written to storage as they arrived; what used to be
+    in process memory was only the *index* of which chunks had landed. That is
+    exactly the state a gateway restart must not lose, or the parts on disk
+    become unreassemblable orphans. Persisting it -- one small row, updated once
+    per 8MB chunk -- makes a resume survive a restart and lets any gateway
+    process serve any upload, so uploads no longer need sticky sessions.
     """
-
-    def __init__(self) -> None:
-        self._sessions: dict[uuid.UUID, UploadSession] = {}
 
     def create(
         self,
+        db: Session,
         *,
         project_id: uuid.UUID,
         file_name: str,
@@ -128,42 +147,67 @@ class SessionStore:
             # Raise the chunk size rather than refusing the file: the ceiling
             # exists to bound the number of parts, not the size of the upload.
             chunk_bytes = max(chunk_bytes, -(-total_bytes // MAX_CHUNKS))
-        session = UploadSession(
-            id=uuid.uuid4(),
+        row = UploadSessionRecord(
             project_id=project_id,
             file_name=file_name,
-            content_type=content_type,
+            content_type=content_type or "",
             total_bytes=total_bytes,
             chunk_bytes=chunk_bytes,
             expected_sha256=(expected_sha256 or "").lower() or None,
-            created_at=datetime.now(UTC),
+            received_json={},
+            completed=False,
             created_by_user_id=created_by_user_id,
+            created_at=datetime.now(UTC),
         )
-        self._sessions[session.id] = session
-        self.sweep()
-        return session
+        db.add(row)
+        db.commit()
+        db.refresh(row)
+        self.sweep(db)
+        return _to_session(row)
 
-    def get(self, upload_id: uuid.UUID, *, project_id: uuid.UUID) -> UploadSession:
-        session = self._sessions.get(upload_id)
+    def get(self, db: Session, upload_id: uuid.UUID, *, project_id: uuid.UUID) -> UploadSession:
+        row = db.get(UploadSessionRecord, upload_id)
         # Scoped to the project: an upload id is a guess away from another
         # project's file otherwise.
-        if session is None or session.project_id != project_id or session.expired:
+        if row is None or row.project_id != project_id:
+            raise NotFoundError("Upload session not found or expired.")
+        session = _to_session(row)
+        if session.expired:
             raise NotFoundError("Upload session not found or expired.")
         return session
 
-    def drop(self, upload_id: uuid.UUID) -> None:
-        self._sessions.pop(upload_id, None)
+    def save(self, db: Session, session: UploadSession) -> None:
+        """Persist which chunks have arrived. Called after each chunk, so a
+        restart mid-upload still knows exactly where the client left off."""
+        row = db.get(UploadSessionRecord, session.id)
+        if row is None:
+            return
+        row.received_json = {str(index): length for index, length in session.received.items()}
+        row.completed = session.completed
+        db.commit()
 
-    def sweep(self) -> list[UploadSession]:
-        """Forget expired sessions and hand them back so their parts go too."""
-        stale = [session for session in self._sessions.values() if session.expired]
-        for session in stale:
-            self._sessions.pop(session.id, None)
+    def drop(self, db: Session, upload_id: uuid.UUID) -> None:
+        row = db.get(UploadSessionRecord, upload_id)
+        if row is not None:
+            db.delete(row)
+            db.commit()
+
+    def sweep(self, db: Session) -> list[UploadSession]:
+        """Delete expired session rows and hand them back so their parts go too."""
+        cutoff = datetime.now(UTC) - SESSION_TTL
+        rows = list(
+            db.scalars(select(UploadSessionRecord).where(UploadSessionRecord.created_at < cutoff)).all()
+        )
+        stale = [_to_session(row) for row in rows]
+        for row in rows:
+            db.delete(row)
+        if rows:
+            db.commit()
         return stale
 
 
-#: One store per process. Instantiated here rather than per request, because a
-#: session that did not survive the next request would defeat the purpose.
+#: Stateless: every method takes the request's db session, so the store holds
+#: no per-process state and any gateway can serve any upload.
 SESSIONS = SessionStore()
 
 

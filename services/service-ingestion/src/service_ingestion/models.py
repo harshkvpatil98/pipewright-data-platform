@@ -28,7 +28,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Index, Integer, String
+from sqlalchemy import JSON, BigInteger, Boolean, DateTime, ForeignKey, Index, Integer, String
 from sqlalchemy import Uuid as UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -63,6 +63,38 @@ class IngestSpecRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     last_used_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    created_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+
+class UploadSessionRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """An in-progress chunked upload, durable across a gateway restart.
+
+    The chunks were always written to storage as they arrived; only the record
+    of *which* chunks arrived lived in process memory, so a restart orphaned a
+    half-finished upload -- the parts sat on disk with nothing that knew how to
+    reassemble them. Persisting the session here means a restart resumes rather
+    than restarts: the client asks which chunks arrived and gets a true answer.
+    """
+
+    __tablename__ = "upload_sessions"
+    __table_args__ = (
+        Index("ix_upload_sessions_project_id", "project_id"),
+    )
+
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    file_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    content_type: Mapped[str] = mapped_column(String(128), nullable=False, default="")
+    total_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    chunk_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    expected_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    #: {chunk_index: byte_length} for every chunk received, keyed by string
+    #: because JSON object keys are strings.
+    received_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    completed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )

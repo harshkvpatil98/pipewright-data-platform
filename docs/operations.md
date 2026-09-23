@@ -107,6 +107,22 @@ PERF_BASE_URL=http://localhost:8000 PERF_USERNAME=… PERF_PASSWORD=… \
   python scripts/perf-baseline.py --requests 200 --concurrency 8
 ```
 
-| Date | Commit | Endpoint (p50 / p95 ms) | Notes |
-| --- | --- | --- | --- |
-| _record after your first run_ | | | local baseline |
+First baseline (120 req × 8 concurrency, single-process dev uvicorn on a laptop
+with the workers running alongside — a floor, not a production number):
+
+| Endpoint | p50 ms | p95 ms | req/s | fail |
+| --- | --- | --- | --- | --- |
+| health | 3 | 71 | 991 | 0 |
+| status | 77 | 1517 | 46 | 0 |
+| metrics | 26 | 34 | 299 | 0 |
+| auth/me | 14 | 21 | 532 | 0 |
+| sso/status | 8 | 11 | 932 | 0 |
+| projects | 125 | 208 | 61 | 0 |
+| runs | 33 | 107 | 205 | 0 |
+| datasets | 42 | 103 | 157 | 0 |
+| notifications | 24 | 317 | 169 | 0 |
+| people | 12 | 21 | 619 | 0 |
+
+`/status` is the outlier: it fans out to every service plus the scheduler and
+runtime snapshots, so it is the one endpoint to cache or scrape sparingly.
+Re-run after a material change and add a dated row.

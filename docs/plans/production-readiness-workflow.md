@@ -7,7 +7,7 @@ established alternatives for data work — not by claiming more, but by being
 the only honest, governed, spreadsheet-fast data platform that a business team
 can run without a data engineer on call.
 
-**Status:** P5 done (2026-09-23); P6 (Governance depth) is next on “continue”. One phase executes per session-run;
+**Status:** P6 done (2026-09-23); P7 (Time travel) is next on “continue”. One phase executes per session-run;
 the owner says **“continue”** to start the next. This file is the single
 source of truth for what each phase contains; the session log in
 `docs/HANDOFF.md` records what actually happened.
@@ -58,7 +58,7 @@ source of truth for what each phase contains; the session log in
 |---|---|---|---|
 | Core data engine | 8.5 | 9.5 | P7 (versioning), P9 (pushdown wired, IR cutover) |
 | Visual design | 8 | 9 | P0, P2 (fewer chips, checklist), continuous polish |
-| Governance & audit | 7 | 9 | P6 |
+| Governance & audit | 7 | 9 | P6 ✅ |
 | Feature coverage | 6 | 9 | P7 (time travel), P8 (BI), P9 (CDC/semantic) |
 | Ease of first use | 5 | 9.5 | P0 + P2 |
 | Language fit | 4 | 9.5 | P0 (pass), enforced by lint test thereafter |
@@ -384,21 +384,23 @@ against a cluster.
 
 ---
 
-## P6 — Governance depth
+## P6 — Governance depth ✅ done (2026-09-23)
 
 - **Audit Center** (real `/audits`): cross-project stream, filters, CSV/JSON
-  export, retention setting; admin actions included (from P1).
+  export, retention setting; admin actions included (from P1). ✅
 - **Policy simulation:** “view as role/user” preview for row/column security
-  on any dataset (extends existing security-preview).
+  on any dataset (extends existing security-preview). ✅
 - **Approvals UX:** reviewable diff view for versioned definitions; request
-  changes with comment (uses existing governance comments API).
+  changes with comment (uses existing governance comments API). ✅
 - **Erasure lifecycle** implemented against the settled decisions in
   `docs/plans/phase-18-review-requirements.md` §2 (correction vs destructive
-  erasure; no silent success) — pre-work for P7’s immutable history.
+  erasure; no silent success) — pre-work for P7’s immutable history. ✅
 - Catalog: ownership/certification editing, glossary term linking from
-  dataset pages.
+  dataset pages. ✅
 - *Push further:* data-classification tags (PII auto-suggest from
-  service-intelligence) surfaced in catalog + policies.
+  service-intelligence) surfaced in catalog + policies. — **deferred** to a
+  later pass; the catalog now carries free-form tags and stewardship, and PII
+  auto-suggest is a service-intelligence feature better sized on its own.
 
 ---
 

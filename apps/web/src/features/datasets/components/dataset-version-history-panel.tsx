@@ -2,9 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import type { DatasetVersionListResponse } from "@platform/shared-types";
-import { SectionPanel } from "@platform/shared-ui";
+import type {
+  DatasetPreview,
+  DatasetVersion,
+  DatasetVersionListResponse,
+} from "@platform/shared-types";
+import { Button, SectionPanel } from "@platform/shared-ui";
 
+import { Modal } from "@/components/ui/modal";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { formatDate, formatNumber } from "@/lib/format";
@@ -30,6 +35,11 @@ export function DatasetVersionHistoryPanel({
   const [history, setHistory] = useState<DatasetVersionListResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // The version being previewed in the modal, its data, and load state.
+  const [viewing, setViewing] = useState<DatasetVersion | null>(null);
+  const [preview, setPreview] = useState<DatasetPreview | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+
   const load = useCallback(async () => {
     setError(null);
     try {
@@ -46,6 +56,24 @@ export function DatasetVersionHistoryPanel({
   useEffect(() => {
     void load();
   }, [load]);
+
+  const openVersion = useCallback(
+    async (version: DatasetVersion) => {
+      setViewing(version);
+      setPreview(null);
+      setPreviewError(null);
+      try {
+        setPreview(
+          await apiFetch<DatasetPreview>(
+            `/projects/${projectId}/datasets/${datasetId}/versions/${version.version_number}/preview`,
+          ),
+        );
+      } catch (caught) {
+        setPreviewError(extractErrorMessage(caught));
+      }
+    },
+    [projectId, datasetId],
+  );
 
   return (
     <SectionPanel
@@ -74,6 +102,7 @@ export function DatasetVersionHistoryPanel({
                   <th className="cell-pad font-medium">Rows</th>
                   <th className="cell-pad font-medium">Columns</th>
                   <th className="cell-pad font-medium">Fingerprint</th>
+                  <th className="cell-pad font-medium sr-only">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
@@ -110,6 +139,15 @@ export function DatasetVersionHistoryPanel({
                       <td className="cell-pad align-top font-mono text-[11px] text-muted">
                         {shortDigest(version.content_hash)}
                       </td>
+                      <td className="cell-pad align-top text-right">
+                        <button
+                          type="button"
+                          onClick={() => void openVersion(version)}
+                          className="rounded-lg border border-line px-2 py-1 text-[11.5px] text-ink-3 transition hover:text-ink"
+                        >
+                          View data
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}
@@ -118,6 +156,56 @@ export function DatasetVersionHistoryPanel({
           </div>
         </div>
       )}
+
+      <Modal
+        open={viewing !== null}
+        title={viewing ? `Version ${viewing.version_number}` : "Version"}
+        description="The data as it was published in this version — a snapshot, not the current head."
+        onClose={() => setViewing(null)}
+        widthClassName="max-w-4xl"
+        footer={
+          <Button variant="secondary" size="sm" onClick={() => setViewing(null)}>
+            Close
+          </Button>
+        }
+      >
+        {previewError ? (
+          <div className="rounded-2xl border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger">
+            {previewError}
+          </div>
+        ) : preview === null ? (
+          <p className="text-[12.5px] text-muted">Loading preview…</p>
+        ) : preview.columns.length === 0 ? (
+          <p className="text-[12.5px] text-muted">
+            No preview was captured for this version.
+          </p>
+        ) : (
+          <div className="overflow-x-auto rounded-2xl border border-line">
+            <table className="min-w-full divide-y divide-line text-left text-[12.5px]">
+              <thead className="bg-surface text-ink-3">
+                <tr>
+                  {preview.columns.map((column) => (
+                    <th key={column} className="cell-pad font-medium">
+                      {column}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {preview.rows.slice(0, 50).map((row, index) => (
+                  <tr key={index} className="transition hover:bg-surface">
+                    {preview.columns.map((column) => (
+                      <td key={column} className="cell-pad align-top text-ink-2">
+                        {formatCell(row[column])}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Modal>
     </SectionPanel>
   );
 }
@@ -128,4 +216,12 @@ function shortDigest(hash: string | null): string {
   if (!hash) return "--";
   const hex = hash.includes(":") ? hash.split(":")[1] : hash;
   return hex.slice(0, 12);
+}
+
+/** Render a preview cell as text; a null is shown as the word, not a blank that
+ * an empty string would also produce. */
+function formatCell(value: unknown): string {
+  if (value === null || value === undefined) return "null";
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
 }

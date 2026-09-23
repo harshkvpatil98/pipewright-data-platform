@@ -143,13 +143,17 @@ def test_admin_reset_clears_a_locked_out_account(db: Session) -> None:
 
 
 def test_the_login_ticket_round_trips(db: Session) -> None:
+    # Minted on the real clock: verification checks `exp` against wall-clock
+    # time, so a ticket minted at the fixed NOW above stops verifying five
+    # minutes after that instant -- which is exactly what happened the first
+    # time this suite ran more than five minutes after it was written.
     user_id = uuid.uuid4()
-    ticket = mfa.mint_mfa_ticket(user_id=user_id, settings=SETTINGS, now=NOW)
+    ticket = mfa.mint_mfa_ticket(user_id=user_id, settings=SETTINGS)
     assert mfa.verify_mfa_ticket(ticket, settings=SETTINGS) == user_id
 
 
 def test_a_tampered_or_foreign_ticket_is_rejected(db: Session) -> None:
-    ticket = mfa.mint_mfa_ticket(user_id=uuid.uuid4(), settings=SETTINGS, now=NOW)
+    ticket = mfa.mint_mfa_ticket(user_id=uuid.uuid4(), settings=SETTINGS)
     with pytest.raises(UnauthorizedError):
         mfa.verify_mfa_ticket(ticket + "x", settings=SETTINGS)
     other = SimpleNamespace(

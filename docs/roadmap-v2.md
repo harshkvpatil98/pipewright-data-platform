@@ -1781,7 +1781,7 @@ time. Not a feature — a substrate that several others sit on.
 
 ---
 
-## Phase 19 — Semantic layer & data contracts
+## Phase 19 — Semantic layer & data contracts ⚠ PARTIAL (2026-09-23: semantic layer shipped as production-readiness P9; data contracts not started)
 
 **The problem it solves:** every company has four definitions of "active customer" and they
 disagree by 8%. The argument is never resolved because the definitions live inside four
@@ -1812,7 +1812,7 @@ detection turned from a warning into an agreement with two sides.
 
 ---
 
-## Phase 20 — Streaming & change data capture
+## Phase 20 — Streaming & change data capture ⚠ PARTIAL (2026-09-23: PostgreSQL CDC + inbound webhooks shipped as P9, micro-batch, at-least-once; everything else below not started)
 
 Batch is not enough for "the dashboard should be current". Two additions:
 
@@ -1831,7 +1831,7 @@ continuous execution behind it only where the latency requirement justifies the 
 
 ---
 
-## Phase 21 — Real-time collaboration
+## Phase 21 — Real-time collaboration ⚠ PARTIAL (2026-09-23: comments with @mentions everywhere shipped as P8; co-editing, presence, suggestion mode not started)
 
 Two analysts in the same Studio, seeing each other's cursors, without overwriting each other.
 
@@ -1843,7 +1843,7 @@ give a wider audience access.
 
 ---
 
-## Phase 22 — Cost-based optimizer & performance
+## Phase 22 — Cost-based optimizer & performance ⚠ PARTIAL (2026-09-23: rewrites shipped as P9 — `ir/rewrites.py`; no statistics, cost model, caching or federation)
 
 Phase 12 decides *where* to run. This decides *how well*.
 

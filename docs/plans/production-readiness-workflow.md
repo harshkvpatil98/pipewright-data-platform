@@ -7,11 +7,11 @@ established alternatives for data work — not by claiming more, but by being
 the only honest, governed, spreadsheet-fast data platform that a business team
 can run without a data engineer on call.
 
-**Status:** P0–P8 done (P8 BI & collaboration complete 2026-09-23);
-**P9 (market-decider depth) is next**. One phase executes per session-run;
-the owner says **“continue”** to start the next. This file is the single
-source of truth for what each phase contains; the session log in
-`docs/HANDOFF.md` records what actually happened.
+**Status:** **P0–P9 done** (P9 market-decider depth complete 2026-09-23).
+The production-readiness sequence is finished; what remains is the product
+roadmap's Track D depth, listed under *Recommended next action* in
+`docs/HANDOFF.md`. This file stays the record of what each phase contained;
+the session log in `docs/HANDOFF.md` records what actually happened.
 
 ---
 
@@ -501,16 +501,62 @@ library); resize is by width/height controls rather than a drag handle.
 
 ---
 
-## P9 — Market-decider depth
+## P9 — Market-decider depth ✅ done (2026-09-23)
 
-- **Pushdown wired into runs** (Phase 12 cutover) + IR-only executor cutover
-  (both pre-approved in HANDOFF as deliberate separate decisions — this
-  phase makes them, with the differential suites as the gate).
-- **Streaming/CDC** (product Phase 20): Postgres logical replication first,
-  webhook receiver second; honest tiering like connectors.
-- **Semantic layer** (product Phase 19): metrics defined on the IR,
-  consumed by charts and the workbench.
-- Optimizer groundwork (product Phase 22) as evidence allows.
+**Delivered, one commit each:**
+
+1. **The IR is the only executor** (`3ca069c`). `executor.py` compiles every
+   step to IR and runs it through the pandas backend; steps the algebra does
+   not model are `Extension` nodes with registered handlers that report
+   warnings through the backend's `warn`. The per-step pandas table is gone.
+   Gate: `test_executor_cutover.py` plus the whole transformations suite —
+   outputs and warnings identical to the old path. Lineage was **not** cut
+   over (`from_ir.py` derives schemas, not edges) — recorded in HANDOFF gaps.
+2. **Pushdown wired into extraction runs** (`f5c5b19`). A job carries
+   `steps`; `service_extraction/shaping.py` plans them against the
+   connector's surface, runs the pushable prefix as SQL wrapped around the
+   extract, the rest here before the dataset is written, and records the
+   plan on the run. Grain-changing steps are refused for incremental loads
+   (a watermark over aggregated rows is meaningless). A zero-row probe
+   supplies column names so the planner can decide. Fixed en route: a `uuid`
+   column failed every Postgres extraction at profiling (`_json_safe_value`).
+   Verified live against Postgres from the Sources page.
+3. **Semantic layer** (`04735a9`, migration 0044). Metrics defined once
+   (owner, description, measure, filters, dimensions, dataset) with a version
+   history through governance; charts/dashboards/reports resolve a metric at
+   compute time, the workbench renders it as SQL in the dataset's dialect,
+   usage is listed before a change. Metrics page + Studio/Workbench panels.
+4. **Streaming: inbound webhooks + PostgreSQL CDC** (`cc2f9be`, migration
+   0045). Public `POST /api/v1/hooks/{token}` (token shown once, sha256 at
+   rest, 404 on mismatch); Postgres logical replication through a
+   `test_decoding` slot, read in micro-batches by the ticker (peek → store
+   deduplicated by position → advance), capability check that names the fix.
+   Either materialises into one append-only dataset, a new immutable version
+   per materialise, so P7's history/diff/AS OF/replay apply to a stream. Dev
+   compose Postgres now runs `wal_level=logical`. Live sources panel on the
+   Sources page. Verified live: webhook posts → events → versions;
+   INSERT/UPDATE/DELETE → four CDC events with LSN → dataset; idempotent
+   re-poll; browser create/events/poll/delete.
+5. **Optimizer groundwork** (`cb577cd`). `ir/rewrites.py`: five provable
+   identities (filter below row-wise projection/sort, limit below projection,
+   filter merge under three-valued logic, limit merge) applied before the
+   planner splits; a four-way differential test (as written × rewritten,
+   pandas × SQLite) is the evidence; every plan lists what it rewrote. Live
+   against Postgres: two filters written after a projection and a sort were
+   merged and pushed into the source's WHERE. Fixed en route: the shape-YAML
+   placeholder used `type:`/`config:` keys the recipe parser rejects.
+
+**Deliberately left, stated in HANDOFF §7:** lineage still from `columns.py`;
+CDC live test skips on CI (`wal_level=replica` there); MySQL/Mongo/SQL Server
+CDC, queues, streaming transforms, exactly-once; data contracts; statistics /
+cost model / caching / federation.
+
+**Verify in browser (done):** Sources page — shaped job run with plan
+feedback incl. rewrites; Live sources create (token modal), events, Poll now,
+Materialise link, delete with consequences. Studio — plan strip with the
+"Rewritten first" block over a select + filter recipe. Metrics page and
+Workbench metrics panel (during commit 3). Migrations 0043→0045 ran clean on
+the dev Postgres.
 
 ---
 

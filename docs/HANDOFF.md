@@ -5,7 +5,7 @@ last one stopped. Keep it current. If you change project state, update the **Pro
 and **Session log** at the bottom before you finish.
 
 **Last updated:** 2026-09-23
-**Updated by:** session `9744ba1b` (P7 time travel and P8 BI & collaboration complete; P9 next)
+**Updated by:** session `9744ba1b` (P7 time travel, P8 BI & collaboration and P9 market-decider depth complete; the production-readiness sequence P0–P9 is finished)
 
 ---
 
@@ -67,8 +67,8 @@ session log).
 npm run verify     # ruff + pytest + ESLint + tsc + production build
 ```
 
-Everything must be green before moving on. Current baseline: **6,038 Python tests
-(573 skipped), 678 web tests, all passing, zero warnings.**
+Everything must be green before moving on. Current baseline (2026-09-23, after P9): **6,297 Python tests
+(573 skipped), 692 web tests, all passing, zero warnings.**
 
 Other commands: `npm test` (tests only) · `npm run smoke` (end-to-end smoke) ·
 `npm run lint` · `npm run typecheck` · `scripts/backup.sh --verify` (real restore drill).
@@ -112,13 +112,14 @@ was for that push, not a standing one.
 | 06 | Intelligence | `service-intelligence` | PII, join keys, entity resolution — **no model calls** |
 | 07 | Enterprise | `service-enterprise` | Tenancy, row/column security, retention, SSO, `/metrics` |
 
-**Migrations:** `apps/api-gateway/alembic/versions/`, 42 files, head is `0042_report_delivery_channels`.
+**Migrations:** `apps/api-gateway/alembic/versions/`, 45 files, head is `0045_stream_sources`.
 
 ### Roadmap v2: in progress
 
 See [`roadmap-v2.md`](./roadmap-v2.md) — 16 phases across 4 tracks, ≈58 sessions.
-Phases **08, 09, 10, 11, 12, 13, 14, 15, 17, 18** are done and **16** shipped its
-machinery plus 173 tools; the progress ledger in §8 tracks the rest.
+Phases **08, 09, 10, 11, 12, 13, 14, 15, 17, 18** are done, **16** shipped its
+machinery plus 173 tools, and **19, 20, 22** each shipped a first slice as
+production-readiness P9; the progress ledger in §8 tracks the rest.
 
 ---
 
@@ -193,8 +194,12 @@ honesty; if you verify one, update its status here.
 | SPSS `.sav`, `.ods` and 7-Zip unreadable | Need `pyreadstat`, `odfpy` and `py7zr`. Each is declared and refused with the package to install. SAS and Stata, which pandas reads natively, work |
 | Upload sessions live in process memory | A session is worthless without its chunks and the chunks are in that process's storage, so a session table would be a write per 8MB for state that cannot outlive them. A multi-process gateway needs sticky sessions for uploads |
 | Duplicate-row detection is skipped when streaming | It needs every row held at once. The streaming profile reports `null` rather than `0`, which would be a claim |
-| Streaming, queues and CDC absent from the catalogue | 13 sources the roadmap itself defers to Phase 20. A different execution model, not another declaration |
-| Inbound webhooks and gRPC absent | A webhook is a receiver needing an endpoint, a store and a replay story (Phase 20's shape); gRPC needs `grpcio` and a reflection-based dynamic client |
+| Streaming is PostgreSQL CDC and inbound webhooks only | P9 shipped `service_extraction/streams.py`: a token-keyed webhook receiver and Postgres logical replication through a `test_decoding` slot, read in micro-batches by the ticker, materialised as versions of one append-only dataset, **at-least-once** (a crash between store and advance re-reads; the position hash makes it a no-op). MySQL binlog, MongoDB change streams, SQL Server CDC, Kafka/Kinesis/Pub/Sub and the other queues, streaming transforms (windows, watermarks, stateful aggregation) and exactly-once are absent by name in `roadmap-v2.md` Phase 20 |
+| CDC's live test skips on CI | `test_streams.py` runs the slot round-trip only against a Postgres with `wal_level=logical` (the dev compose sets it; the CI service container runs the default `replica`). It ran green here against the local server; on CI that one test is skipped and says why, not passed |
+| gRPC absent | Needs `grpcio` and a reflection-based dynamic client |
+| Lineage is still derived from `columns.py`, not the IR | P9 made the IR the only *executor*; `service_lineage/from_ir.py` derives schemas, not edges, so cutting lineage over means writing edge derivation first. `test_matches_ir.py` still proves the two agree |
+| Semantic layer has metrics, not data contracts | Phase 19's contracts (producer-published schema/freshness/volume agreements enforced at the pipeline) are not started; metrics resolve everywhere charts, dashboards and the workbench read, with a version history |
+| Optimizer has rewrites, not statistics | `ir/rewrites.py` applies five provable identities before the planner splits a tree. No row/distinct counts are collected, so no join reordering, no cost model, no caching or federation (Phase 22) |
 | 9 engines are declared but undriveable | Cassandra, ScyllaDB, Couchbase, Redis, ArangoDB, HBase, Aerospike, Timestream, HDFS. Each declares only `test`, reports `available: false`, and names the interface this platform *can* read instead |
 | Extraction still creates a dataset per run | Versions are recorded for every producer's output, but repeated extraction does not append versions to one logical dataset — the watermark lives on the job, so head/watermark consistency does not depend on dataset identity. Collapsing runs onto one logical dataset is a deliberate later refinement (`phase-18-decisions.md` §1) |
 | Temporal SQL runs in SQLite over a copy | `AS OF` queries load the version's artifact into an in-memory SQLite table named `dataset`; the dialect is SQLite's, not the source's, and results are capped at 1,000 rows. Customer SQL sent to customer databases is never rewritten (settled decision #8) |
@@ -210,21 +215,21 @@ honesty; if you verify one, update its status here.
 
 | # | Phase | Status | Sessions | Notes |
 |---|---|---|---|---|
-| 08 | Type system & IR | **done** | 4/4 | Types, IR, 2 backends, 20 steps, IR-derived lineage. Cutover deliberately deferred — see below |
+| 08 | Type system & IR | **done** | 4/4 | Types, IR, 2 backends, 20 steps. **IR is the only executor since P9** (`executor.py` compiles every step to IR; unmodelled steps are Extension nodes). Lineage still from `columns.py` — see below |
 | 09 | Design system & themes | **done** | 2/2 | Graphite/teal/copper; light+dark+system; density |
 | 10 | Connector factory (→250) | **done** | 6/6 | 211 connectors, 4 generators, 50 at tier 2, schema watch + incidents, secret references |
 | 11 | Ingestion intelligence | **done** | 3/3 | Sniffing pipeline with evidence, 10 readers, ingest specs, resumable upload, streaming profile, 6 nested tools |
-| 12 | Pushdown & dialects | **done** | 4/4 | Surfaces, planner, plan executor, plan panel. Not yet wired into runs |
+| 12 | Pushdown & dialects | **done** | 4/4 | Surfaces, planner, plan executor, plan panel. **Wired into extraction runs in P9** (`service_extraction/shaping.py`: a job's steps run at the source as SQL where the dialect can, the rest here; grain-changing steps refused for incremental loads) |
 | 13 | Data grid | **done** | 4/4 | Canvas grid, selection, clipboard, profiling, header interactions, step deltas. Editing wired by 15 |
 | 14 | Formula engine | **done** | 3/3 | Lexer, parser to IR, 87-function catalogue, formulas push down |
 | 15 | Write-back | **done** | 3/3 | Change sets, identity, dry run, blast radius, batching, Table editor page |
 | 16 | Tool library (→420) | **partial** | 3/6 | 173 tools + the registry, harness, API, docs and UI. Window/statistical/geo/enrichment families deliberately absent |
 | 17 | SQL IDE & notebook | **done** | 3/3 | Workbench, notebook, sandbox, recipe-as-code. Python cells disabled on macOS by design |
 | 18 | Time travel | **done** | 3/3 | Immutable versions (0038–0040), temporal reads, `AS OF` SQL, diff, rollback, deterministic replay with recorded execution context, erasure reconciled, pin + two-step prune protocol, viewer/editor matrix, scripted live acceptance. Delivered as production-readiness P7 — see `docs/plans/phase-18-decisions.md` |
-| 19 | Semantic layer & contracts | not started | 0/3 | Needs 08, 18 |
-| 20 | Streaming & CDC | not started | 0/4 | Needs 08, 10 |
-| 21 | Collaboration | not started | 0/3 | Needs 13 |
-| 22 | Optimizer | not started | 0/4 | Needs 12, 18 |
+| 19 | Semantic layer & contracts | **partial** | 1/3 | Metrics defined once on the IR (`service_reporting/metrics.py`, migration 0044): owner, measure, filters, dimensions, version history; resolved at compute time by charts/dashboards/reports, rendered as SQL in the workbench, usage listed. Data contracts not started |
+| 20 | Streaming & CDC | **partial** | 1/4 | Inbound webhooks + PostgreSQL logical-replication CDC (`service_extraction/streams.py`, migration 0045), micro-batch via the ticker, materialised into one append-only versioned dataset, at-least-once stated. MySQL/Mongo/SQL Server CDC, queues, streaming transforms absent |
+| 21 | Collaboration | **partial** | 1/3 | Comments with @mentions on datasets, pipelines, dashboards and change requests (P8). CRDT co-editing, presence, suggestion mode not started |
+| 22 | Optimizer | **partial** | 1/4 | `ir/rewrites.py`: predicate/limit pushdown through row-wise nodes, filter and limit merging, proven by a four-way differential test and reported in every plan. No statistics, cost model, caching or federation |
 | 23 | Extensibility | not started | 0/3 | Needs most |
 
 **Business documentation (2026-09-23):** [Business requirements](business-requirements.md)
@@ -235,34 +240,43 @@ increments without declaring P2 complete; later development is outside that snap
 
 ### Recommended next action
 
-**Track D (19–23) is what is left of the product roadmap**, plus more tool
-categories on the Phase 16 registry. Tracks A, B and C are complete and 18 (time
-travel) shipped as production-readiness P7, which unlocks 19 and 22. The
-production-readiness plan (`docs/plans/production-readiness-workflow.md`) is the
-active sequence: P8 (BI & collaboration) is done; **P9 is next** (pushdown
-cutover, IR-only executor, CDC, semantic layer).
+**The production-readiness sequence (P0–P9) is complete** as of 2026-09-23 —
+see `docs/plans/production-readiness-workflow.md` for what each phase delivered
+and what it deliberately left. Tracks A, B and C of the product roadmap are
+complete, 18 (time travel) shipped as P7, and 19, 20 and 22 each shipped a
+first slice as P9. **What is left is the rest of Track D**, in this order of
+value: Phase 20's remaining sources (MySQL binlog first — the connector exists,
+the change log reader does not) and streaming transforms; Phase 19's data
+contracts on top of the drift detector; Phase 22's statistics (the rewrites
+exist, a cost model needs row and distinct counts the platform does not collect
+yet); Phase 21's co-editing; Phase 23; and more tool categories on the Phase 16
+registry. The one cutover still pending is lineage from the IR (below).
 
 The thesis track is finished: 08 (types + IR) → 09 (design) → 13 (grid) → 14 (formulas) →
 12 (pushdown) → 15 (write-back) → 17 (SQL IDE) are all done, and 16 shipped its
 machinery plus 167 tools. Together they are the whole argument — an analyst edits a
 live table in a grid, reaches any of 167 tools from a right-click or Ctrl+K, drops
 into SQL or Python when the visual tools run out, and every edit is a reviewed
-statement with lineage. What is left is depth (18–23), more tool categories, and
-two cutovers noted below: making the IR the only executor, and wiring pushdown
-into extraction runs.
+statement with lineage. What is left is the rest of depth (19–23) and more tool
+categories. Both cutovers this section used to list — the IR as the only
+executor, and pushdown wired into extraction runs — were made in P9.
 
-### Phase 08: what is done, and the one thing deliberately not done
+### Phase 08: the IR is the only executor; lineage is the one thing still not cut over
 
-The IR is built, proven, and wired in — but it does **not** yet replace the existing
-executor. Both run, and `test_ir_from_steps.py` proves they agree on every step.
-Likewise `service_lineage/from_ir.py` derives columns from the IR and
-`test_matches_ir.py` proves it equals `columns.py`, which in turn is proven against a
-real pandas run.
+Since P9 (commit `3ca069c`), `service_transformations/executor.py` compiles every
+step to IR and runs it through `ir.pandas_backend.execute`. Steps the algebra
+does not model (fills, dedupe-with-order, splits, the tool step's harness) are
+`Extension` nodes with registered handlers, so they still run — they just never
+push down. The per-step pandas table is gone; `test_executor_cutover.py` proves
+the outputs and warnings match what the old path produced.
 
-**Cutting over to IR-only is a deliberate separate decision**, not an oversight. The
-roadmap itself called for running both until identical; they now are. Whoever makes the
-cutover should delete `columns.py`'s per-step table and route `apply_transformation_steps`
-through `ir.pandas_backend.execute`.
+**Lineage is still derived from `columns.py`.** `service_lineage/from_ir.py`
+derives *schemas* from the IR, not column-to-column edges, so the lineage graph
+the API serves still comes from the per-step table in `columns.py`.
+`test_matches_ir.py` proves the two agree. Cutting lineage over means writing
+edge derivation from IR expressions first (each `Project`/`Aggregate` output
+names its inputs via `columns_used()`), then deleting `columns.py`. A deliberate
+separate step, sized on its own; not an oversight.
 
 Conventions worth knowing before touching the IR:
 
@@ -664,6 +678,8 @@ Report honestly. If something is unverified, say so and add it to §7.
 
 | 2026-09-23 | `9744ba1b` | **P7 (Time travel / product Phase 18) complete.** Increments 3–6 on top of the earlier storage, temporal-read, diff, rollback and erasure work: (1) **§4 pin + two-step prune protocol** — migration 0040 (`dataset_version_pins`, `retention_state`/`delete_after`/`pruned_at`/`artifact_removed_at`), `version_lifecycle.py` (pin durable-before-read under a row lock; mark with a 30-min lease → re-validate under the lock → tombstone → delete bytes; rescue on pin; refuse after prune; crash-resume; shared bytes never deleted), a `dataset_versions` retention policy wired into the governance sweep and the ticker, `EDITOR_SEGMENTS` (rollback/replay) + `query` read-only in the central matrix; (2) **§3 frozen clock + execution context** — `ir/clock.py` is the one clock for now/today/age_years, every transformation run records instant, semantic version, steps snapshot + digest, input pins (base + join/union datasets) and the output pin; (3) **deterministic replay** — `POST /runs/{id}/replay` re-executes recorded steps against pinned versions at the recorded instant, compares by digest or by ordered columns + canonical types + row multiset, answers equivalent / divergent / incompatible / unavailable / failed / unverifiable; audit page shows output pins for every producer, the context, and a Replay action; (4) **`AS OF` SQL** — `POST …/versions/query` in the workbench over an in-memory SQLite copy, by version or instant with the stated tie rule, viewer role; Query action + "Query as of" on the history panel. **Verified live**: dev Postgres migrated 0039→0040; gateway restarted from this checkout on :8100; `scripts/e2e/p7_time_travel.sh` ran **39/39** against it (upload→v1 digest = local sha256, context pins, replay equivalent, correction erasure → v2 with v1 still readable, diff with/without identity, rollback → v3 with v1's digest, AS OF by version/instant/before-first → 404, write refused, retention policy report-only); in the browser: history panel with Query/Diff/Restore (diff with identity → 1 changed/email; restore → v4 = v2's fingerprint), temporal query modal incl. Ctrl+Enter, run audit page pins + execution context + Replay → Equivalent. Browser gotcha: the web client reads its token from `localStorage["idp.access_token"]` first, so a cookie alone shows "Invalid or expired access token" in client panels. `npm run verify` green, zero warnings: 6,162 → 6,211 Python passed / 573 skipped, 683 → 685 web. Commits 3184037, 3e62192, 8b84a4a, b1a84f2 + this close-out — author/committer harshkvpatil98, no AI attribution. **Next: P8.** |
 
-| 2026-09-23 | `9744ba1b` | **P8 (BI & collaboration) complete**, five commits: **dashboard builder v2** (aacbcc2 — a real authenticated dashboard page where none existed; one-call tile data under saved or ad-hoc global filters; in-place layout editing with drag reorder, width/height, add chart/text, remove; text tiles + stored auto-refresh via migration 0041; donut; KPI vs previous period with honest degradation; one chart-data helper for preview/chart/tile/share); **comments everywhere** (033f5f9 — shared discussion panel on datasets, pipelines, dashboards, change requests with @mention autocomplete; fixed the P6 review thread that called `/comments` instead of `/discussion` and never worked; `discussion` added to operator segments so operators can comment; mention notifications carry the target); **emailed invitations/reset codes** (662e6c8 — one `send_plain_email` primitive with attachments; code returned only when not emailed, with the reason; login prefills `?code=`); **report delivery + PDF** (476dc45 — Slack target with link, email target and per-recipient attachments, per-channel outcomes on the delivery via migration 0042, honest summary; reportlab PDF, paginated, landscape when wide, states what it leaves out; obsolete "no layout engine" refusal test retired with reason); **dashboard subscriptions** (792a07d). Dev Postgres migrated 0040→0042 clean. **Verified live in the browser:** dashboard page with filter chip, text tile, bar, KPI note, donut; ad-hoc filter apply; layout save; comment posted with a highlighted mention; reports page with target picker, PDF format and per-channel ✗ chips after a live run whose PDF was 2.2 KB `%PDF-1.4`; subscribe modal. HONEST GAP: no SMTP/Slack reachable here, so external channels were exercised with captured senders in tests and produced the stated failures live. `npm run verify` green, zero warnings: 6,211 → 6,240 Python passed / 573 skipped, 685 → 692 web. Author/committer harshkvpatil98, no AI attribution. **Next: P9.** |
+| 2026-09-23 | `9744ba1b` | **P8 (BI & collaboration) complete**, five commits: **dashboard builder v2** (aacbcc2 — a real authenticated dashboard page where none existed; one-call tile data under saved or ad-hoc global filters; in-place layout editing with drag reorder, width/height, add chart/text, remove; text tiles + stored auto-refresh via migration 0041; donut; KPI vs previous period with honest degradation; one chart-data helper for preview/chart/tile/share); **comments everywhere** (033f5f9 — shared discussion panel on datasets, pipelines, dashboards, change requests with @mention autocomplete; fixed the P6 review thread that called `/comments` instead of `/discussion` and never worked; `discussion` added to operator segments so operators can comment; mention notifications carry the target); **emailed invitations/reset codes** (662e6c8 — one `send_plain_email` primitive with attachments; code returned only when not emailed, with the reason; login prefills `?code=`); **report delivery + PDF** (476dc45 — Slack target with link, email target and per-recipient attachments, per-channel outcomes on the delivery via migration 0042, honest summary; reportlab PDF, paginated, landscape when wide, states what it leaves out; obsolete "no layout engine" refusal test retired with reason); **dashboard subscriptions** (792a07d). Dev Postgres migrated 0040→0042 clean. **Verified live in the browser:** dashboard page with filter chip, text tile, bar, KPI note, donut; ad-hoc filter apply; layout save; comment posted with a highlighted mention; reports page with target picker, PDF format and per-channel ✗ chips after a live run whose PDF was 2.2 KB `%PDF-1.4`; subscribe modal. HONEST GAP: no SMTP/Slack reachable here, so external channels were exercised with captured senders in tests and produced the stated failures live. `npm run verify` green, zero warnings: 6,211 → 6,239 Python passed / 573 skipped, 685 → 692 web (this row first said 6,240; the gate's own output said 6,239). Author/committer harshkvpatil98, no AI attribution. **Next: P9.** |
+
+| 2026-09-23 | `9744ba1b` | **P9 (market-decider depth) complete — the production-readiness sequence P0–P9 is finished.** Five commits: **the IR is the only executor** (3ca069c — `executor.py` compiles every step to IR, unmodelled steps are Extension nodes with registered handlers, the per-step pandas table is gone; `test_executor_cutover.py`); **pushdown wired into extraction runs** (f5c5b19 — job `steps` planned against the connector surface, pushable prefix runs as SQL around the extract, rest here, plan recorded on the run, grain-changing steps refused for incremental loads, zero-row column probe; fixed a pre-existing `uuid` JSON failure in profiling that broke every Postgres extraction); **semantic layer** (04735a9, migration 0044 — metrics defined once with owner/measure/filters/dimensions and a governance version history, resolved by charts/dashboards/reports at compute time, rendered as SQL in the workbench, usage listed; Metrics page); **streaming** (cc2f9be, migration 0045 — public `POST /api/v1/hooks/{token}` with the token shown once and sha256 at rest, PostgreSQL CDC through a `test_decoding` logical slot read in micro-batches by the ticker with peek → store-by-position → advance, at-least-once stated, capability check names the fix, materialise into one append-only versioned dataset; dev compose Postgres now `wal_level=logical`; Live sources panel); **optimizer groundwork** (cb577cd — `ir/rewrites.py`, five provable identities before the planner splits, four-way differential test, rewrites listed in every plan; fixed the shape-YAML placeholder that used `type:`/`config:` keys the recipe parser rejects, and the parser now names the shape it expects). Dev Postgres migrated 0042→0045 clean. **Verified live in the browser:** shaped extraction run with plan + rewrites feedback (two filters after a projection and sort merged and pushed into WHERE against real Postgres); Live sources create (token modal), events viewer with LSN/xid, Poll now, Materialise → dataset link, delete with consequences; Studio plan strip with the "Rewritten first" block; metrics page and workbench panel earlier in the phase. Closed en route: `test_mfa.py` round-trip minted a ticket at a fixed past instant and verified against the wall clock — a time bomb from P4 that went off ~1h40m after it was written; it now mints on the real clock. **Deliberately left (HANDOFF §7):** lineage still from `columns.py`; CDC live test skips on CI (`wal_level=replica`); MySQL/Mongo/SQL Server CDC, queues, streaming transforms, exactly-once; data contracts; statistics/cost model/caching/federation. `npm run verify` green, zero warnings: 6,239 → 6,297 Python passed / 573 skipped, 692 web, ruff/eslint/tsc/build green. Author/committer harshkvpatil98, no AI attribution. **Next: the rest of Track D — see Recommended next action.** |
 
 <!-- Add a row above when you finish a session. Keep it to one line. -->

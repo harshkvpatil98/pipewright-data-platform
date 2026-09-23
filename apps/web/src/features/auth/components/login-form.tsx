@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { Button, FormField, Input, LogoMark, SectionPanel } from "@platform/shared-ui";
-import type { AuthTokenResponse, LoginPayload } from "@platform/shared-types";
+import type { AuthTokenResponse, LoginPayload, LoginResult } from "@platform/shared-types";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { setAccessToken } from "@/lib/auth/session";
@@ -17,11 +17,21 @@ export function LoginForm() {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [mode, setMode] = useState<"signin" | "code">("signin");
+  const [mode, setMode] = useState<"signin" | "code" | "mfa">("signin");
   const [code, setCode] = useState("");
   const [codePassword, setCodePassword] = useState("");
+  const [mfaTicket, setMfaTicket] = useState<string | null>(null);
+  const [mfaCode, setMfaCode] = useState("");
 
   const nextPath = searchParams.get("next") || "/projects";
+
+  const finishLogin = (result: LoginResult) => {
+    if (result.access_token) {
+      setAccessToken(result.access_token);
+      router.push(nextPath);
+      router.refresh();
+    }
+  };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -30,13 +40,35 @@ export function LoginForm() {
 
     try {
       const payload: LoginPayload = { username, password };
-      const response = await apiFetch<AuthTokenResponse>("/auth/login", {
+      const response = await apiFetch<LoginResult>("/auth/login", {
         method: "POST",
         body: JSON.stringify(payload),
       });
-      setAccessToken(response.access_token);
-      router.push(nextPath);
-      router.refresh();
+      if (response.status === "mfa_required") {
+        // Password accepted; a second factor is on. Hold the ticket and ask
+        // for the code rather than dropping the browser back to the start.
+        setMfaTicket(response.mfa_ticket);
+        setMode("mfa");
+        setSubmitting(false);
+        return;
+      }
+      finishLogin(response);
+    } catch (submitError) {
+      setError(extractErrorMessage(submitError));
+      setSubmitting(false);
+    }
+  };
+
+  const submitMfa = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError(null);
+    setSubmitting(true);
+    try {
+      const response = await apiFetch<LoginResult>("/auth/login/mfa", {
+        method: "POST",
+        body: JSON.stringify({ mfa_ticket: mfaTicket, code: mfaCode.trim() }),
+      });
+      finishLogin(response);
     } catch (submitError) {
       setError(extractErrorMessage(submitError));
       setSubmitting(false);
@@ -69,14 +101,47 @@ export function LoginForm() {
         <p className="mt-2 text-sm text-ink-3">{brand.shortDescription}</p>
       </div>
       <SectionPanel
-        title={mode === "signin" ? "Sign in" : "Set your password"}
+        title={
+          mode === "signin"
+            ? "Sign in"
+            : mode === "mfa"
+              ? "Two-factor authentication"
+              : "Set your password"
+        }
         description={
           mode === "signin"
             ? "Sign in to your Pipewright workspace."
-            : "Enter the one-time code you were given, and choose a password."
+            : mode === "mfa"
+              ? "Enter the 6-digit code from your authenticator app, or a recovery code."
+              : "Enter the one-time code you were given, and choose a password."
         }
       >
-        {mode === "signin" ? (
+        {mode === "mfa" ? (
+          <form className="space-y-5" onSubmit={submitMfa}>
+            <FormField label="Authentication code" htmlFor="mfa-code">
+              <Input
+                id="mfa-code"
+                value={mfaCode}
+                onChange={(event) => setMfaCode(event.target.value)}
+                autoFocus
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder="123456"
+              />
+            </FormField>
+            {error ? <div className="rounded-2xl border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger">{error}</div> : null}
+            <Button type="submit" disabled={submitting || mfaCode.trim().length < 6} className="w-full">
+              {submitting ? "Verifying..." : "Verify"}
+            </Button>
+            <button
+              type="button"
+              onClick={() => { setMode("signin"); setError(null); setMfaCode(""); setMfaTicket(null); }}
+              className="w-full text-center text-[12px] text-ink-3 transition hover:text-ink"
+            >
+              Back to sign in
+            </button>
+          </form>
+        ) : mode === "signin" ? (
           <form className="space-y-5" onSubmit={handleSubmit}>
             <FormField label="Username" htmlFor="username">
               <Input id="username" value={username} onChange={(event) => setUsername(event.target.value)} autoFocus />

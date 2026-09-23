@@ -10,7 +10,11 @@ dependencies = [
   "fastapi>=0.115,<1.0",
   "pydantic>=2.9,<3.0",
   "sqlalchemy>=2.0,<3.0",
-  "shared-python>=0.1.0"
+  "shared-python>=0.1.0",
+  # PyJWT signs the between-steps MFA login ticket; segno renders the TOTP
+  # enrolment QR server-side (pure Python, no native library).
+  "PyJWT>=2.8,<3.0",
+  "segno>=1.6,<2.0"
 ]
 
 [tool.setuptools.packages.find]

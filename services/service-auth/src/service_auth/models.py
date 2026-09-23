@@ -125,3 +125,33 @@ class AuthCode(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     user: Mapped[User] = relationship()
+
+
+class UserMfa(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """A person's second factor: a TOTP secret and its recovery codes.
+
+    The secret is stored as-is because a TOTP code is *computed* from it on
+    every verification -- unlike a password, it cannot be hashed and still do
+    its job. The database is the trust boundary that protects it, the same one
+    that protects every session and token here; a deployment that wants envelope
+    encryption can layer it under this column without changing the interface.
+
+    Recovery codes are the opposite: they are only ever *checked*, so they are
+    hashed like a password reset code and the plaintext is shown once at
+    generation. `activated` gates login -- an enrolment that was started but
+    never confirmed with a live code must not lock anyone out.
+    """
+
+    __tablename__ = "user_mfa"
+    __table_args__ = (Index("ix_user_mfa_user", "user_id", unique=True),)
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    secret: Mapped[str] = mapped_column(String(64), nullable=False)
+    activated: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    #: [{"hash": "...", "used_at": null}] -- SHA-256 hashes, used-once.
+    recovery_codes_json: Mapped[list[dict] | None] = mapped_column(JSON, nullable=True)
+
+    user: Mapped[User] = relationship()

@@ -1049,6 +1049,32 @@ export type AuthTokenResponse = {
   user: AuthUser;
 };
 
+/** The password step's result: either a session, or a demand for the code. */
+export type LoginResult = {
+  status: "ok" | "mfa_required";
+  access_token: string | null;
+  token_type: string;
+  expires_in: number | null;
+  user: AuthUser | null;
+  mfa_ticket: string | null;
+};
+
+export type MfaStatus = {
+  enrolled: boolean;
+  active: boolean;
+  recovery_codes_remaining: number;
+};
+
+export type MfaEnrollResponse = {
+  secret: string;
+  otpauth_uri: string;
+  qr_svg: string;
+};
+
+export type MfaRecoveryCodesResponse = {
+  recovery_codes: string[];
+};
+
 /**
  * Phase 11 — ingestion intelligence.
  *

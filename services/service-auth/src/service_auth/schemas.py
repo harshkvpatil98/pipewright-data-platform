@@ -38,6 +38,51 @@ class TokenResponse(BaseModel):
     user: UserRead
 
 
+class LoginResult(BaseModel):
+    """The result of the password step: either a session, or a demand for the
+    second factor. `status` says which, so the client never guesses."""
+
+    status: str  # "ok" | "mfa_required"
+    access_token: str | None = None
+    token_type: str = "bearer"
+    expires_in: int | None = None
+    user: UserRead | None = None
+    #: Present only when status == "mfa_required": a short-lived ticket that
+    #: proves the password step passed, spent by POST /auth/login/mfa.
+    mfa_ticket: str | None = None
+
+
+class MfaLoginRequest(BaseModel):
+    mfa_ticket: str
+    code: str = Field(min_length=6, max_length=32)
+
+
+class MfaStatusResponse(BaseModel):
+    enrolled: bool
+    active: bool
+    recovery_codes_remaining: int = 0
+
+
+class MfaEnrollResponse(BaseModel):
+    secret: str
+    otpauth_uri: str
+    qr_svg: str
+
+
+class MfaActivateRequest(BaseModel):
+    code: str = Field(min_length=6, max_length=8)
+
+
+class MfaRecoveryCodesResponse(BaseModel):
+    recovery_codes: list[str]
+
+
+class MfaDisableRequest(BaseModel):
+    # A live code or a recovery code proves the disabler holds the factor, so a
+    # walked-up-to session cannot quietly remove someone's second factor.
+    code: str = Field(min_length=6, max_length=32)
+
+
 class BootstrapUserRequest(BaseModel):
     username: str = Field(min_length=3, max_length=80)
     password: str = Field(min_length=8, max_length=128)

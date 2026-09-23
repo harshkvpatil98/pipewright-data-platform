@@ -12,6 +12,7 @@ import { Icon } from "@/components/ui/icon";
 import { AppearanceControls } from "@/features/preferences/components/appearance-controls";
 import { AccountSecurity } from "@/features/settings/components/account-security";
 import { ApiTokensPanel } from "@/features/settings/components/api-tokens-panel";
+import { MfaPanel } from "@/features/settings/components/mfa-panel";
 import { appConfig } from "@/lib/config";
 import { cx } from "@/lib/utils";
 
@@ -98,6 +99,13 @@ export function SettingsPageView({ currentUser }: SettingsPageProps) {
           description="Change your password, and end sessions if one was left open."
         >
           <AccountSecurity />
+        </Section>
+
+        <Section
+          title="Two-factor authentication"
+          description="Add a code from an authenticator app on top of your password, so a stolen password is not enough to sign in."
+        >
+          <MfaPanel />
         </Section>
 
         <Section

@@ -34,6 +34,10 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     # Every issued token carries the value this had at issue time. Bumping it
     # ends all of that user's sessions at once without a session table.
     token_version: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # How this account is managed: "local" (password/invite here) or "sso"
+    # (provisioned by an identity provider). Only "sso" accounts are subject to
+    # the directory deactivate-on-absence sync, so a local admin is never swept.
+    auth_source: Mapped[str] = mapped_column(String(16), nullable=False, default="local")
     # Which tenant this person belongs to. Null on a single-tenant deployment,
     # where it matches the equally-null organisation on every project.
     organisation_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)

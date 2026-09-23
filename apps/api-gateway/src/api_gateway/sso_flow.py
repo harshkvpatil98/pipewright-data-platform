@@ -217,6 +217,9 @@ def provision_user(db: Session, identity: MappedIdentity, *, settings) -> User:
         is_active=True,
         email=identity.email,
         display_name=identity.display_name,
+        # Marks the account as directory-managed, so the SCIM sync may sweep it
+        # when it disappears from the directory -- and a local account never is.
+        auth_source="sso",
     )
     db.add(user)
     db.commit()

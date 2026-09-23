@@ -1,0 +1,194 @@
+"""Immutable version history recorded on every materialisation (Phase 18).
+
+These exercise the publication seam directly: `apply_*` advances the head and
+appends a version but leaves the commit to its caller, while `finalize_*` owns
+the commit. The two must never disagree about the current data, so the tests
+assert head and version land -- or roll back -- together.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Iterator
+
+import pytest
+from sqlalchemy import create_engine, event, select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session, sessionmaker
+
+import api_gateway.metadata  # noqa: F401  - imports every model onto one Base
+from service_auth.models import User
+from service_datasets.models import Dataset, DatasetVersion
+from service_datasets.service import (
+    apply_dataset_materialization_success,
+    finalize_dataset_materialization_success,
+)
+from service_projects.models import Project
+from shared_python.db import Base
+from shared_python.storage import content_digest
+
+
+@pytest.fixture()
+def db() -> Iterator[Session]:
+    engine = create_engine("sqlite://")
+
+    @event.listens_for(engine, "connect")
+    def _enforce_foreign_keys(connection, _record):  # noqa: ANN001
+        cursor = connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
+    Base.metadata.create_all(engine)
+    session = sessionmaker(bind=engine)()
+    try:
+        yield session
+    finally:
+        session.close()
+        engine.dispose()
+
+
+@pytest.fixture()
+def world(db: Session) -> dict:
+    owner = User(username="owner", password_hash="x", role="admin", is_active=True)
+    db.add(owner)
+    db.flush()
+    project = Project(name="Ops", slug="ops", owner_user_id=owner.id, status="active")
+    db.add(project)
+    db.flush()
+    dataset = Dataset(project_id=project.id, name="sales", status="registered")
+    db.add(dataset)
+    db.commit()
+    return {"owner": owner, "project": project, "dataset": dataset}
+
+
+def _materialise(db: Session, dataset: Dataset, *, path: str, data: bytes, owner_id, **over):
+    kwargs = dict(
+        file_path=path,
+        file_name=path.rsplit("/", 1)[-1],
+        schema_json={"columns": [{"name": "amount", "inferred_type": "int"}]},
+        schema_snapshot={"columns": [{"name": "amount", "inferred_type": "int"}]},
+        preview_json={"rows": []},
+        profile_json={"row_count": 3, "column_count": 1},
+        row_count=3,
+        column_count=1,
+        content_hash=content_digest(data),
+        created_by_user_id=owner_id,
+    )
+    kwargs.update(over)
+    return finalize_dataset_materialization_success(db, dataset=dataset, **kwargs)
+
+
+def _versions(db: Session, dataset_id) -> list[DatasetVersion]:
+    return list(
+        db.scalars(
+            select(DatasetVersion)
+            .where(DatasetVersion.dataset_id == dataset_id)
+            .order_by(DatasetVersion.version_number)
+        ).all()
+    )
+
+
+def test_a_materialisation_records_version_one(db: Session, world: dict):
+    dataset = world["dataset"]
+    _materialise(db, dataset, path="uploads/a.csv", data=b"amount\n1\n", owner_id=world["owner"].id)
+
+    versions = _versions(db, dataset.id)
+    assert [v.version_number for v in versions] == [1]
+    version = versions[0]
+    assert version.file_path == "uploads/a.csv"
+    assert version.row_count == 3
+    assert version.content_hash == content_digest(b"amount\n1\n")
+    assert version.created_by_user_id == world["owner"].id
+    # The head moved to ready alongside the version.
+    assert dataset.status == "ready"
+    assert dataset.ingestion_status == "succeeded"
+
+
+def test_re_materialising_appends_a_monotonic_version(db: Session, world: dict):
+    dataset = world["dataset"]
+    _materialise(db, dataset, path="uploads/v1.csv", data=b"one", owner_id=world["owner"].id)
+    _materialise(db, dataset, path="uploads/v2.csv", data=b"two", owner_id=world["owner"].id)
+    _materialise(db, dataset, path="uploads/v3.csv", data=b"three", owner_id=world["owner"].id)
+
+    versions = _versions(db, dataset.id)
+    assert [v.version_number for v in versions] == [1, 2, 3]
+    # History is not rewritten: the first version still points at its own bytes.
+    assert versions[0].file_path == "uploads/v1.csv"
+    assert versions[0].content_hash == content_digest(b"one")
+    # The head reflects the latest publication.
+    assert dataset.file_path == "uploads/v3.csv"
+
+
+def test_identical_data_still_appends_a_version_with_the_same_digest(db: Session, world: dict):
+    # Republishing the same bytes is a real event (a re-run); it gets its own
+    # version, and the shared digest is what a later increment dedupes on.
+    dataset = world["dataset"]
+    _materialise(db, dataset, path="uploads/a.csv", data=b"same", owner_id=world["owner"].id)
+    _materialise(db, dataset, path="uploads/b.csv", data=b"same", owner_id=world["owner"].id)
+
+    versions = _versions(db, dataset.id)
+    assert [v.version_number for v in versions] == [1, 2]
+    assert versions[0].content_hash == versions[1].content_hash
+
+
+def test_apply_flushes_but_leaves_the_commit_to_the_caller(db: Session, world: dict):
+    # The transaction-ownership seam (§5): apply_ makes the head advance and the
+    # version visible within the transaction, but a rollback undoes BOTH -- they
+    # can never end up disagreeing about the current data.
+    dataset = world["dataset"]
+    apply_dataset_materialization_success(
+        db,
+        dataset=dataset,
+        file_path="uploads/x.csv",
+        file_name="x.csv",
+        schema_json={"columns": []},
+        schema_snapshot={"columns": []},
+        preview_json={"rows": []},
+        profile_json={"row_count": 0, "column_count": 0},
+        row_count=0,
+        column_count=0,
+        content_hash=content_digest(b"x"),
+    )
+    # Visible before commit within this session...
+    assert len(_versions(db, dataset.id)) == 1
+    assert dataset.status == "ready"
+
+    db.rollback()
+
+    # ...and gone together after a rollback.
+    assert _versions(db, dataset.id) == []
+    db.refresh(dataset)
+    assert dataset.status == "registered"
+    assert dataset.file_path is None
+
+
+def test_a_version_number_cannot_be_duplicated(db: Session, world: dict):
+    dataset = world["dataset"]
+    _materialise(db, dataset, path="uploads/a.csv", data=b"one", owner_id=world["owner"].id)
+    # A second version 1 for the same dataset is refused by the database, not by
+    # a hopeful application check.
+    db.add(
+        DatasetVersion(
+            dataset_id=dataset.id, version_number=1, file_path="uploads/dup.csv"
+        )
+    )
+    with pytest.raises(IntegrityError):
+        db.flush()
+
+
+def test_a_version_without_the_bytes_records_a_null_digest(db: Session, world: dict):
+    # content_hash is optional: a caller without the bytes in hand records the
+    # version rather than fabricating a digest.
+    dataset = world["dataset"]
+    finalize_dataset_materialization_success(
+        db,
+        dataset=dataset,
+        file_path="uploads/a.csv",
+        file_name="a.csv",
+        schema_json={"columns": []},
+        schema_snapshot={"columns": []},
+        preview_json={"rows": []},
+        profile_json={"row_count": 1, "column_count": 1},
+        row_count=1,
+        column_count=1,
+    )
+    assert _versions(db, dataset.id)[0].content_hash is None

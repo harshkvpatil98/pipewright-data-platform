@@ -32,6 +32,7 @@ from service_transformations.schemas import TransformationRunResponse
 from service_transformations.validators import validate_steps_json
 from shared_python.errors import ApplicationError, BadRequestError, InternalServerError
 from shared_python.logging import get_logger
+from shared_python.storage import content_digest
 
 logger = get_logger(__name__)
 
@@ -214,6 +215,9 @@ def run_saved_transformation_pipeline(
             profile_json=profile_json,
             row_count=profile_json["row_count"],
             column_count=profile_json["column_count"],
+            content_hash=content_digest(csv_bytes),
+            pipeline_run_id=run.id,
+            created_by_user_id=current_user.id,
         )
 
         summary_json: dict[str, object] = {

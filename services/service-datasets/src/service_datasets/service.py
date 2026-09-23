@@ -3,12 +3,12 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from service_auth.schemas import UserRead
 from service_datasets.audit import build_dataset_audit_summary
-from service_datasets.models import Dataset
+from service_datasets.models import Dataset, DatasetVersion
 from service_datasets.schemas import (
     DatasetAuditSummary,
     DatasetCreate,
@@ -261,7 +261,20 @@ def mark_dataset_ingestion_running(db: Session, *, dataset: Dataset) -> Dataset:
     return mark_dataset_processing_running(db, dataset=dataset)
 
 
-def finalize_dataset_materialization_success(
+def _next_version_number(db: Session, dataset_id: uuid.UUID) -> int:
+    """The next 1-based version number for a dataset. Read inside the publishing
+    transaction so it is consistent with the row about to be inserted; the
+    (dataset_id, version_number) unique constraint is the real guard against two
+    concurrent publications choosing the same number."""
+    highest = db.scalar(
+        select(func.max(DatasetVersion.version_number)).where(
+            DatasetVersion.dataset_id == dataset_id
+        )
+    )
+    return (highest or 0) + 1
+
+
+def apply_dataset_materialization_success(
     db: Session,
     *,
     dataset: Dataset,
@@ -274,7 +287,24 @@ def finalize_dataset_materialization_success(
     row_count: int,
     column_count: int,
     ingest_spec_json: dict[str, object] | None = None,
-) -> DatasetDetailRead:
+    content_hash: str | None = None,
+    pipeline_run_id: uuid.UUID | None = None,
+    created_by_user_id: uuid.UUID | None = None,
+) -> DatasetVersion:
+    """Advance a dataset's head and append its immutable version, then FLUSH --
+    without committing.
+
+    The commit boundary belongs to the caller (settled contract in
+    `docs/plans/phase-18-review-requirements.md` §5): head advance and version
+    publication must land in one transaction, so the two can never disagree about
+    what the current data is. `finalize_dataset_materialization_success` is the
+    commit-owning wrapper the existing producers use; a caller that needs a wider
+    atomic transaction calls this directly and owns the commit itself.
+
+    Returns the newly published `DatasetVersion` (already flushed, so it has an
+    id) rather than a detail read, because the detail read is only meaningful
+    after the commit the caller controls.
+    """
     dataset.file_path = file_path
     dataset.file_name = file_name
     dataset.row_count = row_count
@@ -292,6 +322,58 @@ def finalize_dataset_materialization_success(
         # text" needs an answer, and re-reading the same file needs the same
         # answers rather than a fresh inference over different data.
         dataset.ingest_spec_json = ingest_spec_json
+
+    version = DatasetVersion(
+        dataset_id=dataset.id,
+        version_number=_next_version_number(db, dataset.id),
+        content_hash=content_hash,
+        file_path=file_path,
+        file_name=file_name,
+        file_type=dataset.file_type,
+        row_count=row_count,
+        column_count=column_count,
+        schema_json=schema_json,
+        pipeline_run_id=pipeline_run_id,
+        created_by_user_id=created_by_user_id,
+    )
+    db.add(version)
+    db.flush()
+    return version
+
+
+def finalize_dataset_materialization_success(
+    db: Session,
+    *,
+    dataset: Dataset,
+    file_path: str,
+    file_name: str,
+    schema_json: dict[str, object],
+    schema_snapshot: dict[str, object],
+    preview_json: dict[str, object],
+    profile_json: dict[str, object],
+    row_count: int,
+    column_count: int,
+    ingest_spec_json: dict[str, object] | None = None,
+    content_hash: str | None = None,
+    pipeline_run_id: uuid.UUID | None = None,
+    created_by_user_id: uuid.UUID | None = None,
+) -> DatasetDetailRead:
+    apply_dataset_materialization_success(
+        db,
+        dataset=dataset,
+        file_path=file_path,
+        file_name=file_name,
+        schema_json=schema_json,
+        schema_snapshot=schema_snapshot,
+        preview_json=preview_json,
+        profile_json=profile_json,
+        row_count=row_count,
+        column_count=column_count,
+        ingest_spec_json=ingest_spec_json,
+        content_hash=content_hash,
+        pipeline_run_id=pipeline_run_id,
+        created_by_user_id=created_by_user_id,
+    )
     db.commit()
     db.refresh(dataset)
     return _to_detail(dataset)
@@ -310,6 +392,9 @@ def finalize_dataset_ingestion_success(
     row_count: int,
     column_count: int,
     ingest_spec_json: dict[str, object] | None = None,
+    content_hash: str | None = None,
+    pipeline_run_id: uuid.UUID | None = None,
+    created_by_user_id: uuid.UUID | None = None,
 ) -> DatasetDetailRead:
     return finalize_dataset_materialization_success(
         db,
@@ -323,6 +408,9 @@ def finalize_dataset_ingestion_success(
         row_count=row_count,
         column_count=column_count,
         ingest_spec_json=ingest_spec_json,
+        content_hash=content_hash,
+        pipeline_run_id=pipeline_run_id,
+        created_by_user_id=created_by_user_id,
     )
 
 

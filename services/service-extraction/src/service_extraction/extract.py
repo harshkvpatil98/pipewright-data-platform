@@ -42,6 +42,7 @@ from service_quality.drift_service import record_drift_event
 from shared_python.errors import ApplicationError, BadRequestError, InternalServerError
 from shared_python.logging import get_logger
 from shared_python.security.config_crypto import decrypt_sensitive_fields
+from shared_python.storage import content_digest
 
 from service_extraction.tiers import note_for
 
@@ -266,6 +267,9 @@ def run_extraction_job(
             profile_json=profile_json,
             row_count=profile_json["row_count"],
             column_count=profile_json["column_count"],
+            content_hash=content_digest(csv_bytes),
+            pipeline_run_id=run.id,
+            created_by_user_id=current_user.id,
         )
 
         # Advance incremental state only after the artifact is safely persisted,

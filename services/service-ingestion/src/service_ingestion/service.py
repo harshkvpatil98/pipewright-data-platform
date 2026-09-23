@@ -23,6 +23,7 @@ from service_pipeline_runs.service import (
 from service_projects.contracts import ensure_owned_project
 from shared_python.errors import ApplicationError, BadRequestError, InternalServerError
 from shared_python.logging import get_logger
+from shared_python.storage import content_digest
 
 logger = get_logger(__name__)
 
@@ -216,6 +217,9 @@ def ingest_project_file(
             row_count=profile_json['row_count'],
             column_count=profile_json['column_count'],
             ingest_spec_json=parsed.spec,
+            content_hash=content_digest(file_bytes),
+            pipeline_run_id=pipeline_run.id,
+            created_by_user_id=current_user.id,
         )
         log_events.append(
             _log_event(

@@ -37,6 +37,7 @@ from service_quality.schemas import (
 )
 from shared_python.errors import BadRequestError, NotFoundError
 from shared_python.logging import get_logger
+from shared_python.storage import content_digest
 
 logger = get_logger(__name__)
 
@@ -232,6 +233,8 @@ def _materialise_quarantine_dataset(
         ),
         row_count=int(len(frame)),
         column_count=int(len(frame.columns)),
+        content_hash=content_digest(csv_bytes),
+        created_by_user_id=current_user.id,
     )
     return detail.id
 

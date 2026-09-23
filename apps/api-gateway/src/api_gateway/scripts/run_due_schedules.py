@@ -61,6 +61,21 @@ def _beat(interval: float, status: str = "running") -> None:
         db.close()
 
 
+def _sweep_incidents() -> None:
+    """Open/resolve stalled-queue incidents. The ticker is the right home: it
+    runs independently of the workflow worker, so it can report the worker's
+    death. Best effort -- never fails the ticker loop."""
+    from api_gateway.runtime_incidents import sweep_runtime_incidents
+
+    db = SessionLocal()
+    try:
+        sweep_runtime_incidents(db)
+    except Exception:  # noqa: BLE001 - a sweep failure must not stop the ticker
+        logger.exception("runtime_incident_sweep_failed")
+    finally:
+        db.close()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Execute due Pipewright schedules.")
     parser.add_argument(
@@ -85,6 +100,7 @@ def main() -> None:
 
     while not _stopping:
         _beat(args.interval)
+        _sweep_incidents()
         try:
             summary = _drain_once()
             if summary.triggered_count or summary.failure_count:

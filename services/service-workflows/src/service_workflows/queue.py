@@ -338,3 +338,13 @@ def running_count(db: Session) -> int:
     return db.scalar(
         select(func.count(WorkflowRun.id)).where(WorkflowRun.status == "running")
     ) or 0
+
+
+def projects_with_queued_runs(db: Session, *, older_than=None) -> set:
+    """Project ids that have at least one queued run (optionally, one that has
+    waited past `older_than`). Used to open a stalled-queue incident against
+    each project whose work is stuck."""
+    statement = select(WorkflowRun.project_id).where(WorkflowRun.status == "queued")
+    if older_than is not None:
+        statement = statement.where(WorkflowRun.queued_at <= older_than)
+    return set(db.scalars(statement.distinct()).all())

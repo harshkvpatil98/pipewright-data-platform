@@ -28,7 +28,7 @@ from shared_python.logging import get_logger
 
 from service_observability.models import Incident, IncidentEvent
 
-SOURCE_KINDS = ("quality", "drift", "freshness", "anomaly", "workflow")
+SOURCE_KINDS = ("quality", "drift", "freshness", "anomaly", "workflow", "runtime")
 STATUSES = ("open", "acknowledged", "resolved")
 SEVERITIES = ("low", "medium", "high", "critical")
 ACTIVE_STATUSES = ("open", "acknowledged")
@@ -108,6 +108,22 @@ def _latest_event(db: Session, incident_id: uuid.UUID) -> IncidentEvent | None:
         .where(IncidentEvent.incident_id == incident_id)
         .order_by(IncidentEvent.sequence.desc())
         .limit(1)
+    )
+
+
+def active_by_fingerprint(db: Session, fingerprint: str) -> list[Incident]:
+    """Every open incident with this fingerprint, across all projects.
+
+    A platform-wide condition (a dead worker) opens one incident per affected
+    project; resolving it means finding them all, not one project at a time.
+    """
+    return list(
+        db.scalars(
+            select(Incident).where(
+                Incident.fingerprint == fingerprint,
+                Incident.status.in_(ACTIVE_STATUSES),
+            )
+        ).all()
     )
 
 

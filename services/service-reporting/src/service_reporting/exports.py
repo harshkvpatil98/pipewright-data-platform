@@ -22,7 +22,7 @@ import pandas as pd
 
 from shared_python.errors import BadRequestError
 
-EXPORT_FORMATS = ("excel", "csv", "html")
+EXPORT_FORMATS = ("excel", "csv", "html", "pdf")
 
 # Excel's own ceiling is 1,048,576 rows; well before that a spreadsheet stops
 # being something a person opens.
@@ -43,7 +43,7 @@ class ExportResult:
 
 
 def _extension(file_format: str) -> str:
-    return {"excel": "xlsx", "csv": "csv", "html": "html"}[file_format]
+    return {"excel": "xlsx", "csv": "csv", "html": "html", "pdf": "pdf"}[file_format]
 
 
 def _media_type(file_format: str) -> str:
@@ -51,6 +51,7 @@ def _media_type(file_format: str) -> str:
         "excel": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         "csv": "text/csv",
         "html": "text/html",
+        "pdf": "application/pdf",
     }[file_format]
 
 
@@ -72,10 +73,7 @@ def export(
     subtitle: str | None = None,
 ) -> ExportResult:
     if file_format not in EXPORT_FORMATS:
-        raise BadRequestError(
-            f"Reports can be produced as: {', '.join(EXPORT_FORMATS)}. "
-            "PDF is not offered because this deployment has no layout engine to render one properly."
-        )
+        raise BadRequestError(f"Reports can be produced as: {', '.join(EXPORT_FORMATS)}.")
     if len(frame) > MAX_EXPORT_ROWS:
         raise BadRequestError(
             f"This would be {len(frame):,} rows. Filter it down below {MAX_EXPORT_ROWS:,} "
@@ -86,6 +84,8 @@ def export(
         content = frame.to_csv(index=False).encode()
     elif file_format == "html":
         content = _render_html(frame, title=title, subtitle=subtitle).encode()
+    elif file_format == "pdf":
+        content = _render_pdf(frame, title=title, subtitle=subtitle)
     else:
         content = _render_excel(frame, title=title, subtitle=subtitle)
 
@@ -212,3 +212,93 @@ def _render_html(frame: pd.DataFrame, *, title: str, subtitle: str | None) -> st
   {truncated_note}
   <table><thead><tr>{header}</tr></thead><tbody>{"".join(body_rows)}</tbody></table>
 </body></html>"""
+
+
+# PDF pages hold this many rows and columns before the table stops being
+# readable at the sizes below; the note on the page says what was left out.
+PDF_MAX_ROWS = 5_000
+PDF_MAX_COLUMNS = 14
+
+
+def _render_pdf(frame: pd.DataFrame, *, title: str, subtitle: str | None) -> bytes:
+    """A paginated PDF with a repeating header row, rendered by reportlab -- a
+    maintained, pure-Python layout engine, so this is a real file rather than a
+    web page somebody has to print. Wide tables go landscape; anything past the
+    column or row cap is stated on the page, never silently dropped."""
+    from io import BytesIO
+
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.units import mm
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+    columns = [str(column) for column in frame.columns]
+    shown_columns = columns[:PDF_MAX_COLUMNS]
+    shown = frame[shown_columns].head(PDF_MAX_ROWS)
+    notes: list[str] = []
+    if len(frame) > PDF_MAX_ROWS:
+        notes.append(f"Showing the first {PDF_MAX_ROWS:,} of {len(frame):,} rows.")
+    if len(columns) > PDF_MAX_COLUMNS:
+        notes.append(
+            f"Showing {PDF_MAX_COLUMNS} of {len(columns)} columns; the rest are in the spreadsheet formats."
+        )
+
+    def cell(value: Any) -> str:
+        if value is None or (isinstance(value, float) and pd.isna(value)):
+            return ""
+        text = str(value)
+        return text if len(text) <= 60 else text[:57] + "..."
+
+    rows = [shown_columns] + [[cell(v) for v in record] for record in shown.itertuples(index=False)]
+    if len(rows) == 1:
+        rows.append(["(no rows)"] + [""] * (len(shown_columns) - 1) if shown_columns else ["(no rows)"])
+
+    page = landscape(A4) if len(shown_columns) > 6 else A4
+    buffer = BytesIO()
+    document = SimpleDocTemplate(
+        buffer, pagesize=page, title=title, author="Pipewright",
+        leftMargin=14 * mm, rightMargin=14 * mm, topMargin=14 * mm, bottomMargin=14 * mm,
+    )
+    heading = ParagraphStyle("heading", fontName="Helvetica-Bold", fontSize=15, leading=19)
+    sub = ParagraphStyle("sub", fontName="Helvetica", fontSize=9, leading=12, textColor=colors.HexColor("#6b7280"))
+    generated = datetime.now(UTC).strftime("%d %B %Y at %H:%M UTC")
+    story: list[Any] = [
+        Paragraph(html.escape(title), heading),
+        Paragraph(html.escape((subtitle or "").strip() + f" Generated {generated}."), sub),
+    ]
+    for note in notes:
+        story.append(Paragraph(html.escape(note), sub))
+    story.append(Spacer(1, 4 * mm))
+
+    font_size = 8 if len(shown_columns) > 8 else 9
+    table = Table(rows, repeatRows=1)
+    table.setStyle(
+        TableStyle(
+            [
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+                ("FONTSIZE", (0, 0), (-1, -1), font_size),
+                ("LEADING", (0, 0), (-1, -1), font_size + 2),
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1f2937")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f9fafb")]),
+                ("LINEBELOW", (0, 0), (-1, -1), 0.25, colors.HexColor("#e5e7eb")),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 4),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+            ]
+        )
+    )
+    story.append(table)
+
+    def footer(canvas, doc) -> None:  # noqa: ANN001 - reportlab callback signature
+        canvas.saveState()
+        canvas.setFont("Helvetica", 7.5)
+        canvas.setFillColor(colors.HexColor("#6b7280"))
+        canvas.drawRightString(page[0] - 14 * mm, 8 * mm, f"Page {doc.page}")
+        canvas.drawString(14 * mm, 8 * mm, html.unescape(title)[:90])
+        canvas.restoreState()
+
+    document.build(story, onFirstPage=footer, onLaterPages=footer)
+    return buffer.getvalue()

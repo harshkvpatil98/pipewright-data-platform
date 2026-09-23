@@ -9,6 +9,7 @@ import type {
   DatasetRecord,
   DeliveryListResponse,
   ExportFormat,
+  ExternalNotificationTargetRecord,
   ReportDelivery,
   ReportListResponse,
   ReportSource,
@@ -31,12 +32,14 @@ type ReportsPageProps = {
   datasets: DatasetRecord[];
   charts: ChartListResponse;
   dashboards: DashboardListResponse;
+  targets: ExternalNotificationTargetRecord[];
 };
 
 const FORMATS: { id: ExportFormat; label: string; note: string }[] = [
   { id: "excel", label: "Excel", note: "Typed columns, frozen header." },
   { id: "csv", label: "CSV", note: "Universal, loses every type." },
-  { id: "html", label: "Web page", note: "Self-contained; prints to PDF." },
+  { id: "html", label: "Web page", note: "Self-contained; prints from any browser." },
+  { id: "pdf", label: "PDF", note: "Paginated, repeating header; up to 5,000 rows and 14 columns." },
 ];
 
 const CRON_PRESETS = [
@@ -56,6 +59,7 @@ export function ReportsPageView({
   datasets,
   charts,
   dashboards,
+  targets,
 }: ReportsPageProps) {
   const [reports, setReports] = useState(initial.items);
   const [name, setName] = useState("");
@@ -63,6 +67,10 @@ export function ReportsPageView({
   const [sourceId, setSourceId] = useState(datasets[0]?.id ?? "");
   const [format, setFormat] = useState<ExportFormat>("excel");
   const [cron, setCron] = useState("");
+  const [targetId, setTargetId] = useState("");
+  const [recipients, setRecipients] = useState("");
+  const usableTargets = targets.filter((target) => target.enabled);
+  const targetById = new Map(targets.map((target) => [target.id, target]));
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -91,17 +99,23 @@ export function ReportsPageView({
           file_format: format,
           cron_expression: cron || null,
           timezone: cron ? Intl.DateTimeFormat().resolvedOptions().timeZone : null,
+          notification_target_id: targetId || null,
+          recipients: recipients
+            .split(/[,\s;]+/)
+            .map((address) => address.trim())
+            .filter(Boolean),
         }),
       });
       setName("");
       setCron("");
+      setRecipients("");
       await reload();
     } catch (caught) {
       setError(extractErrorMessage(caught));
     } finally {
       setBusy(false);
     }
-  }, [projectId, name, sourceKind, sourceId, format, cron, reload]);
+  }, [projectId, name, sourceKind, sourceId, format, cron, targetId, recipients, reload]);
 
   return (
     <AppShell
@@ -209,6 +223,38 @@ export function ReportsPageView({
           </div>
         </div>
 
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
+          <div>
+            <span className="mb-1.5 block text-[12px] font-medium text-ink">Deliver to</span>
+            <select value={targetId} onChange={(event) => setTargetId(event.target.value)} className={inputClass}>
+              <option value="">Only the in-app bell</option>
+              {usableTargets.map((target) => (
+                <option key={target.id} value={target.id}>
+                  {target.name} ({target.target_type === "slack_webhook" ? "Slack" : "email"})
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-[11px] text-muted">
+              {usableTargets.length === 0
+                ? "No notification targets yet — add a Slack webhook or an email target under Notifications."
+                : "A Slack target gets a message with a link; an email target gets the file attached."}
+            </p>
+          </div>
+          <div>
+            <span className="mb-1.5 block text-[12px] font-medium text-ink">Email to</span>
+            <input
+              value={recipients}
+              onChange={(event) => setRecipients(event.target.value)}
+              placeholder="ada@acme.com, ops@acme.com"
+              className={inputClass}
+            />
+            <p className="mt-1 text-[11px] text-muted">
+              Each address gets the file attached, one message each. Needs SMTP on the server; the
+              delivery history says whether each one went.
+            </p>
+          </div>
+        </div>
+
         <div className="mt-3 flex justify-end">
           <Button onClick={create} disabled={busy || !sourceId}>
             {busy ? "Creating…" : "Create report"}
@@ -228,6 +274,11 @@ export function ReportsPageView({
                 key={report.id}
                 projectId={projectId}
                 report={report}
+                targetName={
+                  report.notification_target_id
+                    ? (targetById.get(report.notification_target_id)?.name ?? "a removed target")
+                    : null
+                }
                 onDeleted={() =>
                   setReports((current) => current.filter((item) => item.id !== report.id))
                 }
@@ -251,10 +302,12 @@ export function ReportsPageView({
 function ReportRow({
   projectId,
   report,
+  targetName,
   onDeleted,
 }: {
   projectId: string;
   report: ScheduledReport;
+  targetName: string | null;
   onDeleted: () => void;
 }) {
   // Deliveries are fetched only when asked for. A report can have a long
@@ -301,6 +354,10 @@ function ReportRow({
           from a {report.source_kind}
           {report.cron_expression ? ` · ${report.cron_expression}` : " · on demand"}
           {report.next_run_at ? ` · next ${formatDate(report.next_run_at)}` : ""}
+          {targetName ? ` · to ${targetName}` : ""}
+          {report.recipients.length > 0
+            ? ` · emails ${report.recipients.length} recipient${report.recipients.length === 1 ? "" : "s"}`
+            : ""}
         </div>
         {report.last_status ? (
           <div
@@ -370,7 +427,31 @@ function ReportRow({
                     <span>{Math.round(delivery.generated_ms)} ms</span>
                   ) : null}
                   {delivery.message ? (
-                    <span className="text-danger">{delivery.message}</span>
+                    <span className={delivery.status === "succeeded" ? "text-ink-3" : "text-danger"}>
+                      {delivery.message}
+                    </span>
+                  ) : null}
+                  {delivery.channels.filter((channel) => channel.channel !== "in_app").length > 0 ? (
+                    <ul className="flex w-full flex-wrap gap-1.5 pl-3">
+                      {delivery.channels
+                        .filter((channel) => channel.channel !== "in_app")
+                        .map((channel, index) => (
+                          <li
+                            key={index}
+                            title={channel.detail}
+                            className={cx(
+                              "rounded-full border px-2 py-0.5 text-[10.5px]",
+                              channel.ok
+                                ? "border-success-line bg-success-soft text-success"
+                                : "border-danger-line bg-danger-soft text-danger",
+                            )}
+                          >
+                            {channel.channel === "slack" ? "Slack" : channel.channel === "email" ? "Email" : channel.channel}
+                            {channel.recipient ? ` ${channel.recipient}` : channel.target ? ` ${channel.target}` : ""}
+                            {channel.ok ? " ✓" : " ✗"}
+                          </li>
+                        ))}
+                    </ul>
                   ) : null}
                 </li>
               ))}

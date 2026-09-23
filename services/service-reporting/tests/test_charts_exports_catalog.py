@@ -147,10 +147,16 @@ def test_an_html_export_is_self_contained():
     assert "http://" not in text and "https://" not in text
 
 
-def test_pdf_is_refused_with_the_reason():
+def test_pdf_is_a_real_file_and_an_unknown_format_is_still_refused():
+    # This test used to pin the honest refusal "no layout engine to render one
+    # properly". P8 added reportlab, a maintained pure-Python layout engine, so
+    # the refusal is gone and the format is real; the guard now protects the
+    # format list itself.
+    pdf = export(FRAME, title="Revenue", file_format="pdf")
+    assert pdf.content[:5] == b"%PDF-" and pdf.media_type == "application/pdf"
     with pytest.raises(BadRequestError) as caught:
-        export(FRAME, title="Revenue", file_format="pdf")
-    assert "no layout engine" in str(caught.value.detail)
+        export(FRAME, title="Revenue", file_format="docx")
+    assert "pdf" in str(caught.value.detail)
 
 
 def test_a_filename_survives_every_filesystem():

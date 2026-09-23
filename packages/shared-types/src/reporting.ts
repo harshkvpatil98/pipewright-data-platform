@@ -21,7 +21,7 @@ export type AggregationName =
   | "count_distinct"
   | "median";
 
-export type ExportFormat = "excel" | "csv" | "html";
+export type ExportFormat = "excel" | "csv" | "html" | "pdf";
 export type ReportSource = "dataset" | "chart" | "dashboard";
 
 export type ChartMeasure = {
@@ -233,6 +233,8 @@ export type ScheduledReport = {
   enabled: boolean;
   next_run_at: string | null;
   recipients: string[];
+  /** A Slack webhook or email notification target of the project, if any. */
+  notification_target_id: string | null;
   last_run_at: string | null;
   last_status: string | null;
   last_error: string | null;
@@ -241,6 +243,15 @@ export type ScheduledReport = {
 };
 
 export type ReportListResponse = { items: ScheduledReport[] };
+
+/** One channel a delivery was attempted on, and how it went. */
+export type ReportDeliveryChannel = {
+  channel: "in_app" | "slack" | "email" | "target" | string;
+  ok: boolean;
+  detail: string;
+  target?: string;
+  recipient?: string;
+};
 
 export type ReportDelivery = {
   id: string;
@@ -251,6 +262,7 @@ export type ReportDelivery = {
   row_count: number | null;
   generated_ms: number | null;
   message: string | null;
+  channels: ReportDeliveryChannel[];
   created_at: string;
 };
 

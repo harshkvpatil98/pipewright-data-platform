@@ -9,6 +9,7 @@ import type {
   DashboardListResponse,
   DatasetListResponse,
   ReportListResponse,
+  ExternalNotificationTargetListResponse,
 } from "@platform/shared-types";
 
 type PageProps = {
@@ -22,11 +23,12 @@ export default async function ReportsPage({ params }: PageProps) {
   const currentUser = await requireCurrentUser();
 
   try {
-    const [reports, datasets, charts, dashboards] = await Promise.all([
+    const [reports, datasets, charts, dashboards, targets] = await Promise.all([
       serverApiFetch<ReportListResponse>(`/projects/${projectId}/reports`),
       serverApiFetch<DatasetListResponse>(`/projects/${projectId}/datasets`),
       serverApiFetch<ChartListResponse>(`/projects/${projectId}/charts`),
       serverApiFetch<DashboardListResponse>(`/projects/${projectId}/dashboards`),
+      serverApiFetch<ExternalNotificationTargetListResponse>(`/projects/${projectId}/notification-targets`),
     ]);
     return (
       <ReportsPageView
@@ -36,6 +38,7 @@ export default async function ReportsPage({ params }: PageProps) {
         datasets={datasets.items}
         charts={charts}
         dashboards={dashboards}
+        targets={targets.items}
       />
     );
   } catch (error) {

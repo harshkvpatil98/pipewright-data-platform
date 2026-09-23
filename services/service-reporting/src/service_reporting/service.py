@@ -778,6 +778,7 @@ def _report_read(report: ScheduledReport) -> ReportRead:
         enabled=report.enabled,
         next_run_at=report.next_run_at,
         recipients=list(report.recipients_json or []),
+        notification_target_id=report.notification_target_id,
         last_run_at=report.last_run_at,
         last_status=report.last_status,
         last_error=report.last_error,
@@ -808,6 +809,7 @@ def create_report(
 ) -> ReportRead:
     ensure_owned_project(db, project_id, current_user.id)
     _check_report_source(db, project_id, payload.source_kind, payload.source_id)
+    _check_report_target(db, project_id, payload.notification_target_id)
 
     report = ScheduledReport(
         project_id=project_id,
@@ -820,6 +822,7 @@ def create_report(
         timezone=payload.timezone,
         enabled=payload.enabled,
         recipients_json=list(payload.recipients) or None,
+        notification_target_id=payload.notification_target_id,
         created_by_user_id=current_user.id,
     )
     _apply_report_schedule(report)
@@ -827,6 +830,18 @@ def create_report(
     db.commit()
     db.refresh(report)
     return _report_read(report)
+
+
+def _check_report_target(db: Session, project_id: uuid.UUID, target_id: uuid.UUID | None) -> None:
+    """A report may only deliver to a notification target of its own project;
+    naming another project's Slack channel would post this project's data
+    there."""
+    if target_id is None:
+        return
+    from service_reporting.delivery import resolve_target
+
+    if resolve_target(db, project_id=project_id, target_id=target_id) is None:
+        raise NotFoundError("That notification target is not in this project.")
 
 
 def _check_report_source(
@@ -875,6 +890,9 @@ def update_report(
         report.timezone = payload.timezone
     if payload.recipients is not None:
         report.recipients_json = list(payload.recipients) or None
+    if "notification_target_id" in payload.model_fields_set:
+        _check_report_target(db, project_id, payload.notification_target_id)
+        report.notification_target_id = payload.notification_target_id
     if payload.enabled is not None:
         report.enabled = payload.enabled
 
@@ -1000,45 +1018,18 @@ def run_report(
 
     db.add(delivery)
     if deliver:
-        _notify_recipients(db, report, result.filename, result.row_count)
+        from service_reporting.delivery import deliver_report
+
+        channels, summary = deliver_report(
+            db, report=report, filename=result.filename, content=result.content,
+            media_type=result.media_type, row_count=result.row_count,
+        )
+        delivery.channels_json = channels
+        delivery.message = summary
     db.commit()
     db.refresh(delivery)
 
-    return (
-        result.content,
-        result.filename,
-        result.media_type,
-        DeliveryRead.model_validate(delivery, from_attributes=True),
-    )
-
-
-def _notify_recipients(
-    db: Session, report: ScheduledReport, filename: str, row_count: int
-) -> None:
-    """Tell people their report is ready.
-
-    Delivery reuses the notification system rather than growing a second one:
-    an email path here and an email path in notifications would drift, and only
-    one of them would get the retry logic.
-    """
-    try:
-        from service_notifications.service import create_user_notification
-
-        if report.created_by_user_id is None:
-            return
-        create_user_notification(
-            db,
-            user_id=report.created_by_user_id,
-            project_id=report.project_id,
-            type="report",
-            level="info",
-            title=f"{report.name} is ready",
-            message=f"{filename} — {row_count:,} row(s).",
-        )
-    except Exception:  # noqa: BLE001 - a report that generated is still a success
-        from shared_python.logging import get_logger
-
-        get_logger(__name__).exception("report_notify_failed report_id=%s", report.id)
+    return (result.content, result.filename, result.media_type, _delivery_read(delivery))
 
 
 def list_deliveries(
@@ -1052,9 +1043,13 @@ def list_deliveries(
         .order_by(ReportDelivery.created_at.desc())
         .limit(50)
     ).all()
-    return DeliveryListResponse(
-        items=[DeliveryRead.model_validate(row, from_attributes=True) for row in rows]
-    )
+    return DeliveryListResponse(items=[_delivery_read(row) for row in rows])
+
+
+def _delivery_read(row: ReportDelivery) -> DeliveryRead:
+    read = DeliveryRead.model_validate(row, from_attributes=True)
+    read.channels = list(row.channels_json or [])
+    return read
 
 
 def due_reports(db: Session, *, now: datetime | None = None) -> list[ScheduledReport]:

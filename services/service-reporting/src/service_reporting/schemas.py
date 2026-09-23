@@ -12,7 +12,7 @@ ChartTypeName = Literal["bar", "column", "line", "area", "scatter", "pie", "donu
 AggregationName = Literal[
     "sum", "avg", "mean", "min", "max", "count", "count_distinct", "median"
 ]
-ExportFormat = Literal["excel", "csv", "html"]
+ExportFormat = Literal["excel", "csv", "html", "pdf"]
 ReportSource = Literal["dataset", "chart", "dashboard"]
 
 
@@ -297,6 +297,9 @@ class ReportCreate(BaseModel):
     cron_expression: str | None = Field(default=None, max_length=120)
     timezone: str | None = Field(default=None, max_length=64)
     recipients: list[str] = Field(default_factory=list, max_length=50)
+    #: A Slack webhook or email notification target of this project to deliver
+    #: to, on top of the recipients.
+    notification_target_id: uuid.UUID | None = None
     enabled: bool = True
 
 
@@ -307,6 +310,8 @@ class ReportUpdate(BaseModel):
     cron_expression: str | None = Field(default=None, max_length=120)
     timezone: str | None = Field(default=None, max_length=64)
     recipients: list[str] | None = None
+    #: Send explicitly as null to clear; omit to keep.
+    notification_target_id: uuid.UUID | None = None
     enabled: bool | None = None
 
 
@@ -323,6 +328,7 @@ class ReportRead(BaseModel):
     enabled: bool
     next_run_at: datetime | None
     recipients: list[str]
+    notification_target_id: uuid.UUID | None = None
     last_run_at: datetime | None
     last_status: str | None
     last_error: str | None
@@ -343,6 +349,9 @@ class DeliveryRead(BaseModel):
     row_count: int | None
     generated_ms: float | None
     message: str | None
+    #: Where it went, per channel: `{"channel": "slack"|"email"|"in_app",
+    #: "ok": bool, "detail": str, "target"?: str, "recipient"?: str}`.
+    channels: list[dict[str, Any]] = Field(default_factory=list)
     created_at: datetime
 
 

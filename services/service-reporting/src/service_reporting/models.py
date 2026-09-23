@@ -163,6 +163,10 @@ class ReportDelivery(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     row_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     generated_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
     message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    #: Per-channel outcomes (in-app, Slack target, email target, each
+    #: recipient): `{"channel", "ok", "detail", ...}`. Generation and delivery
+    #: are different facts, and this is where the second one lives.
+    channels_json: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
 
 
 class GlossaryTerm(UUIDPrimaryKeyMixin, TimestampMixin, Base):

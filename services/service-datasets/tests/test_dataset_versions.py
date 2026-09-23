@@ -25,6 +25,8 @@ from service_datasets.models import Dataset, DatasetVersion
 from service_datasets.service import (
     apply_dataset_materialization_success,
     finalize_dataset_materialization_success,
+    get_dataset_version,
+    get_dataset_version_preview,
     list_dataset_versions,
 )
 from service_projects.models import Project
@@ -222,6 +224,46 @@ def test_listing_versions_of_an_unknown_dataset_is_a_404(db: Session, world: dic
         list_dataset_versions(
             db, world["project"].id, uuid.uuid4(), _as_read(world["owner"])
         )
+
+
+def test_reading_a_version_as_of_returns_its_own_preview(db: Session, world: dict):
+    # Time travel: each version keeps the preview it published, so an AS-OF read
+    # shows the data as it was then, not the current head.
+    dataset = world["dataset"]
+    _materialise(
+        db, dataset, path="uploads/v1.csv", data=b"one", owner_id=world["owner"].id,
+        preview_json={"columns": ["amount"], "rows": [{"amount": 1}]},
+    )
+    _materialise(
+        db, dataset, path="uploads/v2.csv", data=b"two", owner_id=world["owner"].id,
+        preview_json={"columns": ["amount"], "rows": [{"amount": 2}]},
+    )
+
+    read = get_dataset_version_preview(
+        db, world["project"].id, dataset.id, 1, _as_read(world["owner"])
+    )
+    assert read.rows == [{"amount": 1}]
+    head = get_dataset_version_preview(
+        db, world["project"].id, dataset.id, 2, _as_read(world["owner"])
+    )
+    assert head.rows == [{"amount": 2}]
+
+
+def test_reading_one_version_metadata(db: Session, world: dict):
+    dataset = world["dataset"]
+    _materialise(db, dataset, path="uploads/v1.csv", data=b"one", owner_id=world["owner"].id)
+    version = get_dataset_version(db, world["project"].id, dataset.id, 1, _as_read(world["owner"]))
+    assert version.version_number == 1
+    assert version.content_hash == content_digest(b"one")
+
+
+def test_reading_a_version_that_does_not_exist_is_a_404(db: Session, world: dict):
+    dataset = world["dataset"]
+    _materialise(db, dataset, path="uploads/v1.csv", data=b"one", owner_id=world["owner"].id)
+    with pytest.raises(NotFoundError):
+        get_dataset_version_preview(db, world["project"].id, dataset.id, 99, _as_read(world["owner"]))
+    with pytest.raises(NotFoundError):
+        get_dataset_version(db, world["project"].id, dataset.id, 99, _as_read(world["owner"]))
 
 
 def test_a_version_without_the_bytes_records_a_null_digest(db: Session, world: dict):

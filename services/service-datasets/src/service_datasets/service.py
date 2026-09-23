@@ -89,6 +89,58 @@ def list_dataset_versions(
     )
 
 
+def _get_dataset_version(
+    db: Session, dataset_id: uuid.UUID, version_number: int
+) -> DatasetVersion:
+    version = db.scalar(
+        select(DatasetVersion).where(
+            DatasetVersion.dataset_id == dataset_id,
+            DatasetVersion.version_number == version_number,
+        )
+    )
+    if version is None:
+        raise NotFoundError(f"This dataset has no version {version_number}.")
+    return version
+
+
+def get_dataset_version(
+    db: Session,
+    project_id: uuid.UUID,
+    dataset_id: uuid.UUID,
+    version_number: int,
+    current_user: UserRead,
+) -> DatasetVersionRead:
+    """Metadata for one specific version. A read: viewer role (§6)."""
+    ensure_owned_project(db, project_id, current_user.id)
+    get_dataset_model_for_project(db, project_id, dataset_id)
+    return DatasetVersionRead.model_validate(
+        _get_dataset_version(db, dataset_id, version_number)
+    )
+
+
+def get_dataset_version_preview(
+    db: Session,
+    project_id: uuid.UUID,
+    dataset_id: uuid.UUID,
+    version_number: int,
+    current_user: UserRead,
+) -> DatasetPreviewResponse:
+    """Read a dataset *as of* a version: the preview captured when that version
+    was published, so history shows the data as it was then rather than the
+    current head. A read: viewer role (§6). Mirrors the base dataset preview's
+    security posture -- neither applies an enforced row/column policy gate today;
+    if that gate lands, it lands at the shared read layer for both."""
+    ensure_owned_project(db, project_id, current_user.id)
+    get_dataset_model_for_project(db, project_id, dataset_id)
+    version = _get_dataset_version(db, dataset_id, version_number)
+    preview = version.preview_json or {"columns": [], "rows": []}
+    return DatasetPreviewResponse(
+        dataset_id=dataset_id,
+        columns=list(preview.get("columns", [])),
+        rows=list(preview.get("rows", [])),
+    )
+
+
 def update_dataset(
     db: Session,
     project_id: uuid.UUID,
@@ -361,6 +413,7 @@ def apply_dataset_materialization_success(
         row_count=row_count,
         column_count=column_count,
         schema_json=schema_json,
+        preview_json=preview_json,
         pipeline_run_id=pipeline_run_id,
         created_by_user_id=created_by_user_id,
     )

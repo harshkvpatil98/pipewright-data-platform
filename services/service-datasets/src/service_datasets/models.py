@@ -155,6 +155,10 @@ class DatasetVersion(UUIDPrimaryKeyMixin, Base):
     row_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     column_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     schema_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    #: The preview snapshot captured when this version was published, so a
+    #: temporal read shows the data as it was then. Null for a version recorded
+    #: before this column existed.
+    preview_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     pipeline_run_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("pipeline_runs.id", ondelete="SET NULL"), nullable=True
     )

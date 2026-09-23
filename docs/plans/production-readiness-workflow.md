@@ -7,7 +7,7 @@ established alternatives for data work — not by claiming more, but by being
 the only honest, governed, spreadsheet-fast data platform that a business team
 can run without a data engineer on call.
 
-**Status:** P3 done (2026-09-23); P4 (Enterprise identity) is next on “continue”. One phase executes per session-run;
+**Status:** P4 done (2026-09-23); P5 (Deployability & scale) is next on “continue”. One phase executes per session-run;
 the owner says **“continue”** to start the next. This file is the single
 source of truth for what each phase contains; the session log in
 `docs/HANDOFF.md` records what actually happened.
@@ -316,7 +316,26 @@ recorded here rather than silently dropped.
 
 ---
 
-## P4 — Enterprise identity
+## P4 — Enterprise identity *(status: **done** 2026-09-23)*
+
+**Delivered:** TOTP two-factor — enrol (server-rendered QR + secret), confirm-
+before-active, login two-step (ticket → TOTP or recovery code), regenerate,
+disable, admin reset; RFC 6238 with no third-party TOTP dependency, tested
+against the RFC vectors. OIDC SSO wired end to end — /auth/sso/status, /start
+(discovery + PKCE + durable one-time state), /callback (state verify, code
+exchange, JWKS-verified ID token, claim mapping, JIT provisioning with
+group→role and no silent demotion, session cookie), "Continue with SSO" on the
+login screen; the RS256 signature path is tested against a matching JWKS, only
+the transport is faked. SAML remains deliberately unimplemented (the signature-
+verification refusal stands) and its status is surfaced by /auth/sso/status.
+SCIM-lite deactivate-on-absence job (`scim-sync`) offboards directory-managed
+accounts safely (only auth_source="sso", never the last admin). Reference:
+`docs/enterprise-identity.md`.
+
+*Not delivered here (honest scope):* the OIDC/SAML wire protocol is unverified
+against a live Auth0/Okta/Entra tenant — none is available in this environment;
+point it at a real provider to confirm. Inbound SCIM 2.0 push and the "push
+further" per-org session/expiry policy are deferred.
 
 - **OIDC SSO** end-to-end against a real IdP (Auth0/Okta dev tenant):
   discovery, PKCE, JIT-provision with default role, group→role mapping

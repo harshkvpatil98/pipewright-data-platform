@@ -1,0 +1,3642 @@
+{
+  "tools": [
+    {
+      "name": "clean.email",
+      "title": "Standardise an email",
+      "category": "Cleansing",
+      "summary": "Trim and lower case. Empty results become null."
+    },
+    {
+      "name": "clean.email_domain",
+      "title": "Email domain",
+      "category": "Cleansing",
+      "summary": "The part after the @, lower case."
+    },
+    {
+      "name": "clean.phone",
+      "title": "Standardise a phone number",
+      "category": "Cleansing",
+      "summary": "Best-effort E.164. Numbers that cannot be made sense of become null."
+    },
+    {
+      "name": "clean.url",
+      "title": "Standardise a URL",
+      "category": "Cleansing",
+      "summary": "Add a scheme where one is missing."
+    },
+    {
+      "name": "clean.url_part",
+      "title": "Part of a URL",
+      "category": "Cleansing",
+      "summary": "Pull out the scheme, host, path, query or fragment."
+    },
+    {
+      "name": "clean.postal_code",
+      "title": "Standardise a postal code",
+      "category": "Cleansing",
+      "summary": "Apply the country's usual spacing and padding."
+    },
+    {
+      "name": "clean.country",
+      "title": "Standardise a country",
+      "category": "Cleansing",
+      "summary": "Map country names and abbreviations to an ISO code. Unrecognised names become null."
+    },
+    {
+      "name": "clean.name_part",
+      "title": "Split a full name",
+      "category": "Cleansing",
+      "summary": "Take the first, middle or last name. Particles stay with the surname."
+    },
+    {
+      "name": "clean.boolean_tokens",
+      "title": "Standardise yes/no",
+      "category": "Cleansing",
+      "summary": "Read Y/N, yes/no, 1/0, on/off as true and false."
+    },
+    {
+      "name": "clean.line_endings",
+      "title": "Standardise line endings",
+      "category": "Cleansing",
+      "summary": "Turn Windows and old-Mac line endings into plain newlines."
+    },
+    {
+      "name": "clean.control_characters",
+      "title": "Remove control characters",
+      "category": "Cleansing",
+      "summary": "Strip the invisible characters that break exports."
+    },
+    {
+      "name": "clean.mojibake",
+      "title": "Fix mangled characters",
+      "category": "Cleansing",
+      "summary": "Repair text where UTF-8 was read as Latin-1 -- the \u00c2\u00a3 and \u00e2\u20ac\u2122 problem."
+    },
+    {
+      "name": "clean.trim_quotes",
+      "title": "Trim surrounding quotes",
+      "category": "Cleansing",
+      "summary": "Remove quote marks left by a bad export."
+    },
+    {
+      "name": "clean.unescape",
+      "title": "Unescape",
+      "category": "Cleansing",
+      "summary": "Turn backslash escapes back into the characters they stand for."
+    },
+    {
+      "name": "clean.standardise",
+      "title": "Tidy up text",
+      "category": "Cleansing",
+      "summary": "Collapse whitespace and apply a consistent case, in one step."
+    },
+    {
+      "name": "columns.move",
+      "title": "Move columns",
+      "category": "Columns",
+      "summary": "Move columns to the start or the end, leaving the rest in order."
+    },
+    {
+      "name": "columns.sort",
+      "title": "Sort columns by name",
+      "category": "Columns",
+      "summary": "Put the columns in alphabetical order."
+    },
+    {
+      "name": "columns.keep_only",
+      "title": "Keep only these columns",
+      "category": "Columns",
+      "summary": "Drop everything else, in the dataset's own order."
+    },
+    {
+      "name": "columns.drop",
+      "title": "Drop columns",
+      "category": "Columns",
+      "summary": "Remove one or more columns."
+    },
+    {
+      "name": "columns.duplicate",
+      "title": "Duplicate a column",
+      "category": "Columns",
+      "summary": "Add a copy, so the original survives an experiment."
+    },
+    {
+      "name": "columns.rename",
+      "title": "Rename a column",
+      "category": "Columns",
+      "summary": "Give a column a new name."
+    },
+    {
+      "name": "columns.bulk_rename",
+      "title": "Rename many columns",
+      "category": "Columns",
+      "summary": "Apply one renaming rule to every column at once."
+    },
+    {
+      "name": "type.to_text",
+      "title": "To text",
+      "category": "Type & conversion",
+      "summary": "Render as text without inventing decimals."
+    },
+    {
+      "name": "type.to_number",
+      "title": "To number",
+      "category": "Type & conversion",
+      "summary": "Read as a number. Values that will not parse become null."
+    },
+    {
+      "name": "type.to_integer",
+      "title": "To whole number",
+      "category": "Type & conversion",
+      "summary": "Read as a whole number, dropping any fraction."
+    },
+    {
+      "name": "type.to_boolean",
+      "title": "To true/false",
+      "category": "Type & conversion",
+      "summary": "Read yes/no/1/0/true/false. Anything else becomes null."
+    },
+    {
+      "name": "type.detect",
+      "title": "Detect the type",
+      "category": "Type & conversion",
+      "summary": "Report what each value looks like, without changing it."
+    },
+    {
+      "name": "type.strip_currency",
+      "title": "Strip currency symbols",
+      "category": "Type & conversion",
+      "summary": "Remove symbols and grouping, leaving text a number parser can read."
+    },
+    {
+      "name": "type.parse_number_locale",
+      "title": "Parse a localised number",
+      "category": "Type & conversion",
+      "summary": "Read a number written with European or US grouping."
+    },
+    {
+      "name": "type.json_path",
+      "title": "Read a JSON field",
+      "category": "Type & conversion",
+      "summary": "Pull one value out of JSON by dotted path. Missing paths become null."
+    },
+    {
+      "name": "type.cast",
+      "title": "Change the type",
+      "category": "Type & conversion",
+      "summary": "Declare a column's type. Values that do not fit become null."
+    },
+    {
+      "name": "type.coerce_with_fallback",
+      "title": "Convert with a fallback",
+      "category": "Type & conversion",
+      "summary": "Read as a number, using a fixed value where it will not parse."
+    },
+    {
+      "name": "date.year",
+      "title": "Year",
+      "category": "Date & time",
+      "summary": "Extract the year."
+    },
+    {
+      "name": "date.quarter",
+      "title": "Quarter",
+      "category": "Date & time",
+      "summary": "Extract the quarter."
+    },
+    {
+      "name": "date.month",
+      "title": "Month number",
+      "category": "Date & time",
+      "summary": "Extract the month number."
+    },
+    {
+      "name": "date.week",
+      "title": "ISO week",
+      "category": "Date & time",
+      "summary": "Extract the iso week."
+    },
+    {
+      "name": "date.day",
+      "title": "Day of month",
+      "category": "Date & time",
+      "summary": "Extract the day of month."
+    },
+    {
+      "name": "date.day_of_week",
+      "title": "Day of week",
+      "category": "Date & time",
+      "summary": "Extract the day of week. Monday is 1, Sunday is 7."
+    },
+    {
+      "name": "date.day_of_year",
+      "title": "Day of year",
+      "category": "Date & time",
+      "summary": "Extract the day of year."
+    },
+    {
+      "name": "date.hour",
+      "title": "Hour",
+      "category": "Date & time",
+      "summary": "Extract the hour."
+    },
+    {
+      "name": "date.minute",
+      "title": "Minute",
+      "category": "Date & time",
+      "summary": "Extract the minute."
+    },
+    {
+      "name": "date.second",
+      "title": "Second",
+      "category": "Date & time",
+      "summary": "Extract the second."
+    },
+    {
+      "name": "date.month_name",
+      "title": "Month name",
+      "category": "Date & time",
+      "summary": "The month's name."
+    },
+    {
+      "name": "date.day_name",
+      "title": "Day name",
+      "category": "Date & time",
+      "summary": "The weekday's name."
+    },
+    {
+      "name": "date.start_of_period",
+      "title": "Start of period",
+      "category": "Date & time",
+      "summary": "The first instant of the containing period."
+    },
+    {
+      "name": "date.end_of_period",
+      "title": "End of period",
+      "category": "Date & time",
+      "summary": "The last instant of the containing period -- not the start of the next one."
+    },
+    {
+      "name": "date.add_days",
+      "title": "Add days",
+      "category": "Date & time",
+      "summary": "Shift by a number of days."
+    },
+    {
+      "name": "date.add_months",
+      "title": "Add months",
+      "category": "Date & time",
+      "summary": "Shift by whole months, clamping to the end of a short month."
+    },
+    {
+      "name": "date.add_years",
+      "title": "Add years",
+      "category": "Date & time",
+      "summary": "Shift by whole years."
+    },
+    {
+      "name": "date.add_business_days",
+      "title": "Add business days",
+      "category": "Date & time",
+      "summary": "Shift by working days, skipping Saturdays and Sundays."
+    },
+    {
+      "name": "date.days_between",
+      "title": "Days until",
+      "category": "Date & time",
+      "summary": "Days until another date column, counted from this one."
+    },
+    {
+      "name": "date.months_between",
+      "title": "Months until",
+      "category": "Date & time",
+      "summary": "Months until another date column, counted from this one."
+    },
+    {
+      "name": "date.years_between",
+      "title": "Years until",
+      "category": "Date & time",
+      "summary": "Years until another date column, counted from this one."
+    },
+    {
+      "name": "date.seconds_between",
+      "title": "Seconds until",
+      "category": "Date & time",
+      "summary": "Seconds until another date column, counted from this one."
+    },
+    {
+      "name": "date.business_days_between",
+      "title": "Business days until",
+      "category": "Date & time",
+      "summary": "Business days until another date column, counted from this one."
+    },
+    {
+      "name": "date.age_years",
+      "title": "Age in years",
+      "category": "Date & time",
+      "summary": "Whole years between this date and today."
+    },
+    {
+      "name": "date.is_weekend",
+      "title": "Is a weekend",
+      "category": "Date & time",
+      "summary": "True on Saturday and Sunday."
+    },
+    {
+      "name": "date.fiscal_year",
+      "title": "Fiscal year",
+      "category": "Date & time",
+      "summary": "The financial year, named for the calendar year it ends in."
+    },
+    {
+      "name": "date.fiscal_quarter",
+      "title": "Fiscal quarter",
+      "category": "Date & time",
+      "summary": "Which quarter of the financial year."
+    },
+    {
+      "name": "date.format",
+      "title": "Format as text",
+      "category": "Date & time",
+      "summary": "Render as text with a chosen pattern."
+    },
+    {
+      "name": "date.parse",
+      "title": "Parse a date",
+      "category": "Date & time",
+      "summary": "Read text as a date. Values that cannot be read become null."
+    },
+    {
+      "name": "date.to_timestamp",
+      "title": "Parse a timestamp",
+      "category": "Date & time",
+      "summary": "Read text as a date and time."
+    },
+    {
+      "name": "date.to_timezone",
+      "title": "Convert time zone",
+      "category": "Date & time",
+      "summary": "Move a moment to another time zone. Naive values are read as UTC."
+    },
+    {
+      "name": "date.to_epoch",
+      "title": "To epoch seconds",
+      "category": "Date & time",
+      "summary": "Seconds since 1970-01-01 UTC."
+    },
+    {
+      "name": "date.from_epoch",
+      "title": "From epoch",
+      "category": "Date & time",
+      "summary": "Read a number of seconds or milliseconds since 1970 as a moment."
+    },
+    {
+      "name": "hash.md5",
+      "title": "MD5",
+      "category": "Encoding & privacy",
+      "summary": "MD5 digest, in hex. Fast and broken -- fine for change detection, never for secrets."
+    },
+    {
+      "name": "hash.sha1",
+      "title": "SHA-1",
+      "category": "Encoding & privacy",
+      "summary": "SHA-1 digest, in hex."
+    },
+    {
+      "name": "hash.sha256",
+      "title": "SHA-256",
+      "category": "Encoding & privacy",
+      "summary": "SHA-256 digest, in hex."
+    },
+    {
+      "name": "hash.sha512",
+      "title": "SHA-512",
+      "category": "Encoding & privacy",
+      "summary": "SHA-512 digest, in hex."
+    },
+    {
+      "name": "hash.hmac_sha256",
+      "title": "HMAC SHA-256",
+      "category": "Encoding & privacy",
+      "summary": "Keyed digest, so the same value hashes differently under a different key."
+    },
+    {
+      "name": "privacy.pseudonymise",
+      "title": "Pseudonymise",
+      "category": "Encoding & privacy",
+      "summary": "A short, stable token per value, salted so it cannot be looked up elsewhere."
+    },
+    {
+      "name": "privacy.mask_partial",
+      "title": "Mask, keeping the ends",
+      "category": "Encoding & privacy",
+      "summary": "Hide the middle, leaving a few characters visible for recognition."
+    },
+    {
+      "name": "privacy.mask_full",
+      "title": "Mask completely",
+      "category": "Encoding & privacy",
+      "summary": "Replace every character, keeping the length."
+    },
+    {
+      "name": "encode.base64",
+      "title": "Base64 encode",
+      "category": "Encoding & privacy",
+      "summary": "Encode as base64."
+    },
+    {
+      "name": "encode.base64_decode",
+      "title": "Base64 decode",
+      "category": "Encoding & privacy",
+      "summary": "Decode base64. Values that are not valid base64 become null."
+    },
+    {
+      "name": "encode.url",
+      "title": "URL encode",
+      "category": "Encoding & privacy",
+      "summary": "Percent-encode for use in a URL."
+    },
+    {
+      "name": "encode.url_decode",
+      "title": "URL decode",
+      "category": "Encoding & privacy",
+      "summary": "Decode percent-encoding."
+    },
+    {
+      "name": "encode.html",
+      "title": "HTML escape",
+      "category": "Encoding & privacy",
+      "summary": "Escape characters that would otherwise be markup."
+    },
+    {
+      "name": "encode.html_unescape",
+      "title": "HTML unescape",
+      "category": "Encoding & privacy",
+      "summary": "Turn HTML entities back into characters."
+    },
+    {
+      "name": "nested.flatten",
+      "title": "Flatten object into columns",
+      "category": "Nested data",
+      "summary": "Turn a column holding an object into one column per field, named by their path."
+    },
+    {
+      "name": "nested.explode",
+      "title": "Explode array into rows",
+      "category": "Nested data",
+      "summary": "Turn a column holding an array into one row per element, repeating the other columns."
+    },
+    {
+      "name": "nested.json_extract",
+      "title": "Extract a value by path",
+      "category": "Nested data",
+      "summary": "Pull one value out of a JSON column by its dotted path, e.g. `address.city` or `items.0.sku`."
+    },
+    {
+      "name": "nested.collect",
+      "title": "Collect rows into an array",
+      "category": "Nested data",
+      "summary": "The inverse of explode: gather a column's values into one array per group."
+    },
+    {
+      "name": "nested.infer_json_schema",
+      "title": "Describe a JSON column's shape",
+      "category": "Nested data",
+      "summary": "Replace the table with one row per field found in a JSON column: its path, the types seen there, and how many documents actually have it."
+    },
+    {
+      "name": "nested.normalise",
+      "title": "Split a nested array into its own table",
+      "category": "Nested data",
+      "summary": "Turn one document with a repeated section into a child table, carrying the parent's key so the two can be joined back together."
+    },
+    {
+      "name": "null.fill_constant",
+      "title": "Fill blanks with a value",
+      "category": "Missing data",
+      "summary": "Replace nulls with a fixed value."
+    },
+    {
+      "name": "null.fill_from_column",
+      "title": "Fill blanks from another column",
+      "category": "Missing data",
+      "summary": "Where this column is null, take the value from another."
+    },
+    {
+      "name": "null.empty_to_null",
+      "title": "Treat blanks as missing",
+      "category": "Missing data",
+      "summary": "Turn empty and whitespace-only text into a real null."
+    },
+    {
+      "name": "null.null_to_empty",
+      "title": "Treat missing as blank",
+      "category": "Missing data",
+      "summary": "Turn nulls into empty text, for systems that cannot express null."
+    },
+    {
+      "name": "null.normalise_tokens",
+      "title": "Recognise 'NA' as missing",
+      "category": "Missing data",
+      "summary": "Turn the strings exports use for nothing -- NA, N/A, NULL, -, unknown -- into real nulls."
+    },
+    {
+      "name": "null.is_blank",
+      "title": "Flag blanks",
+      "category": "Missing data",
+      "summary": "True where the value is missing or only whitespace."
+    },
+    {
+      "name": "numeric.round",
+      "title": "Round",
+      "category": "Numeric",
+      "summary": "Round to a number of decimal places."
+    },
+    {
+      "name": "numeric.round_up",
+      "title": "Round up",
+      "category": "Numeric",
+      "summary": "Round towards positive infinity."
+    },
+    {
+      "name": "numeric.round_down",
+      "title": "Round down",
+      "category": "Numeric",
+      "summary": "Round towards negative infinity."
+    },
+    {
+      "name": "numeric.truncate",
+      "title": "Truncate",
+      "category": "Numeric",
+      "summary": "Drop the fractional part, towards zero."
+    },
+    {
+      "name": "numeric.round_to_multiple",
+      "title": "Round to a multiple",
+      "category": "Numeric",
+      "summary": "Round to the nearest multiple of a step."
+    },
+    {
+      "name": "numeric.ceil_to_multiple",
+      "title": "Round a multiple up",
+      "category": "Numeric",
+      "summary": "Round up to the next multiple of a step."
+    },
+    {
+      "name": "numeric.floor_to_multiple",
+      "title": "Round a multiple down",
+      "category": "Numeric",
+      "summary": "Round down to the previous multiple of a step."
+    },
+    {
+      "name": "numeric.absolute",
+      "title": "Absolute value",
+      "category": "Numeric",
+      "summary": "Drop the sign."
+    },
+    {
+      "name": "numeric.sign",
+      "title": "Sign",
+      "category": "Numeric",
+      "summary": "-1, 0 or 1."
+    },
+    {
+      "name": "numeric.reciprocal",
+      "title": "Reciprocal",
+      "category": "Numeric",
+      "summary": "One divided by the value. Null where the value is zero."
+    },
+    {
+      "name": "numeric.square_root",
+      "title": "Square root",
+      "category": "Numeric",
+      "summary": "The square root."
+    },
+    {
+      "name": "numeric.power",
+      "title": "Raise to a power",
+      "category": "Numeric",
+      "summary": "Raise to an exponent."
+    },
+    {
+      "name": "numeric.log",
+      "title": "Logarithm",
+      "category": "Numeric",
+      "summary": "Logarithm to a chosen base. Null for values at or below zero."
+    },
+    {
+      "name": "numeric.ln",
+      "title": "Natural logarithm",
+      "category": "Numeric",
+      "summary": "Logarithm to base e."
+    },
+    {
+      "name": "numeric.exponential",
+      "title": "Exponential",
+      "category": "Numeric",
+      "summary": "e raised to the value."
+    },
+    {
+      "name": "numeric.modulo",
+      "title": "Remainder",
+      "category": "Numeric",
+      "summary": "The remainder after dividing."
+    },
+    {
+      "name": "numeric.integer_divide",
+      "title": "Integer divide",
+      "category": "Numeric",
+      "summary": "Divide and drop the remainder."
+    },
+    {
+      "name": "numeric.clamp",
+      "title": "Clamp to a range",
+      "category": "Numeric",
+      "summary": "Pull values below the floor up and values above the ceiling down."
+    },
+    {
+      "name": "numeric.is_even",
+      "title": "Is even",
+      "category": "Numeric",
+      "summary": "True for even whole numbers."
+    },
+    {
+      "name": "numeric.is_odd",
+      "title": "Is odd",
+      "category": "Numeric",
+      "summary": "True for odd whole numbers."
+    },
+    {
+      "name": "numeric.rescale",
+      "title": "Rescale to a range",
+      "category": "Numeric",
+      "summary": "Map a known input range onto a new output range."
+    },
+    {
+      "name": "numeric.percent_of",
+      "title": "Percent of a total",
+      "category": "Numeric",
+      "summary": "Express as a percentage of a known total."
+    },
+    {
+      "name": "numeric.bin",
+      "title": "Group into buckets",
+      "category": "Numeric",
+      "summary": "Label each value by which fixed-width bucket it falls in."
+    },
+    {
+      "name": "rows.filter",
+      "title": "Keep or drop matching rows",
+      "category": "Rows",
+      "summary": "Keep only the rows a test matches, or drop them."
+    },
+    {
+      "name": "rows.keep_top",
+      "title": "Keep the first rows",
+      "category": "Rows",
+      "summary": "Keep the first N rows in the dataset's current order."
+    },
+    {
+      "name": "rows.skip",
+      "title": "Skip the first rows",
+      "category": "Rows",
+      "summary": "Drop the first N rows -- the usual fix for a file with a banner above the data."
+    },
+    {
+      "name": "rows.keep_range",
+      "title": "Keep a range of rows",
+      "category": "Rows",
+      "summary": "Keep N rows starting from a position, counting from zero."
+    },
+    {
+      "name": "rows.sort",
+      "title": "Sort rows",
+      "category": "Rows",
+      "summary": "Order by one or more columns. Where nulls go is stated, not left to the engine."
+    },
+    {
+      "name": "rows.deduplicate",
+      "title": "Remove duplicate rows",
+      "category": "Rows",
+      "summary": "Keep one row per distinct combination -- of every column, or of the ones you name."
+    },
+    {
+      "name": "rows.drop_blank",
+      "title": "Drop blank rows",
+      "category": "Rows",
+      "summary": "Remove rows that are empty -- in every column, or in any of the ones you name."
+    },
+    {
+      "name": "text.trim",
+      "title": "Trim whitespace",
+      "category": "Text",
+      "summary": "Remove spaces, tabs and newlines from both ends."
+    },
+    {
+      "name": "text.trim_start",
+      "title": "Trim leading whitespace",
+      "category": "Text",
+      "summary": "Remove whitespace from the start only."
+    },
+    {
+      "name": "text.trim_end",
+      "title": "Trim trailing whitespace",
+      "category": "Text",
+      "summary": "Remove whitespace from the end only."
+    },
+    {
+      "name": "text.collapse_whitespace",
+      "title": "Collapse whitespace",
+      "category": "Text",
+      "summary": "Replace every run of whitespace with a single space, and trim the ends."
+    },
+    {
+      "name": "text.upper",
+      "title": "UPPERCASE",
+      "category": "Text",
+      "summary": "Convert to upper case."
+    },
+    {
+      "name": "text.lower",
+      "title": "lowercase",
+      "category": "Text",
+      "summary": "Convert to lower case."
+    },
+    {
+      "name": "text.title_case",
+      "title": "Title Case",
+      "category": "Text",
+      "summary": "Capitalise the first letter of every word."
+    },
+    {
+      "name": "text.sentence_case",
+      "title": "Sentence case",
+      "category": "Text",
+      "summary": "Capitalise the first letter and lower the rest."
+    },
+    {
+      "name": "text.swap_case",
+      "title": "Swap case",
+      "category": "Text",
+      "summary": "Turn upper case into lower and lower into upper."
+    },
+    {
+      "name": "text.pad_left",
+      "title": "Pad left",
+      "category": "Text",
+      "summary": "Pad to a fixed width by adding characters on the left."
+    },
+    {
+      "name": "text.pad_right",
+      "title": "Pad right",
+      "category": "Text",
+      "summary": "Pad to a fixed width by adding characters on the right."
+    },
+    {
+      "name": "text.truncate",
+      "title": "Truncate",
+      "category": "Text",
+      "summary": "Shorten to a maximum length, optionally ending with a suffix."
+    },
+    {
+      "name": "text.left",
+      "title": "First characters",
+      "category": "Text",
+      "summary": "Keep the first N characters."
+    },
+    {
+      "name": "text.right",
+      "title": "Last characters",
+      "category": "Text",
+      "summary": "Keep the last N characters."
+    },
+    {
+      "name": "text.substring",
+      "title": "Substring",
+      "category": "Text",
+      "summary": "Take a run of characters from a starting position. Positions count from 1."
+    },
+    {
+      "name": "text.extract_before",
+      "title": "Extract before",
+      "category": "Text",
+      "summary": "Everything before the first occurrence of a marker."
+    },
+    {
+      "name": "text.extract_after",
+      "title": "Extract after",
+      "category": "Text",
+      "summary": "Everything after the first occurrence of a marker."
+    },
+    {
+      "name": "text.extract_between",
+      "title": "Extract between",
+      "category": "Text",
+      "summary": "The text between two markers. Null when either marker is missing."
+    },
+    {
+      "name": "text.split_part",
+      "title": "Take one part",
+      "category": "Text",
+      "summary": "Split on a delimiter and keep one part. Parts count from 1."
+    },
+    {
+      "name": "text.char_at",
+      "title": "Character at position",
+      "category": "Text",
+      "summary": "The single character at a position, counting from 1."
+    },
+    {
+      "name": "text.regex_extract",
+      "title": "Extract with a pattern",
+      "category": "Text",
+      "summary": "The first capture group of a regular expression."
+    },
+    {
+      "name": "text.regex_replace",
+      "title": "Replace with a pattern",
+      "category": "Text",
+      "summary": "Replace everything matching a regular expression."
+    },
+    {
+      "name": "text.regex_count",
+      "title": "Count pattern matches",
+      "category": "Text",
+      "summary": "How many times a regular expression matches."
+    },
+    {
+      "name": "text.replace",
+      "title": "Find and replace",
+      "category": "Text",
+      "summary": "Replace every occurrence of one piece of text with another."
+    },
+    {
+      "name": "text.position",
+      "title": "Position of text",
+      "category": "Text",
+      "summary": "Where a piece of text first appears, counting from 1. Zero when absent."
+    },
+    {
+      "name": "text.count_occurrences",
+      "title": "Count occurrences",
+      "category": "Text",
+      "summary": "How many times a piece of text appears."
+    },
+    {
+      "name": "text.remove_characters",
+      "title": "Remove characters",
+      "category": "Text",
+      "summary": "Delete every character in a set."
+    },
+    {
+      "name": "text.keep_characters",
+      "title": "Keep only characters",
+      "category": "Text",
+      "summary": "Delete everything except the characters in a set."
+    },
+    {
+      "name": "text.translate",
+      "title": "Swap characters",
+      "category": "Text",
+      "summary": "Replace characters one for one, like tr."
+    },
+    {
+      "name": "text.length",
+      "title": "Length",
+      "category": "Text",
+      "summary": "How many characters."
+    },
+    {
+      "name": "text.word_count",
+      "title": "Word count",
+      "category": "Text",
+      "summary": "How many whitespace-separated words."
+    },
+    {
+      "name": "text.reverse",
+      "title": "Reverse",
+      "category": "Text",
+      "summary": "Reverse the characters."
+    },
+    {
+      "name": "text.repeat",
+      "title": "Repeat",
+      "category": "Text",
+      "summary": "Repeat the text N times."
+    },
+    {
+      "name": "text.camel_to_words",
+      "title": "Split camelCase",
+      "category": "Text",
+      "summary": "Insert spaces at camel-case boundaries."
+    },
+    {
+      "name": "text.slugify",
+      "title": "Make a slug",
+      "category": "Text",
+      "summary": "Lower case, accents folded, everything else turned into hyphens."
+    },
+    {
+      "name": "text.remove_accents",
+      "title": "Remove accents",
+      "category": "Text",
+      "summary": "Fold accented letters to their plain equivalents."
+    },
+    {
+      "name": "text.strip_html",
+      "title": "Strip HTML",
+      "category": "Text",
+      "summary": "Remove tags and decode entities, leaving the text."
+    },
+    {
+      "name": "text.normalise_unicode",
+      "title": "Normalise Unicode",
+      "category": "Text",
+      "summary": "Apply a Unicode normalisation form so equal-looking text compares equal."
+    },
+    {
+      "name": "text.soundex",
+      "title": "Soundex code",
+      "category": "Text",
+      "summary": "A four-character phonetic code, for matching names that sound alike."
+    },
+    {
+      "name": "text.starts_with",
+      "title": "Starts with",
+      "category": "Text",
+      "summary": "True when the text begins with a given prefix."
+    },
+    {
+      "name": "text.ends_with",
+      "title": "Ends with",
+      "category": "Text",
+      "summary": "True when the text ends with a given suffix."
+    },
+    {
+      "name": "text.contains",
+      "title": "Contains",
+      "category": "Text",
+      "summary": "True when the text contains a given piece."
+    },
+    {
+      "name": "text.merge_columns",
+      "title": "Merge columns",
+      "category": "Text",
+      "summary": "Join this column to others with a separator, skipping the empty ones."
+    },
+    {
+      "name": "check.is_email",
+      "title": "Looks like an email",
+      "category": "Validation",
+      "summary": "True for text shaped like an email address."
+    },
+    {
+      "name": "check.is_url",
+      "title": "Looks like a URL",
+      "category": "Validation",
+      "summary": "True for text shaped like an http or https URL."
+    },
+    {
+      "name": "check.is_date",
+      "title": "Reads as a date",
+      "category": "Validation",
+      "summary": "True where the value can be read as a date."
+    },
+    {
+      "name": "check.is_number",
+      "title": "Reads as a number",
+      "category": "Validation",
+      "summary": "True where the value can be read as a number."
+    },
+    {
+      "name": "check.in_range",
+      "title": "Within a range",
+      "category": "Validation",
+      "summary": "True where a number falls between two bounds, inclusive."
+    },
+    {
+      "name": "check.matches_pattern",
+      "title": "Matches a pattern",
+      "category": "Validation",
+      "summary": "True where a regular expression matches."
+    },
+    {
+      "name": "check.length_between",
+      "title": "Length within bounds",
+      "category": "Validation",
+      "summary": "True where the text's length falls between two bounds."
+    },
+    {
+      "name": "check.in_set",
+      "title": "One of a list",
+      "category": "Validation",
+      "summary": "True where the value is one of an allowed list."
+    },
+    {
+      "name": "check.quarantine",
+      "title": "Split on a check column",
+      "category": "Validation",
+      "summary": "Keep only the rows that passed a check, or only the ones that failed."
+    }
+  ],
+  "connectors": [
+    {
+      "name": "adp",
+      "label": "ADP",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "glue_catalog",
+      "label": "AWS Glue Catalog",
+      "category": "lakehouse",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "activecampaign",
+      "label": "ActiveCampaign",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "adyen",
+      "label": "Adyen",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "aerospike",
+      "label": "Aerospike",
+      "category": "nosql",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "airtable",
+      "label": "Airtable",
+      "category": "saas",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "athena",
+      "label": "Amazon Athena",
+      "category": "warehouse",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "aurora_mysql",
+      "label": "Amazon Aurora (MySQL)",
+      "category": "database",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "incremental",
+        "discover"
+      ]
+    },
+    {
+      "name": "aurora_postgres",
+      "label": "Amazon Aurora (PostgreSQL)",
+      "category": "database",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "incremental",
+        "discover"
+      ]
+    },
+    {
+      "name": "amazon_seller",
+      "label": "Amazon Seller Central",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "timestream",
+      "label": "Amazon Timestream",
+      "category": "timeseries",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "amplitude",
+      "label": "Amplitude",
+      "category": "saas",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "cassandra",
+      "label": "Apache Cassandra",
+      "category": "nosql",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "apache_doris",
+      "label": "Apache Doris",
+      "category": "database",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "incremental",
+        "discover"
+      ]
+    },
+    {
+      "name": "hbase",
+      "label": "Apache HBase",
+      "category": "nosql",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "hive",
+      "label": "Apache Hive",
+      "category": "warehouse",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "hudi",
+      "label": "Apache Hudi",
+      "category": "lakehouse",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "iceberg",
+      "label": "Apache Iceberg",
+      "category": "lakehouse",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "impala",
+      "label": "Apache Impala",
+      "category": "warehouse",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "solr",
+      "label": "Apache Solr",
+      "category": "nosql",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "arangodb",
+      "label": "ArangoDB",
+      "category": "nosql",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "asana",
+      "label": "Asana",
+      "category": "saas",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "azure_blob",
+      "label": "Azure Blob Storage",
+      "category": "storage",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "cosmosdb_api",
+      "label": "Azure Cosmos DB",
+      "category": "nosql",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "adls_gen2",
+      "label": "Azure Data Lake Storage Gen2",
+      "category": "storage",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "azure_devops",
+      "label": "Azure DevOps",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "azure_sql",
+      "label": "Azure SQL Database",
+      "category": "database",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "synapse",
+      "label": "Azure Synapse",
+      "category": "warehouse",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "backblaze_b2",
+      "label": "Backblaze B2",
+      "category": "storage",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "incremental",
+        "discover"
+      ]
+    },
+    {
+      "name": "bamboohr",
+      "label": "BambooHR",
+      "category": "saas",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "bigcommerce",
+      "label": "BigCommerce",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "bigquery",
+      "label": "BigQuery",
+      "category": "warehouse",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "billcom",
+      "label": "Bill.com",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "bitbucket",
+      "label": "Bitbucket",
+      "category": "saas",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "box",
+      "label": "Box",
+      "category": "storage",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "braintree",
+      "label": "Braintree",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "braze",
+      "label": "Braze",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "brex",
+      "label": "Brex",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "calendly",
+      "label": "Calendly",
+      "category": "saas",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "chargebee",
+      "label": "Chargebee",
+      "category": "saas",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "clickhouse",
+      "label": "ClickHouse",
+      "category": "database",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "clickup",
+      "label": "ClickUp",
+      "category": "saas",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "close_crm",
+      "label": "Close",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "firestore_api",
+      "label": "Cloud Firestore",
+      "category": "nosql",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "cloudflare_r2",
+      "label": "Cloudflare R2",
+      "category": "storage",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "incremental",
+        "discover"
+      ]
+    },
+    {
+      "name": "cockroachdb",
+      "label": "CockroachDB",
+      "category": "database",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "incremental",
+        "discover"
+      ]
+    },
+    {
+      "name": "confluence",
+      "label": "Confluence",
+      "category": "saas",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "copper",
+      "label": "Copper",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "couchdb_api",
+      "label": "CouchDB",
+      "category": "nosql",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "couchbase",
+      "label": "Couchbase",
+      "category": "nosql",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "crate",
+      "label": "CrateDB",
+      "category": "timeseries",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "criteo",
+      "label": "Criteo",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "customerio",
+      "label": "Customer.io",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "databricks_sql",
+      "label": "Databricks SQL",
+      "category": "warehouse",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "datadog",
+      "label": "Datadog",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "delta_lake",
+      "label": "Delta Lake",
+      "category": "lakehouse",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "digitalocean_spaces",
+      "label": "DigitalOcean Spaces",
+      "category": "storage",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "incremental",
+        "discover"
+      ]
+    },
+    {
+      "name": "dremio",
+      "label": "Dremio",
+      "category": "warehouse",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "dropbox",
+      "label": "Dropbox",
+      "category": "storage",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "duckdb",
+      "label": "DuckDB",
+      "category": "database",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "dynamics365",
+      "label": "Dynamics 365",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "dynamodb",
+      "label": "DynamoDB",
+      "category": "nosql",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "elasticsearch_api",
+      "label": "Elasticsearch",
+      "category": "nosql",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "etsy",
+      "label": "Etsy",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "exasol",
+      "label": "Exasol",
+      "category": "database",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "ftp",
+      "label": "FTP / FTPS",
+      "category": "storage",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "faire",
+      "label": "Faire",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "firebird",
+      "label": "Firebird",
+      "category": "database",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "firebolt",
+      "label": "Firebolt",
+      "category": "warehouse",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "freshdesk",
+      "label": "Freshdesk",
+      "category": "saas",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "freshsales",
+      "label": "Freshsales",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "front",
+      "label": "Front",
+      "category": "saas",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "github",
+      "label": "GitHub",
+      "category": "saas",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "gitlab",
+      "label": "GitLab",
+      "category": "saas",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "gmail",
+      "label": "Gmail",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "google_ads",
+      "label": "Google Ads",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "ga4",
+      "label": "Google Analytics 4",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "google_calendar",
+      "label": "Google Calendar",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "cloud_sql",
+      "label": "Google Cloud SQL",
+      "category": "database",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "incremental",
+        "discover"
+      ]
+    },
+    {
+      "name": "gcs",
+      "label": "Google Cloud Storage",
+      "category": "storage",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "google_drive",
+      "label": "Google Drive",
+      "category": "storage",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "google_sheets",
+      "label": "Google Sheets",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "test",
+        "read"
+      ]
+    },
+    {
+      "name": "gorgias",
+      "label": "Gorgias",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "graphql",
+      "label": "GraphQL",
+      "category": "api",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "test",
+        "read"
+      ]
+    },
+    {
+      "name": "graphite",
+      "label": "Graphite",
+      "category": "timeseries",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "greenhouse",
+      "label": "Greenhouse",
+      "category": "saas",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "greenplum",
+      "label": "Greenplum",
+      "category": "database",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "incremental",
+        "discover"
+      ]
+    },
+    {
+      "name": "gusto",
+      "label": "Gusto",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "hdfs",
+      "label": "HDFS",
+      "category": "lakehouse",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "heap",
+      "label": "Heap",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "helpscout",
+      "label": "Help Scout",
+      "category": "saas",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "hibob",
+      "label": "HiBob",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "hive_metastore",
+      "label": "Hive Metastore",
+      "category": "lakehouse",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "hubspot",
+      "label": "HubSpot",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "discover",
+        "test",
+        "read"
+      ]
+    },
+    {
+      "name": "db2",
+      "label": "IBM Db2",
+      "category": "database",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "informix",
+      "label": "IBM Informix",
+      "category": "database",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "netezza",
+      "label": "IBM Netezza",
+      "category": "database",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "influxdb",
+      "label": "InfluxDB",
+      "category": "timeseries",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "insightly",
+      "label": "Insightly",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "intercom",
+      "label": "Intercom",
+      "category": "saas",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "iterable",
+      "label": "Iterable",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "jsonapi",
+      "label": "JSON:API",
+      "category": "api",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read"
+      ]
+    },
+    {
+      "name": "jira",
+      "label": "Jira",
+      "category": "saas",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "incremental",
+        "discover"
+      ]
+    },
+    {
+      "name": "jira_service_management",
+      "label": "Jira Service Management",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "klaviyo",
+      "label": "Klaviyo",
+      "category": "saas",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "incremental",
+        "discover"
+      ]
+    },
+    {
+      "name": "lever",
+      "label": "Lever",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "linear",
+      "label": "Linear",
+      "category": "saas",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "linkedin_ads",
+      "label": "LinkedIn Ads",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "magento",
+      "label": "Magento",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "mailchimp",
+      "label": "Mailchimp",
+      "category": "saas",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "mariadb",
+      "label": "MariaDB",
+      "category": "database",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "incremental",
+        "discover"
+      ]
+    },
+    {
+      "name": "marketo",
+      "label": "Marketo",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "matomo",
+      "label": "Matomo",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "meilisearch",
+      "label": "Meilisearch",
+      "category": "nosql",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "meta_ads",
+      "label": "Meta Ads",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "microsoft_teams",
+      "label": "Microsoft Teams",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "minio",
+      "label": "MinIO",
+      "category": "storage",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "incremental",
+        "discover"
+      ]
+    },
+    {
+      "name": "mixpanel",
+      "label": "Mixpanel",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "monday",
+      "label": "Monday.com",
+      "category": "saas",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "monetdb",
+      "label": "MonetDB",
+      "category": "database",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "mongodb",
+      "label": "MongoDB",
+      "category": "nosql",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "motherduck",
+      "label": "MotherDuck",
+      "category": "warehouse",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "mysql",
+      "label": "MySQL",
+      "category": "database",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "incremental",
+        "discover"
+      ]
+    },
+    {
+      "name": "namely",
+      "label": "Namely",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "neo4j_api",
+      "label": "Neo4j",
+      "category": "nosql",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "neon",
+      "label": "Neon",
+      "category": "database",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "incremental",
+        "discover"
+      ]
+    },
+    {
+      "name": "netsuite",
+      "label": "NetSuite",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "notion",
+      "label": "Notion",
+      "category": "saas",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "odata",
+      "label": "OData",
+      "category": "api",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "onedrive",
+      "label": "OneDrive / SharePoint",
+      "category": "storage",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "opensearch_api",
+      "label": "OpenSearch",
+      "category": "nosql",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "opentsdb",
+      "label": "OpenTSDB",
+      "category": "timeseries",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "oracle",
+      "label": "Oracle",
+      "category": "warehouse",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "oracle_db",
+      "label": "Oracle Database",
+      "category": "database",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "oracle_object_storage",
+      "label": "Oracle Object Storage",
+      "category": "storage",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "incremental",
+        "discover"
+      ]
+    },
+    {
+      "name": "outlook",
+      "label": "Outlook / Microsoft Graph",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "pagerduty",
+      "label": "PagerDuty",
+      "category": "saas",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "paypal",
+      "label": "PayPal",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "pendo",
+      "label": "Pendo",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "personio",
+      "label": "Personio",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "pinterest_ads",
+      "label": "Pinterest Ads",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "pipedrive",
+      "label": "Pipedrive",
+      "category": "saas",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "planetscale",
+      "label": "PlanetScale",
+      "category": "database",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "incremental",
+        "discover"
+      ]
+    },
+    {
+      "name": "posthog",
+      "label": "PostHog",
+      "category": "saas",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "postgresql",
+      "label": "PostgreSQL",
+      "category": "database",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "incremental",
+        "discover"
+      ]
+    },
+    {
+      "name": "presto",
+      "label": "Presto",
+      "category": "database",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "prometheus",
+      "label": "Prometheus",
+      "category": "timeseries",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "questdb",
+      "label": "QuestDB",
+      "category": "timeseries",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "incremental",
+        "discover"
+      ]
+    },
+    {
+      "name": "questdb_rest",
+      "label": "QuestDB (HTTP)",
+      "category": "timeseries",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "quickbooks",
+      "label": "QuickBooks Online",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "rest_api",
+      "label": "REST API",
+      "category": "api",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "test",
+        "read"
+      ]
+    },
+    {
+      "name": "ramp",
+      "label": "Ramp",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "recurly",
+      "label": "Recurly",
+      "category": "saas",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "redis",
+      "label": "Redis",
+      "category": "nosql",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "redshift",
+      "label": "Redshift",
+      "category": "warehouse",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "rippling",
+      "label": "Rippling",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "rockset",
+      "label": "Rockset",
+      "category": "warehouse",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "s3",
+      "label": "S3 object storage",
+      "category": "storage",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "incremental",
+        "write",
+        "discover"
+      ]
+    },
+    {
+      "name": "hana",
+      "label": "SAP HANA",
+      "category": "database",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "successfactors",
+      "label": "SAP SuccessFactors",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "sftp",
+      "label": "SFTP",
+      "category": "storage",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "sqlserver",
+      "label": "SQL Server",
+      "category": "warehouse",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "sqlite",
+      "label": "SQLite",
+      "category": "database",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "incremental",
+        "discover"
+      ]
+    },
+    {
+      "name": "sage",
+      "label": "Sage Accounting",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "salesforce",
+      "label": "Salesforce",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "discover",
+        "test",
+        "read"
+      ]
+    },
+    {
+      "name": "scylladb",
+      "label": "ScyllaDB",
+      "category": "nosql",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "segment",
+      "label": "Segment",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "sendgrid",
+      "label": "SendGrid",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "sentry",
+      "label": "Sentry",
+      "category": "saas",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "local_files",
+      "label": "Server files",
+      "category": "file",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "incremental",
+        "write",
+        "discover"
+      ]
+    },
+    {
+      "name": "servicenow",
+      "label": "ServiceNow",
+      "category": "saas",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "shopify",
+      "label": "Shopify",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "discover",
+        "test",
+        "read"
+      ]
+    },
+    {
+      "name": "shortcut",
+      "label": "Shortcut",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "singlestore",
+      "label": "SingleStore",
+      "category": "database",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "incremental",
+        "discover"
+      ]
+    },
+    {
+      "name": "slack",
+      "label": "Slack",
+      "category": "saas",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "snapchat_ads",
+      "label": "Snapchat Ads",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "snowflake",
+      "label": "Snowflake",
+      "category": "warehouse",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "square",
+      "label": "Square",
+      "category": "saas",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "squarespace",
+      "label": "Squarespace",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "starrocks",
+      "label": "StarRocks",
+      "category": "database",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "incremental",
+        "discover"
+      ]
+    },
+    {
+      "name": "stripe",
+      "label": "Stripe",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "discover",
+        "test",
+        "read"
+      ]
+    },
+    {
+      "name": "sugarcrm",
+      "label": "SugarCRM",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "supabase_db",
+      "label": "Supabase (Postgres)",
+      "category": "database",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "incremental",
+        "discover"
+      ]
+    },
+    {
+      "name": "surveymonkey",
+      "label": "SurveyMonkey",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "sybase",
+      "label": "Sybase ASE",
+      "category": "database",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "teradata",
+      "label": "Teradata",
+      "category": "database",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "tidb",
+      "label": "TiDB",
+      "category": "database",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "incremental",
+        "discover"
+      ]
+    },
+    {
+      "name": "tiktok_ads",
+      "label": "TikTok Ads",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "timescaledb",
+      "label": "TimescaleDB",
+      "category": "timeseries",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "incremental",
+        "discover"
+      ]
+    },
+    {
+      "name": "trello",
+      "label": "Trello",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "trino",
+      "label": "Trino",
+      "category": "database",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "twilio",
+      "label": "Twilio",
+      "category": "saas",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "typeform",
+      "label": "Typeform",
+      "category": "saas",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "typesense",
+      "label": "Typesense",
+      "category": "nosql",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "ukg",
+      "label": "UKG",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "unity_catalog",
+      "label": "Unity Catalog",
+      "category": "lakehouse",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "vertica",
+      "label": "Vertica",
+      "category": "database",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "victoriametrics",
+      "label": "VictoriaMetrics",
+      "category": "timeseries",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "wasabi",
+      "label": "Wasabi",
+      "category": "storage",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "incremental",
+        "discover"
+      ]
+    },
+    {
+      "name": "webdav",
+      "label": "WebDAV",
+      "category": "storage",
+      "tier": 4,
+      "available": false,
+      "capabilities": [
+        "test"
+      ]
+    },
+    {
+      "name": "wix",
+      "label": "Wix",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "woocommerce",
+      "label": "WooCommerce",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "workday",
+      "label": "Workday",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "x_ads",
+      "label": "X Ads",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "xero",
+      "label": "Xero",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "yugabytedb",
+      "label": "YugabyteDB",
+      "category": "database",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "incremental",
+        "discover"
+      ]
+    },
+    {
+      "name": "zendesk",
+      "label": "Zendesk Support",
+      "category": "saas",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "incremental",
+        "discover"
+      ]
+    },
+    {
+      "name": "zoho_crm",
+      "label": "Zoho CRM",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "zoom",
+      "label": "Zoom",
+      "category": "saas",
+      "tier": 2,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "zuora",
+      "label": "Zuora",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    },
+    {
+      "name": "ebay",
+      "label": "eBay",
+      "category": "saas",
+      "tier": 4,
+      "available": true,
+      "capabilities": [
+        "schema",
+        "test",
+        "read",
+        "discover"
+      ]
+    }
+  ],
+  "functions": 186,
+  "formula_names": 207
+}

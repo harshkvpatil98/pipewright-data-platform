@@ -17,7 +17,10 @@ import type { RibbonGroup } from "@/components/shell/ribbon";
 import { useToast } from "@/components/providers/toast-provider";
 import { STUDIO_TOUR_ID, studioTour } from "@/components/tour/tours";
 import { useTour } from "@/components/tour/tour-provider";
+import { Button, FormField, Input } from "@platform/shared-ui";
+
 import { Icon } from "@/components/ui/icon";
+import { Modal } from "@/components/ui/modal";
 import { StepEditor } from "@/features/studio/step-editor";
 import {
   STEP_BY_TYPE,
@@ -108,6 +111,8 @@ export function StudioPage({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [savePromptOpen, setSavePromptOpen] = useState(false);
+  const [saveName, setSaveName] = useState("");
   /**
    * Columns of the untransformed source. Held separately so the step editor
    * still offers real column names while the current step is half-configured
@@ -290,16 +295,17 @@ export function StudioPage({
     });
   };
 
-  const savePipeline = useCallback(async () => {
+  const savePipeline = useCallback(async (chosenName?: string) => {
     if (!dataset || steps.length === 0) return;
     setSaving(true);
     try {
+      const fallback = `${dataset.name} · ${steps.length} step${steps.length === 1 ? "" : "s"}`;
       const created = await apiFetch<{ id: string; name: string }>(
         `/projects/${projectId}/datasets/${dataset.id}/pipelines`,
         {
           method: "POST",
           body: JSON.stringify({
-            name: `${dataset.name} · ${steps.length} step${steps.length === 1 ? "" : "s"}`,
+            name: (chosenName ?? "").trim() || fallback,
             steps_json: steps.map((step) => ({ step_type: step.step_type, config: step.config })),
           }),
         },
@@ -370,7 +376,11 @@ export function StudioPage({
             icon: "check",
             prominent: true,
             disabled: steps.length === 0 || saving || !dataset,
-            onClick: savePipeline,
+            onClick: () => {
+              if (!dataset || steps.length === 0) return;
+              setSaveName(`${dataset.name} · ${steps.length} step${steps.length === 1 ? "" : "s"}`);
+              setSavePromptOpen(true);
+            },
           },
           {
             id: "tools",
@@ -775,6 +785,40 @@ export function StudioPage({
           }}
         />
       ) : null}
+
+      <Modal
+        open={savePromptOpen}
+        onClose={() => setSavePromptOpen(false)}
+        title="Save this pipeline"
+        description="Give it a name you will recognise in the pipelines list and when scheduling it."
+        widthClassName="max-w-md"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setSavePromptOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              disabled={saving || saveName.trim().length < 1}
+              onClick={() => {
+                setSavePromptOpen(false);
+                void savePipeline(saveName);
+              }}
+            >
+              {saving ? "Saving…" : "Save pipeline"}
+            </Button>
+          </div>
+        }
+      >
+        <FormField label="Name" htmlFor="pipeline-name">
+          <Input
+            id="pipeline-name"
+            value={saveName}
+            onChange={(e) => setSaveName(e.target.value)}
+            autoFocus
+          />
+        </FormField>
+      </Modal>
     </AppFrame>
   );
 }

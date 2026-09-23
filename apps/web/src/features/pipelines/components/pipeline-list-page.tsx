@@ -4,6 +4,7 @@ import type { AuthUser, DatasetRecord, ProjectDetail, TransformationPipelineReco
 import { Button, EmptyState, SectionPanel, StatusBadge } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
+import { PipelineNameCell } from "@/features/pipelines/components/pipeline-name-cell";
 import { RunPipelineButton } from "@/features/pipelines/components/run-pipeline-button";
 import { formatDate } from "@/lib/format";
 
@@ -81,12 +82,12 @@ export function PipelineListPageView({ currentUser, project, pipelines, datasets
                   {pipelines.map((pipeline) => (
                     <tr key={pipeline.id} className="transition hover:bg-surface">
                       <td className="cell-pad align-top">
-                        <Link
-                          href={`/projects/${project.id}/datasets/${pipeline.base_dataset_id}/pipelines/${pipeline.id}`}
-                          className="font-medium text-ink hover:text-accent"
-                        >
-                          {pipeline.name}
-                        </Link>
+                        <PipelineNameCell
+                          projectId={project.id}
+                          pipelineId={pipeline.id}
+                          baseDatasetId={pipeline.base_dataset_id}
+                          name={pipeline.name}
+                        />
                         <div className="mt-1 max-w-sm text-ink-3">{pipeline.description ?? "No pipeline description provided."}</div>
                       </td>
                       <td className="cell-pad align-top text-ink-2">{datasetNameMap.get(pipeline.base_dataset_id) ?? pipeline.base_dataset_id}</td>

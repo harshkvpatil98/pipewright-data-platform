@@ -318,6 +318,10 @@ def _filter_rows(node: Node, config: dict[str, Any]) -> Node:
         value = condition["value"]
         if operator in _FILTER_OPERATORS:
             predicates.append(Call(_FILTER_OPERATORS[operator], (column, _literal_for(value))))
+        elif operator in ("is_null", "not_null", "is_not_null"):
+            # Null tests take no value; the reporting layer spells the negative
+            # `not_null`, the IR `is_not_null` -- both are `IS NOT NULL`.
+            predicates.append(Call("is_null" if operator == "is_null" else "is_not_null", (column,)))
         elif operator == "in":
             values = value if isinstance(value, list) else [value]
             predicates.append(

@@ -38,6 +38,7 @@ from service_reporting.charts import (
 )
 from service_reporting.exports import export
 from service_reporting.models import (
+    Metric,
     CatalogAnnotation,
     Dashboard,
     DashboardTile,
@@ -159,6 +160,45 @@ def chart_catalog() -> ChartCatalogResponse:
     )
 
 
+def _with_metric(metric: Metric | None, stored: QueryInput) -> QueryInput:
+    if metric is None:
+        return stored
+    from service_reporting.metrics import effective_query
+
+    return effective_query(metric, stored)
+
+
+def _resolve_metric(db: Session, project_id: uuid.UUID, metric_id: uuid.UUID | None, dataset_id: uuid.UUID) -> Metric | None:
+    """The metric a chart names, checked to be this project's and this dataset's."""
+    if metric_id is None:
+        return None
+    metric = db.scalar(select(Metric).where(Metric.id == metric_id, Metric.project_id == project_id))
+    if metric is None:
+        raise NotFoundError("Metric not found in this project.")
+    if metric.dataset_id != dataset_id:
+        raise BadRequestError(f"'{metric.name}' is defined on a different dataset than this chart reads.")
+    return metric
+
+
+def _chart_frame_and_query(db: Session, project_id: uuid.UUID, dataset_id: uuid.UUID, metric_id: uuid.UUID | None,
+                           stored: QueryInput, storage_backend, frames: dict | None = None):
+    """The frame and query a chart computes over. A metric-backed chart gets
+    the metric's filters applied and its formula evaluated (prepare_frame) and
+    its measure substituted (effective_query); a plain chart gets its own."""
+    from service_reporting.metrics import effective_query, prepare_frame
+
+    if frames is not None and dataset_id in frames:
+        frame = frames[dataset_id]
+    else:
+        frame = _load_frame(db, project_id, dataset_id, storage_backend)
+        if frames is not None:
+            frames[dataset_id] = frame
+    metric = _resolve_metric(db, project_id, metric_id, dataset_id)
+    if metric is None:
+        return frame, stored
+    return prepare_frame(metric, frame), effective_query(metric, stored)
+
+
 def _compute_chart(
     chart_type: str, query: Query, frame: pd.DataFrame, options: dict[str, Any] | None
 ) -> ChartData:
@@ -182,16 +222,27 @@ def preview_chart(
 ) -> ChartDataResponse:
     """Compute a chart without saving it, so the builder is interactive."""
     ensure_owned_project(db, project_id, current_user.id)
-    query = _to_query(payload.query)
+    frame, stored = _chart_frame_and_query(
+        db, project_id, payload.dataset_id, payload.metric_id, payload.query, storage_backend
+    )
+    query = _to_query(stored)
     warnings = validate_chart(payload.chart_type, query)
-
-    frame = _load_frame(db, project_id, payload.dataset_id, storage_backend)
     data = _compute_chart(payload.chart_type, query, frame, payload.options)
     data.warnings = [*warnings, *data.warnings]
     return ChartDataResponse(**data.to_dict())
 
 
-def _chart_read(chart: SavedChart, dataset_name: str | None) -> ChartRead:
+def _metric_names(db: Session, metric_ids: list[uuid.UUID | None]) -> dict[uuid.UUID, str]:
+    wanted = [item for item in metric_ids if item is not None]
+    if not wanted:
+        return {}
+    return {
+        metric.id: metric.name
+        for metric in db.scalars(select(Metric).where(Metric.id.in_(wanted))).all()
+    }
+
+
+def _chart_read(chart: SavedChart, dataset_name: str | None, metric_name: str | None = None) -> ChartRead:
     return ChartRead(
         id=chart.id,
         project_id=chart.project_id,
@@ -203,6 +254,8 @@ def _chart_read(chart: SavedChart, dataset_name: str | None) -> ChartRead:
         query=_from_query(chart.query_json),
         options=chart.options_json,
         created_at=chart.created_at,
+        metric_id=chart.metric_id,
+        metric_name=metric_name,
         updated_at=chart.updated_at,
     )
 
@@ -212,7 +265,10 @@ def create_chart(
 ) -> ChartRead:
     ensure_owned_project(db, project_id, current_user.id)
     dataset = _get_dataset(db, project_id, payload.dataset_id)
-    validate_chart(payload.chart_type, _to_query(payload.query))
+    metric = _resolve_metric(db, project_id, payload.metric_id, payload.dataset_id)
+    # A metric-backed chart is validated against what it will actually
+    # compute: the metric's measure, the chart's own dimensions.
+    validate_chart(payload.chart_type, _to_query(_with_metric(metric, payload.query)))
 
     chart = SavedChart(
         project_id=project_id,
@@ -222,12 +278,13 @@ def create_chart(
         chart_type=payload.chart_type,
         query_json=payload.query.model_dump(mode="json"),
         options_json=payload.options,
+        metric_id=payload.metric_id,
         created_by_user_id=current_user.id,
     )
     db.add(chart)
     db.commit()
     db.refresh(chart)
-    return _chart_read(chart, dataset.name)
+    return _chart_read(chart, dataset.name, metric.name if metric else None)
 
 
 def _get_chart(db: Session, project_id: uuid.UUID, chart_id: uuid.UUID) -> SavedChart:
@@ -260,10 +317,18 @@ def update_chart(
     if payload.options is not None:
         chart.options_json = payload.options
 
-    validate_chart(chart.chart_type, _to_query(_from_query(chart.query_json)))
+    validate_chart(
+        chart.chart_type,
+        _to_query(_with_metric(
+            _resolve_metric(db, project_id, chart.metric_id, chart.dataset_id), _from_query(chart.query_json)
+        )),
+    )
+    if "metric_id" in payload.model_fields_set:
+        _resolve_metric(db, project_id, payload.metric_id, chart.dataset_id)
+        chart.metric_id = payload.metric_id
     db.commit()
     db.refresh(chart)
-    return _chart_read(chart, _dataset_names(db, [chart.dataset_id]).get(chart.dataset_id))
+    return _chart_read(chart, _dataset_names(db, [chart.dataset_id]).get(chart.dataset_id), _metric_names(db, [chart.metric_id]).get(chart.metric_id))
 
 
 def list_charts(db: Session, project_id: uuid.UUID, current_user: UserRead) -> ChartListResponse:
@@ -276,8 +341,9 @@ def list_charts(db: Session, project_id: uuid.UUID, current_user: UserRead) -> C
         ).all()
     )
     names = _dataset_names(db, [chart.dataset_id for chart in charts])
+    metric_names = _metric_names(db, [chart.metric_id for chart in charts])
     return ChartListResponse(
-        items=[_chart_read(chart, names.get(chart.dataset_id)) for chart in charts]
+        items=[_chart_read(chart, names.get(chart.dataset_id), metric_names.get(chart.metric_id)) for chart in charts]
     )
 
 
@@ -297,13 +363,14 @@ def get_chart_with_data(
     if extra_filters:
         stored = stored.model_copy(update={"filters": [*stored.filters, *extra_filters]})
 
+    frame, stored = _chart_frame_and_query(db, project_id, chart.dataset_id, chart.metric_id, stored, storage_backend)
     query = _to_query(stored)
-    frame = _load_frame(db, project_id, chart.dataset_id, storage_backend)
     data = _compute_chart(chart.chart_type, query, frame, chart.options_json)
 
     names = _dataset_names(db, [chart.dataset_id])
+    metric_names = _metric_names(db, [chart.metric_id])
     return ChartWithData(
-        **_chart_read(chart, names.get(chart.dataset_id)).model_dump(),
+        **_chart_read(chart, names.get(chart.dataset_id), metric_names.get(chart.metric_id)).model_dump(),
         data=ChartDataResponse(**data.to_dict()),
     )
 
@@ -542,9 +609,10 @@ def compute_dashboard_data(
             stored = _from_query(chart.query_json)
             if filters:
                 stored = stored.model_copy(update={"filters": [*stored.filters, *filters]})
-            if chart.dataset_id not in frames:
-                frames[chart.dataset_id] = _load_frame(db, project_id, chart.dataset_id, storage_backend)
-            data = _compute_chart(chart.chart_type, _to_query(stored), frames[chart.dataset_id], chart.options_json)
+            frame, stored = _chart_frame_and_query(
+                db, project_id, chart.dataset_id, chart.metric_id, stored, storage_backend, frames
+            )
+            data = _compute_chart(chart.chart_type, _to_query(stored), frame, chart.options_json)
             out.append(
                 DashboardTileData(
                     kind="chart", chart_id=chart.id, chart_name=chart.name, chart_type=chart.chart_type,
@@ -722,7 +790,7 @@ def _shared_tile_data(
         stored = _from_query(chart.query_json)
         if dashboard_filters:
             stored = stored.model_copy(update={"filters": [*stored.filters, *dashboard_filters]})
-        frame = _load_frame(db, project_id, chart.dataset_id, storage_backend)
+        frame, stored = _chart_frame_and_query(db, project_id, chart.dataset_id, chart.metric_id, stored, storage_backend)
         data = _compute_chart(chart.chart_type, _to_query(stored), frame, chart.options_json)
         return ChartDataResponse(**data.to_dict())
     except Exception:  # noqa: BLE001 - one bad tile must not fail the page

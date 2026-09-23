@@ -11,6 +11,7 @@ import type {
   ChartTypeName,
   DatasetRecord,
   LineageColumnListResponse,
+  Metric,
 } from "@platform/shared-types";
 import { Button, SectionPanel } from "@platform/shared-ui";
 
@@ -28,6 +29,7 @@ type ChartBuilderPageProps = {
   projectId: string;
   datasets: DatasetRecord[];
   charts: ChartListResponse;
+  metrics: Metric[];
 };
 
 const inputClass =
@@ -38,10 +40,15 @@ export function ChartBuilderPageView({
   projectId,
   datasets,
   charts,
+  metrics,
 }: ChartBuilderPageProps) {
   const [saved, setSaved] = useState(charts.items);
   const [types, setTypes] = useState<ChartCatalogResponse | null>(null);
   const [datasetId, setDatasetId] = useState(datasets[0]?.id ?? "");
+  // A metric-backed chart: the measure and its filters come from the metric,
+  // the chart chooses only how to cut it.
+  const [metricId, setMetricId] = useState("");
+  const metric = metrics.find((item) => item.id === metricId) ?? null;
   const [chartType, setChartType] = useState<ChartTypeName>("bar");
   const [dimension, setDimension] = useState("");
   const [measureColumn, setMeasureColumn] = useState("");
@@ -125,7 +132,7 @@ export function ChartBuilderPageView({
       : null;
 
   const preview = useCallback(async () => {
-    if (!datasetId || !measureColumn) return;
+    if (!datasetId || (!measureColumn && !metric)) return;
     setError(null);
     try {
       setData(
@@ -136,9 +143,10 @@ export function ChartBuilderPageView({
             chart_type: chartType,
             query: {
               dimensions: spec && spec.max_dimensions === 0 ? [] : [dimension],
-              measures: [{ column: measureColumn, aggregation, label: "value" }],
+              measures: metric ? [] : [{ column: measureColumn, aggregation, label: "value" }],
             },
             options,
+            metric_id: metric ? metric.id : null,
           }),
         }),
       );
@@ -147,7 +155,7 @@ export function ChartBuilderPageView({
       setError(extractErrorMessage(caught));
     }
     // `options` is derived from compareColumn/comparePeriod, listed here.
-  }, [projectId, datasetId, chartType, dimension, measureColumn, aggregation, spec, compareColumn, comparePeriod]);
+  }, [projectId, datasetId, chartType, dimension, measureColumn, aggregation, spec, compareColumn, comparePeriod, metric]);
 
   useEffect(() => {
     const timer = setTimeout(() => void preview(), 250);
@@ -162,13 +170,14 @@ export function ChartBuilderPageView({
         method: "POST",
         body: JSON.stringify({
           dataset_id: datasetId,
-          name: name.trim() || `${aggregation} of ${measureColumn}`,
+          name: name.trim() || (metric ? `${metric.name} by ${dimension}` : `${aggregation} of ${measureColumn}`),
           chart_type: chartType,
           query: {
             dimensions: spec && spec.max_dimensions === 0 ? [] : [dimension],
-            measures: [{ column: measureColumn, aggregation, label: "value" }],
+            measures: metric ? [] : [{ column: measureColumn, aggregation, label: "value" }],
           },
           options,
+          metric_id: metric ? metric.id : null,
         }),
       });
       setName("");
@@ -258,7 +267,7 @@ export function ChartBuilderPageView({
                   onChange={(event) => setDimension(event.target.value)}
                   className={inputClass}
                 >
-                  {columns.map((column) => (
+                  {(metric && metric.dimensions.length > 0 ? metric.dimensions : columns).map((column) => (
                     <option key={column} value={column}>
                       {column}
                     </option>
@@ -267,6 +276,38 @@ export function ChartBuilderPageView({
               </Field>
             ) : null}
 
+            {metrics.length > 0 ? (
+              <Field label="Metric">
+                <select
+                  value={metricId}
+                  onChange={(event) => {
+                    const next = metrics.find((item) => item.id === event.target.value) ?? null;
+                    setMetricId(event.target.value);
+                    if (next) {
+                      setDatasetId(next.dataset_id);
+                      if (next.dimensions.length > 0 && !next.dimensions.includes(dimension)) {
+                        setDimension(next.dimensions[0]);
+                      }
+                    }
+                  }}
+                  className={inputClass}
+                >
+                  <option value="">None — measure a column directly</option>
+                  {metrics.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name} · v{item.version_number}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1.5 text-[11px] leading-4 text-muted">
+                  {metric
+                    ? `${metric.aggregation.replace("_", " ")} of ${metric.formula ?? metric.column}${metric.filters.length ? `, ${metric.filters.length} filter(s) built in` : ""}. The chart follows the definition when it changes.`
+                    : "Name a metric instead of restating a measure, so every chart agrees on the number."}
+                </p>
+              </Field>
+            ) : null}
+
+            {metric ? null : (
             <Field label="Measure">
               <div className="flex gap-1.5">
                 <select
@@ -293,6 +334,7 @@ export function ChartBuilderPageView({
                 </select>
               </div>
             </Field>
+            )}
 
             {chartType === "kpi" ? (
               <Field label="Compare with the previous period">
@@ -389,6 +431,7 @@ export function ChartBuilderPageView({
                   <div className="flex shrink-0 items-center gap-1.5">
                     <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[10px] capitalize text-ink-3">
                       {chart.chart_type}
+                      {chart.metric_name ? ` · ${chart.metric_name}` : ""}
                     </span>
                     <DeleteRowButton
                       path={`/projects/${projectId}/charts/${chart.id}`}

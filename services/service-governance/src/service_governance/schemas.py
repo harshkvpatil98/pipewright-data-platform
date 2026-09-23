@@ -8,7 +8,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-ResourceType = Literal["workflow", "pipeline", "quality_rule", "extraction_job"]
+ResourceType = Literal["workflow", "pipeline", "quality_rule", "extraction_job", "metric"]
 TargetType = Literal[
     "dataset", "workflow", "pipeline", "run", "incident", "change_request", "dashboard", "chart"
 ]

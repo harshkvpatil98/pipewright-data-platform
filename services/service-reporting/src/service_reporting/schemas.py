@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -60,6 +60,9 @@ class ChartPreviewRequest(BaseModel):
     query: QueryInput
     #: Chart options the preview should honour -- a KPI's `compare` block.
     options: dict[str, Any] | None = None
+    #: Take the measure and filters from this metric; the query then carries
+    #: dimensions, extra filters, sort and limit only.
+    metric_id: uuid.UUID | None = None
 
 
 class ChartDataResponse(BaseModel):
@@ -81,6 +84,7 @@ class ChartCreate(BaseModel):
     chart_type: ChartTypeName = "bar"
     query: QueryInput
     options: dict[str, Any] | None = None
+    metric_id: uuid.UUID | None = None
 
 
 class ChartUpdate(BaseModel):
@@ -89,6 +93,8 @@ class ChartUpdate(BaseModel):
     chart_type: ChartTypeName | None = None
     query: QueryInput | None = None
     options: dict[str, Any] | None = None
+    #: Send explicitly as null to detach the chart from its metric.
+    metric_id: uuid.UUID | None = None
 
 
 class ChartRead(BaseModel):
@@ -101,6 +107,8 @@ class ChartRead(BaseModel):
     chart_type: str
     query: QueryInput
     options: dict[str, Any] | None
+    metric_id: uuid.UUID | None = None
+    metric_name: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -428,3 +436,108 @@ class TermRead(BaseModel):
 
 class TermListResponse(BaseModel):
     items: list[TermRead]
+
+
+# --------------------------------------------------------------- metrics
+
+
+class MetricCreate(BaseModel):
+    """One definition of a number. Either `column` or `formula` (the spreadsheet
+    language, evaluated per row before aggregation); never both."""
+
+    dataset_id: uuid.UUID
+    name: str = Field(min_length=1, max_length=160)
+    description: str | None = Field(default=None, max_length=4000)
+    owner_username: str | None = Field(default=None, max_length=80)
+    aggregation: AggregationName = "sum"
+    column: str | None = Field(default=None, max_length=200)
+    formula: str | None = Field(default=None, max_length=4000)
+    filters: list[FilterInput] = Field(default_factory=list, max_length=20)
+    #: Dimensions this metric may be cut by. Empty means any column.
+    dimensions: list[str] = Field(default_factory=list, max_length=20)
+    valid_from: date | None = None
+
+    @model_validator(mode="after")
+    def _one_source(self) -> "MetricCreate":
+        has_column = bool((self.column or "").strip())
+        has_formula = bool((self.formula or "").strip())
+        if has_column == has_formula:
+            raise ValueError("Give either a column or a formula for the metric, not both and not neither.")
+        return self
+
+
+class MetricUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=160)
+    description: str | None = Field(default=None, max_length=4000)
+    #: "" clears the owner.
+    owner_username: str | None = Field(default=None, max_length=80)
+    aggregation: AggregationName | None = None
+    column: str | None = Field(default=None, max_length=200)
+    formula: str | None = Field(default=None, max_length=4000)
+    filters: list[FilterInput] | None = None
+    dimensions: list[str] | None = None
+    valid_from: date | None = None
+
+
+class MetricRead(BaseModel):
+    id: uuid.UUID
+    project_id: uuid.UUID
+    dataset_id: uuid.UUID
+    dataset_name: str | None = None
+    name: str
+    slug: str
+    description: str | None
+    owner_username: str | None
+    aggregation: str
+    column: str | None
+    formula: str | None
+    filters: list[FilterInput]
+    dimensions: list[str]
+    valid_from: date | None
+    version_number: int
+    #: Charts that resolve through this metric -- what moves if it changes.
+    used_by_charts: int = 0
+    created_at: datetime
+    updated_at: datetime
+
+
+class MetricListResponse(BaseModel):
+    items: list[MetricRead]
+
+
+class MetricPreviewRequest(BaseModel):
+    dimensions: list[str] = Field(default_factory=list, max_length=4)
+    filters: list[FilterInput] = Field(default_factory=list, max_length=20)
+    limit: int | None = Field(default=None, ge=1, le=500)
+
+
+class MetricPreviewResponse(BaseModel):
+    metric_id: uuid.UUID
+    columns: list[str]
+    rows: list[dict[str, Any]]
+    row_count: int
+    truncated: bool
+    warnings: list[str]
+
+
+class MetricSqlResponse(BaseModel):
+    metric_id: uuid.UUID
+    dialect: str
+    #: The definition rendered as one SELECT, or null with `reason` when the
+    #: dialect cannot express it (a formula function without a lowering).
+    sql: str | None
+    reason: str | None = None
+    #: The table name the SQL reads from; the person substitutes their own.
+    source_placeholder: str
+
+
+class MetricUsageChart(BaseModel):
+    chart_id: uuid.UUID
+    chart_name: str
+    chart_type: str
+    dashboards: list[str] = Field(default_factory=list)
+
+
+class MetricUsageResponse(BaseModel):
+    metric_id: uuid.UUID
+    charts: list[MetricUsageChart]

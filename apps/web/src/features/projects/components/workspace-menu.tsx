@@ -73,6 +73,7 @@ export function WorkspaceMenu({ projectId }: WorkspaceMenuProps) {
         { label: "Destinations", href: p("/destinations") },
         { label: "BI connections", href: p("/bi-connections") },
         { label: "Charts", href: p("/charts") },
+        { label: "Metrics", href: p("/metrics") },
         { label: "Dashboards", href: p("/dashboards") },
         { label: "Reports", href: p("/reports") },
       ],

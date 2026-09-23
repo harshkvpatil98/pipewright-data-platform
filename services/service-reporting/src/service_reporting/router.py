@@ -9,6 +9,14 @@ from sqlalchemy.orm import Session
 from service_auth.schemas import UserRead
 
 from service_reporting.schemas import (
+    MetricCreate,
+    MetricListResponse,
+    MetricPreviewRequest,
+    MetricPreviewResponse,
+    MetricRead,
+    MetricSqlResponse,
+    MetricUpdate,
+    MetricUsageResponse,
     DashboardDataRequest,
     DashboardDataResponse,
     AnnotationRead,
@@ -40,6 +48,16 @@ from service_reporting.schemas import (
     TermListResponse,
     TermRead,
     TermUpdate,
+)
+from service_reporting.metrics import (
+    create_metric,
+    delete_metric,
+    get_metric,
+    list_metrics,
+    metric_sql,
+    metric_usage,
+    preview_metric,
+    update_metric,
 )
 from service_reporting.service import (
     chart_catalog,
@@ -268,6 +286,93 @@ def build_router(
     ) -> Response:
         delete_dashboard(db, project_id, dashboard_id, current_user)
         return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    # ---- metrics (the semantic layer) ----
+
+    @router.get("/projects/{project_id}/metrics", response_model=MetricListResponse)
+    def read_metrics(
+        project_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> MetricListResponse:
+        return list_metrics(db, project_id, current_user)
+
+    @router.post(
+        "/projects/{project_id}/metrics",
+        response_model=MetricRead,
+        status_code=status.HTTP_201_CREATED,
+    )
+    def add_metric(
+        project_id: uuid.UUID,
+        payload: MetricCreate,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> MetricRead:
+        return create_metric(db, project_id, payload, current_user)
+
+    @router.get("/projects/{project_id}/metrics/{metric_id}", response_model=MetricRead)
+    def read_metric(
+        project_id: uuid.UUID,
+        metric_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> MetricRead:
+        return get_metric(db, project_id, metric_id, current_user)
+
+    @router.patch("/projects/{project_id}/metrics/{metric_id}", response_model=MetricRead)
+    def edit_metric(
+        project_id: uuid.UUID,
+        metric_id: uuid.UUID,
+        payload: MetricUpdate,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> MetricRead:
+        return update_metric(db, project_id, metric_id, payload, current_user)
+
+    @router.delete("/projects/{project_id}/metrics/{metric_id}", status_code=status.HTTP_204_NO_CONTENT)
+    def remove_metric(
+        project_id: uuid.UUID,
+        metric_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> Response:
+        delete_metric(db, project_id, metric_id, current_user)
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    @router.post("/projects/{project_id}/metrics/{metric_id}/preview", response_model=MetricPreviewResponse)
+    def preview_metric_route(
+        project_id: uuid.UUID,
+        metric_id: uuid.UUID,
+        payload: MetricPreviewRequest | None = None,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+        storage=Depends(get_storage_backend),
+    ) -> MetricPreviewResponse:
+        """Compute the metric now, cut by dimensions. A read (viewer)."""
+        return preview_metric(db, project_id, metric_id, payload or MetricPreviewRequest(), current_user, storage)
+
+    @router.get("/projects/{project_id}/metrics/{metric_id}/sql", response_model=MetricSqlResponse)
+    def read_metric_sql(
+        project_id: uuid.UUID,
+        metric_id: uuid.UUID,
+        dialect: str = Query(default="postgres", max_length=24),
+        dimensions: str = Query(default="", max_length=400),
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> MetricSqlResponse:
+        """The definition rendered as SQL in a dialect, for the workbench."""
+        dims = [item.strip() for item in dimensions.split(",") if item.strip()]
+        return metric_sql(db, project_id, metric_id, current_user, dialect=dialect, dimensions=dims)
+
+    @router.get("/projects/{project_id}/metrics/{metric_id}/usage", response_model=MetricUsageResponse)
+    def read_metric_usage(
+        project_id: uuid.UUID,
+        metric_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> MetricUsageResponse:
+        """What resolves through this metric -- what moves if it changes."""
+        return metric_usage(db, project_id, metric_id, current_user)
 
     # ---- scheduled reports ----
 

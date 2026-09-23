@@ -4,7 +4,9 @@ import { ChartBuilderPageView } from "@/features/reporting/components/chart-buil
 import { ApiError } from "@/lib/api/errors";
 import { serverApiFetch } from "@/lib/api/server";
 import { requireCurrentUser } from "@/lib/auth/server";
-import type { ChartListResponse, DatasetListResponse } from "@platform/shared-types";
+import type { ChartListResponse, DatasetListResponse,
+  MetricListResponse,
+} from "@platform/shared-types";
 
 type PageProps = {
   params: Promise<{ projectId: string }>;
@@ -17,9 +19,10 @@ export default async function ChartsPage({ params }: PageProps) {
   const currentUser = await requireCurrentUser();
 
   try {
-    const [datasets, charts] = await Promise.all([
+    const [datasets, charts, metrics] = await Promise.all([
       serverApiFetch<DatasetListResponse>(`/projects/${projectId}/datasets`),
       serverApiFetch<ChartListResponse>(`/projects/${projectId}/charts`),
+      serverApiFetch<MetricListResponse>(`/projects/${projectId}/metrics`),
     ]);
     return (
       <ChartBuilderPageView
@@ -27,6 +30,7 @@ export default async function ChartsPage({ params }: PageProps) {
         projectId={projectId}
         datasets={datasets.items}
         charts={charts}
+        metrics={metrics.items}
       />
     );
   } catch (error) {

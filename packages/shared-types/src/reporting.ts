@@ -107,8 +107,74 @@ export type SavedChart = {
   chart_type: ChartTypeName;
   query: ChartQuery;
   options: Record<string, unknown> | null;
+  /** When set, the chart's measure and filters come from this metric. */
+  metric_id: string | null;
+  metric_name: string | null;
   created_at: string;
   updated_at: string;
+};
+
+// -------------------------------------------------------------- metrics
+
+/** One definition of a number: an aggregation over a column or a row-level
+ * formula, with the filters that are part of its meaning and the dimensions
+ * it may be cut by. Charts name it; changing it changes them all. */
+export type Metric = {
+  id: string;
+  project_id: string;
+  dataset_id: string;
+  dataset_name: string | null;
+  name: string;
+  slug: string;
+  description: string | null;
+  owner_username: string | null;
+  aggregation: AggregationName;
+  column: string | null;
+  formula: string | null;
+  filters: ChartFilter[];
+  dimensions: string[];
+  valid_from: string | null;
+  version_number: number;
+  used_by_charts: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type MetricListResponse = { items: Metric[] };
+
+export type MetricCreatePayload = {
+  dataset_id: string;
+  name: string;
+  description?: string | null;
+  owner_username?: string | null;
+  aggregation: AggregationName;
+  column?: string | null;
+  formula?: string | null;
+  filters?: ChartFilter[];
+  dimensions?: string[];
+  valid_from?: string | null;
+};
+
+export type MetricPreviewResponse = {
+  metric_id: string;
+  columns: string[];
+  rows: Record<string, unknown>[];
+  row_count: number;
+  truncated: boolean;
+  warnings: string[];
+};
+
+export type MetricSqlResponse = {
+  metric_id: string;
+  dialect: string;
+  sql: string | null;
+  reason: string | null;
+  source_placeholder: string;
+};
+
+export type MetricUsageResponse = {
+  metric_id: string;
+  charts: { chart_id: string; chart_name: string; chart_type: ChartTypeName; dashboards: string[] }[];
 };
 
 export type ChartWithData = SavedChart & { data: ChartData };

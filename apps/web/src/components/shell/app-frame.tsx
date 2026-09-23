@@ -71,6 +71,7 @@ function buildRailSections(
         { id: "workflows", label: "Workflows", icon: "merge", href: scoped("/workflows") },
         { id: "quality", label: "Data quality", icon: "shield", href: scoped("/data-quality") },
         { id: "charts", label: "Charts", icon: "sigma", href: scoped("/charts") },
+        { id: "metrics", label: "Metrics", icon: "activity", href: scoped("/metrics") },
         { id: "catalog", label: "Catalog", icon: "search", href: scoped("/catalog") },
         { id: "reports", label: "Reports", icon: "download", href: scoped("/reports") },
         { id: "drift", label: "Schema drift", icon: "drift", href: scoped("/schema-drift") },

@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 from sqlalchemy import (
     Boolean,
+    Date,
     DateTime,
     Float,
     ForeignKey,
@@ -44,6 +45,58 @@ class SavedChart(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     # Stored together because a chart is only meaningful as a complete question.
     query_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     options_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    #: A chart that names a metric takes its measure and filters from the
+    #: metric at compute time; its own query keeps only dimensions, extra
+    #: filters, sort and limit.
+    metric_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("metrics.id", ondelete="SET NULL"), nullable=True
+    )
+    created_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+
+class Metric(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """One definition of a number, owned and resolved everywhere it is used.
+
+    Every company has four definitions of "active customer" that disagree by
+    8% because they live inside four dashboards. A metric is the one place:
+    an aggregation over a column or a row-level formula, the filters that are
+    part of its meaning, and the dimensions it may honestly be cut by. Charts
+    name it rather than restate it, so changing it changes them all at once --
+    and the version history says when and by whom.
+    """
+
+    __tablename__ = "metrics"
+    __table_args__ = (
+        UniqueConstraint("project_id", "slug", name="uq_metrics_project_slug"),
+        Index("ix_metrics_project_id", "project_id"),
+        Index("ix_metrics_dataset_id", "dataset_id"),
+    )
+
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    dataset_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("datasets.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    slug: Mapped[str] = mapped_column(String(160), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    owner_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    aggregation: Mapped[str] = mapped_column(String(24), nullable=False, default="sum")
+    #: Either a column to aggregate...
+    column: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    #: ...or a row-level formula (the spreadsheet language, compiled to IR)
+    #: whose value is aggregated.
+    formula: Mapped[str | None] = mapped_column(Text, nullable=True)
+    filters_json: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
+    #: Dimensions the metric may be grouped by. Empty means any column.
+    dimensions_json: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    valid_from: Mapped[date | None] = mapped_column(Date, nullable=True)
+    version_number: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
     created_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )

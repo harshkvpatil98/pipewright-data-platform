@@ -43,7 +43,7 @@ from service_governance.service import (
     withdraw_change,
 )
 
-_RESOURCE_PATTERN = "^(workflow|pipeline|quality_rule|extraction_job)$"
+_RESOURCE_PATTERN = "^(workflow|pipeline|quality_rule|extraction_job|metric)$"
 _TARGET_PATTERN = "^(dataset|workflow|pipeline|run|incident|change_request|dashboard|chart)$"
 
 

@@ -19,6 +19,7 @@ dependencies = [
   "service-datasets>=0.1.0",
   "service-transformations>=0.1.0",
   "service-notifications>=0.1.0",
+  "service-governance>=0.1.0",
   "service-connectors>=0.1.0",
 ]
 

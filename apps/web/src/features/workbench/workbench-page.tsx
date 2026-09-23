@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import type { AuthUser } from "@platform/shared-types";
+import type { AuthUser,
+  Metric,
+  MetricSqlResponse,
+} from "@platform/shared-types";
 import { Button, EmptyState, Input, Select } from "@platform/shared-ui";
 
 import { AppFrame } from "@/components/shell/app-frame";
@@ -40,7 +43,7 @@ type Props = {
   connections: Connection[];
 };
 
-type Side = "schema" | "saved" | "history";
+type Side = "schema" | "metrics" | "saved" | "history";
 
 export function WorkbenchPage({
   currentUser,
@@ -439,7 +442,7 @@ export function WorkbenchPage({
         {/* ------------------------------------------------------ side panel */}
         <aside className="flex w-64 shrink-0 flex-col">
           <div className="flex border-b border-line" role="tablist" aria-label="Workbench panels">
-            {(["schema", "saved", "history"] as Side[]).map((panel) => (
+            {(["schema", "metrics", "saved", "history"] as Side[]).map((panel) => (
               <button
                 key={panel}
                 type="button"
@@ -468,6 +471,13 @@ export function WorkbenchPage({
             />
           ) : null}
 
+          {side === "metrics" ? (
+            <MetricsPanel
+              projectId={projectId}
+              dialect={dialectFor(connections.find((item) => item.id === connectionId)?.connector_type, schema?.dialect)}
+              onInsert={insertAtCaret}
+            />
+          ) : null}
           {side === "saved" ? (
             <div className="min-h-0 flex-1 overflow-y-auto p-2">
               {saved.length === 0 ? (
@@ -783,6 +793,108 @@ function ConfirmWrite({
           </Button>
         </div>
       </div>
+    </div>
+  );
+}
+
+
+/** The SQL dialect a connection speaks, by the same names the IR uses. */
+function dialectFor(connectorType: string | undefined, schemaDialect: string | undefined): string {
+  const source = (schemaDialect || connectorType || "").toLowerCase();
+  if (source.startsWith("postgres")) return "postgres";
+  if (source.startsWith("mysql") || source.startsWith("mariadb")) return "mysql";
+  if (source.startsWith("sqlite")) return "sqlite";
+  if (source.startsWith("duckdb")) return "duckdb";
+  return "postgres";
+}
+
+/**
+ * The semantic layer in the workbench: every metric of the project, and its
+ * definition rendered as SQL in the connection's dialect, inserted at the
+ * caret. The same IR that computes the metric here renders it there, so the
+ * number a warehouse query returns is the number a chart shows -- one
+ * definition, two places it runs.
+ */
+function MetricsPanel({
+  projectId,
+  dialect,
+  onInsert,
+}: {
+  projectId: string;
+  dialect: string;
+  onInsert: (text: string) => void;
+}) {
+  const [items, setItems] = useState<Metric[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    apiFetch<{ items: Metric[] }>(`/projects/${projectId}/metrics`)
+      .then((response) => {
+        if (!cancelled) setItems(response.items);
+      })
+      .catch((caught) => {
+        if (!cancelled) setError(extractErrorMessage(caught));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId]);
+
+  const insert = async (metric: Metric) => {
+    setBusy(metric.id);
+    setError(null);
+    try {
+      const rendered = await apiFetch<MetricSqlResponse>(
+        `/projects/${projectId}/metrics/${metric.id}/sql?dialect=${dialect}`,
+      );
+      if (rendered.sql) {
+        onInsert(`-- ${metric.name} (v${metric.version_number}); reads from ${rendered.source_placeholder}\n${rendered.sql}\n`);
+      } else {
+        setError(rendered.reason ?? "This dialect cannot express the metric.");
+      }
+    } catch (caught) {
+      setError(extractErrorMessage(caught));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-2">
+      <p className="px-1 pb-2 text-[11px] leading-4 text-muted">
+        Metric definitions as {dialect} SQL. Replace the placeholder table with the one that holds the data.
+      </p>
+      {error ? <p className="px-1 text-[11px] text-danger">{error}</p> : null}
+      {items === null ? (
+        <p className="px-1 text-[11.5px] text-muted">Loading…</p>
+      ) : items.length === 0 ? (
+        <p className="px-1 text-[11.5px] text-muted">No metrics defined yet.</p>
+      ) : (
+        <ul className="space-y-1">
+          {items.map((metric) => (
+            <li key={metric.id} className="rounded-lg border border-line bg-surface px-2 py-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="min-w-0 truncate text-[12px] font-medium text-ink" title={metric.description ?? metric.name}>
+                  {metric.name}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void insert(metric)}
+                  disabled={busy === metric.id}
+                  className="shrink-0 text-[11px] text-accent hover:underline disabled:opacity-50"
+                >
+                  {busy === metric.id ? "…" : "Insert SQL"}
+                </button>
+              </div>
+              <div className="truncate text-[10.5px] text-muted">
+                {metric.aggregation.replace("_", " ")} of {metric.formula ?? metric.column} · v{metric.version_number}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

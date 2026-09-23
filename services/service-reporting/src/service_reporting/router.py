@@ -28,6 +28,7 @@ from service_reporting.schemas import (
     DeliveryListResponse,
     PivotRequest,
     PivotResponse,
+    PublicDashboardView,
     ReportCreate,
     ReportListResponse,
     ReportRead,
@@ -50,6 +51,7 @@ from service_reporting.service import (
     get_annotation,
     get_chart_with_data,
     get_dashboard,
+    get_shared_dashboard,
     list_charts,
     list_dashboards,
     list_deliveries,
@@ -404,5 +406,29 @@ def build_router(
     ) -> Response:
         delete_term(db, project_id, term_id, current_user)
         return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    return router
+
+
+def build_public_router(
+    get_db: Callable[..., Session],
+    get_storage_backend: Callable[..., object],
+) -> APIRouter:
+    """Unauthenticated, read-only access to a shared dashboard by its token.
+
+    Deliberately its own router with no `current_user` dependency and no
+    `{project_id}` in the path -- so the project guard has nothing to gate and
+    the route is genuinely public. The token is the only key; revocation is
+    immediate because unshare nulls it.
+    """
+    router = APIRouter(tags=["public"])
+
+    @router.get("/public/dashboards/{token}", response_model=PublicDashboardView)
+    def shared_dashboard(
+        token: str,
+        db: Session = Depends(get_db),
+        storage_backend=Depends(get_storage_backend),
+    ) -> PublicDashboardView:
+        return get_shared_dashboard(db, token=token, storage_backend=storage_backend)
 
     return router

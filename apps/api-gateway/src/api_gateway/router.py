@@ -21,6 +21,7 @@ from service_observability import build_router as build_observability_router
 from service_pipeline_runs import build_router as build_pipeline_runs_router
 from service_projects import build_router as build_projects_router
 from service_quality import build_router as build_quality_router
+from service_reporting import build_public_router as build_public_reporting_router
 from service_reporting import build_router as build_reporting_router
 from service_schedules import build_router as build_schedules_router
 from service_sources import build_router as build_sources_router
@@ -68,6 +69,7 @@ def build_api_router(settings) -> APIRouter:
         build_intelligence_router(get_db, current_user, get_storage_backend)
     )
     api_router.include_router(build_observability_router(get_db, current_user))
+    api_router.include_router(build_public_reporting_router(get_db, get_storage_backend))
     api_router.include_router(
         build_reporting_router(get_db, current_user, get_storage_backend)
     )

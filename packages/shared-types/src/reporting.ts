@@ -94,6 +94,25 @@ export type ChartWithData = SavedChart & { data: ChartData };
 
 export type ChartListResponse = { items: SavedChart[] };
 
+/** One tile as a public share-link viewer sees it: name, shape, and data only. */
+export type PublicChartTile = {
+  name: string;
+  description: string | null;
+  chart_type: ChartTypeName;
+  position: number;
+  width: number;
+  height: number;
+  data: ChartData;
+};
+
+/** A shared dashboard rendered for someone holding only the link. */
+export type PublicDashboardView = {
+  name: string;
+  description: string | null;
+  shared_at: string | null;
+  tiles: PublicChartTile[];
+};
+
 export type PivotResponse = {
   columns: string[];
   rows: Record<string, unknown>[];

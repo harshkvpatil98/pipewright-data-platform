@@ -36,6 +36,7 @@ from service_reporting.service import (
     create_report,
     create_term,
     get_chart_with_data,
+    get_shared_dashboard,
     list_terms,
     preview_chart,
     run_pivot,
@@ -526,3 +527,52 @@ def test_a_binding_to_another_projects_dataset_is_refused(db, project, dataset, 
             ),
             user,
         )
+
+
+# ---- public shared dashboard view ----
+
+
+def test_a_shared_dashboard_renders_its_tiles_with_data(db, project, dataset, user, storage):
+    chart = create_chart(
+        db, project.id, ChartCreate(dataset_id=dataset.id, name="Revenue", query=_query()), user
+    )
+    dashboard = create_dashboard(
+        db, project.id, DashboardCreate(name="Overview", tiles=[TileInput(chart_id=chart.id)]), user
+    )
+    token = share_dashboard(db, project.id, dashboard.id, user).share_token
+
+    view = get_shared_dashboard(db, token=token, storage_backend=storage)
+    assert view.name == "Overview"
+    assert len(view.tiles) == 1
+    tile = view.tiles[0]
+    assert tile.name == "Revenue"
+    assert tile.data.row_count > 0
+    # The public payload carries results only -- no ids, project, or query leak.
+    dumped = view.model_dump()
+    assert "project_id" not in dumped
+    assert all("query" not in t and "dataset_id" not in t for t in dumped["tiles"])
+
+
+def test_an_unknown_token_is_not_found(db, storage):
+    with pytest.raises(NotFoundError):
+        get_shared_dashboard(db, token="nope-not-a-real-token", storage_backend=storage)
+
+
+def test_an_empty_token_is_not_found(db, storage):
+    with pytest.raises(NotFoundError):
+        get_shared_dashboard(db, token="", storage_backend=storage)
+
+
+def test_revoking_a_share_makes_the_old_link_stop_working(db, project, dataset, user, storage):
+    chart = create_chart(
+        db, project.id, ChartCreate(dataset_id=dataset.id, name="Revenue", query=_query()), user
+    )
+    dashboard = create_dashboard(
+        db, project.id, DashboardCreate(name="Overview", tiles=[TileInput(chart_id=chart.id)]), user
+    )
+    token = share_dashboard(db, project.id, dashboard.id, user).share_token
+    assert get_shared_dashboard(db, token=token, storage_backend=storage) is not None
+
+    unshare_dashboard(db, project.id, dashboard.id, user)
+    with pytest.raises(NotFoundError):
+        get_shared_dashboard(db, token=token, storage_backend=storage)

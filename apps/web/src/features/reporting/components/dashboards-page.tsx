@@ -29,12 +29,12 @@ type DashboardsPageViewProps = {
  * product -- so a dashboard could only be made with curl and could never be
  * removed by anyone using Pipewright.
  *
- * Sharing is shown but not offered. `share_token` is minted, stored and
- * counted by the status endpoint, and **nothing anywhere consumes it**: there
- * is no route, authenticated or otherwise, that turns a token back into a
- * dashboard. A "Share" button here would hand out links that go nowhere, so
- * the page reports whether a dashboard is shared and can revoke that, and
- * stops short of minting a token until something can serve one.
+ * Sharing is now real end to end. "Share" mints a token and copies the public
+ * link (`/shared/dashboards/{token}`), which the unauthenticated viewer route
+ * turns back into a read-only render of the dashboard. "Copy link" hands the
+ * link out again; "Revoke share" nulls the token so the link stops working
+ * immediately. A token is minted on request, never by default -- a dashboard
+ * shareable by default is one shared by accident.
  */
 export function DashboardsPageView({
   currentUser,
@@ -127,6 +127,43 @@ export function DashboardsPageView({
       );
       setEditing(null);
       setFeedback(`${updated.name} updated.`);
+    } catch (caught) {
+      setError(extractErrorMessage(caught));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const shareLink = (token: string) =>
+    typeof window === "undefined" ? "" : `${window.location.origin}/shared/dashboards/${token}`;
+
+  const copyLink = async (token: string) => {
+    const url = shareLink(token);
+    try {
+      await navigator.clipboard.writeText(url);
+      setFeedback("Share link copied to your clipboard.");
+    } catch {
+      // Clipboard can be blocked (insecure origin, permissions); show the link
+      // so it can still be copied by hand rather than failing silently.
+      setError(`Copy this link manually: ${url}`);
+    }
+  };
+
+  const shareDashboard = async (dashboard: Dashboard) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const updated = await apiFetch<Dashboard>(
+        `/projects/${projectId}/dashboards/${dashboard.id}/share`,
+        { method: "POST" },
+      );
+      setDashboards((current) =>
+        current.map((row) => (row.id === updated.id ? { ...row, ...updated } : row)),
+      );
+      if (updated.share_token) {
+        await copyLink(updated.share_token);
+        setFeedback(`${updated.name} is now shared — link copied to your clipboard.`);
+      }
     } catch (caught) {
       setError(extractErrorMessage(caught));
     } finally {
@@ -240,15 +277,33 @@ export function DashboardsPageView({
 
                   <div className="flex flex-wrap items-center gap-2">
                     {dashboard.share_token ? (
+                      <>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          disabled={busy}
+                          onClick={() => void copyLink(dashboard.share_token as string)}
+                        >
+                          Copy link
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          disabled={busy}
+                          onClick={() => void revokeShare(dashboard)}
+                        >
+                          Revoke share
+                        </Button>
+                      </>
+                    ) : (
                       <Button
-                        variant="secondary"
                         size="sm"
                         disabled={busy}
-                        onClick={() => void revokeShare(dashboard)}
+                        onClick={() => void shareDashboard(dashboard)}
                       >
-                        Revoke share
+                        Share
                       </Button>
-                    ) : null}
+                    )}
                     <Button variant="secondary" size="sm" onClick={() => openEdit(dashboard)}>
                       Rename
                     </Button>

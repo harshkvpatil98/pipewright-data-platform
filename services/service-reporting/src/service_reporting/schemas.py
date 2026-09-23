@@ -176,6 +176,31 @@ class DashboardListResponse(BaseModel):
     items: list[DashboardRead]
 
 
+class PublicChartTile(BaseModel):
+    """One tile as a public viewer sees it: the chart's name, its shape, and its
+    computed data -- and nothing that identifies the project, dataset, or query
+    behind it."""
+
+    name: str
+    description: str | None
+    chart_type: str
+    position: int
+    width: int
+    height: int
+    data: ChartDataResponse
+
+
+class PublicDashboardView(BaseModel):
+    """A shared dashboard rendered for someone with only the link. Deliberately
+    minimal: a title, a note, and the tiles -- no ids, no project, no query, so
+    the token grants a view of results and nothing else about the workspace."""
+
+    name: str
+    description: str | None
+    shared_at: datetime | None
+    tiles: list[PublicChartTile]
+
+
 class ReportCreate(BaseModel):
     name: str = Field(min_length=1, max_length=160)
     description: str | None = Field(default=None, max_length=2000)

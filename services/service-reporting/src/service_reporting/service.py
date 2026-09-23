@@ -54,6 +54,8 @@ from service_reporting.schemas import (
     ChartWithData,
     DashboardCreate,
     DashboardDetail,
+    PublicChartTile,
+    PublicDashboardView,
     DashboardListResponse,
     DashboardRead,
     DashboardUpdate,
@@ -528,6 +530,98 @@ def share_dashboard(
         db.commit()
         db.refresh(dashboard)
     return _dashboard_read(dashboard, 0)
+
+
+def get_shared_dashboard(db: Session, *, token: str, storage_backend) -> PublicDashboardView:
+    """Render a dashboard for someone holding only its share link.
+
+    The token IS the authorisation: it maps to exactly one dashboard and, through
+    it, to exactly one project's data -- so there is no `current_user` and no
+    `ensure_owned_project`. Revocation is immediate because unshare nulls the
+    token, and a null/unknown token simply finds no row. The payload carries
+    results only -- no ids, project, dataset or query -- so the link leaks a view,
+    not the workspace behind it.
+    """
+    if not token:
+        raise NotFoundError("This shared dashboard is not available.")
+    dashboard = db.scalar(select(Dashboard).where(Dashboard.share_token == token))
+    if dashboard is None:
+        raise NotFoundError("This shared dashboard is not available.")
+
+    tiles = list(
+        db.scalars(
+            select(DashboardTile)
+            .where(DashboardTile.dashboard_id == dashboard.id)
+            .order_by(DashboardTile.position)
+        ).all()
+    )
+    charts = {
+        chart.id: chart
+        for chart in db.scalars(
+            select(SavedChart).where(
+                SavedChart.id.in_([tile.chart_id for tile in tiles] or [uuid.uuid4()])
+            )
+        ).all()
+    }
+    dashboard_filters = [FilterInput.model_validate(item) for item in (dashboard.filters_json or [])]
+
+    public_tiles: list[PublicChartTile] = []
+    for tile in tiles:
+        chart = charts.get(tile.chart_id)
+        if chart is None:
+            continue
+        data = _shared_tile_data(db, dashboard.project_id, chart, dashboard_filters, storage_backend)
+        public_tiles.append(
+            PublicChartTile(
+                name=chart.name,
+                description=chart.description,
+                chart_type=chart.chart_type,
+                position=tile.position,
+                width=tile.width,
+                height=tile.height,
+                data=data,
+            )
+        )
+
+    return PublicDashboardView(
+        name=dashboard.name,
+        description=dashboard.description,
+        shared_at=dashboard.shared_at,
+        tiles=public_tiles,
+    )
+
+
+def _shared_tile_data(
+    db: Session,
+    project_id: uuid.UUID,
+    chart,
+    dashboard_filters: list[FilterInput],
+    storage_backend,
+) -> ChartDataResponse:
+    """Compute one tile's data for the public view. A single broken chart (a
+    dataset whose file went missing) must not blank the whole shared page, so it
+    degrades to an empty result with a warning."""
+    try:
+        stored = _from_query(chart.query_json)
+        if dashboard_filters:
+            stored = stored.model_copy(update={"filters": [*stored.filters, *dashboard_filters]})
+        query = _to_query(stored)
+        frame = _load_frame(db, project_id, chart.dataset_id, storage_backend)
+        result = run_query(frame, query)
+        data = to_chart_data(chart.chart_type, query, result)
+        return ChartDataResponse(**data.to_dict())
+    except Exception:  # noqa: BLE001 - one bad tile must not fail the page
+        from shared_python.logging import get_logger
+
+        get_logger(__name__).exception("shared_tile_data_failed chart_id=%s", chart.id)
+        return ChartDataResponse(
+            chart_type=chart.chart_type,
+            labels=[],
+            series=[],
+            row_count=0,
+            truncated=False,
+            warnings=["This chart could not be loaded."],
+        )
 
 
 def unshare_dashboard(

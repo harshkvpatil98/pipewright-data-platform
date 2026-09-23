@@ -1,0 +1,91 @@
+# Dependency vulnerability audit + SBOM — the P5 deferred supply-chain gate.
+#
+# Runs where the network exists (CI), not on developer machines. Two legs:
+# pip-audit over the Python workspaces and `npm audit` over the JS workspace,
+# each failing the job on known vulnerabilities of high severity or worse.
+# A CycloneDX SBOM for both ecosystems is produced on every run and kept as a
+# build artifact, so any release commit can answer "what exactly shipped".
+#
+# Scheduled weekly as well as on dependency-file changes: advisories arrive on
+# their own clock, not the repository's.
+name: Dependency audit
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "**/pyproject.toml"
+      - "**/requirements*.txt"
+      - "package.json"
+      - "package-lock.json"
+      - "apps/**/package.json"
+      - "packages/**/package.json"
+      - ".github/workflows/dependency-audit.yml"
+  pull_request:
+    paths:
+      - "**/pyproject.toml"
+      - "**/requirements*.txt"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/dependency-audit.yml"
+  schedule:
+    - cron: "17 6 * * 1" # Mondays 06:17 UTC — a quiet, non-round time
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  python-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install workspaces into a clean venv
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install --quiet --upgrade pip
+          .venv/bin/pip install --quiet -e apps/api-gateway -e packages/shared-python
+          for service in services/service-*; do
+            .venv/bin/pip install --quiet -e "$service"
+          done
+      - name: pip-audit (fail on known vulnerabilities)
+        run: |
+          .venv/bin/pip install --quiet pip-audit cyclonedx-bom
+          # Audit the resolved environment — what would actually ship.
+          .venv/bin/pip-audit --skip-editable --strict
+      - name: Python SBOM (CycloneDX)
+        if: always()
+        run: |
+          .venv/bin/cyclonedx-py environment .venv --output-file sbom-python.json || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sbom-python
+          path: sbom-python.json
+          if-no-files-found: ignore
+
+  npm-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install exactly the lockfile
+        run: npm ci --ignore-scripts
+      - name: npm audit (fail on high or critical)
+        run: npm audit --audit-level=high
+      - name: JS SBOM (CycloneDX)
+        if: always()
+        run: npx --yes @cyclonedx/cyclonedx-npm --output-file sbom-npm.json || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sbom-npm
+          path: sbom-npm.json
+          if-no-files-found: ignore

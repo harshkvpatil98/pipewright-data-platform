@@ -16,6 +16,8 @@ import { Button, EmptyState, SectionPanel, StatCard, StatusBadge } from "@platfo
 import { AppShell } from "@/components/layout/app-shell";
 import { getPipelineRunSecondaryText, isDatasetIngestionRunSummary } from "@/features/datasets/run-summary";
 import { UploadDatasetModal } from "@/features/datasets/components/upload-dataset-modal";
+import { ProjectChecklist } from "@/features/projects/components/project-checklist";
+import { WorkspaceMenu } from "@/features/projects/components/workspace-menu";
 import { CreateDatasetModal } from "@/features/projects/components/create-dataset-modal";
 import { CreateSourceModal } from "@/features/projects/components/create-source-modal";
 import { ProjectSettingsPanel } from "@/features/projects/components/project-settings-panel";
@@ -97,79 +99,11 @@ export function ProjectDetailPageView({
             >
               Open Studio
             </Link>
-            <Link
-              href={`/projects/${project.id}/workbench`}
-              className="inline-flex items-center rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:border-line-strong"
-            >
-              SQL workbench
-            </Link>
-            <Link
-              href={`/projects/${project.id}/table-editor`}
-              className="inline-flex items-center rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:border-line-strong"
-            >
-              Table editor
-            </Link>
-            <Link
-              href={`/projects/${project.id}/extraction`}
-              className="inline-flex items-center rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:border-line-strong"
-            >
-              Extraction
-            </Link>
-            <Link
-              href={`/projects/${project.id}/data-quality`}
-              className="inline-flex items-center rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:border-line-strong"
-            >
-              Data quality
-            </Link>
-            <Link
-              href={`/projects/${project.id}/schema-drift`}
-              className="inline-flex items-center rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:border-line-strong"
-            >
-              Schema drift
-            </Link>
-            <Link
-              href={`/projects/${project.id}/destinations`}
-              className="inline-flex items-center rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:border-line-strong"
-            >
-              Destinations
-            </Link>
-            <Link
-              href={`/projects/${project.id}/bi-connections`}
-              className="inline-flex items-center rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:border-line-strong"
-            >
-              BI connections
-            </Link>
-            <Link
-              href={`/projects/${project.id}/schedules`}
-              className="inline-flex items-center rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:border-line-strong"
-            >
-              Schedules
-            </Link>
-            <Link
-              href={`/projects/${project.id}/notification-targets`}
-              className="inline-flex items-center rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:border-line-strong"
-            >
-              Notification targets
-            </Link>
-            <Link
-              href={`/projects/${project.id}/tests/saved`}
-              className="inline-flex items-center rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:border-line-strong"
-            >
-              Saved tests
-            </Link>
-            <Link
-              href={`/projects/${project.id}/dashboards`}
-              className="inline-flex items-center rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:border-line-strong"
-            >
-              Dashboards
-            </Link>
-            <Button variant="secondary" onClick={() => setDatasetModalOpen(true)}>
-              Register dataset
+            <WorkspaceMenu projectId={project.id} />
+            <Button onClick={() => setUploadModalOpen(true)}>Add data</Button>
+            <Button variant="secondary" onClick={() => setSourceModalOpen(true)}>
+              Connect a source
             </Button>
-            <Button variant="secondary" onClick={() => setUploadModalOpen(true)}>
-              Upload dataset
-            </Button>
-            <Button onClick={() => setSourceModalOpen(true)}>Add source</Button>
           </>
         }
         meta={
@@ -191,6 +125,8 @@ export function ProjectDetailPageView({
           <StatCard label="Runs" value={String(runs.length)} caption="Persisted orchestration and ingestion history for this project." />
           <StatCard label="Last updated" value={formatDate(project.updated_at)} caption="Most recent project-level change timestamp." />
         </section>
+
+        <ProjectChecklist projectId={project.id} datasetCount={datasets.length} onAddData={() => setUploadModalOpen(true)} />
 
         <SectionPanel
           title="Workspace surface"

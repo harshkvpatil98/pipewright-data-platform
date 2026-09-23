@@ -54,6 +54,7 @@ export function GovernancePageView({
   const [retentionState, setRetentionState] = useState(retention);
   const [erasureState, setErasureState] = useState(erasures.items);
   const [subject, setSubject] = useState("");
+  const [erasureMode, setErasureMode] = useState<"correction" | "destructive">("correction");
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -89,6 +90,7 @@ export function GovernancePageView({
             subject_value: subject.trim(),
             subject_kind: "email",
             apply,
+            mode: erasureMode,
           }),
         });
         setErasureState(
@@ -101,7 +103,7 @@ export function GovernancePageView({
         setBusy(null);
       }
     },
-    [projectId, subject],
+    [projectId, subject, erasureMode],
   );
 
   return (
@@ -291,7 +293,7 @@ export function GovernancePageView({
 
       <SectionPanel
         title="Erasure requests"
-        description="Find a person across every dataset. Searching is safe; redacting is a separate decision."
+        description="Find a person across every dataset. Searching is safe; redacting is a separate decision, and it never reports success while data remains."
       >
         <div className="flex flex-wrap gap-2">
           <input
@@ -300,6 +302,15 @@ export function GovernancePageView({
             placeholder="person@example.com"
             className={cx(inputClass, "min-w-[220px] flex-1")}
           />
+          <select
+            value={erasureMode}
+            onChange={(event) => setErasureMode(event.target.value as "correction" | "destructive")}
+            className={cx(inputClass, "w-auto")}
+            aria-label="Erasure mode"
+          >
+            <option value="correction">Correction (clear live data)</option>
+            <option value="destructive">Destructive (remove from history too)</option>
+          </select>
           <Button
             variant="secondary"
             onClick={() => void search(false)}
@@ -311,6 +322,11 @@ export function GovernancePageView({
             {busy === "erase" ? "Erasing…" : "Find and erase"}
           </Button>
         </div>
+        <p className="mt-2 text-[11.5px] text-muted">
+          Correction clears the live data and keeps history readable. Destructive also removes the
+          person from historical artifacts; anything it cannot yet purge (a derived dataset, an
+          unreadable file) is reported as blocked, not silently skipped.
+        </p>
 
         {erasureState.length === 0 ? (
           <p className="mt-3 text-[12.5px] text-muted">No requests yet.</p>
@@ -327,26 +343,43 @@ export function GovernancePageView({
 }
 
 function ErasureRow({ request }: { request: ErasureRequest }) {
-  const report = request.report as { summary?: string; subject_value?: string } | null;
+  const report = request.report as {
+    summary?: string;
+    subject_value?: string;
+    blocked?: { dataset: string; reason: string }[];
+  } | null;
+  const blocked = report?.blocked ?? [];
+  const statusTone =
+    request.status === "completed"
+      ? "border-success-line bg-success-soft text-success"
+      : request.status === "blocked"
+        ? "border-danger-line bg-danger-soft text-danger"
+        : request.status === "partial"
+          ? "border-warning-line bg-warning-soft text-warning"
+          : "border-line text-ink-3";
   return (
     <li className="rounded-xl border border-line bg-surface px-3.5 py-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="font-mono text-[12.5px] text-ink">
           {report?.subject_value ?? "***"}
         </span>
-        <span
-          className={cx(
-            "rounded-full border px-2 py-0.5 text-[10.5px]",
-            request.status === "completed"
-              ? "border-success-line bg-success-soft text-success"
-              : "border-line text-ink-3",
-          )}
-        >
-          {request.status}
-        </span>
+        <div className="flex items-center gap-1.5">
+          <span className="rounded-full border border-line px-2 py-0.5 text-[10.5px] text-ink-3">
+            {request.mode}
+          </span>
+          <span className={cx("rounded-full border px-2 py-0.5 text-[10.5px]", statusTone)}>
+            {request.status}
+          </span>
+        </div>
       </div>
       {report?.summary ? (
         <p className="mt-1 text-[12px] leading-4 text-ink-3">{report.summary}</p>
+      ) : null}
+      {blocked.length > 0 ? (
+        <div className="mt-2 rounded-lg border border-warning-line bg-warning-soft px-2.5 py-2 text-[11.5px] text-warning">
+          Not erased ({blocked.length}):{" "}
+          {blocked.map((entry) => `${entry.dataset} — ${entry.reason}`).join("; ")}
+        </div>
       ) : null}
       <div className="mt-1 text-[11px] text-muted">
         {request.datasets_searched} dataset(s) searched · {request.rows_affected} row(s) ·{" "}

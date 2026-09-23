@@ -101,6 +101,7 @@ export type ErasureRequest = {
   id: string;
   project_id: string;
   subject_kind: ErasureKind;
+  mode: string;
   status: string;
   datasets_searched: number;
   rows_affected: number;

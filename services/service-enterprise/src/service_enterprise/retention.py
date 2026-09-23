@@ -104,6 +104,15 @@ class ErasureReport:
     datasets_searched: int
     hits: list[ColumnHit] = field(default_factory=list)
     unsearchable: list[str] = field(default_factory=list)
+    #: "correction" (forward-moving; live data cleared, history retained) or
+    #: "destructive" (also removed from historical artifacts -- see P7).
+    mode: str = "correction"
+    #: Datasets whose live file was redacted.
+    erased: list[str] = field(default_factory=list)
+    #: Datasets that could NOT be erased, each with a reason. Their presence is
+    #: what turns a claimed erasure into "partial" rather than "completed" --
+    #: the whole point is never to report success while data remains.
+    blocked: list[dict[str, str]] = field(default_factory=list)
 
     @property
     def rows_affected(self) -> int:
@@ -117,6 +126,9 @@ class ErasureReport:
             "hits": [hit.to_dict() for hit in self.hits],
             "unsearchable": self.unsearchable,
             "rows_affected": self.rows_affected,
+            "mode": self.mode,
+            "erased": self.erased,
+            "blocked": self.blocked,
             "summary": self.summary(),
         }
 

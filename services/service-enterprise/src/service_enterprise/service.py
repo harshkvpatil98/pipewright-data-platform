@@ -754,6 +754,7 @@ def _erasure_read(row: ErasureRequest) -> ErasureRead:
         id=row.id,
         project_id=row.project_id,
         subject_kind=row.subject_kind,  # type: ignore[arg-type]
+        mode=getattr(row, "mode", None) or "correction",
         status=row.status,
         datasets_searched=row.datasets_searched,
         rows_affected=row.rows_affected,
@@ -777,12 +778,14 @@ def request_erasure(
     and reviewing first is what makes it safe.
     """
     ensure_owned_project(db, project_id, current_user.id)
+    mode = getattr(payload, "mode", "correction")
 
     datasets = list(db.scalars(select(Dataset).where(Dataset.project_id == project_id)).all())
     report = retention_ops.ErasureReport(
         subject_value=payload.subject_value,
         subject_kind=payload.subject_kind,
         datasets_searched=0,
+        mode=mode,
     )
 
     for dataset in datasets:
@@ -799,23 +802,53 @@ def request_erasure(
         columns = retention_ops.candidate_columns(
             [str(column) for column in frame.columns], payload.subject_kind
         )
-        for column, count in retention_ops.find_subject(frame, payload.subject_value, columns):
+        dataset_hits = list(
+            retention_ops.find_subject(frame, payload.subject_value, columns)
+        )
+        for column, count in dataset_hits:
             report.hits.append(
                 retention_ops.ColumnHit(dataset_name=dataset.name, column=column, rows=count)
             )
 
-        if payload.apply and report.hits:
-            redacted, affected = retention_ops.redact_subject(
-                frame, payload.subject_value, columns
-            )
-            if affected:
-                _write_back(storage, dataset, redacted)
+        if not (payload.apply and dataset_hits):
+            continue
 
+        # A destructive erasure must not overwrite a derived artifact in place:
+        # it is produced from a pipeline and may share content with a pinned
+        # snapshot (see P7). Redact the base, and report the derived one as
+        # blocked -- it clears when its pipeline is re-run against the corrected
+        # base -- rather than corrupting it or claiming a success that is not one.
+        if mode == "destructive" and dataset.is_derived:
+            report.blocked.append(
+                {
+                    "dataset": dataset.name,
+                    "reason": "derived artifact — re-run its pipeline after the base is corrected",
+                }
+            )
+            continue
+
+        redacted, affected = retention_ops.redact_subject(
+            frame, payload.subject_value, columns
+        )
+        if affected:
+            _write_back(storage, dataset, redacted)
+            report.erased.append(dataset.name)
+
+    if payload.apply:
+        # A dataset we could not read is a dataset we cannot claim is clean. Both
+        # modes surface it; it is the difference between "completed" and "partial".
+        for name in report.unsearchable:
+            report.blocked.append(
+                {"dataset": name, "reason": "could not be read to search or redact"}
+            )
+
+    status = _erasure_status(payload.apply, report)
     row = ErasureRequest(
         project_id=project_id,
         subject_value=payload.subject_value,
         subject_kind=payload.subject_kind,
-        status="completed" if payload.apply else "reported",
+        mode=mode,
+        status=status,
         requested_by_user_id=current_user.id,
         completed_at=datetime.now(UTC) if payload.apply else None,
         datasets_searched=report.datasets_searched,
@@ -826,6 +859,16 @@ def request_erasure(
     db.commit()
     db.refresh(row)
     return _erasure_read(row)
+
+
+def _erasure_status(applied: bool, report: retention_ops.ErasureReport) -> str:
+    """Never report success while data remains. Blocked datasets downgrade an
+    apply from completed to partial (some erased) or blocked (none erased)."""
+    if not applied:
+        return "reported"
+    if not report.blocked:
+        return "completed"
+    return "partial" if report.erased else "blocked"
 
 
 def _write_back(storage, dataset: Dataset, frame: pd.DataFrame) -> None:

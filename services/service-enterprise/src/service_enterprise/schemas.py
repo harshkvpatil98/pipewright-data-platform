@@ -155,12 +155,17 @@ class ErasureCreate(BaseModel):
     subject_kind: ErasureKind = "email"
     # Searching is safe; redacting is not, so it is opt-in per request.
     apply: bool = False
+    # "correction" clears the live data and keeps history readable by design;
+    # "destructive" additionally requires the subject be gone from historical
+    # artifacts, and reports anything it cannot yet purge as blocked.
+    mode: Literal["correction", "destructive"] = "correction"
 
 
 class ErasureRead(BaseModel):
     id: uuid.UUID
     project_id: uuid.UUID
     subject_kind: ErasureKind
+    mode: str = "correction"
     status: str
     datasets_searched: int
     rows_affected: int

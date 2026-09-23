@@ -114,6 +114,9 @@ class ErasureRequest(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     subject_value: Mapped[str] = mapped_column(String(320), nullable=False)
     subject_kind: Mapped[str] = mapped_column(String(32), nullable=False, default="email")
+    # correction | destructive -- how far the erasure was asked to reach.
+    mode: Mapped[str] = mapped_column(String(16), nullable=False, default="correction")
+    # pending | reported | completed | partial | blocked
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
     requested_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True

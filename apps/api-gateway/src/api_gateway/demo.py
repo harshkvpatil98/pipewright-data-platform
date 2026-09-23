@@ -2,7 +2,8 @@
 
 A new evaluator's fastest path to understanding the product is a project that
 already tells the whole story: real data, a shaping pipeline, a quality rule
-that catches something, and a schedule that runs it. This composes those from
+that catches something, a schedule that runs it, and a chart on a dashboard.
+This composes those from
 the same service functions a user's own clicks would call — no special-case
 data, nothing that could not have been built by hand — so the demo is an honest
 example, and it is deletable like any other project.
@@ -25,6 +26,14 @@ from service_projects.schemas import ProjectCreate, ProjectDetail
 from service_projects.service import create_project
 from service_quality.schemas import DataQualityRuleCreate
 from service_quality.service import create_rule
+from service_reporting.schemas import (
+    ChartCreate,
+    DashboardCreate,
+    MeasureInput,
+    QueryInput,
+    TileInput,
+)
+from service_reporting.service import create_chart, create_dashboard
 from service_schedules.schemas import ScheduledOperationCreate
 from service_schedules.service import create_schedule
 from service_transformations.schemas import TransformationPipelineCreate
@@ -57,7 +66,7 @@ def create_demo_project(
         db,
         ProjectCreate(
             name="Acme Retail (demo)",
-            description="A worked example: orders from a file, shaped, guarded by a rule, and scheduled.",
+            description="A worked example: orders from a file, shaped, guarded by a rule, scheduled, and published to a dashboard.",
         ),
         current_user,
     )
@@ -124,6 +133,38 @@ def create_demo_project(
             target_config={"pipeline_id": str(pipeline.id)},
         ),
         current_user=current_user,
+    )
+
+    # Publish it: a chart of revenue by region, placed on a dashboard, so the
+    # demo runs the whole arc from a raw file to something a stakeholder would
+    # actually open -- not just a pipeline that stops at the data layer.
+    chart = create_chart(
+        db,
+        project.id,
+        ChartCreate(
+            dataset_id=dataset.dataset.id,
+            name="Revenue by region",
+            description="Total order amount for each region.",
+            chart_type="column",
+            query=QueryInput(
+                dimensions=["region"],
+                measures=[
+                    MeasureInput(column="amount", aggregation="sum", label="Total amount")
+                ],
+            ),
+        ),
+        current_user,
+    )
+
+    create_dashboard(
+        db,
+        project.id,
+        DashboardCreate(
+            name="Acme Retail overview",
+            description="How the sample orders look once shaped and validated.",
+            tiles=[TileInput(chart_id=chart.id, position=0, width=12, height=2)],
+        ),
+        current_user,
     )
 
     from service_projects.service import get_project_by_id

@@ -25,6 +25,7 @@ from service_auth.models import User
 from service_auth.schemas import UserRead
 from service_quality.models import DataQualityRule
 from service_schedules.models import ScheduledOperation
+from service_reporting.models import Dashboard, SavedChart
 from service_transformations.models import TransformationPipeline
 from shared_python.db import Base
 from shared_python.storage.local import LocalStorageBackend
@@ -79,6 +80,11 @@ def test_demo_seeds_a_complete_worked_example(
     assert _count(db, TransformationPipeline, detail.id) == 1
     assert _count(db, DataQualityRule, detail.id) == 1
     assert _count(db, ScheduledOperation, detail.id) == 1
+
+    # The story runs all the way to something a stakeholder opens: a chart on a
+    # dashboard, not a pipeline that stops at the data layer.
+    assert _count(db, SavedChart, detail.id) == 1
+    assert _count(db, Dashboard, detail.id) == 1
 
 
 def test_demo_schedule_targets_the_pipeline_it_created(

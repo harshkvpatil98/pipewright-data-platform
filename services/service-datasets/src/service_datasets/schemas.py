@@ -108,6 +108,42 @@ class DatasetVersionListResponse(BaseModel):
     current_version: int | None
 
 
+class DatasetVersionDiffRequest(BaseModel):
+    from_version: int = Field(ge=1)
+    to_version: int = Field(ge=1)
+    #: Columns that uniquely identify a row in BOTH versions. Without them —
+    #: or when they turn out not to be unique — the diff returns duplicate-aware
+    #: added/removed counts and states that changed-row classification is
+    #: unavailable (phase-18 decision #7: do not guess).
+    identity_columns: list[str] = Field(default_factory=list, max_length=8)
+
+
+class DatasetVersionDiff(BaseModel):
+    dataset_id: uuid.UUID
+    from_version: int
+    to_version: int
+    #: True when both versions carry the same content digest — the diff is
+    #: answered from the hashes without reading either artifact.
+    identical: bool
+    rows_before: int | None = None
+    rows_after: int | None = None
+    columns_added: list[str] = Field(default_factory=list)
+    columns_removed: list[str] = Field(default_factory=list)
+    rows_added: int | None = None
+    rows_removed: int | None = None
+    #: Null whenever changed-classification is unavailable.
+    rows_changed: int | None = None
+    changed_available: bool = False
+    #: Why changed-classification is unavailable, when it is.
+    reason: str | None = None
+    sample_added: list[dict[str, Any]] = Field(default_factory=list)
+    sample_removed: list[dict[str, Any]] = Field(default_factory=list)
+    sample_changed: list[dict[str, Any]] = Field(default_factory=list)
+    cells_changed_by_column: dict[str, int] = Field(default_factory=dict)
+    sample_limit: int = 20
+    method: str = ""
+
+
 class DatasetPreviewResponse(BaseModel):
     dataset_id: uuid.UUID
     columns: list[str]

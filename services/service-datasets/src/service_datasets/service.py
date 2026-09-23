@@ -18,12 +18,15 @@ from service_datasets.schemas import (
     DatasetProfileResponse,
     DatasetSummaryRead,
     DatasetUpdate,
+    DatasetVersionDiff,
+    DatasetVersionDiffRequest,
     DatasetVersionListResponse,
     DatasetVersionRead,
 )
+from service_datasets.versions_diff import diff_frames
 from service_projects.contracts import ensure_owned_project
 from service_sources.contracts import get_source_for_project
-from shared_python.errors import NotFoundError
+from shared_python.errors import BadRequestError, NotFoundError
 from shared_python.logging import get_logger
 
 logger = get_logger(__name__)
@@ -139,6 +142,150 @@ def get_dataset_version_preview(
         columns=list(preview.get("columns", [])),
         rows=list(preview.get("rows", [])),
     )
+
+
+def _read_version_frame(storage_backend, version: DatasetVersion, fallback_type: str | None):
+    """Parse one version's artifact, or say plainly which version cannot be read."""
+    # Function-level import: ingestion imports this module's finalize seam, so a
+    # module-level import back would be the cycle the hook rule exists to avoid.
+    from service_ingestion.parsers import parse_tabular_file
+
+    try:
+        stored = storage_backend.read_bytes(version.file_path)
+    except Exception as exc:  # noqa: BLE001 - every read failure gets the same honest answer
+        raise BadRequestError(
+            f"Version {version.version_number}'s stored artifact could not be read."
+        ) from exc
+    return parse_tabular_file(
+        file_bytes=stored, file_type=version.file_type or fallback_type or "csv"
+    ).dataframe
+
+
+def diff_dataset_versions(
+    db: Session,
+    project_id: uuid.UUID,
+    dataset_id: uuid.UUID,
+    payload: DatasetVersionDiffRequest,
+    current_user: UserRead,
+    storage_backend,
+) -> DatasetVersionDiff:
+    """Compare two recorded versions of one dataset.
+
+    A read (POST only because identity columns ride in the body): resolves to
+    viewer via the central `diff` read-only segment — no role logic here.
+    Identical digests are answered from the hashes without touching storage.
+    """
+    ensure_owned_project(db, project_id, current_user.id)
+    dataset = get_dataset_model_for_project(db, project_id, dataset_id)
+    v_from = _get_dataset_version(db, dataset_id, payload.from_version)
+    v_to = _get_dataset_version(db, dataset_id, payload.to_version)
+
+    if v_from.content_hash is not None and v_from.content_hash == v_to.content_hash:
+        return DatasetVersionDiff(
+            dataset_id=dataset_id,
+            from_version=v_from.version_number,
+            to_version=v_to.version_number,
+            identical=True,
+            rows_before=v_from.row_count,
+            rows_after=v_to.row_count,
+            rows_added=0,
+            rows_removed=0,
+            rows_changed=0,
+            changed_available=True,
+            method="content digests are equal; the artifacts were not read",
+        )
+
+    before = _read_version_frame(storage_backend, v_from, dataset.file_type)
+    after = _read_version_frame(storage_backend, v_to, dataset.file_type)
+    computed = diff_frames(before, after, payload.identity_columns)
+    return DatasetVersionDiff(
+        dataset_id=dataset_id,
+        from_version=v_from.version_number,
+        to_version=v_to.version_number,
+        identical=False,
+        **computed,
+    )
+
+
+def rollback_dataset_version(
+    db: Session,
+    project_id: uuid.UUID,
+    dataset_id: uuid.UUID,
+    version_number: int,
+    current_user: UserRead,
+    storage_backend,
+) -> DatasetVersionRead:
+    """Make an older version the current data — by appending, never rewriting.
+
+    Settled decision #6: rollback appends a new version whose content is the
+    target's; it never mutates, deletes or renumbers history, and it never
+    re-runs the producing pipeline. The target's bytes are copied to a fresh
+    artifact (every publication owns its path), so the restored head and the
+    version it came from remain independent files with matching digests — an
+    integrity property a reader can check.
+    """
+    from service_ingestion.profiling import build_preview, build_profile, infer_schema
+    from shared_python.storage import content_digest
+
+    ensure_owned_project(db, project_id, current_user.id)
+    dataset = get_dataset_model_for_project(db, project_id, dataset_id)
+    target = _get_dataset_version(db, dataset_id, version_number)
+    head = db.scalar(
+        select(func.max(DatasetVersion.version_number)).where(
+            DatasetVersion.dataset_id == dataset_id
+        )
+    )
+    if head == version_number:
+        raise BadRequestError(
+            f"Version {version_number} is already the current data; there is "
+            "nothing to roll back."
+        )
+
+    from service_ingestion.parsers import parse_tabular_file
+
+    file_type = target.file_type or dataset.file_type or "csv"
+    try:
+        payload_bytes = storage_backend.read_bytes(target.file_path)
+    except Exception as exc:  # noqa: BLE001 - one honest answer for every read failure
+        raise BadRequestError(
+            f"Version {version_number}'s stored artifact could not be read."
+        ) from exc
+    frame = parse_tabular_file(file_bytes=payload_bytes, file_type=file_type).dataframe
+
+    # The original bytes are copied verbatim -- no parse-and-reserialize round
+    # trip -- so the restored head's digest equals the target's recorded digest,
+    # an integrity property a reader can check.
+    extension = "csv" if file_type == "csv" else file_type
+    new_path = (
+        f"rollbacks/{project_id}/{dataset_id}/{uuid.uuid4().hex}"
+        f"_v{target.version_number}.{extension}"
+    )
+    try:
+        storage_backend.save_upload(relative_path=new_path, file_bytes=payload_bytes)
+    except OSError as exc:
+        raise BadRequestError(f"Unable to store the restored data: {exc}") from exc
+
+    schema = infer_schema(dataframe=frame)
+    dataset.file_type = file_type
+    version = apply_dataset_materialization_success(
+        db,
+        dataset=dataset,
+        file_path=new_path,
+        file_name=f"restored_v{target.version_number}.{extension}",
+        schema_json=schema,
+        schema_snapshot={"columns": schema["columns"]},
+        preview_json=build_preview(dataframe=frame, limit=50),
+        profile_json=build_profile(
+            dataframe=frame, sample_limit=5, file_size_bytes=len(payload_bytes)
+        ),
+        row_count=int(len(frame)),
+        column_count=int(len(frame.columns)),
+        content_hash=content_digest(payload_bytes),
+        created_by_user_id=current_user.id,
+    )
+    db.commit()
+    db.refresh(version)
+    return DatasetVersionRead.model_validate(version)
 
 
 def update_dataset(

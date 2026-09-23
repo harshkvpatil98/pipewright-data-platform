@@ -22,14 +22,18 @@ import api_gateway.metadata  # noqa: F401  - imports every model onto one Base
 from service_auth.models import User
 from service_auth.schemas import UserRead
 from service_datasets.models import Dataset, DatasetVersion
+from service_datasets.schemas import DatasetVersionDiffRequest
 from service_datasets.service import (
     apply_dataset_materialization_success,
     delete_dataset,
+    diff_dataset_versions,
     finalize_dataset_materialization_success,
     get_dataset_version,
     get_dataset_version_preview,
     list_dataset_versions,
+    rollback_dataset_version,
 )
+from shared_python.errors import BadRequestError
 from service_projects.models import Project
 from shared_python.db import Base
 from shared_python.errors import NotFoundError
@@ -265,6 +269,158 @@ def test_reading_a_version_that_does_not_exist_is_a_404(db: Session, world: dict
         get_dataset_version_preview(db, world["project"].id, dataset.id, 99, _as_read(world["owner"]))
     with pytest.raises(NotFoundError):
         get_dataset_version(db, world["project"].id, dataset.id, 99, _as_read(world["owner"]))
+
+
+class _FileStorage:
+    """Readable+writable in-memory storage for diff/rollback tests."""
+
+    def __init__(self, files: dict[str, bytes] | None = None) -> None:
+        self.files = dict(files or {})
+
+    def read_bytes(self, path: str) -> bytes:
+        if path not in self.files:
+            raise FileNotFoundError(path)
+        return self.files[path]
+
+    def save_upload(self, *, relative_path: str, file_bytes: bytes):
+        self.files[relative_path] = file_bytes
+
+
+V1 = b"id,region,amount\n1,north,100\n2,south,250\n3,east,80\n"
+V2 = b"id,region,amount\n1,north,100\n2,south,999\n4,west,10\n"
+
+
+def _two_versions(db: Session, world: dict) -> _FileStorage:
+    dataset = world["dataset"]
+    storage = _FileStorage({"uploads/v1.csv": V1, "uploads/v2.csv": V2})
+    _materialise(db, dataset, path="uploads/v1.csv", data=V1, owner_id=world["owner"].id)
+    _materialise(db, dataset, path="uploads/v2.csv", data=V2, owner_id=world["owner"].id)
+    return storage
+
+
+# ---- diff (decision #7) ----
+
+
+def test_diff_without_identity_gives_multisets_and_says_changed_is_unavailable(
+    db: Session, world: dict
+):
+    storage = _two_versions(db, world)
+    diff = diff_dataset_versions(
+        db, world["project"].id, world["dataset"].id,
+        DatasetVersionDiffRequest(from_version=1, to_version=2),
+        _as_read(world["owner"]), storage,
+    )
+    # Row 2 changed and row 3 was replaced by row 4: without identity that reads
+    # as 2 added, 2 removed -- and the diff says why it cannot say "changed".
+    assert (diff.rows_added, diff.rows_removed) == (2, 2)
+    assert diff.rows_changed is None
+    assert diff.changed_available is False
+    assert "identity" in (diff.reason or "")
+
+
+def test_diff_with_identity_classifies_added_removed_and_changed(db: Session, world: dict):
+    storage = _two_versions(db, world)
+    diff = diff_dataset_versions(
+        db, world["project"].id, world["dataset"].id,
+        DatasetVersionDiffRequest(from_version=1, to_version=2, identity_columns=["id"]),
+        _as_read(world["owner"]), storage,
+    )
+    assert diff.changed_available is True
+    assert (diff.rows_added, diff.rows_removed, diff.rows_changed) == (1, 1, 1)
+    assert diff.cells_changed_by_column == {"amount": 1}
+    # The changed sample shows before and after for the cell that moved.
+    assert diff.sample_changed[0]["amount"] == {"before": "250", "after": "999"}
+
+
+def test_diff_with_a_non_unique_identity_refuses_to_guess(db: Session, world: dict):
+    dataset = world["dataset"]
+    dup = b"id,amount\n1,10\n1,20\n"
+    storage = _FileStorage({"uploads/a.csv": dup, "uploads/b.csv": V1})
+    _materialise(db, dataset, path="uploads/a.csv", data=dup, owner_id=world["owner"].id)
+    _materialise(db, dataset, path="uploads/b.csv", data=V1, owner_id=world["owner"].id)
+    diff = diff_dataset_versions(
+        db, world["project"].id, dataset.id,
+        DatasetVersionDiffRequest(from_version=1, to_version=2, identity_columns=["id"]),
+        _as_read(world["owner"]), storage,
+    )
+    assert diff.changed_available is False
+    assert "not unique" in (diff.reason or "")
+
+
+def test_diff_of_identical_digests_never_reads_the_artifacts(db: Session, world: dict):
+    dataset = world["dataset"]
+    _materialise(db, dataset, path="uploads/a.csv", data=b"same", owner_id=world["owner"].id)
+    _materialise(db, dataset, path="uploads/b.csv", data=b"same", owner_id=world["owner"].id)
+
+    class _ExplodingStorage:
+        def read_bytes(self, path):  # pragma: no cover - the assertion IS that this never runs
+            raise AssertionError("identical digests must be answered without reading")
+
+    diff = diff_dataset_versions(
+        db, world["project"].id, dataset.id,
+        DatasetVersionDiffRequest(from_version=1, to_version=2),
+        _as_read(world["owner"]), _ExplodingStorage(),
+    )
+    assert diff.identical is True
+    assert (diff.rows_added, diff.rows_removed, diff.rows_changed) == (0, 0, 0)
+
+
+def test_diff_reports_schema_evolution(db: Session, world: dict):
+    dataset = world["dataset"]
+    a = b"id,amount\n1,10\n"
+    b = b"id,total\n1,10\n"
+    storage = _FileStorage({"uploads/a.csv": a, "uploads/b.csv": b})
+    _materialise(db, dataset, path="uploads/a.csv", data=a, owner_id=world["owner"].id)
+    _materialise(db, dataset, path="uploads/b.csv", data=b, owner_id=world["owner"].id)
+    diff = diff_dataset_versions(
+        db, world["project"].id, dataset.id,
+        DatasetVersionDiffRequest(from_version=1, to_version=2),
+        _as_read(world["owner"]), storage,
+    )
+    assert diff.columns_added == ["total"]
+    assert diff.columns_removed == ["amount"]
+
+
+# ---- rollback (decision #6) ----
+
+
+def test_rollback_appends_a_new_version_with_the_targets_bytes(db: Session, world: dict):
+    storage = _two_versions(db, world)
+    dataset = world["dataset"]
+    restored = rollback_dataset_version(
+        db, world["project"].id, dataset.id, 1, _as_read(world["owner"]), storage,
+    )
+    # History was appended to, never rewritten: v1 and v2 still exist untouched.
+    listed = list_dataset_versions(db, world["project"].id, dataset.id, _as_read(world["owner"]))
+    assert [v.version_number for v in listed.items] == [3, 2, 1]
+    assert restored.version_number == 3
+    # The restored head's digest equals the target's -- bytes copied verbatim.
+    assert restored.content_hash == content_digest(V1)
+    db.refresh(dataset)
+    assert storage.files[dataset.file_path] == V1
+    # The original artifacts are untouched.
+    assert storage.files["uploads/v1.csv"] == V1
+    assert storage.files["uploads/v2.csv"] == V2
+
+
+def test_rolling_back_to_the_head_is_refused(db: Session, world: dict):
+    storage = _two_versions(db, world)
+    with pytest.raises(BadRequestError):
+        rollback_dataset_version(
+            db, world["project"].id, world["dataset"].id, 2, _as_read(world["owner"]), storage,
+        )
+
+
+def test_rollback_to_a_version_with_a_missing_artifact_fails_cleanly(db: Session, world: dict):
+    storage = _two_versions(db, world)
+    del storage.files["uploads/v1.csv"]
+    with pytest.raises(BadRequestError):
+        rollback_dataset_version(
+            db, world["project"].id, world["dataset"].id, 1, _as_read(world["owner"]), storage,
+        )
+    # Nothing was published: history is exactly as it was.
+    listed = list_dataset_versions(db, world["project"].id, world["dataset"].id, _as_read(world["owner"]))
+    assert [v.version_number for v in listed.items] == [2, 1]
 
 
 class _TrackingStorage:

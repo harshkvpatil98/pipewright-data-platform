@@ -49,6 +49,21 @@ def test_editing_a_definition_needs_an_editor():
     assert required_role("DELETE", f"{PROJECT}/datasets/abc") == "editor"
 
 
+def test_the_time_travel_role_matrix_is_the_intended_one():
+    """Phase 18 §6: history and temporal reads are viewer; rewriting the head
+    (rollback) or re-executing (replay) is editor. Pinned here so a route
+    rename cannot silently change who may do what."""
+    ds = f"{PROJECT}/datasets/abc"
+    assert required_role("GET", f"{ds}/versions") == "viewer"
+    assert required_role("GET", f"{ds}/versions/3") == "viewer"
+    assert required_role("GET", f"{ds}/versions/3/preview") == "viewer"
+    # A diff is a read whose parameters ride in the body.
+    assert required_role("POST", f"{ds}/versions/diff") == "viewer"
+    # Rollback publishes a new head; replay executes. Both are writes.
+    assert required_role("POST", f"{ds}/versions/3/rollback") == "editor"
+    assert required_role("POST", f"{PROJECT}/pipeline-runs/abc/replay") == "editor"
+
+
 def test_running_something_needs_only_an_operator():
     assert required_role("POST", f"{PROJECT}/workflows/abc/run") == "operator"
     assert required_role("POST", f"{PROJECT}/workflows/abc/backfill") == "operator"

@@ -16,6 +16,8 @@ from service_datasets.schemas import (
     DatasetPreviewResponse,
     DatasetProfileResponse,
     DatasetUpdate,
+    DatasetVersionDiff,
+    DatasetVersionDiffRequest,
     DatasetVersionListResponse,
     DatasetVersionRead,
 )
@@ -26,6 +28,7 @@ from service_datasets.reporting.html_renderer import (
 from service_datasets.service import (
     create_dataset,
     delete_dataset,
+    diff_dataset_versions,
     get_dataset_audit_summary,
     get_dataset_by_project,
     get_dataset_preview,
@@ -34,6 +37,7 @@ from service_datasets.service import (
     get_dataset_version_preview,
     list_dataset_versions,
     list_datasets_by_project,
+    rollback_dataset_version,
     update_dataset,
 )
 from shared_python.errors import BadRequestError
@@ -77,6 +81,44 @@ def build_router(
         current_user: UserRead = Depends(get_current_user),
     ) -> DatasetVersionListResponse:
         return list_dataset_versions(db, project_id, dataset_id, current_user)
+
+    # Diff and rollback read (and, for rollback, write) version artifacts, so
+    # they exist only when this router was built with a storage backend --
+    # the same rule the delete route follows.
+    if get_storage_backend is not None:
+
+        @router.post(
+            "/projects/{project_id}/datasets/{dataset_id}/versions/diff",
+            response_model=DatasetVersionDiff,
+        )
+        def post_project_dataset_versions_diff(
+            project_id: uuid.UUID,
+            dataset_id: uuid.UUID,
+            payload: DatasetVersionDiffRequest,
+            db: Session = Depends(get_db),
+            current_user: UserRead = Depends(get_current_user),
+            storage=Depends(get_storage_backend),
+        ) -> DatasetVersionDiff:
+            return diff_dataset_versions(
+                db, project_id, dataset_id, payload, current_user, storage
+            )
+
+        @router.post(
+            "/projects/{project_id}/datasets/{dataset_id}/versions/{version_number}/rollback",
+            response_model=DatasetVersionRead,
+            status_code=status.HTTP_201_CREATED,
+        )
+        def post_project_dataset_version_rollback(
+            project_id: uuid.UUID,
+            dataset_id: uuid.UUID,
+            version_number: int,
+            db: Session = Depends(get_db),
+            current_user: UserRead = Depends(get_current_user),
+            storage=Depends(get_storage_backend),
+        ) -> DatasetVersionRead:
+            return rollback_dataset_version(
+                db, project_id, dataset_id, version_number, current_user, storage
+            )
 
     @router.get(
         "/projects/{project_id}/datasets/{dataset_id}/versions/{version_number}",

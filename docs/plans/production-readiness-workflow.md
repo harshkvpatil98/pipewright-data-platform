@@ -7,7 +7,9 @@ established alternatives for data work — not by claiming more, but by being
 the only honest, governed, spreadsheet-fast data platform that a business team
 can run without a data engineer on call.
 
-**Status:** P6 done (2026-09-23); P7 (Time travel) is next on “continue”. One phase executes per session-run;
+**Status:** P6 done, plus its deferred items closed (data-classification tags,
+zero-warning gate); P7 (Time travel) **in progress — increment 1 (version
+storage) done** (2026-09-23). One phase executes per session-run;
 the owner says **“continue”** to start the next. This file is the single
 source of truth for what each phase contains; the session log in
 `docs/HANDOFF.md` records what actually happened.
@@ -413,6 +415,31 @@ protocol, authorisation matrix, acceptance list). This is the engine
 differentiator: **versioned datasets, `AS OF` queries, diffs, rollback,
 deterministic replay**. Ships in increments (storage → publication →
 temporal reads → diff/rollback → replay), each gated.
+
+**Increment 1 — version storage & publication: ✅ done (2026-09-23).**
+- `content_digest` primitive (`shared_python.storage`): stable `sha256:<hex>`
+  fingerprint of published bytes.
+- `dataset_versions` table (migration 0038, schema only per settled decision
+  #5): one immutable row per materialisation; `version_number` 1-based,
+  monotonic, `(dataset_id, version_number)` unique; content hash + snapshot
+  metadata; never updated or renumbered (decision #6).
+- §5 transaction-ownership seam: `apply_dataset_materialization_success`
+  (flush, caller owns commit) + `finalize_…` (commit-owning wrapper the four
+  producers still call), so head advance and version publication land — or roll
+  back — together. All four producers (uploads, extraction, transformations,
+  quality quarantine) record a version with the content digest.
+- Read surface: `GET …/datasets/{id}/versions` (viewer, §6-correct) + a Version
+  history panel on the dataset page. Storage keys kept out of the API (§4/§5).
+
+**Remaining increments (not started):** §1 per-producer logical-identity
+answers (esp. extraction’s dataset-per-run) written up as decisions; temporal
+`AS OF` read/query; diff (with the identity-key rules of decision #7); rollback
+(append-a-version, decision #6); deterministic replay with a recorded execution
+context (§3); erasure-vs-immutable-snapshot reconciliation (§2 — P6 gave it the
+mode + blocked pre-work, but a destructive erasure still overwrites the head
+artifact in place, which the content-addressed storage increment must resolve);
+the concurrent-GC protocol (§4); the full authz matrix for query/rollback/replay
+(§6); and the live end-to-end acceptance script (§8). **P7 is not complete.**
 
 ---
 

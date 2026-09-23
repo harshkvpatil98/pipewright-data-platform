@@ -2,13 +2,16 @@ from __future__ import annotations
 
 import io
 import uuid
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
 import pandas as pd
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from service_auth.schemas import UserRead
+from service_datasets.models import DatasetVersion
 from service_datasets.service import (
     create_derived_dataset_placeholder,
     finalize_dataset_materialization_success,
@@ -27,7 +30,9 @@ from service_pipeline_runs.service import (
 from service_projects.contracts import ensure_owned_project
 from service_transformations.contracts import get_transformation_pipeline_for_project
 from service_transformations.dataset_access import build_step_context
+from service_transformations.execution_context import ExecutionContext, VersionPin, head_pin
 from service_transformations.executor import apply_single_step
+from service_transformations.ir.clock import evaluation_instant, frozen_clock
 from service_transformations.schemas import TransformationRunResponse
 from service_transformations.validators import validate_steps_json
 from shared_python.errors import ApplicationError, BadRequestError, InternalServerError
@@ -58,6 +63,27 @@ def _dataframe_to_csv_bytes(dataframe: pd.DataFrame) -> bytes:
     return buffer.getvalue().encode("utf-8")
 
 
+@dataclass(frozen=True)
+class ReplayPlan:
+    """Everything a replay substitutes for "the current state of things".
+
+    Built by `replay.py` from a recorded execution context after it has pinned
+    every input durably (§4). The run then reads the pinned base version's
+    bytes instead of the head, the recorded steps instead of the pipeline's
+    current ones, the pinned step datasets instead of their heads, and
+    evaluates clock functions at the recorded instant.
+    """
+
+    original_run_id: uuid.UUID
+    evaluated_at: datetime
+    steps: list[dict[str, Any]]
+    base_pin: VersionPin
+    base_file_path: str
+    base_file_type: str
+    step_pins: list[VersionPin]
+    step_overrides: dict[str, tuple[str, str]]
+
+
 def run_saved_transformation_pipeline(
     db: Session,
     *,
@@ -67,13 +93,42 @@ def run_saved_transformation_pipeline(
     storage_backend: Any,
     settings: Any,
     notify_on_complete: bool = True,
+    replay: ReplayPlan | None = None,
 ) -> TransformationRunResponse:
     ensure_owned_project(db, project_id, current_user.id)
     pipeline = get_transformation_pipeline_for_project(db, project_id, pipeline_id)
     base_dataset = get_dataset_model_for_project(db, project_id, pipeline.base_dataset_id)
 
-    if not base_dataset.file_path or not base_dataset.file_type:
+    # What this run reads and when it is evaluated is decided here, once, and
+    # recorded (§3). A replay brings its own answers; an ordinary run reads the
+    # head and freezes the clock now.
+    if replay is not None:
+        base_file_path, base_file_type = replay.base_file_path, replay.base_file_type
+        evaluated_at = replay.evaluated_at
+        steps_json = replay.steps
+        input_pins: list[VersionPin] = [replay.base_pin, *replay.step_pins]
+        step_overrides: dict[str, tuple[str, str]] | None = replay.step_overrides
+        run_type = "dataset_transformation_replay"
+    else:
+        base_file_path, base_file_type = base_dataset.file_path, base_dataset.file_type
+        # The real clock unless something outside already froze one (a replay
+        # does, through ReplayPlan; a caller wanting several runs to share an
+        # instant can too). Either way the run evaluates at exactly this value.
+        evaluated_at = evaluation_instant()
+        steps_json = pipeline.steps_json
+        input_pins = [head_pin(db, base_dataset.id, role="base")]
+        step_overrides = None
+        run_type = "dataset_transformation"
+
+    if not base_file_path or not base_file_type:
         raise BadRequestError("Base dataset has no stored file artifact.")
+
+    context = ExecutionContext(
+        evaluated_at=evaluated_at,
+        steps=list(steps_json),
+        inputs=input_pins,
+        replay_of=str(replay.original_run_id) if replay is not None else None,
+    )
 
     log_events: list[dict[str, object]] = [
         _log_event(
@@ -88,7 +143,7 @@ def run_saved_transformation_pipeline(
         db,
         project_id=project_id,
         current_user=current_user,
-        run_type="dataset_transformation",
+        run_type=run_type,
         pipeline_id=pipeline.id,
         logs_json=_build_log_events(log_events),
     )
@@ -103,7 +158,7 @@ def run_saved_transformation_pipeline(
         log_events.append(_log_event("load_artifact", "Reading base dataset from storage."))
         mark_pipeline_run_running(db, run=run, logs_json=_build_log_events(log_events))
         try:
-            file_bytes = storage_backend.read_bytes(base_dataset.file_path)
+            file_bytes = storage_backend.read_bytes(base_file_path)
         except FileNotFoundError as exc:
             raise BadRequestError("Stored base dataset file was not found.") from exc
         except OSError as exc:
@@ -115,12 +170,12 @@ def run_saved_transformation_pipeline(
         current_stage = "parse"
         log_events.append(_log_event("parse", "Parsing tabular file."))
         mark_pipeline_run_running(db, run=run, logs_json=_build_log_events(log_events))
-        parsed = parse_tabular_file(file_bytes=file_bytes, file_type=base_dataset.file_type)
+        parsed = parse_tabular_file(file_bytes=file_bytes, file_type=base_file_type)
         source_frame = parsed.dataframe.copy()
         row_count_before = int(len(source_frame))
         column_count_before = int(len(source_frame.columns))
 
-        steps = validate_steps_json(pipeline.steps_json)
+        steps = validate_steps_json(steps_json)
         working = source_frame.copy()
         warnings: list[str] = []
         step_context = build_step_context(
@@ -128,20 +183,26 @@ def run_saved_transformation_pipeline(
             project_id=project_id,
             storage_backend=storage_backend,
             max_bytes=settings.max_upload_size_bytes,
+            pins=context.inputs,
+            version_overrides=step_overrides,
         )
 
-        for index, step in enumerate(steps, start=1):
-            current_stage = f"apply_step_{index}"
-            log_events.append(
-                _log_event(
-                    current_stage,
-                    f"Applying step {index} ({step.step_type}).",
-                    details={"step_type": step.step_type},
+        # Every clock-dependent function reads the frozen instant for the whole
+        # of the recipe, so `today()` in step 1 and step 5 agree, and a replay
+        # of this run can install the same instant and get the same answer.
+        with frozen_clock(evaluated_at):
+            for index, step in enumerate(steps, start=1):
+                current_stage = f"apply_step_{index}"
+                log_events.append(
+                    _log_event(
+                        current_stage,
+                        f"Applying step {index} ({step.step_type}).",
+                        details={"step_type": step.step_type},
+                    )
                 )
-            )
-            mark_pipeline_run_running(db, run=run, logs_json=_build_log_events(log_events))
-            working, step_warnings = apply_single_step(working, step, step_context)
-            warnings.extend(step_warnings)
+                mark_pipeline_run_running(db, run=run, logs_json=_build_log_events(log_events))
+                working, step_warnings = apply_single_step(working, step, step_context)
+                warnings.extend(step_warnings)
 
         row_count_after = int(len(working))
         column_count_after = int(len(working.columns))
@@ -166,7 +227,9 @@ def run_saved_transformation_pipeline(
             file_size_bytes=len(csv_bytes),
         )
 
-        derived_name = _truncate_dataset_name(f"{pipeline.name} · derived")
+        derived_name = _truncate_dataset_name(
+            f"{pipeline.name} · replay" if replay is not None else f"{pipeline.name} · derived"
+        )
         original_filename = "transformed.csv"
 
         current_stage = "persist_artifact"
@@ -220,8 +283,26 @@ def run_saved_transformation_pipeline(
             created_by_user_id=current_user.id,
         )
 
+        # The output pin: the version this run published, so a link to this run
+        # resolves to what it produced -- not to whatever the head is later.
+        published = db.scalar(
+            select(DatasetVersion).where(
+                DatasetVersion.dataset_id == derived_dataset.id,
+                DatasetVersion.pipeline_run_id == run.id,
+            )
+        )
+        context.outputs = [
+            VersionPin(
+                dataset_id=str(derived_dataset.id),
+                version_number=published.version_number if published is not None else None,
+                content_hash=published.content_hash if published is not None else None,
+                role="output",
+            )
+        ]
+
         summary_json: dict[str, object] = {
             "transformation_type": "dataset_transformation",
+            "execution_context": context.to_dict(),
             "pipeline_id": str(pipeline.id),
             "pipeline_name": pipeline.name,
             "pipeline": {"id": str(pipeline.id), "name": pipeline.name},
@@ -275,6 +356,7 @@ def run_saved_transformation_pipeline(
             run=run,
             summary_json={
                 "transformation_type": "dataset_transformation",
+                "execution_context": context.to_dict(),
                 "failure_stage": current_stage,
                 "pipeline_id": str(pipeline.id),
                 "pipeline_name": pipeline.name,
@@ -307,6 +389,7 @@ def run_saved_transformation_pipeline(
             run=run,
             summary_json={
                 "transformation_type": "dataset_transformation",
+                "execution_context": context.to_dict(),
                 "failure_stage": current_stage,
                 "pipeline_id": str(pipeline.id),
                 "pipeline_name": pipeline.name,

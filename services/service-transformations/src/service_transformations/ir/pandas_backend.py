@@ -12,6 +12,7 @@ from typing import Any, Callable
 import pandas as pd
 
 from service_transformations.ir.expressions import Call, Case, Cast, Column, Expr, Literal
+from service_transformations.ir.clock import evaluation_instant
 from service_transformations.ir.pandas_functions import HANDLERS as FUNCTION_HANDLERS
 from service_transformations.ir.nodes import (
     Aggregate,
@@ -565,9 +566,11 @@ def _call(expr: Call, frame: pd.DataFrame) -> pd.Series:
         days = pd.to_numeric(args[1], errors="coerce")
         return pd.to_datetime(args[0], errors="coerce", format="mixed") + pd.to_timedelta(days, unit="D")
     if name == "now":
-        return pd.Series([pd.Timestamp.now(tz="UTC")] * len(frame), index=frame.index)
+        # Both read the evaluation instant (ir.clock), not the wall clock, so a
+        # run's result can be reproduced from its recorded execution context.
+        return pd.Series([pd.Timestamp(evaluation_instant())] * len(frame), index=frame.index)
     if name == "today":
-        return pd.Series([pd.Timestamp.now().date()] * len(frame), index=frame.index)
+        return pd.Series([evaluation_instant().date()] * len(frame), index=frame.index)
 
     # -- type and information ---------------------------------------------
     if name == "to_number":

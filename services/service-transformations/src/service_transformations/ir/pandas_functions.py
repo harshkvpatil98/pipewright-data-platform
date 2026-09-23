@@ -27,12 +27,13 @@ import html
 import re
 import unicodedata
 import urllib.parse
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta
 from typing import Any, Callable
 
 import numpy as np
 import pandas as pd
 
+from service_transformations.ir.clock import evaluation_instant
 from shared_python.errors import BadRequestError
 
 
@@ -569,6 +570,28 @@ def _text_one(fn: Callable[[str], Any]):
     return lambda args, expr: _map(_text(args[0]), fn)
 
 
+def _whole_years(born: pd.Timestamp, today: pd.Timestamp) -> int:
+    return today.year - born.year - ((today.month, today.day) < (born.month, born.day))
+
+
+def _age_years(args: list[pd.Series]) -> pd.Series:
+    born = _datetimes(args[0])
+    if len(args) > 1:
+        as_of = _datetimes(args[1])
+        return pd.Series(
+            [
+                _whole_years(pd.Timestamp(b), pd.Timestamp(a))
+                if not (pd.isna(b) or pd.isna(a))
+                else None
+                for b, a in zip(born, as_of)
+            ],
+            index=born.index,
+            dtype="Int64",
+        )
+    today = pd.Timestamp(evaluation_instant().date())
+    return _map(born, lambda v: _whole_years(pd.Timestamp(v), today))
+
+
 HANDLERS: dict[str, Callable[[list[pd.Series], Any], pd.Series]] = {
     # -- text ------------------------------------------------------------
     "collapse_whitespace": _text_one(lambda v: _WHITESPACE.sub(" ", v).strip()),
@@ -763,14 +786,11 @@ HANDLERS: dict[str, Callable[[list[pd.Series], Any], pd.Series]] = {
     "fiscal_quarter": lambda args, expr: _map(
         _datetimes(args[0]), lambda v, m=int(_literal(args, 1, 1) or 1): _fiscal_quarter(v, m)
     ),
-    "age_years": lambda args, expr: _map(
-        _datetimes(args[0]),
-        lambda v: (
-            lambda born, today: today.year
-            - born.year
-            - ((today.month, today.day) < (born.month, born.day))
-        )(pd.Timestamp(v), pd.Timestamp(datetime.now(timezone.utc).date())),
-    ),
+    # Whole years between a date and "today" -- where today is the evaluation
+    # instant (ir.clock), so a recorded run replays to the same age. The optional
+    # second argument is an explicit as-of date, which makes the answer fixed
+    # regardless of any clock.
+    "age_years": lambda args, expr: _age_years(args),
     "epoch_seconds": lambda args, expr: _map(
         _datetimes(args[0]), lambda v: int(pd.Timestamp(v).timestamp())
     ),

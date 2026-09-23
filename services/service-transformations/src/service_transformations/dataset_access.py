@@ -25,10 +25,17 @@ def build_step_context(
     project_id: uuid.UUID,
     storage_backend: Any,
     max_bytes: int | None = None,
+    pins: list | None = None,
+    version_overrides: dict[str, tuple[str, str]] | None = None,
 ) -> StepContext:
+    """`pins`, when given, collects a `VersionPin` for every dataset a step reads
+    (the run records them in its execution context). `version_overrides` maps a
+    dataset id to the `(file_path, file_type)` of a pinned version, so a replay
+    reads the version the original run read rather than the current head."""
     # Datasets are re-read per step; caching avoids paying storage + parse twice
     # when the same dataset is joined more than once in a pipeline.
     cache: dict[str, pd.DataFrame] = {}
+    overrides = version_overrides or {}
 
     def _coerce_id(dataset_id: str) -> uuid.UUID:
         try:
@@ -42,11 +49,16 @@ def build_step_context(
             return cache[key].copy()
 
         dataset = get_dataset_model_for_project(db, project_id, _coerce_id(key))
-        if not dataset.file_path or not dataset.file_type:
+        file_path, file_type = overrides.get(key, (dataset.file_path, dataset.file_type))
+        if not file_path or not file_type:
             raise BadRequestError(f"Dataset '{dataset.name}' has no stored file artifact to read.")
+        if pins is not None and key not in overrides:
+            from service_transformations.execution_context import head_pin
+
+            pins.append(head_pin(db, dataset.id, role="step"))
 
         try:
-            file_bytes = storage_backend.read_bytes(dataset.file_path)
+            file_bytes = storage_backend.read_bytes(file_path)
         except FileNotFoundError as exc:
             raise BadRequestError(f"Stored file for dataset '{dataset.name}' was not found.") from exc
         except OSError as exc:
@@ -57,7 +69,7 @@ def build_step_context(
                 f"Dataset '{dataset.name}' exceeds the configured maximum size for this operation."
             )
 
-        frame = parse_tabular_file(file_bytes=file_bytes, file_type=dataset.file_type).dataframe
+        frame = parse_tabular_file(file_bytes=file_bytes, file_type=file_type).dataframe
         cache[key] = frame
         return frame.copy()
 

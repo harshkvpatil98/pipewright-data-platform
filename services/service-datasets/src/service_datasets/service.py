@@ -18,6 +18,8 @@ from service_datasets.schemas import (
     DatasetProfileResponse,
     DatasetSummaryRead,
     DatasetUpdate,
+    DatasetVersionListResponse,
+    DatasetVersionRead,
 )
 from service_projects.contracts import ensure_owned_project
 from service_sources.contracts import get_source_for_project
@@ -59,6 +61,32 @@ def get_dataset_by_project(
 ) -> DatasetDetailRead:
     ensure_owned_project(db, project_id, current_user.id)
     return _to_detail(get_dataset_model_for_project(db, project_id, dataset_id))
+
+
+def list_dataset_versions(
+    db: Session, project_id: uuid.UUID, dataset_id: uuid.UUID, current_user: UserRead
+) -> DatasetVersionListResponse:
+    """The recorded snapshot history of a dataset, newest first.
+
+    A read: viewer role (settled matrix, §6). The storage key each version points
+    at is deliberately not exposed -- a caller sees what changed and when, not
+    where the bytes live."""
+    ensure_owned_project(db, project_id, current_user.id)
+    # 404 if the dataset is not in this project, rather than an empty list that
+    # cannot tell "no history" apart from "no such dataset".
+    get_dataset_model_for_project(db, project_id, dataset_id)
+    versions = list(
+        db.scalars(
+            select(DatasetVersion)
+            .where(DatasetVersion.dataset_id == dataset_id)
+            .order_by(DatasetVersion.version_number.desc())
+        ).all()
+    )
+    current = versions[0].version_number if versions else None
+    return DatasetVersionListResponse(
+        items=[DatasetVersionRead.model_validate(version) for version in versions],
+        current_version=current,
+    )
 
 
 def update_dataset(

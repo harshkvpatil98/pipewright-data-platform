@@ -655,6 +655,29 @@ export type SourceListResponse = { items: SourceRecord[] };
 export type DatasetListResponse = { items: DatasetRecord[] };
 export type PipelineRunListResponse = { items: PipelineRunRecord[] };
 
+/** One immutable snapshot in a dataset's history (time travel, Phase 18). The
+ * storage key is deliberately not part of the contract. */
+export type DatasetVersion = {
+  id: string;
+  dataset_id: string;
+  version_number: number;
+  content_hash: string | null;
+  file_name: string | null;
+  file_type: string | null;
+  row_count: number | null;
+  column_count: number | null;
+  pipeline_run_id: string | null;
+  created_by_user_id: string | null;
+  created_at: string;
+};
+
+export type DatasetVersionListResponse = {
+  /** Newest first, so the current head reads at the top. */
+  items: DatasetVersion[];
+  /** The head version number, or null for a dataset with no recorded history. */
+  current_version: number | null;
+};
+
 export type CreateProjectPayload = {
   name: string;
   description?: string | null;

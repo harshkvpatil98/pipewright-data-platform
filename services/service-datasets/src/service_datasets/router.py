@@ -16,6 +16,7 @@ from service_datasets.schemas import (
     DatasetPreviewResponse,
     DatasetProfileResponse,
     DatasetUpdate,
+    DatasetVersionListResponse,
 )
 from service_datasets.reporting.html_renderer import (
     build_dataset_audit_export_filename,
@@ -28,6 +29,7 @@ from service_datasets.service import (
     get_dataset_by_project,
     get_dataset_preview,
     get_dataset_profile,
+    list_dataset_versions,
     list_datasets_by_project,
     update_dataset,
 )
@@ -60,6 +62,18 @@ def build_router(
         current_user: UserRead = Depends(get_current_user),
     ) -> DatasetDetailRead:
         return get_dataset_by_project(db, project_id, dataset_id, current_user)
+
+    @router.get(
+        "/projects/{project_id}/datasets/{dataset_id}/versions",
+        response_model=DatasetVersionListResponse,
+    )
+    def get_project_dataset_versions(
+        project_id: uuid.UUID,
+        dataset_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> DatasetVersionListResponse:
+        return list_dataset_versions(db, project_id, dataset_id, current_user)
 
     @router.get(
         "/projects/{project_id}/datasets/{dataset_id}/preview",

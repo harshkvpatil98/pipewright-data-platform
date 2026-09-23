@@ -15,15 +15,21 @@ from sqlalchemy import create_engine, event, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
+import uuid
+from datetime import UTC, datetime
+
 import api_gateway.metadata  # noqa: F401  - imports every model onto one Base
 from service_auth.models import User
+from service_auth.schemas import UserRead
 from service_datasets.models import Dataset, DatasetVersion
 from service_datasets.service import (
     apply_dataset_materialization_success,
     finalize_dataset_materialization_success,
+    list_dataset_versions,
 )
 from service_projects.models import Project
 from shared_python.db import Base
+from shared_python.errors import NotFoundError
 from shared_python.storage import content_digest
 
 
@@ -75,6 +81,14 @@ def _materialise(db: Session, dataset: Dataset, *, path: str, data: bytes, owner
     )
     kwargs.update(over)
     return finalize_dataset_materialization_success(db, dataset=dataset, **kwargs)
+
+
+def _as_read(user: User) -> UserRead:
+    now = datetime.now(UTC)
+    return UserRead(
+        id=user.id, username=user.username, role="admin", is_active=True,
+        created_at=now, updated_at=now,
+    )
 
 
 def _versions(db: Session, dataset_id) -> list[DatasetVersion]:
@@ -173,6 +187,41 @@ def test_a_version_number_cannot_be_duplicated(db: Session, world: dict):
     )
     with pytest.raises(IntegrityError):
         db.flush()
+
+
+def test_listing_versions_reads_newest_first_with_the_head(db: Session, world: dict):
+    dataset = world["dataset"]
+    _materialise(db, dataset, path="uploads/v1.csv", data=b"one", owner_id=world["owner"].id)
+    _materialise(db, dataset, path="uploads/v2.csv", data=b"two", owner_id=world["owner"].id)
+
+    listed = list_dataset_versions(db, world["project"].id, dataset.id, _as_read(world["owner"]))
+    assert [v.version_number for v in listed.items] == [2, 1]
+    assert listed.current_version == 2
+
+
+def test_listing_a_dataset_with_no_history_is_empty_not_an_error(db: Session, world: dict):
+    listed = list_dataset_versions(
+        db, world["project"].id, world["dataset"].id, _as_read(world["owner"])
+    )
+    assert listed.items == []
+    assert listed.current_version is None
+
+
+def test_the_version_api_never_leaks_the_storage_key(db: Session, world: dict):
+    # §4/§5: storage keys stay out of every API. A caller sees what changed and
+    # when, not where the bytes live.
+    dataset = world["dataset"]
+    _materialise(db, dataset, path="uploads/secret-key.csv", data=b"one", owner_id=world["owner"].id)
+    listed = list_dataset_versions(db, world["project"].id, dataset.id, _as_read(world["owner"]))
+    dumped = listed.model_dump()
+    assert "file_path" not in dumped["items"][0]
+
+
+def test_listing_versions_of_an_unknown_dataset_is_a_404(db: Session, world: dict):
+    with pytest.raises(NotFoundError):
+        list_dataset_versions(
+            db, world["project"].id, uuid.uuid4(), _as_read(world["owner"])
+        )
 
 
 def test_a_version_without_the_bytes_records_a_null_digest(db: Session, world: dict):

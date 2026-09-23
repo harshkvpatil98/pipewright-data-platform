@@ -82,6 +82,32 @@ class DatasetListResponse(BaseModel):
     items: list[DatasetSummaryRead]
 
 
+class DatasetVersionRead(BaseModel):
+    """One immutable snapshot in a dataset's history (Phase 18, time travel)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    dataset_id: uuid.UUID
+    version_number: int
+    content_hash: str | None
+    file_name: str | None
+    file_type: str | None
+    row_count: int | None
+    column_count: int | None
+    pipeline_run_id: uuid.UUID | None
+    created_by_user_id: uuid.UUID | None
+    created_at: datetime
+
+
+class DatasetVersionListResponse(BaseModel):
+    #: Newest first, so the current head reads at the top.
+    items: list[DatasetVersionRead]
+    #: The head version number, or null for a dataset with no recorded history
+    #: yet (materialised before versioning, or never materialised).
+    current_version: int | None
+
+
 class DatasetPreviewResponse(BaseModel):
     dataset_id: uuid.UUID
     columns: list[str]

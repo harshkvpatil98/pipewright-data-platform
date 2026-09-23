@@ -1,0 +1,39 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "pipewright.fullname" . }}
+  labels:
+    {{- include "pipewright.labels" . | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- if .Values.ingress.tls.enabled }}
+  tls:
+    - hosts: [{{ .Values.ingress.host | quote }}]
+      secretName: {{ .Values.ingress.tls.secretName }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.ingress.host | quote }}
+      http:
+        paths:
+          # /api to the gateway, everything else to the web app -- same host, so
+          # the session cookie the SSO callback sets carries across both.
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "pipewright.fullname" . }}-gateway
+                port:
+                  number: {{ .Values.gateway.service.port }}
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "pipewright.fullname" . }}-web
+                port:
+                  number: {{ .Values.web.service.port }}
+{{- end }}

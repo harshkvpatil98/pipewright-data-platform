@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "pipewright.configName" . }}
+  labels:
+    {{- include "pipewright.labels" . | nindent 4 }}
+data:
+  {{- range $key, $value := .Values.config }}
+  {{ $key }}: {{ $value | quote }}
+  {{- end }}
+{{- if not .Values.secrets.existingSecret }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ include "pipewright.secretName" . }}
+  labels:
+    {{- include "pipewright.labels" . | nindent 4 }}
+type: Opaque
+stringData:
+  # Dev/demo only. In production set secrets.existingSecret to a Secret your
+  # secret manager owns, and leave these blank so nothing sensitive is in git.
+  DATABASE_URL: {{ .Values.secrets.DATABASE_URL | quote }}
+  AUTH_JWT_SECRET: {{ .Values.secrets.AUTH_JWT_SECRET | quote }}
+  AUTH_BOOTSTRAP_USERNAME: {{ .Values.secrets.AUTH_BOOTSTRAP_USERNAME | quote }}
+  AUTH_BOOTSTRAP_PASSWORD: {{ .Values.secrets.AUTH_BOOTSTRAP_PASSWORD | quote }}
+{{- end }}

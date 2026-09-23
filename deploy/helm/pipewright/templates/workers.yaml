@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pipewright.fullname" . }}-worker
+  labels:
+    {{- include "pipewright.labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker
+spec:
+  replicas: {{ .Values.worker.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: worker
+  template:
+    metadata:
+      labels:
+        {{- include "pipewright.labels" . | nindent 8 }}
+        app.kubernetes.io/component: worker
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: worker
+          image: {{ include "pipewright.gatewayImage" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["platform-workflow-worker", "--interval", {{ .Values.worker.intervalSeconds | quote }}]
+          envFrom:
+            {{- include "pipewright.envFrom" . | nindent 12 }}
+          resources:
+            {{- toYaml .Values.worker.resources | nindent 12 }}
+---
+# One ticker unless every replica has a distinct SCHEDULER_RUNTIME_ID: the lease
+# reduces, but does not eliminate, double-execution across concurrent pollers.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pipewright.fullname" . }}-ticker
+  labels:
+    {{- include "pipewright.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ticker
+spec:
+  replicas: {{ .Values.ticker.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: ticker
+  template:
+    metadata:
+      labels:
+        {{- include "pipewright.labels" . | nindent 8 }}
+        app.kubernetes.io/component: ticker
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: ticker
+          image: {{ include "pipewright.gatewayImage" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["platform-schedule-ticker", "--loop", "--interval", {{ .Values.ticker.intervalSeconds | quote }}]
+          envFrom:
+            {{- include "pipewright.envFrom" . | nindent 12 }}
+          resources:
+            {{- toYaml .Values.ticker.resources | nindent 12 }}

@@ -1,0 +1,16 @@
+# Caddy terminates TLS for SITE_ADDRESS and routes to the two app services.
+# With a public domain, Caddy provisions and renews a Let's Encrypt certificate
+# automatically; with SITE_ADDRESS=localhost it serves a local self-signed cert.
+{$SITE_ADDRESS} {
+	encode zstd gzip
+
+	# The API on one host so the SSO session cookie is shared with the web app.
+	handle /api/* {
+		reverse_proxy gateway:8000
+	}
+
+	# Everything else is the Next.js web app.
+	handle {
+		reverse_proxy web:3000
+	}
+}

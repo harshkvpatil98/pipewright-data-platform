@@ -1,16 +1,16 @@
-# Production-oriented Compose stack (single-host reference layout).
+# Production-style compose: pre-built images, all four runtimes, Postgres, and a
+# Caddy reverse proxy that terminates TLS and routes /api to the gateway and /
+# to the web on one host (so the SSO session cookie carries across both).
 #
-# Before running:
-#   1. cp apps/api-gateway/.env.production.example apps/api-gateway/.env
-#   2. cp apps/web/.env.production.example apps/web/.env
-#   3. Set real secrets, DATABASE_URL, CORS, JWT secret, and NEXT_PUBLIC_API_BASE_URL
-#      (browser-reachable API URL — often your public gateway URL + /api/v1).
-#   4. Set root .env or export NEXT_PUBLIC_* for the web image build args below.
+#   PIPEWRIGHT_TAG=v1.2.3 SITE_ADDRESS=pipewright.example.com \
+#     docker compose -f docker-compose.prod.yml up -d
 #
-# Build web with public API URL baked in:
-#   NEXT_PUBLIC_API_BASE_URL=https://api.example.com/api/v1 docker compose -f docker-compose.prod.yml build web
-#
-# Not a substitute for managed DB, secrets vault, TLS termination, or multi-AZ scheduling.
+# Env comes from ./.env (DATABASE_URL is derived below from the Postgres vars).
+# For a managed database, drop the `postgres` service and point DATABASE_URL at
+# it in .env. See docs/operations.md.
+
+x-app-env: &app-env
+  DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-platform}:${POSTGRES_PASSWORD:-platform}@postgres:5432/${POSTGRES_DB:-platform}
 
 services:
   postgres:
@@ -21,46 +21,76 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-platform}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-platform}
     volumes:
-      - postgres_data_prod:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  api-gateway:
-    build:
-      context: .
-      dockerfile: apps/api-gateway/Dockerfile
+  gateway:
+    image: ${PIPEWRIGHT_REGISTRY:-ghcr.io/harshkvpatil98}/pipewright-gateway:${PIPEWRIGHT_TAG:?set PIPEWRIGHT_TAG}
     restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
-    env_file:
-      - ./apps/api-gateway/.env
-    environment:
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-platform}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-platform}
-    ports:
-      - "${BACKEND_PORT:-8000}:8000"
+    env_file: [./.env]
+    environment: *app-env
+    # Migrate, then serve: the schema is current before traffic arrives.
     command: sh -c "alembic -c alembic.ini upgrade head && uvicorn api_gateway.main:app --host 0.0.0.0 --port 8000"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health/live')\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
 
-  web:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile.prod
-      args:
-        NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-Pipewright}
-        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000/api/v1}
-        NEXT_PUBLIC_MAX_UPLOAD_SIZE_BYTES: ${NEXT_PUBLIC_MAX_UPLOAD_SIZE_BYTES:-26214400}
+  workflow-worker:
+    image: ${PIPEWRIGHT_REGISTRY:-ghcr.io/harshkvpatil98}/pipewright-gateway:${PIPEWRIGHT_TAG:?set PIPEWRIGHT_TAG}
     restart: unless-stopped
     depends_on:
-      - api-gateway
-    env_file:
-      - ./apps/web/.env
-    environment:
-      API_INTERNAL_BASE_URL: http://api-gateway:8000/api/v1
+      gateway:
+        condition: service_started
+    env_file: [./.env]
+    environment: *app-env
+    command: sh -c "until alembic -c alembic.ini current >/dev/null 2>&1; do sleep 2; done; platform-workflow-worker --interval ${WORKFLOW_WORKER_INTERVAL:-5}"
+
+  schedule-ticker:
+    image: ${PIPEWRIGHT_REGISTRY:-ghcr.io/harshkvpatil98}/pipewright-gateway:${PIPEWRIGHT_TAG:?set PIPEWRIGHT_TAG}
+    restart: unless-stopped
+    depends_on:
+      gateway:
+        condition: service_started
+    env_file: [./.env]
+    environment: *app-env
+    command: sh -c "until alembic -c alembic.ini current >/dev/null 2>&1; do sleep 2; done; platform-schedule-ticker --loop --interval ${SCHEDULE_TICKER_INTERVAL:-30}"
+
+  web:
+    image: ${PIPEWRIGHT_REGISTRY:-ghcr.io/harshkvpatil98}/pipewright-web:${PIPEWRIGHT_TAG:?set PIPEWRIGHT_TAG}
+    restart: unless-stopped
+    depends_on:
+      gateway:
+        condition: service_started
+    env_file: [./.env]
+
+  # Terminates TLS (Caddy fetches a certificate for SITE_ADDRESS automatically)
+  # and reverse-proxies to the gateway and web. For an internal/manual cert,
+  # replace Caddy with your own proxy and mount the cert; the routing is the
+  # same (/api -> gateway:8000, everything else -> web:3000).
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on: [gateway, web]
     ports:
-      - "${FRONTEND_PORT:-3000}:3000"
+      - "80:80"
+      - "443:443"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-localhost}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
 
 volumes:
-  postgres_data_prod:
+  postgres_data:
+  caddy_data:
+  caddy_config:

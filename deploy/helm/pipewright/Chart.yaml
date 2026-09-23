@@ -1,0 +1,16 @@
+apiVersion: v2
+name: pipewright
+description: >-
+  Pipewright data platform: the FastAPI gateway, the Next.js web app, and the
+  two background runtimes (workflow worker and schedule ticker). Postgres is
+  external by default (point DATABASE_URL at a managed instance).
+type: application
+# Chart version tracks packaging changes; appVersion tracks the image tag the
+# chart deploys by default (override image.tag per release).
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - etl
+  - data-platform
+  - pipelines
+home: https://github.com/harshkvpatil98/pipewright-data-platform

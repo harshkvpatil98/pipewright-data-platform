@@ -1,0 +1,98 @@
+# Default values for the Pipewright chart. Override per environment.
+
+# One registry + tag for both images by default; override per component if they
+# ever diverge. Tag is intentionally empty so a release must set it explicitly
+# rather than silently deploying "latest".
+image:
+  registry: ghcr.io/harshkvpatil98
+  gatewayRepository: pipewright-gateway
+  webRepository: pipewright-web
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# Non-secret configuration, rendered into a ConfigMap and shared by every
+# component. Add any BACKEND_* / OIDC_* / SCHEDULER_* env here.
+config:
+  APP_ENV: production
+  BACKEND_PORT: "8000"
+  # Comma- or JSON-list of allowed browser origins for the gateway.
+  BACKEND_CORS_ORIGINS: "[]"
+  # Where the browser reaches the API and where the web reaches it internally.
+  NEXT_PUBLIC_API_BASE_URL: ""
+  API_INTERNAL_BASE_URL: ""
+
+# Secret values. In production, prefer an existing Secret (existingSecret) that
+# your secret manager syncs, so nothing sensitive lives in values or git.
+secrets:
+  # If set, that Secret is used verbatim and the keys below are ignored.
+  existingSecret: ""
+  # Only used when existingSecret is empty (dev/demo). Never commit real values.
+  DATABASE_URL: ""
+  AUTH_JWT_SECRET: ""
+  AUTH_BOOTSTRAP_USERNAME: ""
+  AUTH_BOOTSTRAP_PASSWORD: ""
+
+# Run `alembic upgrade head` as a pre-install/pre-upgrade hook so schema is
+# migrated before any new pod serves traffic.
+migrations:
+  enabled: true
+
+gateway:
+  replicaCount: 2
+  service:
+    port: 8000
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { cpu: "1", memory: 512Mi }
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 70
+
+web:
+  replicaCount: 2
+  service:
+    port: 3000
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { cpu: "1", memory: 512Mi }
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 70
+
+# The workflow worker. Scale replicas horizontally; the queue claim is leased,
+# so several workers share the load safely.
+worker:
+  replicaCount: 1
+  intervalSeconds: 5
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { cpu: "1", memory: 512Mi }
+
+# The schedule ticker. Keep this at ONE replica unless every replica has a
+# distinct SCHEDULER_RUNTIME_ID; the lease reduces but does not eliminate
+# double-execution across pollers.
+ticker:
+  replicaCount: 1
+  intervalSeconds: 30
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { cpu: 500m, memory: 256Mi }
+
+ingress:
+  enabled: false
+  className: nginx
+  # The web serves "/" and the gateway serves "/api" on the same host, so the
+  # SSO session cookie carries across (see docs/enterprise-identity.md).
+  host: pipewright.example.com
+  annotations: {}
+  tls:
+    enabled: true
+    secretName: pipewright-tls

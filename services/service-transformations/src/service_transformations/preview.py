@@ -150,6 +150,7 @@ def _describe_plan(dataset, raw_steps) -> ExecutionPlanRead | None:
             for d in execution.decisions
         ],
         note=execution.surface.note if execution.surface else "",
+        rewrites=[str(applied) for applied in execution.rewrites],
     )
 
 

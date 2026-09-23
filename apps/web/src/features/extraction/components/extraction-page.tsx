@@ -304,11 +304,17 @@ export function ExtractionPageView({
     if (result) {
       setLastRun(result);
       setJobs((current) => current.map((job) => (job.id === jobId ? result.job : job)));
-      const shaping = result.shaping
-        ? result.shaping.pushed_steps > 0
-          ? ` The ${result.shaping.surface} source ran ${result.shaping.pushed_steps} of ${result.shaping.pushed_steps + result.shaping.local_steps} step(s) as SQL; ${result.shaping.local_steps} ran here.`
-          : ` All ${result.shaping.local_steps} step(s) ran here (${result.shaping.note || "the source could not run them"}).`
+      const plan = result.shaping;
+      const placement = plan
+        ? plan.pushed_steps > 0
+          ? ` The ${plan.surface} source ran ${plan.pushed_steps} of ${plan.pushed_steps + plan.local_steps} step(s) as SQL; ${plan.local_steps} ran here.`
+          : ` All ${plan.local_steps} step(s) ran here (${plan.note || "the source could not run them"}).`
         : "";
+      const rewritten =
+        plan && plan.rewrites && plan.rewrites.length > 0
+          ? ` Rewritten first without changing the result: ${plan.rewrites.join("; ")}.`
+          : "";
+      const shaping = placement + rewritten;
       setFeedback(
         `Extracted ${result.rows_extracted} row(s): ${result.rows_added} added, ${result.rows_updated} updated, ${result.total_rows} total.${shaping}`,
       );
@@ -690,7 +696,7 @@ export function ExtractionPageView({
                 onChange={(event) => setJobForm((form) => ({ ...form, shapeYaml: event.target.value }))}
                 rows={5}
                 spellCheck={false}
-                placeholder={"steps:\n  - type: filter_rows\n    config:\n      conditions:\n        - {column: amount, operator: greater_than, value: 0}"}
+                placeholder={"steps:\n  - step: filter_rows\n    with:\n      conditions:\n        - {column: amount, operator: greater_than, value: 0}"}
                 className="w-full rounded-xl border border-line bg-sunken px-3 py-2 font-mono text-[12px] text-ink outline-none transition focus:border-[color:var(--accent)]"
               />
             </FormField>

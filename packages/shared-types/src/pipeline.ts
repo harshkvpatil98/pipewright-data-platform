@@ -125,6 +125,8 @@ export type ExtractionShapingPlan = {
   sql: string | null;
   placements: { node: string; pushed: boolean; reason: string }[];
   note: string;
+  /** Semantics-preserving rewrites applied before the split, in words. */
+  rewrites?: string[];
 };
 
 // ------------------------------------------------------------ stream sources

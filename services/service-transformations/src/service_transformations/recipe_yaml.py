@@ -171,7 +171,13 @@ def _step_in(step: Any, index: int) -> dict[str, Any]:
 
     unknown = sorted(set(step) - {"step", "tool", "name", "with"})
     if unknown:
-        raise BadRequestError(f"Step {index} does not have: {', '.join(unknown)}.")
+        # Name the shape, not just the stray keys: the most common mistake is
+        # the API's `type:`/`config:` spelling, which reads as reasonable YAML
+        # and gets nowhere without this sentence.
+        raise BadRequestError(
+            f"Step {index} does not have: {', '.join(unknown)}. A step is written as "
+            "`step:` (its name) and `with:` (its settings), optionally `name:`."
+        )
 
     step_type = step.get("step")
     if not isinstance(step_type, str) or not step_type.strip():

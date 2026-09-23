@@ -195,4 +195,5 @@ def _plan_dict(execution: ExecutionPlan, connector_type: str) -> dict[str, Any]:
             {"node": d.node, "pushed": d.pushed, "reason": d.reason} for d in execution.decisions
         ],
         "note": execution.surface.note if execution.surface else "",
+        "rewrites": [str(applied) for applied in execution.rewrites],
     }

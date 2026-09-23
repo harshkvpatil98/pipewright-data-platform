@@ -102,6 +102,10 @@ class ExecutionPlanRead(BaseModel):
     sql: str | None = None
     placements: list[ExecutionStepPlacement] = []
     note: str = ""
+    #: Semantics-preserving rewrites the planner applied before splitting,
+    #: in words ("filter below projection: amount > 10 now runs before
+    #: Project(...)"). Empty when the tree was planned as written.
+    rewrites: list[str] = []
 
 
 class TransformationPreviewSchema(BaseModel):

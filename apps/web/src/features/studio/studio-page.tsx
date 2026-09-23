@@ -954,10 +954,12 @@ function ExecutionPlanStrip({
     sql?: string | null;
     placements: { node: string; pushed: boolean; reason: string }[];
     note?: string;
+    rewrites?: string[];
   };
 }) {
   const [open, setOpen] = useState(false);
   const pushes = plan.pushed_steps > 1; // a bare scan is not pushdown
+  const rewrites = plan.rewrites ?? [];
 
   return (
     <div className="mb-3 rounded-xl border border-line bg-surface">
@@ -992,6 +994,19 @@ function ExecutionPlanStrip({
       {open ? (
         <div className="border-t border-line px-3.5 py-2.5">
           {plan.note ? <p className="mb-2 text-[11.5px] text-muted">{plan.note}</p> : null}
+          {rewrites.length > 0 ? (
+            <div className="mb-2 rounded-lg border border-line bg-sunken px-2.5 py-2 text-[11.5px]">
+              <p className="text-ink">
+                Rewritten first, without changing the result
+                <span className="text-muted"> — each rule is an algebraic identity the differential suite checks on both engines</span>
+              </p>
+              <ul className="mt-1 grid gap-0.5 text-muted">
+                {rewrites.map((entry, index) => (
+                  <li key={`${entry}-${index}`}>{entry}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           <ul className="grid gap-1">
             {plan.placements.map((placement, index) => (
               <li key={`${placement.node}-${index}`} className="flex items-start gap-2 text-[11.5px]">

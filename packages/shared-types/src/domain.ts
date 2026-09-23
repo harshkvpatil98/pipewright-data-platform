@@ -925,6 +925,8 @@ export type ExecutionPlanRead = {
   sql?: string | null;
   placements: ExecutionStepPlacement[];
   note?: string;
+  /** Semantics-preserving rewrites applied before the split, in words. */
+  rewrites?: string[];
 };
 
 /** What one applied step did to the frame, from the pass that already ran. */

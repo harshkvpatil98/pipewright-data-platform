@@ -36,6 +36,7 @@ from service_transformations.ir.nodes import (
     SetOp,
     Sort,
 )
+from service_transformations.ir.rewrites import Rewrite, rewrite
 from service_transformations.ir.sql_backend import Unsupported, to_sql
 from service_transformations.ir.surfaces import SourceSurface, Surface, surface_for
 
@@ -76,6 +77,11 @@ class ExecutionPlan:
     local: list[Node] = field(default_factory=list)
     decisions: list[Decision] = field(default_factory=list)
     surface: SourceSurface | None = None
+    #: Algebraic rewrites applied before the split (see ``ir/rewrites.py``).
+    #: Each one is semantics-preserving and proven so by the differential
+    #: suite; they are listed because a plan that changed shape without saying
+    #: why would be indistinguishable from a bug.
+    rewrites: list[Rewrite] = field(default_factory=list)
 
     @property
     def pushed_count(self) -> int:
@@ -95,6 +101,10 @@ class ExecutionPlan:
     def explain(self) -> str:
         """A plan a person can read, for the Studio panel and for debugging."""
         lines: list[str] = []
+        if self.rewrites:
+            lines.append("rewritten first:")
+            for applied in self.rewrites:
+                lines.append(f"  {applied}")
         if self.sql:
             lines.append(f"pushed to {self.surface.name if self.surface else 'source'}:")
             lines.append(f"  {self.sql}")
@@ -183,9 +193,31 @@ def _expressions_of(node: Node) -> list:
     return []
 
 
-def plan(node: Node, source_type: str | None = None, *, surface: SourceSurface | None = None) -> ExecutionPlan:
-    """Split the tree into what the source runs and what we run."""
+def plan(
+    node: Node,
+    source_type: str | None = None,
+    *,
+    surface: SourceSurface | None = None,
+    optimise: bool = True,
+) -> ExecutionPlan:
+    """Split the tree into what the source runs and what we run.
+
+    With ``optimise`` (the default) the safe rewrites in ``ir/rewrites.py`` run
+    first, so a filter written after a step the source cannot run still reaches
+    the source when nothing about that step affects it. ``optimise=False``
+    plans the tree exactly as written, which the differential tests use to
+    prove the two plans agree.
+    """
     active = surface or surface_for(source_type)
+    applied: list[Rewrite] = []
+    if optimise:
+        node, applied = rewrite(node)
+    result = _split(node, active)
+    result.rewrites = applied
+    return result
+
+
+def _split(node: Node, active: SourceSurface) -> ExecutionPlan:
     chain = _chain(node)
 
     if not chain:

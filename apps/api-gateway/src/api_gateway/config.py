@@ -41,6 +41,9 @@ class Settings(BaseSettings):
     # Log any SQL statement that runs for at least this many milliseconds. 0
     # turns it off entirely (the default); set it when diagnosing a slow page.
     db_slow_query_ms: int = Field(default=0, ge=0, le=600000)
+    # Delete audit entries older than this many days. 0 keeps them forever (the
+    # default); set a positive value to enforce a retention window via the sweep.
+    audit_retention_days: int = Field(default=0, ge=0, le=3650)
     # Responses at or above this size are gzipped. JSON previews and profiles
     # compress well; below this the CPU cost outweighs the transfer saving.
     gzip_minimum_size_bytes: int = Field(default=1024, ge=0)

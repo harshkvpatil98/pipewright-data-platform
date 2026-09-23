@@ -630,6 +630,27 @@ export type OperatorDatasetRow = {
 };
 
 export type OperatorDatasetsResponse = { items: OperatorDatasetRow[] };
+
+/** One entry in the admin cross-project Audit Center (/audits). */
+export type AuditCenterRow = {
+  id: string;
+  created_at: string;
+  actor_username: string | null;
+  project_id: string | null;
+  project_name: string | null;
+  method: string;
+  path: string;
+  action: string;
+  resource_type: string | null;
+  outcome: string;
+  status_code: number;
+  correlation_id: string | null;
+};
+
+export type AuditCenterResponse = {
+  items: AuditCenterRow[];
+  retention_days: number;
+};
 export type SourceListResponse = { items: SourceRecord[] };
 export type DatasetListResponse = { items: DatasetRecord[] };
 export type PipelineRunListResponse = { items: PipelineRunRecord[] };

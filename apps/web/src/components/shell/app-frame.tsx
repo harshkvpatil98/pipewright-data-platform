@@ -92,6 +92,7 @@ function buildRailSections(
       items: [
         { id: "people", label: "People", icon: "shield", href: "/people" },
         { id: "organisations", label: "Organisations", icon: "grid", href: "/organisations" },
+        { id: "audits", label: "Audit Center", icon: "book", href: "/audits", exact: true },
       ],
     });
   }

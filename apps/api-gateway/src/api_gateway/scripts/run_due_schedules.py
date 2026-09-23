@@ -76,6 +76,21 @@ def _sweep_incidents() -> None:
         db.close()
 
 
+def _sweep_audit() -> None:
+    """Enforce the audit retention window. Best effort -- never fails the loop."""
+    if settings.audit_retention_days <= 0:
+        return
+    from api_gateway.audit_center import sweep_audit_entries
+
+    db = SessionLocal()
+    try:
+        sweep_audit_entries(db, retention_days=settings.audit_retention_days)
+    except Exception:  # noqa: BLE001 - a sweep failure must not stop the ticker
+        logger.exception("audit_sweep_failed")
+    finally:
+        db.close()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Execute due Pipewright schedules.")
     parser.add_argument(
@@ -101,6 +116,7 @@ def main() -> None:
     while not _stopping:
         _beat(args.interval)
         _sweep_incidents()
+        _sweep_audit()
         try:
             summary = _drain_once()
             if summary.triggered_count or summary.failure_count:

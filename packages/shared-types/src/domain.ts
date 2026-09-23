@@ -271,6 +271,40 @@ export type RunAuditHighlights = {
   transformation_type: string | null;
 };
 
+/** A version a run published -- its output pin (time travel, Phase 18). */
+export type RunOutputVersion = {
+  dataset_id: string;
+  dataset_name: string | null;
+  version_number: number;
+  content_hash: string | null;
+  retention_state: "active" | "pending_delete" | "pruned";
+};
+
+/** A durable reference to one version of one dataset, as recorded in a run's
+ * execution context. */
+export type ExecutionVersionPin = {
+  dataset_id: string;
+  version_number: number | null;
+  content_hash: string | null;
+  role?: "base" | "step" | "output";
+  step_index?: number | null;
+};
+
+/** What a transformation run recorded about how it ran: enough to run it
+ * again the same way. */
+export type ExecutionContext = {
+  schema: number;
+  semantic_version: string;
+  evaluated_at: string;
+  timezone: string;
+  clock_functions: string[];
+  steps: Record<string, unknown>[];
+  steps_digest: string;
+  inputs: ExecutionVersionPin[];
+  outputs: ExecutionVersionPin[];
+  replay_of: string | null;
+};
+
 export type RunAuditSummary = {
   id: string;
   run_type: string;
@@ -286,6 +320,41 @@ export type RunAuditSummary = {
   logs_json: Record<string, unknown> | null;
   highlights: RunAuditHighlights;
   warnings: string[];
+  output_versions: RunOutputVersion[];
+  execution_context: ExecutionContext | null;
+  replayable: boolean;
+  replay_reason: string | null;
+};
+
+export type ReplayComparison = {
+  method: string;
+  columns_equal: boolean;
+  types_equal: boolean;
+  rows_equal: boolean;
+  rows_original: number | null;
+  rows_replay: number | null;
+  differences: string[];
+};
+
+export type ReplayStatus =
+  | "equivalent"
+  | "divergent"
+  | "incompatible"
+  | "unavailable"
+  | "failed"
+  | "unverifiable";
+
+export type ReplayResult = {
+  status: ReplayStatus;
+  reason: string | null;
+  original_run_id: string;
+  replay_run_id: string | null;
+  replay_dataset_id: string | null;
+  original_output: ExecutionVersionPin | null;
+  replay_output: ExecutionVersionPin | null;
+  comparison: ReplayComparison | null;
+  evaluated_at: string | null;
+  semantic_version: string | null;
 };
 
 export type ComparisonDatasetSide = {

@@ -4,6 +4,7 @@ const RUN_TYPE_LABELS: Record<string, string> = {
   sample_orchestration: "Sample orchestration",
   dataset_ingestion: "Dataset ingestion",
   dataset_transformation: "Transformation run",
+  dataset_transformation_replay: "Transformation replay",
   dataset_publish_postgres: "PostgreSQL publish",
   dataset_publish_power_bi: "Power BI publish",
   dataset_publish_tableau: "Tableau publish",

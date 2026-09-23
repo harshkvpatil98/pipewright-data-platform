@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class PipelineRunRead(BaseModel):
@@ -37,6 +37,17 @@ class RunAuditHighlights(BaseModel):
     transformation_type: str | None = None
 
 
+class RunOutputVersion(BaseModel):
+    """A version this run published -- the output pin (phase-18 §3). Resolves
+    the run to what it produced, not to the dataset's later head."""
+
+    dataset_id: uuid.UUID
+    dataset_name: str | None = None
+    version_number: int
+    content_hash: str | None = None
+    retention_state: str = "active"
+
+
 class RunAuditSummary(BaseModel):
     id: uuid.UUID
     run_type: str
@@ -52,3 +63,12 @@ class RunAuditSummary(BaseModel):
     logs_json: dict[str, Any] | None
     highlights: RunAuditHighlights
     warnings: list[str]
+    #: Versions published by this run, from the version table itself (every
+    #: producer links its version to the run), so uploads and extractions have
+    #: output pins too, not only transformations.
+    output_versions: list[RunOutputVersion] = Field(default_factory=list)
+    #: The recorded execution context (transformation runs since P7): frozen
+    #: instant, semantic version, steps digest, input and output pins.
+    execution_context: dict[str, Any] | None = None
+    replayable: bool = False
+    replay_reason: str | None = None

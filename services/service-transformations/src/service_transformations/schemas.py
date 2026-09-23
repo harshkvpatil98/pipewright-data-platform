@@ -130,6 +130,42 @@ class TransformationRunResponse(BaseModel):
     dataset: DatasetDetailRead
 
 
+class ReplayComparison(BaseModel):
+    """How a replay's output compared with the original run's (phase-18 §3).
+    Equivalence is: same ordered columns, same canonical types, same row
+    multiset (values as text, null equal to null, order ignored)."""
+
+    method: str
+    columns_equal: bool
+    types_equal: bool
+    rows_equal: bool
+    rows_original: int | None = None
+    rows_replay: int | None = None
+    differences: list[str] = Field(default_factory=list)
+
+    @property
+    def equivalent(self) -> bool:
+        return self.columns_equal and self.types_equal and self.rows_equal
+
+
+class ReplayResult(BaseModel):
+    #: `equivalent` / `divergent` (it ran; compared); `incompatible` (semantics
+    #: changed -- cannot be reproduced); `unavailable` (an input is gone);
+    #: `failed` (the replay run itself failed); `unverifiable` (it ran but the
+    #: original output is gone, so there is nothing to compare with).
+    status: Literal["equivalent", "divergent", "incompatible", "unavailable", "failed", "unverifiable"]
+    reason: str | None = None
+    original_run_id: uuid.UUID
+    replay_run_id: uuid.UUID | None = None
+    replay_dataset_id: uuid.UUID | None = None
+    original_output: dict[str, Any] | None = None
+    replay_output: dict[str, Any] | None = None
+    comparison: ReplayComparison | None = None
+    #: The instant the original run froze -- and the replay evaluated at.
+    evaluated_at: datetime | None = None
+    semantic_version: str | None = None
+
+
 # ------------------------------------------------------------- tool library
 
 

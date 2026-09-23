@@ -14,8 +14,10 @@ from shared_python.types import parse as parse_type
 
 from service_auth.schemas import UserRead
 from service_transformations.preview import preview_dataset_transformations
+from service_transformations.replay import replay_pipeline_run
 from service_transformations.run import run_saved_transformation_pipeline
 from service_transformations.schemas import (
+    ReplayResult,
     TransformationPipelineCreate,
     TransformationPipelineListResponse,
     TransformationPipelineRead,
@@ -249,6 +251,29 @@ def build_router(
             db,
             project_id=project_id,
             pipeline_id=pipeline_id,
+            current_user=current_user,
+            storage_backend=storage_backend,
+            settings=settings,
+        )
+
+    @router.post(
+        '/projects/{project_id}/runs/{run_id}/replay',
+        response_model=ReplayResult,
+    )
+    def post_replay_pipeline_run(
+        project_id: uuid.UUID,
+        run_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+        storage_backend = Depends(_get_storage_backend),
+    ) -> ReplayResult:
+        """Re-execute a recorded run against its pinned inputs at its recorded
+        instant, and compare with what it published. Editor role: it publishes
+        a new dataset (central matrix, `replay` ∈ EDITOR_SEGMENTS)."""
+        return replay_pipeline_run(
+            db,
+            project_id=project_id,
+            run_id=run_id,
             current_user=current_user,
             storage_backend=storage_backend,
             settings=settings,

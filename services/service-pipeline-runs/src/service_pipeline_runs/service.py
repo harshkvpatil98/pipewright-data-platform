@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -10,7 +11,12 @@ from service_auth.schemas import UserRead
 from service_pipeline_runs.audit import build_run_audit_summary
 from service_pipeline_runs.contracts import get_pipeline_run_for_project
 from service_pipeline_runs.models import PipelineRun
-from service_pipeline_runs.schemas import PipelineRunListResponse, PipelineRunRead, RunAuditSummary
+from service_pipeline_runs.schemas import (
+    PipelineRunListResponse,
+    PipelineRunRead,
+    RunAuditSummary,
+    RunOutputVersion,
+)
 from service_projects.contracts import (
     count_project_datasets,
     count_project_runs,
@@ -132,7 +138,48 @@ def get_run_audit_summary(
 ) -> RunAuditSummary:
     ensure_owned_project(db, project_id, current_user.id)
     run = get_pipeline_run_for_project(db, project_id, run_id)
-    return build_run_audit_summary(run=run)
+    summary = build_run_audit_summary(run=run)
+    summary.output_versions = _output_versions(db, run.id)
+    summary.execution_context = _execution_context(run)
+    summary.replayable, summary.replay_reason = _replayability(run)
+    return summary
+
+
+def _output_versions(db: Session, run_id: uuid.UUID) -> list[RunOutputVersion]:
+    # Function-level import: datasets is a peer service; this reads its public
+    # model through the version table's own run link, nothing internal.
+    from service_datasets.models import Dataset, DatasetVersion
+
+    rows = db.execute(
+        select(DatasetVersion, Dataset.name)
+        .join(Dataset, Dataset.id == DatasetVersion.dataset_id)
+        .where(DatasetVersion.pipeline_run_id == run_id)
+        .order_by(DatasetVersion.created_at)
+    ).all()
+    return [
+        RunOutputVersion(
+            dataset_id=version.dataset_id,
+            dataset_name=name,
+            version_number=version.version_number,
+            content_hash=version.content_hash,
+            retention_state=version.retention_state,
+        )
+        for version, name in rows
+    ]
+
+
+def _execution_context(run: PipelineRun) -> dict[str, Any] | None:
+    summary = run.summary_json if isinstance(run.summary_json, dict) else None
+    context = summary.get("execution_context") if summary else None
+    return context if isinstance(context, dict) else None
+
+
+def _replayability(run: PipelineRun) -> tuple[bool, str | None]:
+    # The rule lives with replay itself so the page and the endpoint agree.
+    from service_transformations.replay import replayability
+
+    ok, reason, _context = replayability(run)
+    return ok, reason
 
 
 # The sample run is synchronous today, but the persisted record shape is ready for future async execution.

@@ -27,6 +27,8 @@ import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { formatDate } from "@/lib/format";
 import { formatRunStatusLabel } from "@/lib/run-labels";
+import { SCHEDULES_TOUR_ID, schedulesTour } from "@/components/tour/tours";
+import { useTour } from "@/components/tour/tour-provider";
 
 type SchedulesPageViewProps = {
   currentUser: AuthUser;
@@ -115,6 +117,12 @@ export function SchedulesPageView({
   const [triggeringId, setTriggeringId] = useState<string | null>(null);
   const [triggerMessage, setTriggerMessage] = useState<string | null>(null);
   const [triggerRunId, setTriggerRunId] = useState<string | null>(null);
+
+  const { startIfUnseen } = useTour();
+  useEffect(() => {
+    const timer = setTimeout(() => startIfUnseen(schedulesTour, SCHEDULES_TOUR_ID), 900);
+    return () => clearTimeout(timer);
+  }, [startIfUnseen]);
 
   useEffect(() => {
     setItems(initialItems);
@@ -347,7 +355,7 @@ export function SchedulesPageView({
             >
               Back to project
             </Link>
-            <Button type="button" onClick={openCreate}>
+            <Button type="button" onClick={openCreate} data-tour="schedules-create">
               Create schedule
             </Button>
           </>
@@ -373,6 +381,7 @@ export function SchedulesPageView({
         ) : null}
 
         <RuntimeBanner />
+        <div data-tour="schedules-list">
         <SectionPanel
           title="Saved schedules"
           description="Cron uses the standard five-field form. Automatic runs take a short DB lease so concurrent schedulers are less likely to double-execute the same due slot; stale leases become reclaimable when they expire. Manual Trigger now clears any lease metadata and does not advance the cron slot."
@@ -485,6 +494,7 @@ export function SchedulesPageView({
             </div>
           )}
         </SectionPanel>
+        </div>
       </AppShell>
 
       <Modal

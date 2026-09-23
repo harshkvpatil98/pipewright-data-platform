@@ -16,6 +16,8 @@ import { AppShell } from "@/components/layout/app-shell";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { ruleTypeLabel } from "@/lib/labels";
+import { DATA_QUALITY_TOUR_ID, dataQualityTour } from "@/components/tour/tours";
+import { useTour } from "@/components/tour/tour-provider";
 import { cx } from "@/lib/utils";
 
 type DataQualityPageProps = {
@@ -91,6 +93,12 @@ export function DataQualityPageView({
   const [feedback, setFeedback] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [evaluation, setEvaluation] = useState<DataQualityEvaluationResponse | null>(null);
+
+  const { startIfUnseen } = useTour();
+  useEffect(() => {
+    const timer = setTimeout(() => startIfUnseen(dataQualityTour, DATA_QUALITY_TOUR_ID), 900);
+    return () => clearTimeout(timer);
+  }, [startIfUnseen]);
 
   const [ruleType, setRuleType] = useState<string>(ruleTypes[0]?.rule_type ?? "not_null");
   const [ruleName, setRuleName] = useState("");
@@ -223,6 +231,7 @@ export function DataQualityPageView({
         </div>
       ) : null}
 
+      <div data-tour="dq-define">
       <SectionPanel
         title="Define a rule"
         description={activeRuleType?.description ?? "Choose a rule type to begin."}
@@ -382,7 +391,9 @@ export function DataQualityPageView({
           </div>
         </div>
       </SectionPanel>
+      </div>
 
+      <div data-tour="dq-evaluate">
       <SectionPanel
         title="Evaluate a dataset"
         description="Runs every enabled rule that applies to the selected dataset."
@@ -475,6 +486,7 @@ export function DataQualityPageView({
           </p>
         )}
       </SectionPanel>
+      </div>
     </AppShell>
   );
 }

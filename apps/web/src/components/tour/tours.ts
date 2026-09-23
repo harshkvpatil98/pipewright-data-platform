@@ -83,3 +83,49 @@ export const studioTour: TourStep[] = [
     body: "This is the real result of your steps, computed on the server against actual data — not a mock-up. Save it as a pipeline when it looks right.",
   },
 ];
+
+export const DATA_QUALITY_TOUR_ID = "data-quality-v1";
+
+export const dataQualityTour: TourStep[] = [
+  {
+    target: "",
+    placement: "center",
+    title: "Prove your data is correct",
+    body: "Data quality rules assert what must always be true — a column is never empty, a value stays in range, every row is unique. This is how you catch a bad load before it reaches a dashboard.",
+  },
+  {
+    target: "dq-define",
+    placement: "right",
+    title: "Define a rule",
+    body: "Pick a rule type and the form shows only the fields that type needs — a column to check, an allowed range, a pattern. Severity decides whether a failure blocks the pipeline or just warns.",
+  },
+  {
+    target: "dq-evaluate",
+    placement: "top",
+    title: "Run it against a dataset",
+    body: "Every enabled rule that applies to the dataset runs at once. Turn on quarantine and failing rows are split into their own dataset instead of flowing downstream — the good rows still move.",
+  },
+];
+
+export const SCHEDULES_TOUR_ID = "schedules-v1";
+
+export const schedulesTour: TourStep[] = [
+  {
+    target: "",
+    placement: "center",
+    title: "Put it on a schedule",
+    body: "A schedule runs a pipeline or a publish on a recurrence you set, so the work happens without anyone clicking Run. This is the last step from a one-off transform to a living pipeline.",
+  },
+  {
+    target: "schedules-create",
+    placement: "bottom",
+    title: "Create a schedule",
+    body: "Give it a standard five-field cron expression and point it at a pipeline run or a PostgreSQL publish. The executor runs it automatically once its next run time is due.",
+  },
+  {
+    target: "schedules-list",
+    placement: "top",
+    title: "Watch and override",
+    body: "Saved schedules show their next run and last outcome here. Trigger now forces an immediate run for testing without advancing the cron slot, so the regular cadence is undisturbed.",
+  },
+];

@@ -431,15 +431,30 @@ temporal reads → diff/rollback → replay), each gated.
 - Read surface: `GET …/datasets/{id}/versions` (viewer, §6-correct) + a Version
   history panel on the dataset page. Storage keys kept out of the API (§4/§5).
 
-**Remaining increments (not started):** §1 per-producer logical-identity
-answers (esp. extraction’s dataset-per-run) written up as decisions; temporal
-`AS OF` read/query; diff (with the identity-key rules of decision #7); rollback
+**Increment 2 — temporal reads + §1 decisions: ✅ done (2026-09-23).**
+- Versions store the preview they published (migration 0039); `GET
+  …/versions/{n}` and `GET …/versions/{n}/preview` read a dataset **as of** a
+  version (viewer role); “View data” per version in the history panel.
+- §1 per-producer identity write-up in `docs/plans/phase-18-decisions.md` —
+  including the honest statement that every producer creates a new dataset per
+  run today, so multi-version history arrives with rollback; extraction keeps
+  dataset-per-run (watermark lives on the job).
+- Verified **live in the browser**: upload → version 1 recorded with a
+  digest that matches the bytes (checked byte-for-byte), history panel with
+  current pill, View-data modal showing the snapshot, PII scan → suggested
+  classification tags → Add as tags → steward + certify → Save, persisted and
+  reflected in catalog facets. Dev DB migrated to 0039; dev gateway restarted
+  from this checkout (port 8100, CORS incl. :3002).
+
+**Remaining increments (not started):** `AS OF` **SQL query** over stored
+datasets (the temporal read so far is version-pinned metadata + preview, not a
+query surface); diff (with the identity-key rules of decision #7); rollback
 (append-a-version, decision #6); deterministic replay with a recorded execution
 context (§3); erasure-vs-immutable-snapshot reconciliation (§2 — P6 gave it the
 mode + blocked pre-work, but a destructive erasure still overwrites the head
 artifact in place, which the content-addressed storage increment must resolve);
 the concurrent-GC protocol (§4); the full authz matrix for query/rollback/replay
-(§6); and the live end-to-end acceptance script (§8). **P7 is not complete.**
+(§6); and the scripted end-to-end acceptance run (§8). **P7 is not complete.**
 
 ---
 

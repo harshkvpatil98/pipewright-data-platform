@@ -146,7 +146,7 @@ export function MfaPanel() {
         </p>
         <div className="flex flex-col items-start gap-4 sm:flex-row">
           <div
-            className="w-40 shrink-0 rounded-xl border border-line bg-white p-2 [&_svg]:h-full [&_svg]:w-full"
+            className="w-40 shrink-0 rounded-xl border border-line p-2 [&_svg]:h-full [&_svg]:w-full"
             aria-label="Two-factor QR code"
             dangerouslySetInnerHTML={{ __html: enroll.qr_svg }}
           />

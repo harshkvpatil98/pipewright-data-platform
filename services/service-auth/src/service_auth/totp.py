@@ -101,5 +101,9 @@ def qr_svg(uri: str) -> str:
     import segno
 
     buffer = io.BytesIO()
-    segno.make(uri, error="m").save(buffer, kind="svg", scale=5, border=2, xmldecl=False)
+    # Bake black-on-white into the SVG so it scans on any page background,
+    # light or dark, without the page needing a raw white container behind it.
+    segno.make(uri, error="m").save(
+        buffer, kind="svg", scale=5, border=2, xmldecl=False, dark="#000000", light="#ffffff"
+    )
     return buffer.getvalue().decode("utf-8")

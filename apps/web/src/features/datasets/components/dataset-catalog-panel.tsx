@@ -7,6 +7,7 @@ import type {
   CatalogAnnotationUpdate,
   DatasetTermLink,
   GlossaryTerm,
+  PiiScanResponse,
   TermListResponse,
 } from "@platform/shared-types";
 import { Button, SectionPanel } from "@platform/shared-ui";
@@ -49,6 +50,10 @@ export function DatasetCatalogPanel({ projectId, datasetId, columns }: DatasetCa
   const [column, setColumn] = useState(columns[0] ?? "");
   const [linkBusy, setLinkBusy] = useState(false);
   const [linkError, setLinkError] = useState<string | null>(null);
+
+  const [pii, setPii] = useState<PiiScanResponse | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [scanError, setScanError] = useState<string | null>(null);
 
   const applyAnnotation = useCallback((note: CatalogAnnotation) => {
     setAnnotation(note);
@@ -161,6 +166,48 @@ export function DatasetCatalogPanel({ projectId, datasetId, columns }: DatasetCa
     [projectId, datasetId],
   );
 
+  const scan = useCallback(async () => {
+    setScanning(true);
+    setScanError(null);
+    try {
+      // Deterministic pattern/checksum detection -- no model call reaches the
+      // product runtime -- so a suggested classification always shows its basis.
+      setPii(
+        await apiFetch<PiiScanResponse>(
+          `/projects/${projectId}/datasets/${datasetId}/pii`,
+        ),
+      );
+    } catch (caught) {
+      setScanError(extractErrorMessage(caught));
+    } finally {
+      setScanning(false);
+    }
+  }, [projectId, datasetId]);
+
+  // The classification tags a scan implies: a `pii` umbrella, the distinct kinds
+  // found, and `sensitive` for the kinds that carry real harm if they leak.
+  const suggestedTags = useMemo(() => {
+    if (!pii || pii.findings.length === 0) return [];
+    const sensitiveKinds = new Set(["credit_card", "national_id", "date_of_birth"]);
+    const tags = new Set<string>(["pii"]);
+    for (const finding of pii.findings) {
+      tags.add(finding.kind.replace(/_/g, "-"));
+      if (sensitiveKinds.has(finding.kind)) tags.add("sensitive");
+    }
+    return [...tags];
+  }, [pii]);
+
+  // Suggestions already present in the draft tags do not need offering again.
+  const newSuggestedTags = useMemo(() => {
+    const current = new Set(parseTags(tagsText));
+    return suggestedTags.filter((tag) => !current.has(tag));
+  }, [suggestedTags, tagsText]);
+
+  const addSuggestedTags = useCallback(() => {
+    const merged = [...parseTags(tagsText), ...newSuggestedTags];
+    setTagsText([...new Set(merged)].join(", "));
+  }, [tagsText, newSuggestedTags]);
+
   // Only terms not already linked to a column of this dataset are worth offering.
   const linkableTerms = useMemo(
     () => allTerms.filter((term) => !linked.some((item) => item.id === term.id)),
@@ -206,6 +253,80 @@ export function DatasetCatalogPanel({ projectId, datasetId, columns }: DatasetCa
                 className="h-9 w-full rounded-lg border border-line bg-sunken px-3 text-[13px] text-ink outline-none transition focus:border-[color:var(--accent)]"
               />
             </Field>
+
+            <div className="rounded-xl border border-line bg-sunken px-3 py-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[11px] uppercase tracking-[0.14em] text-muted">
+                  Data classification
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void scan()}
+                  disabled={scanning}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-line px-2.5 py-1 text-[11.5px] text-ink-3 transition hover:text-ink disabled:opacity-60"
+                >
+                  <Icon name="search" size={11} />
+                  {scanning ? "Scanning…" : pii ? "Rescan" : "Scan for PII"}
+                </button>
+              </div>
+              {pii ? (
+                pii.findings.length === 0 ? (
+                  <p className="mt-2 text-[12px] text-muted">
+                    No personal data detected in the sampled values.
+                  </p>
+                ) : (
+                  <div className="mt-2 space-y-2">
+                    <ul className="space-y-1">
+                      {pii.findings.map((finding) => (
+                        <li
+                          key={`${finding.column}-${finding.kind}`}
+                          className="flex items-center justify-between gap-2 text-[12px]"
+                        >
+                          <span className="font-mono text-[11px] text-ink-2">
+                            {finding.column}
+                          </span>
+                          <span className="text-ink-3">
+                            {finding.label}{" "}
+                            <span className="text-muted">({finding.confidence})</span>
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="text-[10.5px] text-muted">{pii.method}.</p>
+                    {newSuggestedTags.length > 0 ? (
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {newSuggestedTags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="rounded bg-surface-2 px-1.5 py-0.5 text-[10.5px] text-ink-3"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={addSuggestedTags}
+                          className="rounded-lg bg-[color:var(--accent)] px-2 py-0.5 text-[11px] text-accent-ink transition"
+                        >
+                          Add as tags
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-success">
+                        Classification tags already applied.
+                      </p>
+                    )}
+                  </div>
+                )
+              ) : (
+                <p className="mt-2 text-[12px] text-muted">
+                  Detect personal data and turn it into classification tags a policy can act on.
+                </p>
+              )}
+              {scanError ? (
+                <p className="mt-1.5 text-[11.5px] text-danger">{scanError}</p>
+              ) : null}
+            </div>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <button
                 type="button"

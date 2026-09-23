@@ -7,7 +7,7 @@ established alternatives for data work — not by claiming more, but by being
 the only honest, governed, spreadsheet-fast data platform that a business team
 can run without a data engineer on call.
 
-**Status:** P4 done (2026-09-23); P5 (Deployability & scale) is next on “continue”. One phase executes per session-run;
+**Status:** P5 done (2026-09-23); P6 (Governance depth) is next on “continue”. One phase executes per session-run;
 the owner says **“continue”** to start the next. This file is the single
 source of truth for what each phase contains; the session log in
 `docs/HANDOFF.md` records what actually happened.
@@ -349,7 +349,25 @@ further" per-org session/expiry policy are deferred.
 
 ---
 
-## P5 — Deployability & scale
+## P5 — Deployability & scale *(status: **done** 2026-09-23)*
+
+**Delivered:** a Helm chart (deploy/helm/pipewright — per-component images/
+resources, pre-upgrade migration Job, /api-and-/ ingress so the SSO cookie
+carries, optional HPAs, operator-owned secrets, tag required so never "latest");
+a production docker-compose.prod.yml with a Caddy TLS proxy and a managed-DB
+escape hatch; a CI workflow that builds+pushes the gateway and web images to
+GHCR on a version tag. docs/operations.md runbook (upgrade, backup/restore with
+the verify drill, scaling, sizing, observability). An opt-in slow-query log
+(DB_SLOW_QUERY_MS) that logs only statements past a threshold, with the request
+correlation id, off by default. A dependency-free perf baseline
+(scripts/perf-baseline.py) hitting the ten hot endpoints with a --budget-ms CI
+gate, first numbers recorded. /metrics (Prometheus) and correlation-id tracing
+already existed and are now documented.
+
+*Deferred (push further):* SBOM + pip-audit/npm audit CI gate. *Note:* Helm
+templates were validated by YAML/brace checks and docker compose by
+`docker compose config` — no `helm` binary was available to run `helm template`
+against a cluster.
 
 - Production compose (gateway+worker+web+postgres+proxy w/ TLS notes),
   **Helm chart** (values for images, env, resources, HPA hints), images

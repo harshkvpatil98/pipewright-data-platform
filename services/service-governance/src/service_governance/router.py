@@ -44,7 +44,7 @@ from service_governance.service import (
 )
 
 _RESOURCE_PATTERN = "^(workflow|pipeline|quality_rule|extraction_job)$"
-_TARGET_PATTERN = "^(dataset|workflow|pipeline|run|incident)$"
+_TARGET_PATTERN = "^(dataset|workflow|pipeline|run|incident|change_request)$"
 
 
 def build_router(

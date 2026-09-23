@@ -30,7 +30,13 @@ export type RoleCatalogResponse = {
 };
 
 export type ResourceType = "workflow" | "pipeline" | "quality_rule" | "extraction_job";
-export type CommentTargetType = "dataset" | "workflow" | "pipeline" | "run" | "incident";
+export type CommentTargetType =
+  | "dataset"
+  | "workflow"
+  | "pipeline"
+  | "run"
+  | "incident"
+  | "change_request";
 export type ChangeStatus = "open" | "approved" | "rejected" | "withdrawn";
 export type AuditOutcome = "succeeded" | "denied" | "failed";
 

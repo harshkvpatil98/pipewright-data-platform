@@ -9,7 +9,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 ResourceType = Literal["workflow", "pipeline", "quality_rule", "extraction_job"]
-TargetType = Literal["dataset", "workflow", "pipeline", "run", "incident"]
+TargetType = Literal["dataset", "workflow", "pipeline", "run", "incident", "change_request"]
 ChangeStatus = Literal["open", "approved", "rejected", "withdrawn"]
 Outcome = Literal["succeeded", "denied", "failed"]
 

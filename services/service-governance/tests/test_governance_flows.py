@@ -447,3 +447,25 @@ def test_trailing_verbs_read_as_the_action_not_a_creation():
     assert describe_action("POST", f"{base}/history/workflow/{workflow}/restore") == "restore workflow"
     assert describe_action("POST", f"{base}/changes/{workflow}/approve") == "approve change"
     assert describe_action("POST", f"{base}/promote") == "promote project"
+
+
+def test_a_change_request_can_be_commented_on(db: Session, world: dict):
+    """The Approvals UX asks for changes by commenting on the proposal itself,
+    so change_request must be a valid comment target alongside datasets et al."""
+    change_id = uuid.uuid4()
+    add_comment(
+        db,
+        world["project"].id,
+        CommentCreate(
+            target_type="change_request",
+            target_id=change_id,
+            body="Please rename the step before I approve.",
+        ),
+        _as_read(world["reviewer"]),
+    )
+    listing = list_comments(
+        db, world["project"].id, "change_request", change_id, _as_read(world["author"])
+    )
+    assert len(listing.items) == 1
+    assert listing.items[0].body.startswith("Please rename")
+    assert listing.items[0].author_username == "reviewer"

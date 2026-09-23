@@ -38,6 +38,7 @@ import {
   toTilePayload,
 } from "../dashboard-layout";
 import { ChartView } from "./chart-view";
+import { DashboardSubscribe } from "./dashboard-subscribe";
 
 type DashboardViewPageProps = {
   currentUser: AuthUser;
@@ -305,6 +306,12 @@ export function DashboardViewPage({
                 </option>
               ))}
             </select>
+            <DashboardSubscribe
+              projectId={projectId}
+              dashboardId={dashboard.id}
+              dashboardName={dashboard.name}
+              defaultEmail={currentUser.email}
+            />
             {dashboard.share_token ? (
               <Button variant="secondary" size="sm" onClick={() => void copyShareLink(dashboard.share_token as string)}>
                 Copy share link

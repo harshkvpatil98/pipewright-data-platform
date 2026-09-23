@@ -110,6 +110,20 @@ export function ChartBuilderPageView({
 
   const spec = types?.items.find((item) => item.name === chartType);
 
+  // KPI period comparison: which date column, and how wide a period. Only a
+  // KPI has a "previous period" to speak of, so the option is offered there.
+  const [compareColumn, setCompareColumn] = useState("");
+  const [comparePeriod, setComparePeriod] = useState<"day" | "week" | "month" | "quarter" | "year">("month");
+  const dateish = columns.filter((column) =>
+    ["date", "datetime", "timestamp", "time"].some((kind) =>
+      (columnTypes[column] ?? "").toLowerCase().includes(kind),
+    ),
+  );
+  const options =
+    chartType === "kpi" && compareColumn
+      ? { compare: { date_column: compareColumn, period: comparePeriod } }
+      : null;
+
   const preview = useCallback(async () => {
     if (!datasetId || !measureColumn) return;
     setError(null);
@@ -124,6 +138,7 @@ export function ChartBuilderPageView({
               dimensions: spec && spec.max_dimensions === 0 ? [] : [dimension],
               measures: [{ column: measureColumn, aggregation, label: "value" }],
             },
+            options,
           }),
         }),
       );
@@ -131,7 +146,8 @@ export function ChartBuilderPageView({
       setData(null);
       setError(extractErrorMessage(caught));
     }
-  }, [projectId, datasetId, chartType, dimension, measureColumn, aggregation, spec]);
+    // `options` is derived from compareColumn/comparePeriod, listed here.
+  }, [projectId, datasetId, chartType, dimension, measureColumn, aggregation, spec, compareColumn, comparePeriod]);
 
   useEffect(() => {
     const timer = setTimeout(() => void preview(), 250);
@@ -152,6 +168,7 @@ export function ChartBuilderPageView({
             dimensions: spec && spec.max_dimensions === 0 ? [] : [dimension],
             measures: [{ column: measureColumn, aggregation, label: "value" }],
           },
+          options,
         }),
       });
       setName("");
@@ -276,6 +293,42 @@ export function ChartBuilderPageView({
                 </select>
               </div>
             </Field>
+
+            {chartType === "kpi" ? (
+              <Field label="Compare with the previous period">
+                <div className="flex gap-1.5">
+                  <select
+                    value={compareColumn}
+                    onChange={(event) => setCompareColumn(event.target.value)}
+                    className={inputClass}
+                  >
+                    <option value="">No comparison</option>
+                    {(dateish.length > 0 ? dateish : columns).map((column) => (
+                      <option key={column} value={column}>
+                        {column}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={comparePeriod}
+                    onChange={(event) => setComparePeriod(event.target.value as typeof comparePeriod)}
+                    disabled={!compareColumn}
+                    className={cx(inputClass, "w-[110px] shrink-0")}
+                  >
+                    {(["day", "week", "month", "quarter", "year"] as const).map((period) => (
+                      <option key={period} value={period}>
+                        {period}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <p className="mt-1.5 text-[11px] leading-4 text-muted">
+                  {compareColumn
+                    ? `The headline becomes the latest ${comparePeriod} in ${compareColumn}, with the change against the ${comparePeriod} before.`
+                    : "Pick a date column to show the latest period against the one before it."}
+                </p>
+              </Field>
+            ) : null}
 
             <div className="border-t border-line pt-3">
               <Field label="Save as">

@@ -6,6 +6,7 @@ import type { ChartData } from "@platform/shared-types";
 
 import { cx } from "@/lib/utils";
 
+import { formatDeltaPct } from "../dashboard-layout";
 import {
   CHART_HEIGHT,
   CHART_WIDTH,
@@ -52,12 +53,16 @@ export function ChartView({ data, className }: { data: ChartData; className?: st
   if (data.chart_type === "kpi") return <KpiView data={data} className={className} />;
   if (data.chart_type === "table") return <TableView data={data} className={className} />;
   if (data.chart_type === "pie") return <PieView data={data} values={numeric[0] ?? []} />;
+  if (data.chart_type === "donut") return <PieView data={data} values={numeric[0] ?? []} donut />;
 
   return <AxisChart data={data} numeric={numeric} className={className} />;
 }
 
 function KpiView({ data, className }: { data: ChartData; className?: string }) {
   const value = data.series[0]?.values[0];
+  const delta = data.meta?.delta ?? null;
+  const pct = delta ? formatDeltaPct(delta.change_pct) : null;
+  const direction = delta?.change === null || delta?.change === undefined ? 0 : Math.sign(delta.change);
   return (
     <div
       className={cx(
@@ -70,8 +75,46 @@ function KpiView({ data, className }: { data: ChartData; className?: string }) {
       </div>
       <div className="mt-2 text-[12.5px] capitalize text-muted">
         {data.series[0]?.name.replace(/_/g, " ")}
+        {delta ? <span className="normal-case"> · {delta.current_label}</span> : null}
       </div>
+      {delta ? (
+        <div
+          className={cx(
+            "mt-3 flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px]",
+            direction > 0 && "border-success-line bg-success-soft text-success",
+            direction < 0 && "border-danger-line bg-danger-soft text-danger",
+            direction === 0 && "border-line bg-sunken text-ink-3",
+          )}
+          title={`${delta.date_column}, by ${delta.period}: ${delta.previous_label} → ${delta.current_label}`}
+        >
+          <DeltaArrow direction={direction} />
+          {delta.previous === null ? (
+            <span>no data for {delta.previous_label}</span>
+          ) : (
+            <span>
+              {pct ?? (delta.change === null ? "—" : `${delta.change > 0 ? "+" : ""}${delta.change.toLocaleString()}`)}
+              <span className="text-muted"> vs {delta.previous_label} ({delta.previous.toLocaleString()})</span>
+            </span>
+          )}
+        </div>
+      ) : null}
     </div>
+  );
+}
+
+/** Up, down or flat -- drawn, not a glyph, so it matches the current ink. */
+function DeltaArrow({ direction }: { direction: number }) {
+  if (direction === 0) {
+    return (
+      <svg viewBox="0 0 12 12" width={10} height={10} aria-hidden="true">
+        <path d="M2 6h8" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" fill="none" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 12 12" width={10} height={10} aria-hidden="true" className={direction < 0 ? "rotate-180" : undefined}>
+      <path d="M6 10V2M2.5 5.5 6 2l3.5 3.5" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </svg>
   );
 }
 
@@ -105,13 +148,26 @@ function TableView({ data, className }: { data: ChartData; className?: string })
   );
 }
 
-function PieView({ data, values }: { data: ChartData; values: (number | null)[] }) {
+function PieView({
+  data,
+  values,
+  donut = false,
+}: {
+  data: ChartData;
+  values: (number | null)[];
+  donut?: boolean;
+}) {
   const slices = pieSlices(values.map((value) => value ?? 0));
   const total = values.reduce<number>((sum, value) => sum + (value ?? 0), 0);
 
   return (
     <div className="flex items-center gap-6 rounded-xl border border-line bg-surface p-4">
-      <svg viewBox="0 0 200 200" className="h-[200px] w-[200px] shrink-0" role="img" aria-label="Pie chart">
+      <svg
+        viewBox="0 0 200 200"
+        className="h-[200px] w-[200px] shrink-0"
+        role="img"
+        aria-label={donut ? "Donut chart" : "Pie chart"}
+      >
         {slices.map((slice, index) => (
           <path
             key={index}
@@ -121,6 +177,26 @@ function PieView({ data, values }: { data: ChartData; values: (number | null)[] 
             strokeWidth={1.5}
           />
         ))}
+        {donut ? (
+          <>
+            {/* The hole is a panel-coloured disc over the slices: no extra
+                geometry, and it follows the theme like everything else. */}
+            <circle cx={100} cy={100} r={54} fill="var(--panel-strong)" />
+            <text
+              x={100}
+              y={96}
+              textAnchor="middle"
+              fontSize={22}
+              fontWeight={600}
+              fill="var(--ink)"
+            >
+              {total.toLocaleString()}
+            </text>
+            <text x={100} y={116} textAnchor="middle" fontSize={10} fill="var(--muted)">
+              total
+            </text>
+          </>
+        ) : null}
       </svg>
       <ul className="min-w-0 flex-1 space-y-1.5">
         {slices.map((slice, index) => (

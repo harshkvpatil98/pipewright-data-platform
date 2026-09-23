@@ -7,6 +7,7 @@ export type ChartTypeName =
   | "area"
   | "scatter"
   | "pie"
+  | "donut"
   | "kpi"
   | "table";
 
@@ -67,6 +68,19 @@ export type ChartSeries = {
   values: (number | string | null)[];
 };
 
+/** A KPI's period comparison: the headline is the latest period's value and
+ * this says what it is being compared with. */
+export type KpiDelta = {
+  period: "day" | "week" | "month" | "quarter" | "year";
+  date_column: string;
+  current_label: string;
+  previous_label: string;
+  current: number | null;
+  previous: number | null;
+  change: number | null;
+  change_pct: number | null;
+};
+
 export type ChartData = {
   chart_type: ChartTypeName;
   labels: (string | number | null)[];
@@ -74,6 +88,13 @@ export type ChartData = {
   row_count: number;
   truncated: boolean;
   warnings: string[];
+  meta?: { delta?: KpiDelta } | null;
+};
+
+/** Options a chart can carry beyond its query. */
+export type ChartOptions = {
+  compare?: { date_column: string; period: KpiDelta["period"] } | null;
+  [key: string]: unknown;
 };
 
 export type SavedChart = {
@@ -95,14 +116,18 @@ export type ChartWithData = SavedChart & { data: ChartData };
 export type ChartListResponse = { items: SavedChart[] };
 
 /** One tile as a public share-link viewer sees it: name, shape, and data only. */
+export type TileKind = "chart" | "text";
+
 export type PublicChartTile = {
+  kind: TileKind;
   name: string;
   description: string | null;
-  chart_type: ChartTypeName;
+  chart_type: ChartTypeName | null;
   position: number;
   width: number;
   height: number;
-  data: ChartData;
+  data: ChartData | null;
+  body: string | null;
 };
 
 /** A shared dashboard rendered for someone holding only the link. */
@@ -122,12 +147,30 @@ export type PivotResponse = {
 
 export type DashboardTile = {
   id: string;
-  chart_id: string;
+  kind: TileKind;
+  chart_id: string | null;
+  title: string | null;
+  body: string | null;
   position: number;
   width: number;
   height: number;
-  chart: SavedChart;
+  chart: SavedChart | null;
 };
+
+/** What the API accepts for one tile when a dashboard is created or saved. */
+export type DashboardTileInput = {
+  kind: TileKind;
+  chart_id?: string | null;
+  title?: string | null;
+  body?: string | null;
+  position?: number | null;
+  width: number;
+  height: number;
+};
+
+/** Auto-refresh cadences the API accepts (seconds); null means manual only. */
+export const DASHBOARD_REFRESH_CHOICES = [30, 60, 300, 900, 1800, 3600] as const;
+export type DashboardRefreshSeconds = (typeof DASHBOARD_REFRESH_CHOICES)[number];
 
 export type Dashboard = {
   id: string;
@@ -138,6 +181,7 @@ export type Dashboard = {
   /** Null until somebody shares it; presence is what makes it public. */
   share_token: string | null;
   shared_at: string | null;
+  refresh_seconds: DashboardRefreshSeconds | null;
   created_at: string;
   updated_at: string;
 };
@@ -145,6 +189,33 @@ export type Dashboard = {
 export type DashboardDetail = Dashboard & {
   tiles: DashboardTile[];
   filters: ChartFilter[];
+};
+
+export type DashboardDataRequest = {
+  /** When given, replaces the saved filters for this computation only. */
+  filters?: ChartFilter[] | null;
+};
+
+export type DashboardTileData = {
+  tile_id: string;
+  kind: TileKind;
+  position: number;
+  width: number;
+  height: number;
+  title: string | null;
+  body: string | null;
+  chart_id: string | null;
+  chart_name: string | null;
+  chart_type: ChartTypeName | null;
+  data: ChartData | null;
+  error: string | null;
+};
+
+export type DashboardDataResponse = {
+  dashboard_id: string;
+  computed_at: string;
+  filters_applied: ChartFilter[];
+  tiles: DashboardTileData[];
 };
 
 export type DashboardListResponse = { items: Dashboard[] };

@@ -16,7 +16,8 @@ from service_auth.models import User
 from service_auth.schemas import UserRead
 from service_datasets.models import Dataset
 from service_projects.contracts import ensure_owned_project
-from shared_python.errors import BadRequestError, NotFoundError
+from shared_python.errors import ApplicationError, BadRequestError, NotFoundError
+from shared_python.logging import get_logger
 
 from service_reporting.aggregation import (
     AGGREGATIONS,
@@ -28,7 +29,13 @@ from service_reporting.aggregation import (
     run_query,
 )
 from service_reporting.catalog import SearchableDataset, search, slugify
-from service_reporting.charts import CHART_TYPES, to_chart_data, validate_chart
+from service_reporting.charts import (
+    CHART_TYPES,
+    ChartData,
+    kpi_with_period_delta,
+    to_chart_data,
+    validate_chart,
+)
 from service_reporting.exports import export
 from service_reporting.models import (
     CatalogAnnotation,
@@ -40,6 +47,9 @@ from service_reporting.models import (
     ScheduledReport,
 )
 from service_reporting.schemas import (
+    DashboardDataRequest,
+    DashboardDataResponse,
+    DashboardTileData,
     AnnotationRead,
     CatalogSearchResponse,
     AnnotationUpdate,
@@ -76,6 +86,8 @@ from service_reporting.schemas import (
     TermUpdate,
     TileRead,
 )
+
+logger = get_logger(__name__)
 
 # A chart reads the whole dataset to aggregate it, so there has to be a ceiling.
 MAX_SOURCE_ROWS = 500_000
@@ -147,6 +159,20 @@ def chart_catalog() -> ChartCatalogResponse:
     )
 
 
+def _compute_chart(
+    chart_type: str, query: Query, frame: pd.DataFrame, options: dict[str, Any] | None
+) -> ChartData:
+    """One place that turns a frame into chart data, for the builder preview,
+    a saved chart, a dashboard tile and the public share alike -- so all four
+    agree, KPI comparison included."""
+    compare = (options or {}).get("compare") if isinstance(options, dict) else None
+    if chart_type == "kpi" and isinstance(compare, dict) and compare.get("date_column"):
+        data, warnings = kpi_with_period_delta(frame, query, compare, run=run_query)
+        data.warnings = [*warnings, *data.warnings]
+        return data
+    return to_chart_data(chart_type, query, run_query(frame, query))
+
+
 def preview_chart(
     db: Session,
     project_id: uuid.UUID,
@@ -160,8 +186,7 @@ def preview_chart(
     warnings = validate_chart(payload.chart_type, query)
 
     frame = _load_frame(db, project_id, payload.dataset_id, storage_backend)
-    result = run_query(frame, query)
-    data = to_chart_data(payload.chart_type, query, result)
+    data = _compute_chart(payload.chart_type, query, frame, payload.options)
     data.warnings = [*warnings, *data.warnings]
     return ChartDataResponse(**data.to_dict())
 
@@ -274,8 +299,7 @@ def get_chart_with_data(
 
     query = _to_query(stored)
     frame = _load_frame(db, project_id, chart.dataset_id, storage_backend)
-    result = run_query(frame, query)
-    data = to_chart_data(chart.chart_type, query, result)
+    data = _compute_chart(chart.chart_type, query, frame, chart.options_json)
 
     names = _dataset_names(db, [chart.dataset_id])
     return ChartWithData(
@@ -371,6 +395,7 @@ def _dashboard_read(dashboard: Dashboard, tile_count: int) -> DashboardRead:
         tile_count=tile_count,
         share_token=dashboard.share_token,
         shared_at=dashboard.shared_at,
+        refresh_seconds=dashboard.refresh_seconds,
         created_at=dashboard.created_at,
         updated_at=dashboard.updated_at,
     )
@@ -385,6 +410,7 @@ def create_dashboard(
         name=payload.name.strip(),
         description=payload.description,
         filters_json=[item.model_dump(mode="json") for item in payload.filters] or None,
+        refresh_seconds=payload.refresh_seconds,
         created_by_user_id=current_user.id,
     )
     db.add(dashboard)
@@ -402,13 +428,17 @@ def _replace_tiles(db: Session, project_id: uuid.UUID, dashboard: Dashboard, til
     db.flush()
 
     for index, tile in enumerate(tiles or []):
-        # Checked rather than trusted: a tile pointing at another project's
-        # chart would leak it to everyone who can see this dashboard.
-        _get_chart(db, project_id, tile.chart_id)
+        if tile.kind == "chart":
+            # Checked rather than trusted: a tile pointing at another project's
+            # chart would leak it to everyone who can see this dashboard.
+            _get_chart(db, project_id, tile.chart_id)
         db.add(
             DashboardTile(
                 dashboard_id=dashboard.id,
-                chart_id=tile.chart_id,
+                kind=tile.kind,
+                chart_id=tile.chart_id if tile.kind == "chart" else None,
+                title=(tile.title or None) if tile.kind == "text" else None,
+                body=(tile.body or None) if tile.kind == "text" else None,
                 position=index if tile.position is None else tile.position,
                 width=tile.width,
                 height=tile.height,
@@ -417,12 +447,7 @@ def _replace_tiles(db: Session, project_id: uuid.UUID, dashboard: Dashboard, til
     db.flush()
 
 
-def get_dashboard(
-    db: Session, project_id: uuid.UUID, dashboard_id: uuid.UUID, current_user: UserRead
-) -> DashboardDetail:
-    ensure_owned_project(db, project_id, current_user.id)
-    dashboard = _get_dashboard(db, project_id, dashboard_id)
-
+def _dashboard_tiles(db: Session, dashboard: Dashboard) -> tuple[list[DashboardTile], dict]:
     tiles = list(
         db.scalars(
             select(DashboardTile)
@@ -430,29 +455,123 @@ def get_dashboard(
             .order_by(DashboardTile.position)
         ).all()
     )
+    chart_ids = [tile.chart_id for tile in tiles if tile.chart_id is not None]
     charts = {
         chart.id: chart
         for chart in db.scalars(
-            select(SavedChart).where(SavedChart.id.in_([tile.chart_id for tile in tiles] or [uuid.uuid4()]))
+            select(SavedChart).where(SavedChart.id.in_(chart_ids or [uuid.uuid4()]))
         ).all()
     }
+    return tiles, charts
+
+
+def get_dashboard(
+    db: Session, project_id: uuid.UUID, dashboard_id: uuid.UUID, current_user: UserRead
+) -> DashboardDetail:
+    ensure_owned_project(db, project_id, current_user.id)
+    dashboard = _get_dashboard(db, project_id, dashboard_id)
+
+    tiles, charts = _dashboard_tiles(db, dashboard)
     names = _dataset_names(db, [chart.dataset_id for chart in charts.values()])
 
-    return DashboardDetail(
-        **_dashboard_read(dashboard, len(tiles)).model_dump(),
-        tiles=[
+    reads: list[TileRead] = []
+    for tile in tiles:
+        if tile.kind == "text":
+            reads.append(
+                TileRead(
+                    id=tile.id, kind="text", chart_id=None, title=tile.title, body=tile.body,
+                    position=tile.position, width=tile.width, height=tile.height, chart=None,
+                )
+            )
+            continue
+        chart = charts.get(tile.chart_id)
+        if chart is None:
+            continue
+        reads.append(
             TileRead(
                 id=tile.id,
+                kind="chart",
                 chart_id=tile.chart_id,
                 position=tile.position,
                 width=tile.width,
                 height=tile.height,
-                chart=_chart_read(charts[tile.chart_id], names.get(charts[tile.chart_id].dataset_id)),
+                chart=_chart_read(chart, names.get(chart.dataset_id)),
             )
-            for tile in tiles
-            if tile.chart_id in charts
-        ],
+        )
+
+    return DashboardDetail(
+        **_dashboard_read(dashboard, len(tiles)).model_dump(),
+        tiles=reads,
         filters=[FilterInput.model_validate(item) for item in (dashboard.filters_json or [])],
+    )
+
+
+def compute_dashboard_data(
+    db: Session,
+    project_id: uuid.UUID,
+    dashboard_id: uuid.UUID,
+    payload: DashboardDataRequest,
+    current_user: UserRead,
+    storage_backend,
+) -> DashboardDataResponse:
+    """Every tile's data in one round trip, with the dashboard's global filters
+    applied to each chart's own query -- or an ad-hoc set replacing them for
+    this computation only. A read (POST because filters ride in the body;
+    `preview`-style, it stores nothing)."""
+    ensure_owned_project(db, project_id, current_user.id)
+    dashboard = _get_dashboard(db, project_id, dashboard_id)
+    tiles, charts = _dashboard_tiles(db, dashboard)
+    filters = (
+        list(payload.filters)
+        if payload.filters is not None
+        else [FilterInput.model_validate(item) for item in (dashboard.filters_json or [])]
+    )
+    frames: dict[uuid.UUID, pd.DataFrame] = {}
+
+    out: list[DashboardTileData] = []
+    for tile in tiles:
+        base = dict(tile_id=tile.id, position=tile.position, width=tile.width, height=tile.height)
+        if tile.kind == "text":
+            out.append(DashboardTileData(kind="text", title=tile.title, body=tile.body, **base))
+            continue
+        chart = charts.get(tile.chart_id)
+        if chart is None:
+            out.append(DashboardTileData(kind="chart", error="This chart no longer exists.", **base))
+            continue
+        try:
+            stored = _from_query(chart.query_json)
+            if filters:
+                stored = stored.model_copy(update={"filters": [*stored.filters, *filters]})
+            if chart.dataset_id not in frames:
+                frames[chart.dataset_id] = _load_frame(db, project_id, chart.dataset_id, storage_backend)
+            data = _compute_chart(chart.chart_type, _to_query(stored), frames[chart.dataset_id], chart.options_json)
+            out.append(
+                DashboardTileData(
+                    kind="chart", chart_id=chart.id, chart_name=chart.name, chart_type=chart.chart_type,
+                    data=ChartDataResponse(**data.to_dict()), **base,
+                )
+            )
+        except ApplicationError as exc:
+            out.append(
+                DashboardTileData(
+                    kind="chart", chart_id=chart.id, chart_name=chart.name, chart_type=chart.chart_type,
+                    error=str(exc.detail), **base,
+                )
+            )
+        except Exception:  # noqa: BLE001 - one bad tile must not fail the page
+            logger.exception("dashboard_tile_failed chart_id=%s", chart.id)
+            out.append(
+                DashboardTileData(
+                    kind="chart", chart_id=chart.id, chart_name=chart.name, chart_type=chart.chart_type,
+                    error="This chart could not be computed.", **base,
+                )
+            )
+
+    return DashboardDataResponse(
+        dashboard_id=dashboard.id,
+        computed_at=datetime.now(UTC),
+        filters_applied=filters,
+        tiles=out,
     )
 
 
@@ -481,6 +600,8 @@ def update_dashboard(
         dashboard.description = payload.description
     if payload.filters is not None:
         dashboard.filters_json = [item.model_dump(mode="json") for item in payload.filters] or None
+    if "refresh_seconds" in payload.model_fields_set:
+        dashboard.refresh_seconds = payload.refresh_seconds
     if payload.tiles is not None:
         _replace_tiles(db, project_id, dashboard, payload.tiles)
 
@@ -548,31 +669,27 @@ def get_shared_dashboard(db: Session, *, token: str, storage_backend) -> PublicD
     if dashboard is None:
         raise NotFoundError("This shared dashboard is not available.")
 
-    tiles = list(
-        db.scalars(
-            select(DashboardTile)
-            .where(DashboardTile.dashboard_id == dashboard.id)
-            .order_by(DashboardTile.position)
-        ).all()
-    )
-    charts = {
-        chart.id: chart
-        for chart in db.scalars(
-            select(SavedChart).where(
-                SavedChart.id.in_([tile.chart_id for tile in tiles] or [uuid.uuid4()])
-            )
-        ).all()
-    }
+    tiles, charts = _dashboard_tiles(db, dashboard)
     dashboard_filters = [FilterInput.model_validate(item) for item in (dashboard.filters_json or [])]
 
     public_tiles: list[PublicChartTile] = []
     for tile in tiles:
+        if tile.kind == "text":
+            public_tiles.append(
+                PublicChartTile(
+                    kind="text", name=tile.title or "", description=None, chart_type=None,
+                    position=tile.position, width=tile.width, height=tile.height,
+                    data=None, body=tile.body,
+                )
+            )
+            continue
         chart = charts.get(tile.chart_id)
         if chart is None:
             continue
         data = _shared_tile_data(db, dashboard.project_id, chart, dashboard_filters, storage_backend)
         public_tiles.append(
             PublicChartTile(
+                kind="chart",
                 name=chart.name,
                 description=chart.description,
                 chart_type=chart.chart_type,
@@ -605,10 +722,8 @@ def _shared_tile_data(
         stored = _from_query(chart.query_json)
         if dashboard_filters:
             stored = stored.model_copy(update={"filters": [*stored.filters, *dashboard_filters]})
-        query = _to_query(stored)
         frame = _load_frame(db, project_id, chart.dataset_id, storage_backend)
-        result = run_query(frame, query)
-        data = to_chart_data(chart.chart_type, query, result)
+        data = _compute_chart(chart.chart_type, _to_query(stored), frame, chart.options_json)
         return ChartDataResponse(**data.to_dict())
     except Exception:  # noqa: BLE001 - one bad tile must not fail the page
         from shared_python.logging import get_logger

@@ -199,7 +199,7 @@ export function DashboardsPageView({
         currentUser={currentUser}
         eyebrow="Reporting"
         title="Dashboards"
-        subtitle="Saved charts arranged on a page. Build the charts first, then group the ones that belong together."
+        subtitle="Saved charts arranged on a page. Build the charts first, then group the ones that belong together; open a dashboard to arrange, filter and share it."
         actions={
           <Button onClick={openCreate} disabled={charts.length === 0}>
             New dashboard
@@ -259,7 +259,12 @@ export function DashboardsPageView({
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-[13.5px] font-medium text-ink">{dashboard.name}</span>
+                      <Link
+                        href={`/projects/${projectId}/dashboards/${dashboard.id}`}
+                        className="text-[13.5px] font-medium text-ink hover:text-accent"
+                      >
+                        {dashboard.name}
+                      </Link>
                       <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[10px] uppercase text-ink-3">
                         {dashboard.tile_count} tile{dashboard.tile_count === 1 ? "" : "s"}
                       </span>
@@ -276,6 +281,12 @@ export function DashboardsPageView({
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
+                    <Link
+                      href={`/projects/${projectId}/dashboards/${dashboard.id}`}
+                      className="rounded-full bg-[color:var(--accent)] px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.14em] text-accent-ink"
+                    >
+                      Open
+                    </Link>
                     {dashboard.share_token ? (
                       <>
                         <Button

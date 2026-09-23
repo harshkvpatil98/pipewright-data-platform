@@ -70,13 +70,16 @@ class Dashboard(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     # dashboard readable without signing in, so it is granted, never default.
     share_token: Mapped[str | None] = mapped_column(String(64), nullable=True)
     shared_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # How often an open dashboard re-computes its tiles; null means only when
+    # somebody asks. Stored on the dashboard so everyone who opens it agrees.
+    refresh_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
 
 
 class DashboardTile(UUIDPrimaryKeyMixin, TimestampMixin, Base):
-    """One chart's place on a dashboard."""
+    """One tile's place on a dashboard: a chart, or a block of text."""
 
     __tablename__ = "dashboard_tiles"
     __table_args__ = (Index("ix_dashboard_tiles_dashboard_id", "dashboard_id", "position"),)
@@ -84,9 +87,13 @@ class DashboardTile(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     dashboard_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("dashboards.id", ondelete="CASCADE"), nullable=False
     )
-    chart_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("saved_charts.id", ondelete="CASCADE"), nullable=False
+    #: `chart` (chart_id set) or `text` (title/body, no chart).
+    kind: Mapped[str] = mapped_column(String(16), nullable=False, default="chart", server_default="chart")
+    chart_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("saved_charts.id", ondelete="CASCADE"), nullable=True
     )
+    title: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    body: Mapped[str | None] = mapped_column(Text, nullable=True)
     position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     width: Mapped[int] = mapped_column(Integer, nullable=False, default=6)
     height: Mapped[int] = mapped_column(Integer, nullable=False, default=1)

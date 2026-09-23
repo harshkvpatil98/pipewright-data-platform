@@ -6,9 +6,9 @@ import uuid
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 
-ChartTypeName = Literal["bar", "column", "line", "area", "scatter", "pie", "kpi", "table"]
+ChartTypeName = Literal["bar", "column", "line", "area", "scatter", "pie", "donut", "kpi", "table"]
 AggregationName = Literal[
     "sum", "avg", "mean", "min", "max", "count", "count_distinct", "median"
 ]
@@ -58,6 +58,8 @@ class ChartPreviewRequest(BaseModel):
     dataset_id: uuid.UUID
     chart_type: ChartTypeName = "bar"
     query: QueryInput
+    #: Chart options the preview should honour -- a KPI's `compare` block.
+    options: dict[str, Any] | None = None
 
 
 class ChartDataResponse(BaseModel):
@@ -67,6 +69,9 @@ class ChartDataResponse(BaseModel):
     row_count: int
     truncated: bool
     warnings: list[str]
+    #: Extra facts a renderer can use: for a KPI with a period comparison, the
+    #: `delta` block (previous value, change, change_pct, period labels).
+    meta: dict[str, Any] | None = None
 
 
 class ChartCreate(BaseModel):
@@ -123,13 +128,43 @@ class PivotResponse(BaseModel):
     warnings: list[str]
 
 
+TileKind = Literal["chart", "text"]
+
+#: The refresh cadences a dashboard may pick. A free integer would let someone
+#: set one second and hammer the gateway from an open tab.
+REFRESH_CHOICES = (30, 60, 300, 900, 1800, 3600)
+
+
 class TileInput(BaseModel):
-    chart_id: uuid.UUID
+    kind: TileKind = "chart"
+    chart_id: uuid.UUID | None = None
+    #: Text tiles: a heading and a body. A chart tile ignores both (the chart
+    #: has its own name).
+    title: str | None = Field(default=None, max_length=160)
+    body: str | None = Field(default=None, max_length=4000)
     # None means "wherever it lands in the list". Zero is a real position --
     # the first one -- so the two cannot share a representation.
     position: int | None = Field(default=None, ge=0)
     width: int = Field(default=6, ge=2, le=12)
     height: int = Field(default=1, ge=1, le=4)
+
+    @model_validator(mode="after")
+    def _kind_matches_fields(self) -> "TileInput":
+        if self.kind == "chart" and self.chart_id is None:
+            raise ValueError("A chart tile needs a chart_id.")
+        if self.kind == "text" and not (self.body or "").strip() and not (self.title or "").strip():
+            raise ValueError("A text tile needs a title or a body.")
+        return self
+
+
+def _validate_refresh(value: int | None) -> int | None:
+    if value is None or value == 0:
+        return None
+    if value not in REFRESH_CHOICES:
+        raise ValueError(
+            "refresh_seconds must be one of " + ", ".join(str(item) for item in REFRESH_CHOICES) + " (or null)."
+        )
+    return value
 
 
 class DashboardCreate(BaseModel):
@@ -137,6 +172,12 @@ class DashboardCreate(BaseModel):
     description: str | None = Field(default=None, max_length=2000)
     tiles: list[TileInput] = Field(default_factory=list, max_length=30)
     filters: list[FilterInput] = Field(default_factory=list, max_length=10)
+    refresh_seconds: int | None = None
+
+    @field_validator("refresh_seconds")
+    @classmethod
+    def _refresh(cls, value: int | None) -> int | None:
+        return _validate_refresh(value)
 
 
 class DashboardUpdate(BaseModel):
@@ -144,15 +185,26 @@ class DashboardUpdate(BaseModel):
     description: str | None = Field(default=None, max_length=2000)
     tiles: list[TileInput] | None = None
     filters: list[FilterInput] | None = None
+    #: Explicit null in the body (present, None) turns auto-refresh off; leave
+    #: the field out to keep the current cadence.
+    refresh_seconds: int | None = None
+
+    @field_validator("refresh_seconds")
+    @classmethod
+    def _refresh(cls, value: int | None) -> int | None:
+        return _validate_refresh(value)
 
 
 class TileRead(BaseModel):
     id: uuid.UUID
-    chart_id: uuid.UUID
+    kind: TileKind = "chart"
+    chart_id: uuid.UUID | None
+    title: str | None = None
+    body: str | None = None
     position: int
     width: int
     height: int
-    chart: ChartRead
+    chart: ChartRead | None = None
 
 
 class DashboardRead(BaseModel):
@@ -163,8 +215,41 @@ class DashboardRead(BaseModel):
     tile_count: int
     share_token: str | None
     shared_at: datetime | None
+    refresh_seconds: int | None = None
     created_at: datetime
     updated_at: datetime
+
+
+class DashboardDataRequest(BaseModel):
+    """Compute every tile. `filters`, when given, REPLACE the dashboard's saved
+    filters for this computation only (an ad-hoc scope); omit it to use the
+    saved ones."""
+
+    filters: list[FilterInput] | None = Field(default=None, max_length=10)
+
+
+class DashboardTileData(BaseModel):
+    tile_id: uuid.UUID
+    kind: TileKind
+    position: int
+    width: int
+    height: int
+    title: str | None = None
+    body: str | None = None
+    chart_id: uuid.UUID | None = None
+    chart_name: str | None = None
+    chart_type: str | None = None
+    data: ChartDataResponse | None = None
+    #: Why this tile has no data, when it has none. One broken chart never
+    #: blanks the page.
+    error: str | None = None
+
+
+class DashboardDataResponse(BaseModel):
+    dashboard_id: uuid.UUID
+    computed_at: datetime
+    filters_applied: list[FilterInput]
+    tiles: list[DashboardTileData]
 
 
 class DashboardDetail(DashboardRead):
@@ -179,15 +264,17 @@ class DashboardListResponse(BaseModel):
 class PublicChartTile(BaseModel):
     """One tile as a public viewer sees it: the chart's name, its shape, and its
     computed data -- and nothing that identifies the project, dataset, or query
-    behind it."""
+    behind it. A text tile carries its title and body and no data."""
 
+    kind: TileKind = "chart"
     name: str
     description: str | None
-    chart_type: str
+    chart_type: str | None = None
     position: int
     width: int
     height: int
-    data: ChartDataResponse
+    data: ChartDataResponse | None = None
+    body: str | None = None
 
 
 class PublicDashboardView(BaseModel):

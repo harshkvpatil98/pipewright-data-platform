@@ -9,6 +9,8 @@ from sqlalchemy.orm import Session
 from service_auth.schemas import UserRead
 
 from service_reporting.schemas import (
+    DashboardDataRequest,
+    DashboardDataResponse,
     AnnotationRead,
     AnnotationUpdate,
     CatalogSearchResponse,
@@ -54,6 +56,7 @@ from service_reporting.service import (
     get_dashboard,
     get_shared_dashboard,
     list_charts,
+    compute_dashboard_data,
     list_dashboards,
     list_deliveries,
     list_reports,
@@ -210,6 +213,26 @@ def build_router(
         current_user: UserRead = Depends(get_current_user),
     ) -> DashboardDetail:
         return update_dashboard(db, project_id, dashboard_id, payload, current_user)
+
+    @router.post(
+        "/projects/{project_id}/dashboards/{dashboard_id}/data",
+        response_model=DashboardDataResponse,
+    )
+    def read_dashboard_data(
+        project_id: uuid.UUID,
+        dashboard_id: uuid.UUID,
+        payload: DashboardDataRequest | None = None,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+        storage_backend=Depends(get_storage_backend),
+    ) -> DashboardDataResponse:
+        """Every tile computed, with the dashboard's global filters (or an
+        ad-hoc set) applied. A read that POSTs because the filters are the
+        body; it stores nothing."""
+        return compute_dashboard_data(
+            db, project_id, dashboard_id, payload or DashboardDataRequest(), current_user,
+            storage_backend,
+        )
 
     @router.post(
         "/projects/{project_id}/dashboards/{dashboard_id}/share", response_model=DashboardRead

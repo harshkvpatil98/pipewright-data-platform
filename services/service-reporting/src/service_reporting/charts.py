@@ -12,9 +12,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+import pandas as pd
+
 from shared_python.errors import BadRequestError
 
-from service_reporting.aggregation import Query, QueryResult
+from service_reporting.aggregation import Query, QueryResult, apply_filters
 
 
 @dataclass(frozen=True)
@@ -49,6 +51,7 @@ CHART_TYPES: tuple[ChartType, ...] = (
     ChartType("area", "Area", "A line with the space beneath it filled.", 1, 2, 1, 4, 400),
     ChartType("scatter", "Scatter", "Two numbers against each other, to see a relationship.", 0, 1, 2, 2, 2000),
     ChartType("pie", "Pie", "Parts of a whole. Only readable with a handful of slices.", 1, 1, 1, 1, 12),
+    ChartType("donut", "Donut", "A pie with the total in the middle. Same rules, same limits.", 1, 1, 1, 1, 12),
     ChartType("kpi", "KPI", "One number, large. No grouping.", 0, 0, 1, 1),
     ChartType("table", "Table", "The numbers themselves.", 0, 4, 0, 6),
 )
@@ -106,6 +109,8 @@ class ChartData:
     row_count: int
     truncated: bool
     warnings: list[str]
+    #: Renderer facts beyond the series: a KPI's period comparison lives here.
+    meta: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -115,7 +120,87 @@ class ChartData:
             "row_count": self.row_count,
             "truncated": self.truncated,
             "warnings": self.warnings,
+            "meta": self.meta,
         }
+
+
+#: Periods a KPI can be compared over, and the pandas frequency for each.
+KPI_PERIODS: dict[str, str] = {"day": "D", "week": "W", "month": "M", "quarter": "Q", "year": "Y"}
+
+
+def kpi_with_period_delta(
+    frame: pd.DataFrame, query: Query, compare: dict[str, Any], *, run
+) -> tuple[ChartData, list[str]]:
+    """A KPI that reads "this period vs the one before".
+
+    The headline becomes the LATEST period's value (the period containing the
+    newest date in the data after the chart's own filters), and `meta.delta`
+    carries the previous period, the change and the percentage. Stated in the
+    labels, because "up 12%" is meaningless without "September vs August".
+    An unusable configuration -- no such column, no parseable dates -- degrades
+    to the plain all-time KPI with a warning, never to a silent zero.
+    """
+    column = str(compare.get("date_column") or "")
+    period = str(compare.get("period") or "month")
+    warnings: list[str] = []
+    plain = to_chart_data("kpi", query, run(frame, query))
+    if period not in KPI_PERIODS:
+        warnings.append(f"Unknown comparison period '{period}'; showing the all-time value.")
+        return plain, warnings
+    if column not in frame.columns:
+        warnings.append(f"Comparison column '{column}' is not in the dataset; showing the all-time value.")
+        return plain, warnings
+    scoped = apply_filters(frame, list(query.filters)) if query.filters else frame
+    dates = pd.to_datetime(scoped[column], errors="coerce")
+    if dates.notna().sum() == 0:
+        warnings.append(f"'{column}' holds no dates to compare by; showing the all-time value.")
+        return plain, warnings
+    freq = KPI_PERIODS[period]
+    periods = dates.dt.to_period(freq)
+    current_period = periods.max()
+    previous_period = current_period - 1
+    measure_query = Query(dimensions=[], measures=list(query.measures), filters=[])
+    measure_name = query.measures[0].output_name
+
+    def value_for(mask) -> Any:
+        subset = scoped[mask.fillna(False)]
+        if subset.empty:
+            return None
+        result = run(subset, measure_query)
+        return _value(result.frame[measure_name].iloc[0]) if not result.frame.empty else None
+
+    current = value_for(periods == current_period)
+    previous = value_for(periods == previous_period)
+    change = None
+    change_pct = None
+    if isinstance(current, (int, float)) and isinstance(previous, (int, float)):
+        change = current - previous
+        change_pct = (change / abs(previous)) if previous not in (0, 0.0) else None
+    data = ChartData(
+        "kpi",
+        labels=[],
+        series=[{"name": measure_name, "values": [current]}],
+        row_count=1,
+        truncated=False,
+        warnings=[],
+        meta={
+            "delta": {
+                "period": period,
+                "date_column": column,
+                "current_label": str(current_period),
+                "previous_label": str(previous_period),
+                "current": current,
+                "previous": previous,
+                "change": change,
+                "change_pct": change_pct,
+            }
+        },
+    )
+    if previous is None:
+        warnings.append(
+            f"No data for {previous_period} to compare {current_period} with."
+        )
+    return data, warnings
 
 
 def to_chart_data(chart_type: str, query: Query, result: QueryResult) -> ChartData:

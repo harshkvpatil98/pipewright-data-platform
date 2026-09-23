@@ -7,7 +7,7 @@ established alternatives for data work — not by claiming more, but by being
 the only honest, governed, spreadsheet-fast data platform that a business team
 can run without a data engineer on call.
 
-**Status:** P1 done (2026-09-23); P2 (Guided first win) is next on “continue”. One phase executes per session-run;
+**Status:** P2 done (2026-09-23); P3 (Operational backbone) is next on “continue”. One phase executes per session-run;
 the owner says **“continue”** to start the next. This file is the single
 source of truth for what each phase contains; the session log in
 `docs/HANDOFF.md` records what actually happened.
@@ -222,10 +222,24 @@ without `curl`.
 
 ---
 
-## P2 — Guided first win
+## P2 — Guided first win *(status: **done** 2026-09-23)*
 
 **Objective:** three non-technical testers reach a scheduled, validated
 pipeline unaided in <20 min.
+
+**Delivered:** project checklist (live-ticking, dismissible) with the chip-wall
+regrouped under a Workspace menu (Build/Govern/Operate/Publish); merged
+entry-points (Add data · Connect a source, Register dataset under advanced);
+Home “Get started” mirrors the first project’s real checklist state; one-click
+“Create a demo project” seeding a full worked example (file → pipeline → rule
+→ schedule → chart → dashboard) from the same service functions a user’s
+clicks call, deletable like any project, covered by an end-to-end test;
+save-pipeline naming prompt and inline rename; first-run mini-tours for Data
+quality and Schedules (the first-project checklist is itself the guidance the
+spec’s “checklist tour” asked for, so a redundant tour on top of it was
+deliberately not added — the review’s warning against over-guidance); type
+fidelity via a stored `canonical_type` and a cross-surface test. Resumable
+upload is carried into P3 (see below).
 
 - **Project checklist** replaces the chip-wall on empty projects
   (Add data → Shape it → Guard it → Schedule it), each step one primary
@@ -244,7 +258,10 @@ pipeline unaided in <20 min.
   cross-surface test walks upload→studio→publish asserting one vocabulary.
 - Upload modal: wire the **resumable chunked API** (progress bar, resume on
   retry, 25 MB soft-cap lifted to backend limit; keep honest max from
-  config); analyse screen unchanged.
+  config); analyse screen unchanged. *(Carried into P3 — it is an operational
+  robustness concern, not a first-win one, and P3 already owns the resumable
+  backend surface; the plain upload path is unchanged and honest about its
+  limit in the meantime.)*
 - *Push further:* “Explain this step” inline help drawn from tool registry
   docs; empty-state illustrations per surface (SVG, tokened).
 

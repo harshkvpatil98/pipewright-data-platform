@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import type { AuthUser, PlatformStatusResponse, ProjectSummary } from "@platform/shared-types";
@@ -9,6 +10,9 @@ import { AppFrame } from "@/components/shell/app-frame";
 import { runtimeSignalsFromStatus } from "@/components/ui/runtime-banner";
 import { assessRuntime, humanDuration } from "@/lib/runtime-health";
 import { Icon, type IconName } from "@/components/ui/icon";
+import { useToast } from "@/components/providers/toast-provider";
+import { apiFetch } from "@/lib/api/client";
+import { extractErrorMessage } from "@/lib/api/errors";
 import { cx } from "@/lib/utils";
 
 type HomeDashboardProps = {
@@ -41,6 +45,57 @@ export function HomeDashboard({ currentUser, projects, status }: HomeDashboardPr
   const attention = failingRules + openDrift;
   const healthy = status?.status === "healthy";
   const firstProject = projects[0];
+  const router = useRouter();
+  const toast = useToast();
+  const [seeding, setSeeding] = useState(false);
+
+  // Mirror the project checklist on Home: tick the get-started steps that the
+  // first project has actually completed, so this list is a live map of
+  // progress rather than a static brochure. dataset_count is already known;
+  // the other three counts are fetched once.
+  const [firstProgress, setFirstProgress] = useState({
+    data: (firstProject?.dataset_count ?? 0) > 0,
+    shape: false,
+    guard: false,
+    schedule: false,
+  });
+  useEffect(() => {
+    if (!firstProject) return;
+    let cancelled = false;
+    const count = (path: string) =>
+      apiFetch<{ items?: unknown[] }>(path)
+        .then((r) => (Array.isArray(r.items) ? r.items.length : 0))
+        .catch(() => 0);
+    const base = `/projects/${firstProject.id}`;
+    void Promise.all([
+      count(`${base}/pipelines`),
+      count(`${base}/data-quality/rules`),
+      count(`${base}/schedules`),
+    ]).then(([pipelines, rules, schedules]) => {
+      if (cancelled) return;
+      setFirstProgress({
+        data: firstProject.dataset_count > 0,
+        shape: pipelines > 0,
+        guard: rules > 0,
+        schedule: schedules > 0,
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [firstProject]);
+
+  const createDemo = async () => {
+    setSeeding(true);
+    try {
+      const demo = await apiFetch<{ id: string }>("/projects/demo", { method: "POST" });
+      toast.success("Demo project created", "A worked example: data, a pipeline, a rule, a schedule.");
+      router.push(`/projects/${demo.id}`);
+    } catch (caught) {
+      toast.error("Could not create the demo", extractErrorMessage(caught));
+      setSeeding(false);
+    }
+  };
 
   // Background work: the one card that says whether queued work is moving.
   const runtime = status ? assessRuntime(runtimeSignalsFromStatus(status)) : null;
@@ -146,13 +201,28 @@ export function HomeDashboard({ currentUser, projects, status }: HomeDashboardPr
                   <p className="mt-1 text-[12px] text-muted">
                     Create one to start connecting sources and building pipelines.
                   </p>
-                  <Link
-                    href="/projects"
-                    className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-[color:var(--accent)] px-3 py-2 text-[12px] font-medium text-accent-ink transition hover:brightness-110"
-                  >
-                    <Icon name="plus" size={13} />
-                    New project
-                  </Link>
+                  <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                    <Link
+                      href="/projects"
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-[color:var(--accent)] px-3 py-2 text-[12px] font-medium text-accent-ink transition hover:brightness-110"
+                    >
+                      <Icon name="plus" size={13} />
+                      New project
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => void createDemo()}
+                      disabled={seeding}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-2 text-[12px] font-medium text-ink transition hover:bg-surface-2 disabled:opacity-60"
+                    >
+                      <Icon name="sparkles" size={13} />
+                      {seeding ? "Building…" : "Create a demo project"}
+                    </button>
+                  </div>
+                  <p className="mt-2 text-[11px] text-muted">
+                    The demo seeds real data, a pipeline, a quality rule and a schedule — deletable
+                    like any project.
+                  </p>
                 </div>
               ) : (
                 <ul className="space-y-1">
@@ -295,10 +365,10 @@ export function HomeDashboard({ currentUser, projects, status }: HomeDashboardPr
               </p>
               <ol className="mt-4 space-y-2.5">
                 {[
-                  { step: "Connect a source database or upload a file", icon: "database" as IconName },
-                  { step: "Shape the data in Studio", icon: "transform" as IconName },
-                  { step: "Add quality rules so bad data cannot pass", icon: "shield" as IconName },
-                  { step: "Schedule it and publish downstream", icon: "clock" as IconName },
+                  { step: "Connect a source database or upload a file", done: firstProgress.data },
+                  { step: "Shape the data in Studio", done: firstProgress.shape },
+                  { step: "Add quality rules so bad data cannot pass", done: firstProgress.guard },
+                  { step: "Schedule it and publish downstream", done: firstProgress.schedule },
                 ].map((item, index) => {
                   const base = firstProject ? `/projects/${firstProject.id}` : "/projects";
                   const hrefs = firstProject
@@ -310,10 +380,22 @@ export function HomeDashboard({ currentUser, projects, status }: HomeDashboardPr
                         href={hrefs[index]}
                         className="group flex items-start gap-2.5 rounded-lg px-1 py-0.5 transition hover:bg-surface-2"
                       >
-                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-surface-2 text-[10px] font-semibold text-ink-3">
-                          {index + 1}
+                        <span
+                          className={cx(
+                            "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[10px] font-semibold",
+                            item.done
+                              ? "bg-success text-accent-ink"
+                              : "bg-surface-2 text-ink-3",
+                          )}
+                        >
+                          {item.done ? <Icon name="check" size={11} /> : index + 1}
                         </span>
-                        <span className="text-[12px] leading-5 text-ink-2 group-hover:text-ink">
+                        <span
+                          className={cx(
+                            "text-[12px] leading-5 group-hover:text-ink",
+                            item.done ? "text-ink-3 line-through decoration-ink-4" : "text-ink-2",
+                          )}
+                        >
                           {item.step}
                         </span>
                       </Link>

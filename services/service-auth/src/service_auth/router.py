@@ -42,6 +42,7 @@ from service_auth.service import (
     delete_user,
     get_preferences,
     get_user_by_id,
+    deliver_one_time_code,
     invite_user,
     list_users,
     set_password_with_code,
@@ -59,7 +60,9 @@ from shared_python.auth.security import create_access_token
 from shared_python.errors import ForbiddenError
 
 
-def build_router(get_db: Callable[..., Session], settings) -> APIRouter:
+def build_router(get_db: Callable[..., Session], settings, email_sender=None) -> APIRouter:
+    """`email_sender` (optional, injected by the gateway) sends invitation and
+    reset emails; without it the one-time codes are returned to the admin."""
     router = APIRouter(prefix="/auth", tags=["auth"])
     current_user = build_current_user_dependency(get_db, settings)
 
@@ -284,9 +287,11 @@ def build_router(get_db: Callable[..., Session], settings) -> APIRouter:
         """
         _require_admin(actor, "invite people")
         user, code = invite_user(db, payload)
-        return OneTimeCodeResponse(
-            user_id=user.id, username=user.username, code=code,
-            purpose="activation", expires_in_minutes=DEFAULT_TTL_MINUTES,
+        return deliver_one_time_code(
+            user=user, code=code, purpose="activation",
+            expires_in_minutes=DEFAULT_TTL_MINUTES,
+            web_base_url=getattr(settings, "web_base_url", ""),
+            email_sender=email_sender,
         )
 
     @router.patch("/users/{user_id}", response_model=UserRead)
@@ -327,9 +332,11 @@ def build_router(get_db: Callable[..., Session], settings) -> APIRouter:
         if target is None:
             raise ForbiddenError("User not found.")
         code = issue_code(db, user_id=user_id, purpose=RESET)
-        return OneTimeCodeResponse(
-            user_id=user_id, username=target.username, code=code,
-            purpose="reset", expires_in_minutes=DEFAULT_TTL_MINUTES,
+        return deliver_one_time_code(
+            user=target, code=code, purpose="reset",
+            expires_in_minutes=DEFAULT_TTL_MINUTES,
+            web_base_url=getattr(settings, "web_base_url", ""),
+            email_sender=email_sender,
         )
 
     @router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)

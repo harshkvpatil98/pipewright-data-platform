@@ -4,6 +4,7 @@ from api_gateway.dependencies import get_db, get_storage_backend
 from api_gateway.routes import health, status
 from api_gateway.wiring import install_resolvers
 from service_auth import build_router as build_auth_router
+from service_notifications.senders.email_sender import send_plain_email
 from service_access import build_project_guard, build_router as build_access_router
 from service_auth.dependencies import build_current_user_dependency
 from service_comparisons import build_router as build_comparisons_router
@@ -44,7 +45,7 @@ def build_api_router(settings) -> APIRouter:
     current_user = build_current_user_dependency(get_db, settings)
     api_router.include_router(health.router)
     api_router.include_router(status.router)
-    api_router.include_router(build_auth_router(get_db, settings))
+    api_router.include_router(build_auth_router(get_db, settings, email_sender=send_plain_email))
     api_router.include_router(build_sso_router(get_db, settings))
     api_router.include_router(build_projects_router(get_db, current_user))
     api_router.include_router(build_operator_router(get_db, current_user))

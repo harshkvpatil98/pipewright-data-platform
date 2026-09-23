@@ -12,6 +12,7 @@ dependencies = [
   "pydantic>=2.9,<3.0",
   "sqlalchemy>=2.0,<3.0",
   "pandas>=2.2,<3.0",
+  "reportlab>=4.2,<5.0",
   "shared-python>=0.1.0",
   "service-auth>=0.1.0",
   "service-projects>=0.1.0",

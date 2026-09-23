@@ -28,23 +28,54 @@ def send_email_event_message(
 
 
 def _send_email(*, config: dict[str, Any], subject: str, body: str) -> tuple[bool, str]:
-    if not smtp_configured():
-        return False, "SMTP is not configured on the server (set EXTERNAL_NOTIFICATION_SMTP_HOST)."
-
     recipient = config.get("recipient_email")
     if not isinstance(recipient, str) or not recipient.strip():
         return False, "Invalid recipient."
+    return send_plain_email(
+        to=recipient, subject=subject, body=body, sender=config.get("sender_email")
+    )
+
+
+def email_configured() -> bool:
+    """Can this server send mail at all? The invite and report paths ask before
+    promising anything."""
+    return smtp_configured() and bool(get_smtp_settings()["default_from"])
+
+
+def send_plain_email(
+    *,
+    to: str,
+    subject: str,
+    body: str,
+    sender: str | None = None,
+    attachments: list[tuple[str, bytes, str]] | None = None,
+) -> tuple[bool, str]:
+    """Send one message through the configured SMTP server.
+
+    The one email primitive: notification targets, invitations and report
+    deliveries all go through here, so there is a single place that knows the
+    server, the retry story and the failure sentences. `attachments` are
+    `(filename, bytes, media_type)` triples. Returns (ok, human sentence) and
+    never raises -- a mail failure is reported to the caller, not thrown at it.
+    """
+    if not smtp_configured():
+        return False, "SMTP is not configured on the server (set EXTERNAL_NOTIFICATION_SMTP_HOST)."
+    if not isinstance(to, str) or "@" not in to:
+        return False, "Invalid recipient."
 
     smtp = get_smtp_settings()
-    mail_from = config.get("sender_email") or smtp["default_from"]
+    mail_from = sender or smtp["default_from"]
     if not mail_from:
         return False, "No sender address (set sender_email on the target or EXTERNAL_NOTIFICATION_SMTP_FROM)."
 
     msg = EmailMessage()
     msg["Subject"] = subject
     msg["From"] = mail_from
-    msg["To"] = recipient
+    msg["To"] = to
     msg.set_content(body)
+    for filename, payload, media_type in attachments or []:
+        maintype, _, subtype = (media_type or "application/octet-stream").partition("/")
+        msg.add_attachment(payload, maintype=maintype, subtype=subtype or "octet-stream", filename=filename)
 
     host = smtp["host"]
     port = int(smtp["port"])

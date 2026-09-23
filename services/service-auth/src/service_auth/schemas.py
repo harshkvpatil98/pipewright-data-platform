@@ -181,12 +181,22 @@ class InviteRequest(BaseModel):
 
 
 class OneTimeCodeResponse(BaseModel):
-    """The plaintext code, returned once. A real deployment emails it instead."""
+    """What happened to a one-time activation or reset code.
+
+    When the server can send mail and the person has an address, the code is
+    emailed and `code` is null -- the admin never sees it, which is the point.
+    Otherwise the plaintext code is returned once for the admin to pass on, and
+    `email_error` says why it was not sent when an address existed.
+    """
 
     user_id: uuid.UUID
     username: str
-    code: str
+    code: str | None
     purpose: str
+    emailed: bool = False
+    #: The address it went to, masked (`a***@acme.com`), when emailed.
+    emailed_to: str | None = None
+    email_error: str | None = None
     expires_in_minutes: int
 
 

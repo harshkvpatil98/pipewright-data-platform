@@ -29,6 +29,16 @@ export function LoginForm() {
 
   // Show "Continue with SSO" only when a provider is actually configured, and
   // surface a message if the provider bounced us back with an error.
+  // An emailed invitation or reset link lands here with ?code=; open the
+  // redeem form with it filled in, so the person only types a password.
+  useEffect(() => {
+    const linked = searchParams.get("code");
+    if (linked) {
+      setCode(linked);
+      setMode("code");
+    }
+  }, [searchParams]);
+
   useEffect(() => {
     const ssoError = searchParams.get("sso_error");
     if (ssoError) setError(ssoError);

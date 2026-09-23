@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from service_auth.models import User, UserPreference
 from service_auth.schemas import (
     InviteRequest,
+    OneTimeCodeResponse,
     BootstrapUserRequest,
     PreferencesRead,
     PreferencesUpdate,
@@ -309,3 +310,69 @@ def set_preferences(
     db.commit()
     db.refresh(row)
     return PreferencesRead.model_validate(row)
+
+
+# ---------------------------------------------------------- code delivery
+
+
+def mask_email(address: str) -> str:
+    """`alice@acme.com` -> `a***@acme.com`: enough to recognise, not to reuse."""
+    local, _, domain = address.partition("@")
+    if not domain:
+        return "***"
+    return f"{local[:1]}***@{domain}"
+
+
+def deliver_one_time_code(
+    *,
+    user: User,
+    code: str,
+    purpose: str,
+    expires_in_minutes: int,
+    web_base_url: str,
+    email_sender=None,
+) -> OneTimeCodeResponse:
+    """Hand a code to the person by email when that is possible, else to the
+    admin who asked for it.
+
+    `email_sender` is injected by the gateway (the notifications package owns
+    SMTP); it is called as `(to=, subject=, body=)` and returns `(ok, reason)`.
+    Without a sender, or without an address on the account, the code comes
+    back in the response exactly as before -- nothing is ever silently
+    dropped: if an address exists and the send fails, the code is returned
+    AND the failure is stated.
+    """
+    link = f"{web_base_url.rstrip('/')}/login?code={code}"
+    if purpose == "activation":
+        subject = "You have been invited to Pipewright"
+        body = (
+            f"Hello {user.display_name or user.username},\n\n"
+            "An account has been created for you. Set your password within "
+            f"{expires_in_minutes} minutes using this link:\n\n{link}\n\n"
+            f"Username: {user.username}\n"
+            f"If the link does not open, choose \"Have an invite or reset code?\" on the sign-in "
+            f"page and enter this code: {code}\n\n"
+            "If you were not expecting this, you can ignore it; the code expires on its own."
+        )
+    else:
+        subject = "Reset your Pipewright password"
+        body = (
+            f"Hello {user.display_name or user.username},\n\n"
+            f"A password reset was requested for your account. Set a new password within "
+            f"{expires_in_minutes} minutes using this link:\n\n{link}\n\n"
+            f"Or enter this code on the sign-in page: {code}\n\n"
+            "If you did not ask for this, tell an administrator; every earlier session was "
+            "signed out when the code was issued."
+        )
+
+    base = dict(user_id=user.id, username=user.username, purpose=purpose,
+                expires_in_minutes=expires_in_minutes)
+    if email_sender is None or not user.email:
+        return OneTimeCodeResponse(code=code, **base)
+    try:
+        ok, reason = email_sender(to=user.email, subject=subject, body=body)
+    except Exception as exc:  # noqa: BLE001 - a mail failure must not lose the code
+        ok, reason = False, f"Email failed: {exc}"
+    if ok:
+        return OneTimeCodeResponse(code=None, emailed=True, emailed_to=mask_email(user.email), **base)
+    return OneTimeCodeResponse(code=code, emailed=False, email_error=reason, **base)

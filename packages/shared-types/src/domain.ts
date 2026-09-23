@@ -1083,9 +1083,15 @@ export type ApiTokenCreatedResponse = { token: ApiToken; secret: string };
 export type OneTimeCode = {
   user_id: string;
   username: string;
-  code: string;
+  /** Null when the code was emailed to the person: the admin never sees it. */
+  code: string | null;
   purpose: string;
   expires_in_minutes: number;
+  emailed: boolean;
+  /** Masked address it went to, when emailed. */
+  emailed_to: string | null;
+  /** Why it was not emailed although the account has an address. */
+  email_error: string | null;
 };
 
 export type UserNotificationRecord = {

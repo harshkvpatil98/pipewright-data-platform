@@ -49,6 +49,10 @@ OPERATOR_SEGMENTS = frozenset(
         "reopen",
         "assign",
         "comments",
+        # Leaving a note on a dataset, pipeline, dashboard or change request.
+        # Talking about a thing is not editing it; without this entry a viewer
+        # could read a discussion and an operator could not join it.
+        "discussion",
         "check",
         "capture",
         "retry",

@@ -23,6 +23,7 @@ import { Modal } from "@/components/ui/modal";
 import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { DatasetCatalogPanel } from "@/features/datasets/components/dataset-catalog-panel";
 import { DatasetVersionHistoryPanel } from "@/features/datasets/components/dataset-version-history-panel";
+import { DiscussionPanel } from "@/features/team/components/discussion-panel";
 import { DatasetPipelinesRunSection } from "@/features/datasets/components/dataset-pipelines-run-section";
 import { DatasetSuggestedTransformations } from "@/features/datasets/components/dataset-suggested-transformations";
 import { PreviewTransformModal } from "@/features/datasets/components/preview-transform-modal";
@@ -514,6 +515,14 @@ export function DatasetDetailPageView({
           </div>
         </div>
       </SectionPanel>
+
+      <DiscussionPanel
+        projectId={projectId}
+        targetType="dataset"
+        targetId={dataset.id}
+        currentUsername={currentUser.username}
+        description="Questions about this data, decisions about how to read it, caveats for the next person. Mention someone with @ and they are notified."
+      />
 
       <SectionPanel title="Column insights" description="Column-level null, uniqueness, and inferred type metrics derived from profiling.">
         <div className="overflow-hidden rounded-[24px] border border-line bg-sunken">

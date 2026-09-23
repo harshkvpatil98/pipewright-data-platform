@@ -36,7 +36,9 @@ export type CommentTargetType =
   | "pipeline"
   | "run"
   | "incident"
-  | "change_request";
+  | "change_request"
+  | "dashboard"
+  | "chart";
 export type ChangeStatus = "open" | "approved" | "rejected" | "withdrawn";
 export type AuditOutcome = "succeeded" | "denied" | "failed";
 

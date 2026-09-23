@@ -16,6 +16,7 @@ import type {
 import { Button, FormField, Input, SectionPanel, Select, StatusBadge, Textarea } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
+import { DiscussionPanel } from "@/features/team/components/discussion-panel";
 import { PipelinePreviewPanel } from "@/features/pipelines/components/pipeline-preview-panel";
 import { PipelineStepEditor } from "@/features/pipelines/components/pipeline-step-editor";
 import { PipelineStepList } from "@/features/pipelines/components/pipeline-step-list";
@@ -447,6 +448,16 @@ export function PipelineEditorPageView({
           </div>
         </div>
       </SectionPanel>
+
+      {pipeline ? (
+        <DiscussionPanel
+          projectId={project.id}
+          targetType="pipeline"
+          targetId={pipeline.id}
+          currentUsername={currentUser.username}
+          description="Why a step is there, what a filter is for, what to check before changing it. Mention someone with @ and they are notified."
+        />
+      ) : null}
     </AppShell>
   );
 }

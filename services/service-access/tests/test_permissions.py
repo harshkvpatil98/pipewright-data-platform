@@ -49,6 +49,12 @@ def test_editing_a_definition_needs_an_editor():
     assert required_role("DELETE", f"{PROJECT}/datasets/abc") == "editor"
 
 
+def test_joining_a_discussion_is_an_operator_action_not_an_edit():
+    assert required_role("GET", f"{PROJECT}/discussion") == "viewer"
+    assert required_role("POST", f"{PROJECT}/discussion") == "operator"
+    assert required_role("POST", f"{PROJECT}/discussion/abc/resolve") == "operator"
+
+
 def test_the_time_travel_role_matrix_is_the_intended_one():
     """Phase 18 §6: history and temporal reads are viewer; rewriting the head
     (rollback) or re-executing (replay) is editor. Pinned here so a route

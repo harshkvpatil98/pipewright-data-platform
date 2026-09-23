@@ -366,6 +366,29 @@ def test_a_mention_notifies_the_person_named(db: Session, world: dict):
     assert notification.type == "mention"
 
 
+def test_a_mention_notification_points_at_the_thing_discussed(db: Session, world: dict):
+    add_comment(
+        db,
+        world["project"].id,
+        CommentCreate(target_type="dataset", target_id=RESOURCE_ID, body="@reviewer see this"),
+        _as_read(world["author"]),
+    )
+    notification = db.query(UserNotification).one()
+    assert notification.related_dataset_id == RESOURCE_ID
+    assert notification.title == "author mentioned you on a dataset"
+
+
+def test_dashboards_and_charts_can_be_discussed(db: Session, world: dict):
+    for target_type in ("dashboard", "chart"):
+        comment = add_comment(
+            db,
+            world["project"].id,
+            CommentCreate(target_type=target_type, target_id=RESOURCE_ID, body="looks off"),
+            _as_read(world["author"]),
+        )
+        assert comment.target_type == target_type
+
+
 def test_mentioning_yourself_is_not_news(db: Session, world: dict):
     add_comment(
         db,

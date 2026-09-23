@@ -16,6 +16,7 @@ import { DASHBOARD_REFRESH_CHOICES } from "@platform/shared-types";
 import { Button, SectionPanel } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
+import { DiscussionPanel } from "@/features/team/components/discussion-panel";
 import { Icon } from "@/components/ui/icon";
 import { Modal } from "@/components/ui/modal";
 import { apiFetch } from "@/lib/api/client";
@@ -517,6 +518,14 @@ export function DashboardViewPage({
             {data.tiles.some((tile) => tile.error) ? " · some tiles could not be computed (see the tile)" : ""}
           </p>
         ) : null}
+
+        <DiscussionPanel
+          projectId={projectId}
+          targetType="dashboard"
+          targetId={dashboard.id}
+          currentUsername={currentUser.username}
+          description="What this page is for, what changed, what looks wrong. Mention someone with @ and they are notified."
+        />
       </AppShell>
 
       <Modal

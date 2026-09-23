@@ -8,12 +8,11 @@ import type {
   ChangeRequestDetail,
   ChangeRequestListResponse,
   ChangeStatus,
-  Comment,
-  CommentListResponse,
 } from "@platform/shared-types";
-import { Button, SectionPanel, Textarea } from "@platform/shared-ui";
+import { Button, SectionPanel } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
+import { DiscussionPanel } from "@/features/team/components/discussion-panel";
 import { Icon } from "@/components/ui/icon";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
@@ -42,46 +41,8 @@ const KIND_TONE: Record<string, string> = {
 export function ChangesPageView({ currentUser, projectId, initial }: ChangesPageProps) {
   const [data, setData] = useState(initial);
   const [open, setOpen] = useState<ChangeRequestDetail | null>(null);
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [commentDraft, setCommentDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-
-  const loadComments = useCallback(
-    async (changeId: string) => {
-      try {
-        const response = await apiFetch<CommentListResponse>(
-          `/projects/${projectId}/comments?target_type=change_request&target_id=${changeId}`,
-        );
-        setComments(response.items);
-      } catch {
-        setComments([]);
-      }
-    },
-    [projectId],
-  );
-
-  const postComment = useCallback(async () => {
-    if (!open || !commentDraft.trim()) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await apiFetch(`/projects/${projectId}/comments`, {
-        method: "POST",
-        body: JSON.stringify({
-          target_type: "change_request",
-          target_id: open.id,
-          body: commentDraft.trim(),
-        }),
-      });
-      setCommentDraft("");
-      await loadComments(open.id);
-    } catch (caught) {
-      setError(extractErrorMessage(caught));
-    } finally {
-      setBusy(false);
-    }
-  }, [open, commentDraft, projectId, loadComments]);
 
   const reload = useCallback(async () => {
     setData(await apiFetch<ChangeRequestListResponse>(`/projects/${projectId}/changes`));
@@ -90,17 +51,15 @@ export function ChangesPageView({ currentUser, projectId, initial }: ChangesPage
   const inspect = useCallback(
     async (change: ChangeRequest) => {
       setError(null);
-      setCommentDraft("");
       try {
         setOpen(
           await apiFetch<ChangeRequestDetail>(`/projects/${projectId}/changes/${change.id}`),
         );
-        await loadComments(change.id);
       } catch (caught) {
         setError(extractErrorMessage(caught));
       }
     },
-    [projectId, loadComments],
+    [projectId],
   );
 
   const review = useCallback(
@@ -270,42 +229,19 @@ export function ChangesPageView({ currentUser, projectId, initial }: ChangesPage
                 <h3 className="text-[12px] font-semibold uppercase tracking-[0.14em] text-muted">
                   Review discussion
                 </h3>
-                {comments.length === 0 ? (
-                  <p className="mt-2 text-[12px] text-muted">
-                    No comments yet. Ask for changes without rejecting — the proposal stays open.
-                  </p>
-                ) : (
-                  <ul className="mt-2 space-y-2">
-                    {comments.map((comment) => (
-                      <li key={comment.id} className="rounded-lg border border-line bg-surface px-3 py-2">
-                        <div className="flex items-baseline justify-between gap-2">
-                          <span className="text-[12px] font-medium text-ink">
-                            {comment.author_username ?? "someone"}
-                          </span>
-                          <span className="text-[10.5px] text-muted">{formatDate(comment.created_at)}</span>
-                        </div>
-                        <p className="mt-1 whitespace-pre-wrap text-[12.5px] leading-5 text-ink-2">
-                          {comment.body}
-                        </p>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                <div className="mt-3 space-y-2">
-                  <Textarea
-                    value={commentDraft}
-                    onChange={(event) => setCommentDraft(event.target.value)}
-                    placeholder="Request changes, or leave a note for the author…"
-                    rows={2}
-                  />
-                  <Button
-                    variant="secondary"
-                    disabled={busy || commentDraft.trim().length === 0}
-                    onClick={() => void postComment()}
-                  >
-                    {open.status === "open" ? "Request changes" : "Comment"}
-                  </Button>
-                </div>
+                <p className="mt-1 mb-3 text-[12px] text-muted">
+                  Ask for changes without rejecting — the proposal stays open.
+                </p>
+                <DiscussionPanel
+                  key={open.id}
+                  bare
+                  projectId={projectId}
+                  targetType="change_request"
+                  targetId={open.id}
+                  currentUsername={currentUser.username}
+                  composerLabel={open.status === "open" ? "Request changes" : "Comment"}
+                  placeholder="Request changes, or leave a note for the author…"
+                />
               </div>
 
               {open.status !== "open" ? (

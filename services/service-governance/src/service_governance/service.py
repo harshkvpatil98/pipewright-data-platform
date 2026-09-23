@@ -482,6 +482,14 @@ def _notify_mentions(
         rows = db.scalars(
             select(User).where(func.lower(User.username).in_(mentions))
         ).all()
+        # The notification carries the thing the comment is on, so the bell can
+        # take the person straight to it rather than to a bare sentence.
+        related = {
+            "dataset": {"related_dataset_id": comment.target_id},
+            "pipeline": {"related_pipeline_id": comment.target_id},
+            "run": {"related_run_id": comment.target_id},
+        }.get(comment.target_type, {})
+        where = comment.target_type.replace("_", " ")
         for user in rows:
             if user.id == author.id:
                 continue  # Mentioning yourself is not news.
@@ -491,8 +499,9 @@ def _notify_mentions(
                 project_id=comment.project_id,
                 type="mention",
                 level="info",
-                title=f"{author.username} mentioned you",
+                title=f"{author.username} mentioned you on a {where}",
                 message=comment.body[:500],
+                **related,
             )
     except Exception:  # noqa: BLE001 - see docstring
         from shared_python.logging import get_logger

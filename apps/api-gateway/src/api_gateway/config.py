@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     db_max_overflow: int = Field(default=10, ge=0, le=100)
     db_pool_recycle_seconds: int = Field(default=1800, ge=60, le=86400)
     db_pool_timeout_seconds: int = Field(default=30, ge=1, le=300)
+    # Log any SQL statement that runs for at least this many milliseconds. 0
+    # turns it off entirely (the default); set it when diagnosing a slow page.
+    db_slow_query_ms: int = Field(default=0, ge=0, le=600000)
     # Responses at or above this size are gzipped. JSON previews and profiles
     # compress well; below this the CPU cost outweighs the transfer saving.
     gzip_minimum_size_bytes: int = Field(default=1024, ge=0)

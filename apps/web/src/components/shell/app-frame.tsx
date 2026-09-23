@@ -50,6 +50,8 @@ function buildRailSections(
       items: [
         { id: "home", label: "Home", icon: "home", href: "/" },
         { id: "projects", label: "Projects", icon: "grid", href: "/projects", exact: true },
+        { id: "runs", label: "Runs", icon: "activity", href: "/runs", exact: true },
+        { id: "datasets", label: "Datasets", icon: "table", href: "/datasets", exact: true },
       ],
     },
   ];

@@ -598,6 +598,38 @@ export type DatasetPublishTableauResponse = {
 };
 
 export type ProjectListResponse = { items: ProjectSummary[] };
+
+/** A run as the cross-project operator view (/runs) shows it. */
+export type OperatorRunRow = {
+  id: string;
+  project_id: string;
+  project_name: string;
+  run_type: string;
+  status: string;
+  pipeline_name: string | null;
+  created_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+};
+
+export type OperatorRunsResponse = { items: OperatorRunRow[] };
+
+/** A dataset as the cross-project search view (/datasets) shows it. */
+export type OperatorDatasetRow = {
+  id: string;
+  project_id: string;
+  project_name: string;
+  name: string;
+  status: string;
+  ingestion_status: string;
+  is_derived: boolean;
+  file_type: string | null;
+  row_count: number | null;
+  column_count: number | null;
+  created_at: string;
+};
+
+export type OperatorDatasetsResponse = { items: OperatorDatasetRow[] };
 export type SourceListResponse = { items: SourceRecord[] };
 export type DatasetListResponse = { items: DatasetRecord[] };
 export type PipelineRunListResponse = { items: PipelineRunRecord[] };

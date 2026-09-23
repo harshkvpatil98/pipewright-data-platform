@@ -1,9 +1,13 @@
+import type { OperatorDatasetsResponse } from "@platform/shared-types";
+
+import { DatasetsSearchPageView } from "@/features/operator/components/datasets-search-page";
+import { serverApiFetch } from "@/lib/api/server";
 import { requireCurrentUser } from "@/lib/auth/server";
-import { redirectToProjectScope } from "@/lib/project-scope";
 
 export const dynamic = "force-dynamic";
 
 export default async function DatasetsPage() {
-  await requireCurrentUser();
-  await redirectToProjectScope("");
+  const currentUser = await requireCurrentUser();
+  const datasets = await serverApiFetch<OperatorDatasetsResponse>("/datasets");
+  return <DatasetsSearchPageView currentUser={currentUser} initialDatasets={datasets.items} />;
 }

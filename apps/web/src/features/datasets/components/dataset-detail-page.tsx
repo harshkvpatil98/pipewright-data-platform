@@ -21,6 +21,7 @@ import { extractErrorMessage } from "@/lib/api/errors";
 import { apiFetch } from "@/lib/api/client";
 import { Modal } from "@/components/ui/modal";
 import { DeleteRowButton } from "@/components/ui/delete-row-button";
+import { DatasetCatalogPanel } from "@/features/datasets/components/dataset-catalog-panel";
 import { DatasetPipelinesRunSection } from "@/features/datasets/components/dataset-pipelines-run-section";
 import { DatasetSuggestedTransformations } from "@/features/datasets/components/dataset-suggested-transformations";
 import { PreviewTransformModal } from "@/features/datasets/components/preview-transform-modal";
@@ -345,6 +346,12 @@ export function DatasetDetailPageView({
             </div>
           </div>
         </SectionPanel>
+
+        <DatasetCatalogPanel
+          projectId={projectId}
+          datasetId={dataset.id}
+          columns={schemaColumns.map((column) => String(column.name))}
+        />
 
         <SectionPanel title="Profile summary" description="Initial data quality and structure metrics generated at ingestion time.">
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

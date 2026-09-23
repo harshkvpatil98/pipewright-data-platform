@@ -25,6 +25,7 @@ from service_reporting.schemas import (
     DashboardListResponse,
     DashboardRead,
     DashboardUpdate,
+    DatasetTermLink,
     DeliveryListResponse,
     PivotRequest,
     PivotResponse,
@@ -56,6 +57,8 @@ from service_reporting.service import (
     list_dashboards,
     list_deliveries,
     list_reports,
+    link_term_to_dataset,
+    list_dataset_terms,
     list_terms,
     preview_chart,
     run_pivot,
@@ -63,6 +66,7 @@ from service_reporting.service import (
     search_catalog,
     share_dashboard,
     unshare_dashboard,
+    unlink_term_from_dataset,
     update_annotation,
     update_chart,
     update_dashboard,
@@ -361,6 +365,49 @@ def build_router(
         current_user: UserRead = Depends(get_current_user),
     ) -> AnnotationRead:
         return update_annotation(db, project_id, dataset_id, payload, current_user)
+
+    # ---- glossary terms linked to a dataset (from the dataset's side) ----
+
+    @router.get(
+        "/projects/{project_id}/datasets/{dataset_id}/glossary-terms",
+        response_model=TermListResponse,
+    )
+    def dataset_terms(
+        project_id: uuid.UUID,
+        dataset_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> TermListResponse:
+        return list_dataset_terms(db, project_id, dataset_id, current_user)
+
+    @router.post(
+        "/projects/{project_id}/datasets/{dataset_id}/glossary-terms",
+        response_model=TermRead,
+    )
+    def link_dataset_term(
+        project_id: uuid.UUID,
+        dataset_id: uuid.UUID,
+        payload: DatasetTermLink,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> TermRead:
+        return link_term_to_dataset(
+            db, project_id, dataset_id, payload.term_id, payload.column, current_user
+        )
+
+    @router.delete(
+        "/projects/{project_id}/datasets/{dataset_id}/glossary-terms/{term_id}",
+        response_model=TermRead,
+    )
+    def unlink_dataset_term(
+        project_id: uuid.UUID,
+        dataset_id: uuid.UUID,
+        term_id: uuid.UUID,
+        column: str = Query(...),
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> TermRead:
+        return unlink_term_from_dataset(db, project_id, dataset_id, term_id, column, current_user)
 
     # ---- glossary ----
 

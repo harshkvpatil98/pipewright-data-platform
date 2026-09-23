@@ -37,12 +37,15 @@ from service_reporting.service import (
     create_term,
     get_chart_with_data,
     get_shared_dashboard,
+    link_term_to_dataset,
+    list_dataset_terms,
     list_terms,
     preview_chart,
     run_pivot,
     run_report,
     search_catalog,
     share_dashboard,
+    unlink_term_from_dataset,
     unshare_dashboard,
     update_annotation,
     update_dashboard,
@@ -527,6 +530,55 @@ def test_a_binding_to_another_projects_dataset_is_refused(db, project, dataset, 
             ),
             user,
         )
+
+
+def test_a_dataset_gets_a_named_steward(db, project, dataset, user):
+    steward = User(
+        id=uuid.uuid4(), username="dana", password_hash="x", role="editor", is_active=True
+    )
+    db.add(steward)
+    db.commit()
+
+    note = update_annotation(
+        db, project.id, dataset.id, AnnotationUpdate(owner_username="Dana"), user
+    )
+    assert note.owner_username == "dana"
+
+    # An empty string clears the steward; None would leave it unchanged.
+    cleared = update_annotation(
+        db, project.id, dataset.id, AnnotationUpdate(owner_username=""), user
+    )
+    assert cleared.owner_username is None
+
+
+def test_naming_an_unknown_steward_is_refused(db, project, dataset, user):
+    with pytest.raises(NotFoundError):
+        update_annotation(
+            db, project.id, dataset.id, AnnotationUpdate(owner_username="ghost"), user
+        )
+
+
+def test_a_term_links_and_unlinks_from_a_dataset_page(db, project, dataset, user):
+    term = create_term(db, project.id, TermCreate(term="Revenue", definition="Money in."), user)
+    assert list_dataset_terms(db, project.id, dataset.id, user).items == []
+
+    linked = link_term_to_dataset(db, project.id, dataset.id, term.id, "amount", user)
+    assert linked.bindings[0].column == "amount"
+    assert [t.term for t in list_dataset_terms(db, project.id, dataset.id, user).items] == [
+        "Revenue"
+    ]
+
+    # Linking the same column twice does not create a duplicate binding.
+    again = link_term_to_dataset(db, project.id, dataset.id, term.id, "amount", user)
+    assert len(again.bindings) == 1
+
+    unlink_term_from_dataset(db, project.id, dataset.id, term.id, "amount", user)
+    assert list_dataset_terms(db, project.id, dataset.id, user).items == []
+
+
+def test_linking_a_term_that_does_not_exist_is_refused(db, project, dataset, user):
+    with pytest.raises(NotFoundError):
+        link_term_to_dataset(db, project.id, dataset.id, uuid.uuid4(), "amount", user)
 
 
 # ---- public shared dashboard view ----

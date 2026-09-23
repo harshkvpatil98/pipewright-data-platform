@@ -1115,9 +1115,26 @@ def update_annotation(
         note.certified_at = datetime.now(UTC) if payload.certified else None
         note.certified_by_user_id = current_user.id if payload.certified else None
 
+    if payload.owner_username is not None:
+        note.owner_user_id = _resolve_owner(db, payload.owner_username)
+
     db.commit()
     db.refresh(note)
     return _annotation_read(db, dataset_id, note)
+
+
+def _resolve_owner(db: Session, username: str):
+    """Map a username to a user id for the steward field. An empty string clears
+    the owner; an unknown username is refused rather than silently ignored."""
+    from service_auth.models import User
+
+    cleaned = username.strip().lower()
+    if not cleaned:
+        return None
+    owner = db.scalar(select(User).where(User.username == cleaned))
+    if owner is None:
+        raise NotFoundError(f"No user named '{cleaned}' to own this dataset.")
+    return owner.id
 
 
 def _term_read(term: GlossaryTerm, owner: str | None) -> TermRead:
@@ -1216,6 +1233,90 @@ def list_terms(db: Session, project_id: uuid.UUID, current_user: UserRead) -> Te
             for term in terms
         ]
     )
+
+
+def list_dataset_terms(
+    db: Session, project_id: uuid.UUID, dataset_id: uuid.UUID, current_user: UserRead
+) -> TermListResponse:
+    """Glossary terms linked to this dataset, so a dataset page can show its
+    business vocabulary alongside its columns."""
+    ensure_owned_project(db, project_id, current_user.id)
+    target = str(dataset_id)
+    terms = [
+        term
+        for term in db.scalars(
+            select(GlossaryTerm).where(GlossaryTerm.project_id == project_id)
+        ).all()
+        if any(str(b.get("dataset_id")) == target for b in (term.bindings_json or []))
+    ]
+    names = _usernames(db, [term.owner_user_id for term in terms])
+    return TermListResponse(
+        items=[
+            _term_read(term, names.get(term.owner_user_id) if term.owner_user_id else None)
+            for term in terms
+        ]
+    )
+
+
+def link_term_to_dataset(
+    db: Session,
+    project_id: uuid.UUID,
+    dataset_id: uuid.UUID,
+    term_id: uuid.UUID,
+    column: str,
+    current_user: UserRead,
+) -> TermRead:
+    """Bind a glossary term to a dataset column, from the dataset's side."""
+    ensure_owned_project(db, project_id, current_user.id)
+    _get_dataset(db, project_id, dataset_id)  # 404 if not in this project
+    term = db.scalar(
+        select(GlossaryTerm).where(
+            GlossaryTerm.id == term_id, GlossaryTerm.project_id == project_id
+        )
+    )
+    if term is None:
+        raise NotFoundError("That glossary term does not exist.")
+
+    target, col = str(dataset_id), column.strip()
+    if not col:
+        raise BadRequestError("A term is linked to a specific column.")
+    bindings = list(term.bindings_json or [])
+    if not any(str(b.get("dataset_id")) == target and b.get("column") == col for b in bindings):
+        bindings.append({"dataset_id": target, "column": col})
+        term.bindings_json = bindings
+        db.commit()
+        db.refresh(term)
+    owner = _usernames(db, [term.owner_user_id]).get(term.owner_user_id) if term.owner_user_id else None
+    return _term_read(term, owner)
+
+
+def unlink_term_from_dataset(
+    db: Session,
+    project_id: uuid.UUID,
+    dataset_id: uuid.UUID,
+    term_id: uuid.UUID,
+    column: str,
+    current_user: UserRead,
+) -> TermRead:
+    ensure_owned_project(db, project_id, current_user.id)
+    term = db.scalar(
+        select(GlossaryTerm).where(
+            GlossaryTerm.id == term_id, GlossaryTerm.project_id == project_id
+        )
+    )
+    if term is None:
+        raise NotFoundError("That glossary term does not exist.")
+    target, col = str(dataset_id), column.strip()
+    remaining = [
+        b
+        for b in (term.bindings_json or [])
+        if not (str(b.get("dataset_id")) == target and b.get("column") == col)
+    ]
+    term.bindings_json = remaining or None
+    db.commit()
+    db.refresh(term)
+    owner = _usernames(db, [term.owner_user_id]).get(term.owner_user_id) if term.owner_user_id else None
+    return _term_read(term, owner)
 
 
 def delete_term(

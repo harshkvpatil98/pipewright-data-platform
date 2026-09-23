@@ -219,8 +219,24 @@ export type CatalogAnnotation = {
   column_notes: Record<string, string>;
 };
 
+/** Fields a steward can change about a dataset from its catalog card. Every
+ * field is optional; owner_username uses "" to clear and null-absent to leave. */
+export type CatalogAnnotationUpdate = {
+  description?: string | null;
+  tags?: string[];
+  certified?: boolean;
+  column_notes?: Record<string, string>;
+  owner_username?: string;
+};
+
 export type GlossaryBinding = {
   dataset_id: string;
+  column: string;
+};
+
+/** Link an existing glossary term to one column of a dataset. */
+export type DatasetTermLink = {
+  term_id: string;
   column: string;
 };
 

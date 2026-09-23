@@ -276,6 +276,9 @@ class AnnotationUpdate(BaseModel):
     tags: list[str] | None = Field(default=None, max_length=20)
     certified: bool | None = None
     column_notes: dict[str, str] | None = None
+    # The steward responsible for this dataset, by username. Empty string clears
+    # it; None leaves it unchanged.
+    owner_username: str | None = Field(default=None, max_length=80)
 
 
 class AnnotationRead(BaseModel):
@@ -291,6 +294,13 @@ class AnnotationRead(BaseModel):
 
 class GlossaryBinding(BaseModel):
     dataset_id: uuid.UUID
+    column: str = Field(min_length=1, max_length=200)
+
+
+class DatasetTermLink(BaseModel):
+    """Link an existing glossary term to one column of this dataset."""
+
+    term_id: uuid.UUID
     column: str = Field(min_length=1, max_length=200)
 
 

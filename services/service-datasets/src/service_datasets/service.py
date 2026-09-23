@@ -23,6 +23,13 @@ from service_datasets.schemas import (
     DatasetVersionListResponse,
     DatasetVersionRead,
 )
+from service_datasets.version_lifecycle import (
+    active_pin_count,
+    active_pin_counts,
+    pin_version,
+    release_pins,
+    require_readable,
+)
 from service_datasets.versions_diff import diff_frames
 from service_projects.contracts import ensure_owned_project
 from service_sources.contracts import get_source_for_project
@@ -86,10 +93,19 @@ def list_dataset_versions(
         ).all()
     )
     current = versions[0].version_number if versions else None
+    pins = active_pin_counts(db, [version.id for version in versions])
     return DatasetVersionListResponse(
-        items=[DatasetVersionRead.model_validate(version) for version in versions],
+        items=[_version_read(db, version, pins.get(version.id, 0)) for version in versions],
         current_version=current,
     )
+
+
+def _version_read(
+    db: Session, version: DatasetVersion, active_pins: int | None = None
+) -> DatasetVersionRead:
+    read = DatasetVersionRead.model_validate(version)
+    read.active_pins = active_pin_count(db, version.id) if active_pins is None else active_pins
+    return read
 
 
 def _get_dataset_version(
@@ -116,9 +132,7 @@ def get_dataset_version(
     """Metadata for one specific version. A read: viewer role (§6)."""
     ensure_owned_project(db, project_id, current_user.id)
     get_dataset_model_for_project(db, project_id, dataset_id)
-    return DatasetVersionRead.model_validate(
-        _get_dataset_version(db, dataset_id, version_number)
-    )
+    return _version_read(db, _get_dataset_version(db, dataset_id, version_number))
 
 
 def get_dataset_version_preview(
@@ -136,6 +150,9 @@ def get_dataset_version_preview(
     ensure_owned_project(db, project_id, current_user.id)
     get_dataset_model_for_project(db, project_id, dataset_id)
     version = _get_dataset_version(db, dataset_id, version_number)
+    # A pruned version answers with why, not with an empty table that looks
+    # like a dataset with no rows.
+    require_readable(version)
     preview = version.preview_json or {"columns": [], "rows": []}
     return DatasetPreviewResponse(
         dataset_id=dataset_id,
@@ -150,6 +167,7 @@ def _read_version_frame(storage_backend, version: DatasetVersion, fallback_type:
     # module-level import back would be the cycle the hook rule exists to avoid.
     from service_ingestion.parsers import parse_tabular_file
 
+    require_readable(version)
     try:
         stored = storage_backend.read_bytes(version.file_path)
     except Exception as exc:  # noqa: BLE001 - every read failure gets the same honest answer
@@ -243,10 +261,22 @@ def rollback_dataset_version(
 
     from service_ingestion.parsers import parse_tabular_file
 
+    # §4: hold the target open -- durably, before any bytes are read -- so a
+    # retention sweep in another session cannot remove it underneath the copy.
+    # A pruned target is refused here with the reason; a pending one is rescued.
+    holder_id = uuid.uuid4()
+    pin_version(
+        db, target, holder_kind="rollback", holder_id=holder_id,
+        reason=f"rollback of dataset {dataset_id} to version {version_number}",
+    )
+    db.commit()
+
     file_type = target.file_type or dataset.file_type or "csv"
     try:
         payload_bytes = storage_backend.read_bytes(target.file_path)
     except Exception as exc:  # noqa: BLE001 - one honest answer for every read failure
+        release_pins(db, holder_kind="rollback", holder_id=holder_id)
+        db.commit()
         raise BadRequestError(
             f"Version {version_number}'s stored artifact could not be read."
         ) from exc
@@ -283,9 +313,14 @@ def rollback_dataset_version(
         content_hash=content_digest(payload_bytes),
         created_by_user_id=current_user.id,
     )
+    # The pin is released in the same commit that publishes the restored head,
+    # so there is no window where the copy exists but its source is unprotected
+    # -- and no window where a crash leaves the head advanced but the pin open
+    # forever (an open pin would only keep data, which is the safe direction).
+    release_pins(db, holder_kind="rollback", holder_id=holder_id)
     db.commit()
     db.refresh(version)
-    return DatasetVersionRead.model_validate(version)
+    return _version_read(db, version)
 
 
 def update_dataset(

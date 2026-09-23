@@ -677,14 +677,56 @@ def _retention_target(resource_type: str):
     raise BadRequestError(f"'{resource_type}' cannot have a retention policy.")
 
 
+def _sweep_dataset_versions(
+    db: Session,
+    *,
+    project_id: uuid.UUID,
+    policy: RetentionPolicy,
+    cutoff: datetime,
+    moment: datetime,
+    storage,
+) -> retention_ops.DeletionPlan:
+    """Dataset versions are not deleted with one statement. The protocol in
+    `service_datasets.version_lifecycle` (§4) marks, waits out a lease,
+    re-validates under a lock and only then removes -- so one policy pass
+    schedules what is newly eligible and prunes what an earlier pass scheduled.
+    """
+    from service_datasets.version_lifecycle import sweep_project_versions
+
+    report = sweep_project_versions(
+        db,
+        project_id=project_id,
+        cutoff=cutoff,
+        now=moment,
+        dry_run=policy.dry_run,
+        storage=storage,
+    )
+    detail = report.to_dict()
+    matched = report.would_schedule if policy.dry_run else report.scheduled + report.pruned
+    return retention_ops.DeletionPlan(
+        resource_type=policy.resource_type,
+        cutoff=cutoff,
+        matched=int(matched),
+        dry_run=policy.dry_run,
+        deleted=int(report.pruned),
+        detail=detail,
+    )
+
+
 def run_retention(
     db: Session,
     project_id: uuid.UUID,
     current_user: UserRead | None = None,
     *,
     now: datetime | None = None,
+    storage=None,
 ) -> RetentionRunResponse:
-    """Apply every enabled policy, deleting only where told to."""
+    """Apply every enabled policy, deleting only where told to.
+
+    `storage` is needed only by the dataset-versions policy, to remove the bytes
+    of a pruned version; without it the tombstone still lands and the bytes are
+    removed by the next sweep that has storage (the ticker always does).
+    """
     if current_user is not None:
         ensure_owned_project(db, project_id, current_user.id)
 
@@ -696,8 +738,17 @@ def run_retention(
             RetentionPolicy.project_id == project_id, RetentionPolicy.enabled.is_(True)
         )
     ).all():
-        model, date_column, project_column = _retention_target(policy.resource_type)
         cutoff = retention_ops.cutoff_for(policy.retain_days, now=moment)
+        if policy.resource_type == "dataset_versions":
+            plan = _sweep_dataset_versions(
+                db, project_id=project_id, policy=policy, cutoff=cutoff, moment=moment,
+                storage=storage,
+            )
+            policy.last_run_at = moment
+            policy.last_deleted_count = plan.deleted
+            plans.append(plan)
+            continue
+        model, date_column, project_column = _retention_target(policy.resource_type)
 
         condition = (project_column == project_id) & (date_column < cutoff)
         # Incidents are dated by resolution, so an unresolved one has no date
@@ -725,10 +776,22 @@ def run_retention(
 
     total_matched = sum(plan.matched for plan in plans)
     total_deleted = sum(plan.deleted for plan in plans)
+    scheduled_versions = sum(
+        int((plan.detail or {}).get("scheduled", 0))
+        for plan in plans
+        if plan.resource_type == "dataset_versions" and not plan.dry_run
+    )
     if not plans:
         summary = "No retention policies are set for this project."
     elif total_deleted:
         summary = f"Deleted {total_deleted:,} record(s) across {len(plans)} policy(ies)."
+        if scheduled_versions:
+            summary += f" Scheduled {scheduled_versions:,} dataset version(s) for removal."
+    elif scheduled_versions:
+        summary = (
+            f"Scheduled {scheduled_versions:,} superseded dataset version(s) for removal "
+            "after the grace period. Nothing else was past its retention."
+        )
     elif total_matched:
         summary = (
             f"{total_matched:,} record(s) are past their retention, and every policy is in "
@@ -743,6 +806,40 @@ def run_retention(
         total_deleted=total_deleted,
         summary=summary,
     )
+
+
+def sweep_dataset_version_retention(
+    db: Session, *, storage, now: datetime | None = None
+) -> dict[str, int]:
+    """Every project's enabled dataset-versions policy, in one pass -- what the
+    schedule ticker calls, so a version scheduled from the governance page is
+    actually removed once its grace period ends without anybody clicking again.
+    Report-only policies are skipped: they do nothing a person has not asked to
+    see, and the page shows them their numbers on demand."""
+    moment = now or datetime.now(UTC)
+    totals = {"projects": 0, "scheduled": 0, "pruned": 0, "artifacts_removed": 0}
+    policies = db.scalars(
+        select(RetentionPolicy).where(
+            RetentionPolicy.resource_type == "dataset_versions",
+            RetentionPolicy.enabled.is_(True),
+            RetentionPolicy.dry_run.is_(False),
+        )
+    ).all()
+    for policy in policies:
+        cutoff = retention_ops.cutoff_for(policy.retain_days, now=moment)
+        plan = _sweep_dataset_versions(
+            db, project_id=policy.project_id, policy=policy, cutoff=cutoff, moment=moment,
+            storage=storage,
+        )
+        policy.last_run_at = moment
+        policy.last_deleted_count = plan.deleted
+        db.commit()
+        detail = plan.detail or {}
+        totals["projects"] += 1
+        totals["scheduled"] += int(detail.get("scheduled", 0))
+        totals["pruned"] += int(detail.get("pruned", 0))
+        totals["artifacts_removed"] += int(detail.get("artifacts_removed", 0))
+    return totals
 
 
 # --------------------------------------------------------------------------
@@ -973,6 +1070,10 @@ def _erase_destructively(
         ).all()
     )
     for version in versions:
+        if version.retention_state == "pruned":
+            # Retention already removed this version's data (bytes and
+            # preview); there is nothing of the subject left in it to redact.
+            continue
         if version.file_path == dataset.file_path:
             # The head version's artifact was just rewritten above; keep its
             # recorded hash and preview true to the new bytes.

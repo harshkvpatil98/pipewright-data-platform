@@ -259,8 +259,9 @@ def build_router(
         project_id: uuid.UUID,
         db: Session = Depends(get_db),
         current_user: UserRead = Depends(get_current_user),
+        storage=Depends(get_storage_backend),
     ) -> RetentionRunResponse:
-        return run_retention(db, project_id, current_user)
+        return run_retention(db, project_id, current_user, storage=storage)
 
     @router.get("/projects/{project_id}/erasures", response_model=ErasureListResponse)
     def read_erasures(

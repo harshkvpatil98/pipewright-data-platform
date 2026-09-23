@@ -669,6 +669,14 @@ export type DatasetVersion = {
   pipeline_run_id: string | null;
   created_by_user_id: string | null;
   created_at: string;
+  /** `active`; `pending_delete` (a retention sweep marked it -- removal follows
+   * a grace period unless something pins it first); or `pruned` (data removed,
+   * this record kept as a tombstone). */
+  retention_state: "active" | "pending_delete" | "pruned";
+  delete_after: string | null;
+  pruned_at: string | null;
+  /** Open pins holding the version (a rollback or replay in progress). */
+  active_pins: number;
 };
 
 export type DatasetVersionListResponse = {

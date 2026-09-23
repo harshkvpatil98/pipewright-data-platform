@@ -86,6 +86,25 @@ READ_ONLY_SEGMENTS = frozenset(
         # would mean a viewer could not look at a file before somebody imports
         # it -- which is exactly when looking is useful.
         "analyze",
+        # A temporal SQL query over a stored dataset version (time travel). It
+        # reads a snapshot and stores nothing; without this entry a viewer could
+        # diff two versions but not query one, which is the inconsistency §6 of
+        # the phase-18 requirements names. No route uses `query` for a write.
+        "query",
+    }
+)
+
+# Actions that publish or re-execute by hand. They are neither "run the job"
+# (an operator's nightly button) nor a plain definition edit, but they change
+# what the current data IS, so they take the editor role -- even under a path
+# that also carries an operator segment such as `runs`.
+EDITOR_SEGMENTS = frozenset(
+    {
+        # Makes an older version the current data by appending a new one.
+        "rollback",
+        # Re-executes a recorded run against its pinned inputs and publishes
+        # the result as a new dataset.
+        "replay",
     }
 )
 
@@ -205,6 +224,9 @@ def required_role(method: str, path: str) -> str:
 
     if segments & READ_ONLY_SEGMENTS:
         return "viewer"
+
+    if segments & EDITOR_SEGMENTS:
+        return "editor"
 
     if segments & OPERATOR_SEGMENTS:
         return "operator"

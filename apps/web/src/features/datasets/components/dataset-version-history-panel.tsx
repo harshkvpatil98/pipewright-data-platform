@@ -175,10 +175,12 @@ export function DatasetVersionHistoryPanel({
               <tbody className="divide-y divide-line">
                 {history.items.map((version) => {
                   const isHead = version.version_number === history.current_version;
+                  const pruned = version.retention_state === "pruned";
+                  const scheduled = version.retention_state === "pending_delete";
                   return (
                     <tr key={version.id} className="transition hover:bg-surface">
                       <td className="cell-pad align-top text-ink">
-                        <span className="inline-flex items-center gap-1.5">
+                        <span className="inline-flex flex-wrap items-center gap-1.5">
                           v{version.version_number}
                           {isHead ? (
                             <span
@@ -188,6 +190,38 @@ export function DatasetVersionHistoryPanel({
                               )}
                             >
                               current
+                            </span>
+                          ) : null}
+                          {pruned ? (
+                            <span
+                              className="rounded-full border border-line bg-sunken px-1.5 py-0.5 text-[10px] text-muted"
+                              title={
+                                version.pruned_at
+                                  ? `Data removed by retention on ${formatDate(version.pruned_at)}; the record is kept.`
+                                  : "Data removed by retention; the record is kept."
+                              }
+                            >
+                              pruned
+                            </span>
+                          ) : null}
+                          {scheduled ? (
+                            <span
+                              className="rounded-full border border-warning-line bg-warning-soft px-1.5 py-0.5 text-[10px] text-warning"
+                              title={
+                                version.delete_after
+                                  ? `Marked by a retention sweep; removable after ${formatDate(version.delete_after)} unless restored or replayed first.`
+                                  : "Marked by a retention sweep for removal after its grace period."
+                              }
+                            >
+                              scheduled for removal
+                            </span>
+                          ) : null}
+                          {version.active_pins > 0 ? (
+                            <span
+                              className="rounded-full border border-line bg-sunken px-1.5 py-0.5 text-[10px] text-ink-3"
+                              title="A rollback or replay is reading this version right now; it cannot be pruned while held."
+                            >
+                              held open
                             </span>
                           ) : null}
                         </span>
@@ -207,6 +241,9 @@ export function DatasetVersionHistoryPanel({
                         {shortDigest(version.content_hash)}
                       </td>
                       <td className="cell-pad align-top text-right">
+                        {pruned ? (
+                          <span className="text-[11px] text-muted">data removed</span>
+                        ) : (
                         <div className="flex justify-end gap-1.5">
                           <button
                             type="button"
@@ -237,6 +274,7 @@ export function DatasetVersionHistoryPanel({
                             </>
                           ) : null}
                         </div>
+                        )}
                       </td>
                     </tr>
                   );

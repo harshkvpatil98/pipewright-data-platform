@@ -91,6 +91,25 @@ def _sweep_audit() -> None:
         db.close()
 
 
+def _sweep_dataset_versions() -> None:
+    """Finish what the dataset-versions retention policies started: prune the
+    versions whose grace period has ended. Best effort -- never fails the loop."""
+    from service_enterprise.service import sweep_dataset_version_retention
+
+    db = SessionLocal()
+    try:
+        totals = sweep_dataset_version_retention(db, storage=get_storage_backend())
+        if totals["scheduled"] or totals["pruned"]:
+            logger.info(
+                "dataset_version_sweep scheduled=%s pruned=%s artifacts_removed=%s",
+                totals["scheduled"], totals["pruned"], totals["artifacts_removed"],
+            )
+    except Exception:  # noqa: BLE001 - a sweep failure must not stop the ticker
+        logger.exception("dataset_version_sweep_failed")
+    finally:
+        db.close()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Execute due Pipewright schedules.")
     parser.add_argument(
@@ -117,6 +136,7 @@ def main() -> None:
         _beat(args.interval)
         _sweep_incidents()
         _sweep_audit()
+        _sweep_dataset_versions()
         try:
             summary = _drain_once()
             if summary.triggered_count or summary.failure_count:

@@ -98,6 +98,15 @@ class DatasetVersionRead(BaseModel):
     pipeline_run_id: uuid.UUID | None
     created_by_user_id: uuid.UUID | None
     created_at: datetime
+    #: `active`, `pending_delete` (a retention sweep marked it; removal follows a
+    #: grace period unless something pins it first) or `pruned` (data removed,
+    #: this record kept as a tombstone).
+    retention_state: str = "active"
+    delete_after: datetime | None = None
+    pruned_at: datetime | None = None
+    #: Open pins holding this version (a rollback or replay in progress). A
+    #: pinned version is never pruned.
+    active_pins: int = 0
 
 
 class DatasetVersionListResponse(BaseModel):

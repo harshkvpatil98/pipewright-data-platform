@@ -61,7 +61,12 @@ def test_the_time_travel_role_matrix_is_the_intended_one():
     assert required_role("POST", f"{ds}/versions/diff") == "viewer"
     # Rollback publishes a new head; replay executes. Both are writes.
     assert required_role("POST", f"{ds}/versions/3/rollback") == "editor"
-    assert required_role("POST", f"{PROJECT}/pipeline-runs/abc/replay") == "editor"
+    # Replay lives under /runs, an operator segment; the explicit editor rule
+    # must win over it, or replay would silently become an operator action.
+    assert required_role("POST", f"{PROJECT}/runs/abc/replay") == "editor"
+    # A temporal SQL query is a read that happens to POST (the SQL is the body);
+    # it must not fall through to the write default.
+    assert required_role("POST", f"{ds}/versions/query") == "viewer"
 
 
 def test_running_something_needs_only_an_operator():

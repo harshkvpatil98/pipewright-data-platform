@@ -32,6 +32,11 @@ RETAINABLE = {
     "audit_entries": "Audit log entries",
     "report_deliveries": "Generated report records",
     "incidents": "Resolved incidents",
+    # Superseded dataset versions: never the current one, never one something
+    # is holding open. Removal follows a grace period (see
+    # `service_datasets.version_lifecycle`), so "deleted" here means "marked";
+    # the bytes go on a later sweep.
+    "dataset_versions": "Superseded dataset versions (never the current or a pinned one)",
 }
 
 MIN_RETAIN_DAYS = 1
@@ -56,9 +61,12 @@ class DeletionPlan:
     matched: int
     dry_run: bool
     deleted: int = 0
+    #: Resource types whose deletion is staged (dataset versions) report the
+    #: stage they reached here; the summary reads it.
+    detail: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        payload = {
             "resource_type": resource_type_label(self.resource_type),
             "cutoff": self.cutoff.isoformat(),
             "matched": self.matched,
@@ -66,8 +74,13 @@ class DeletionPlan:
             "dry_run": self.dry_run,
             "summary": self.summary(),
         }
+        if self.detail is not None:
+            payload["detail"] = dict(self.detail)
+        return payload
 
     def summary(self) -> str:
+        if self.resource_type == "dataset_versions" and self.detail is not None:
+            return self._versions_summary()
         if self.matched == 0:
             return f"Nothing older than {self.cutoff.date()} to remove."
         if self.dry_run:
@@ -77,6 +90,30 @@ class DeletionPlan:
                 "report-only mode."
             )
         return f"Deleted {self.deleted:,} record(s) older than {self.cutoff.date()}."
+
+    def _versions_summary(self) -> str:
+        detail = self.detail or {}
+        if self.dry_run:
+            would = int(detail.get("would_schedule", 0))
+            if would == 0:
+                return f"No superseded version older than {self.cutoff.date()} to remove."
+            return (
+                f"{would:,} superseded version(s) are older than {self.cutoff.date()}. Nothing "
+                "was scheduled -- this policy is in report-only mode."
+            )
+        parts: list[str] = []
+        scheduled = int(detail.get("scheduled", 0))
+        pruned = int(detail.get("pruned", 0))
+        rescued = int(detail.get("rescued", 0))
+        if scheduled:
+            parts.append(f"scheduled {scheduled:,} superseded version(s) for removal after the grace period")
+        if pruned:
+            parts.append(f"removed {pruned:,} version(s) whose grace period had ended")
+        if rescued:
+            parts.append(f"kept {rescued:,} that were pinned or current again by then")
+        if not parts:
+            return f"No superseded version older than {self.cutoff.date()} to remove."
+        return ("; ".join(parts)).capitalize() + "."
 
 
 def resource_type_label(resource_type: str) -> str:

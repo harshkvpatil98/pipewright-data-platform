@@ -135,6 +135,7 @@ class DatasetVersion(UUIDPrimaryKeyMixin, Base):
     __table_args__ = (
         Index("ix_dataset_versions_dataset_id", "dataset_id"),
         Index("ix_dataset_versions_content_hash", "content_hash"),
+        Index("ix_dataset_versions_retention_state", "retention_state"),
         # Two versions of one dataset can never share a number, even under a
         # concurrent double-publish -- the database refuses the second insert.
         UniqueConstraint(
@@ -169,4 +170,57 @@ class DatasetVersion(UUIDPrimaryKeyMixin, Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
+    # -- retention lifecycle (§4 of the accepted requirements) -----------------
+    #: `active` (readable, prunable once superseded) → `pending_delete` (a sweep
+    #: marked it; `delete_after` is the lease before anything is removed) →
+    #: `pruned` (metadata kept as a tombstone, data removed). These are
+    #: lifecycle columns, not history: the snapshot's content and number are
+    #: never rewritten by them.
+    retention_state: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="active", server_default="active"
+    )
+    delete_after: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    pruned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    #: Set when the bytes are actually gone. A pruned row with this null is a
+    #: sweep that crashed between metadata and blob deletion, and is resumed.
+    artifact_removed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
     dataset: Mapped[Dataset] = relationship("Dataset", back_populates="versions")
+    pins: Mapped[list["DatasetVersionPin"]] = relationship(
+        "DatasetVersionPin", back_populates="version", cascade="all, delete-orphan"
+    )
+
+
+class DatasetVersionPin(UUIDPrimaryKeyMixin, Base):
+    """Somebody holding a version open: a rollback copying its bytes, a replay
+    reading it as a pinned input.
+
+    The pin is written and COMMITTED before the holder reads any bytes (§4: a
+    pin is durable before the read, never relied on while uncommitted), so a
+    retention sweep in another session sees it and leaves the version alone.
+    `released_at` closes it; a holder that crashes leaves an open pin, which is
+    the safe failure -- data kept, not lost.
+    """
+
+    __tablename__ = "dataset_version_pins"
+    __table_args__ = (
+        Index("ix_dataset_version_pins_version_id", "dataset_version_id"),
+        Index("ix_dataset_version_pins_holder", "holder_kind", "holder_id"),
+    )
+
+    dataset_version_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("dataset_versions.id", ondelete="CASCADE"), nullable=False
+    )
+    #: What kind of thing holds it: `rollback`, `replay`, `run`.
+    holder_kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    #: The holder's own id (a pipeline run, usually), for release and audit.
+    holder_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    released_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    version: Mapped[DatasetVersion] = relationship("DatasetVersion", back_populates="pins")

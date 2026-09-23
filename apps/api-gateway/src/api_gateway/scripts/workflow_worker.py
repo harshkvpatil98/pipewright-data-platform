@@ -20,6 +20,7 @@ from types import FrameType
 import api_gateway.metadata  # noqa: F401  -- registers every model mapping
 from api_gateway.config import settings
 from api_gateway.dependencies import SessionLocal, storage_backend
+from service_observability.runtime import current_host, record_heartbeat
 from service_workflows.queue import drain_queue, queue_depth, worker_identity
 from shared_python.logging import configure_logging, get_logger
 
@@ -34,6 +35,21 @@ def _request_stop(signum: int, _frame: FrameType | None) -> None:
     global _stopping
     _stopping = True
     logger.info("workflow_worker_stopping signal=%s", signum)
+
+
+def _beat(interval: float, status: str = "running") -> None:
+    """Record this worker's heartbeat. Best effort -- never fails the loop."""
+    db = SessionLocal()
+    try:
+        record_heartbeat(
+            db,
+            component="workflow-worker",
+            host=current_host(),
+            interval_seconds=interval,
+            status=status,
+        )
+    finally:
+        db.close()
 
 
 def tick(max_runs: int) -> int:
@@ -87,6 +103,9 @@ def main() -> int:
         return 0
 
     while not _stopping:
+        # Beat before working: even a worker that is busy every poll must still
+        # prove it is alive, and a beat at the top of the loop does that.
+        _beat(args.interval)
         try:
             processed = tick(args.max_runs)
         except Exception:  # noqa: BLE001 - a poll failure must not kill the worker
@@ -97,6 +116,7 @@ def main() -> int:
         if processed == 0 and not _stopping:
             time.sleep(max(0.5, args.interval))
 
+    _beat(args.interval, status="stopping")
     logger.info("workflow_worker_stopped")
     return 0
 

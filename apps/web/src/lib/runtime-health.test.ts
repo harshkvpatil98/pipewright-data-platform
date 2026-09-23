@@ -56,6 +56,48 @@ describe("assessRuntime", () => {
     expect(out.level).toBe("waiting");
     expect(out.oldestWaitMs).toBe(0);
   });
+
+  // Heartbeat ground truth beats queue-age inference in both directions.
+  it("a confirmed-down worker is stalled the instant work arrives, before the threshold", () => {
+    const out = assessRuntime({
+      queued: 1, running: 0, oldestQueuedAt: minutesAgo(2), dueNow: 0, workerAlive: false, now: NOW,
+    });
+    expect(out.level).toBe("stalled");
+    expect(out.message).toMatch(/1 workflow run waiting/);
+  });
+
+  it("a confirmed-alive worker is just waiting, even past the old threshold", () => {
+    const out = assessRuntime({
+      queued: 1, running: 0, oldestQueuedAt: minutesAgo(120), dueNow: 0, workerAlive: true, now: NOW,
+    });
+    expect(out.level).toBe("waiting");
+  });
+
+  it("a confirmed-alive ticker means due schedules are just mid-cadence, not stalled", () => {
+    const out = assessRuntime({
+      queued: 0, running: 0, oldestQueuedAt: null, dueNow: 2, tickerAlive: true, now: NOW,
+    });
+    expect(out.level).toBe("waiting");
+  });
+
+  it("a confirmed-down ticker with due schedules is stalled", () => {
+    const out = assessRuntime({
+      queued: 0, running: 0, oldestQueuedAt: null, dueNow: 2, tickerAlive: false, now: NOW,
+    });
+    expect(out.level).toBe("stalled");
+    expect(out.message).toMatch(/2 schedules due/);
+  });
+
+  it("reports only the dimension that is actually stalled", () => {
+    // Worker alive draining the queue, ticker down: only the schedules are news.
+    const out = assessRuntime({
+      queued: 3, running: 0, oldestQueuedAt: minutesAgo(120), dueNow: 2,
+      workerAlive: true, tickerAlive: false, now: NOW,
+    });
+    expect(out.level).toBe("stalled");
+    expect(out.message).toMatch(/2 schedules due/);
+    expect(out.message).not.toMatch(/workflow run/);
+  });
 });
 
 describe("humanDuration", () => {

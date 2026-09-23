@@ -163,3 +163,33 @@ class IncidentEvent(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     data_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+
+
+class RuntimeHeartbeat(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """Ground truth that a background component is alive.
+
+    P0 could only *infer* whether anything was draining the queue: it watched
+    for work that sat too long. That is a lagging signal -- it cannot tell a
+    healthy idle queue from a dead worker until work piles up. A heartbeat is
+    the leading signal: each loop of a worker or ticker writes its own row, so
+    "is the worker running right now?" becomes a fact, not a guess.
+
+    One row per (component, host): several replicas of the same component each
+    keep their own beat, and a component that has never run simply has no row.
+    `interval_seconds` travels with the beat so the reader can judge staleness
+    against the loop's own cadence -- a 60s ticker is not late at 30s, but a 5s
+    worker is.
+    """
+
+    __tablename__ = "runtime_heartbeats"
+    __table_args__ = (
+        UniqueConstraint("component", "host", name="uq_runtime_heartbeats_component_host"),
+        Index("ix_runtime_heartbeats_component", "component"),
+    )
+
+    component: Mapped[str] = mapped_column(String(48), nullable=False)
+    host: Mapped[str] = mapped_column(String(200), nullable=False)
+    beat_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    interval_seconds: Mapped[float] = mapped_column(Float, nullable=False, default=5.0)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="running")
+    detail_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)

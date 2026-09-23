@@ -1,6 +1,13 @@
+# Profiles keep the app tier and the background runtime independently
+# startable:
+#   docker compose --profile app up                     # postgres + gateway + web
+#   docker compose --profile app --profile worker up    # + workflow worker + schedule ticker
+#   docker compose --profile worker up                  # postgres + the workers only
+# Postgres joins both profiles because every tier needs it.
 services:
   postgres:
     image: postgres:16-alpine
+    profiles: ["app", "worker"]
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-platform}
@@ -20,6 +27,7 @@ services:
     build:
       context: .
       dockerfile: apps/api-gateway/Dockerfile
+    profiles: ["app"]
     restart: unless-stopped
     depends_on:
       postgres:
@@ -36,6 +44,7 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+    profiles: ["app"]
     restart: unless-stopped
     depends_on:
       - api-gateway
@@ -47,6 +56,38 @@ services:
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     command: npm run dev --workspace @platform/web -- --hostname 0.0.0.0 --port 3000
+
+  workflow-worker:
+    build:
+      context: .
+      dockerfile: apps/api-gateway/Dockerfile
+    profiles: ["worker"]
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - ./apps/api-gateway/.env
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-platform}:${POSTGRES_PASSWORD:-platform}@postgres:5432/${POSTGRES_DB:-platform}
+    # Waits for the gateway's migrations to create the tables it reads; a short
+    # retry loop is cheaper than ordering the two containers.
+    command: sh -c "until alembic -c alembic.ini current >/dev/null 2>&1; do sleep 2; done; platform-workflow-worker --interval ${WORKFLOW_WORKER_INTERVAL:-5}"
+
+  schedule-ticker:
+    build:
+      context: .
+      dockerfile: apps/api-gateway/Dockerfile
+    profiles: ["worker"]
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - ./apps/api-gateway/.env
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-platform}:${POSTGRES_PASSWORD:-platform}@postgres:5432/${POSTGRES_DB:-platform}
+    command: sh -c "until alembic -c alembic.ini current >/dev/null 2>&1; do sleep 2; done; platform-schedule-ticker --loop --interval ${SCHEDULE_TICKER_INTERVAL:-30}"
 
 volumes:
   postgres_data:

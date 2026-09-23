@@ -28,6 +28,7 @@ from service_schedules.due import (
     count_schedules_with_active_lease,
     count_stale_claimed_leases,
 )
+from service_observability.runtime import EXPECTED_COMPONENTS, runtime_components
 from service_schedules.status import get_service_status as get_schedules_status
 from service_sources.status import get_service_status as get_sources_status
 from service_transformations.status import get_service_status as get_transformations_status
@@ -35,7 +36,13 @@ from service_workflows.status import get_service_status as get_workflows_status
 from service_workbench.status import get_service_status as get_workbench_status
 from service_writeback.status import get_service_status as get_writeback_status
 from shared_python.db.health import is_database_ready
-from shared_python.status import PlatformStatus, SchedulerOperationalSnapshot, ServiceStatus
+from shared_python.status import (
+    PlatformStatus,
+    RuntimeComponentHeartbeat,
+    RuntimeSnapshot,
+    SchedulerOperationalSnapshot,
+    ServiceStatus,
+)
 from shared_python.status_redaction import redact_details
 
 
@@ -107,6 +114,25 @@ def _scheduler_snapshot(
     )
 
 
+def _runtime_snapshot(db: Session) -> RuntimeSnapshot:
+    """Heartbeat-based ground truth. Never let a runtime read fail the whole
+    status endpoint -- degrade to an empty (unhealthy) snapshot instead."""
+    try:
+        entries = runtime_components(db)
+    except Exception:
+        return RuntimeSnapshot(components=[], healthy=False)
+    components = [RuntimeComponentHeartbeat(**entry) for entry in entries]
+    expected = set(EXPECTED_COMPONENTS)
+    healthy_by_component: dict[str, bool] = {}
+    for component in components:
+        # A component is satisfied if *any* of its hosts has a fresh beat.
+        healthy_by_component[component.component] = (
+            healthy_by_component.get(component.component, False) or component.healthy
+        )
+    healthy = bool(expected) and all(healthy_by_component.get(name, False) for name in expected)
+    return RuntimeSnapshot(components=components, healthy=healthy)
+
+
 def _sanitize_services(services: list[ServiceStatus]) -> list[ServiceStatus]:
     return [
         ServiceStatus(name=s.name, status=s.status, details=redact_details(dict(s.details)))
@@ -144,4 +170,5 @@ def platform_status(
         services=combined,
         checked_at=checked_at,
         scheduler=scheduler,
+        runtime=_runtime_snapshot(db),
     )

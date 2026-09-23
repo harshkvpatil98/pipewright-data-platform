@@ -34,6 +34,37 @@ class SchedulerOperationalSnapshot(BaseModel):
     note: str
 
 
+class RuntimeComponentHeartbeat(BaseModel):
+    """The last beat from one background component on one host."""
+
+    component: str
+    host: str | None = None
+    last_beat_at: str | None = Field(
+        default=None, description="ISO 8601 UTC timestamp of the last beat, or null if none."
+    )
+    age_seconds: float | None = Field(
+        default=None, description="Seconds since the last beat, or null if the component never beat."
+    )
+    interval_seconds: float | None = None
+    status: str = "absent"
+    healthy: bool = False
+    detail: dict[str, Any] = Field(default_factory=dict)
+
+
+class RuntimeSnapshot(BaseModel):
+    """Ground truth about the background runtime: are the workers actually alive?
+
+    Distinct from the scheduler snapshot (which counts *work*), this counts
+    *workers* -- the leading signal that queue-age inference could only guess at.
+    """
+
+    components: list[RuntimeComponentHeartbeat] = Field(default_factory=list)
+    healthy: bool = Field(
+        default=False,
+        description="True when every expected component has a fresh, running beat.",
+    )
+
+
 class PlatformStatus(BaseModel):
     status: Literal["healthy", "degraded", "unhealthy"]
     service: str
@@ -42,3 +73,4 @@ class PlatformStatus(BaseModel):
     services: list[ServiceStatus]
     checked_at: str = Field(description="ISO 8601 UTC timestamp when this snapshot was assembled.")
     scheduler: SchedulerOperationalSnapshot
+    runtime: RuntimeSnapshot = Field(default_factory=RuntimeSnapshot)

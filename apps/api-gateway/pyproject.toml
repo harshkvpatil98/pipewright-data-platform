@@ -45,6 +45,7 @@ dev = [
 platform-bootstrap-user = "api_gateway.scripts.bootstrap_user:main"
 platform-workflow-worker = "api_gateway.scripts.workflow_worker:main"
 run-due-schedules = "api_gateway.scripts.run_due_schedules:main"
+platform-schedule-ticker = "api_gateway.scripts.run_due_schedules:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

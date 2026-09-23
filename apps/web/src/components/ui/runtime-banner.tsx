@@ -7,10 +7,26 @@ import { Icon } from "@/components/ui/icon";
 import { apiFetch } from "@/lib/api/client";
 import { assessRuntime, type RuntimeAssessment } from "@/lib/runtime-health";
 
+type RuntimeComponent = { component: string; healthy?: boolean; status?: string };
+
 type StatusPayload = {
   services: { name: string; details?: Record<string, unknown> }[];
   scheduler?: { due_now_count?: number };
+  runtime?: { components?: RuntimeComponent[] };
 };
+
+/**
+ * Ground truth from heartbeats: `true` = a fresh beat, `false` = confirmed
+ * down (a beat exists but is stale, or the component is expected and absent),
+ * `null` = no runtime data at all, so the caller falls back to inference.
+ */
+function componentAlive(status: StatusPayload, name: string): boolean | null {
+  const components = status.runtime?.components;
+  if (!Array.isArray(components) || components.length === 0) return null;
+  const matches = components.filter((c) => c.component === name);
+  if (matches.length === 0) return false;
+  return matches.some((c) => c.healthy === true);
+}
 
 /** Pull the runtime signals out of the platform status payload. */
 export function runtimeSignalsFromStatus(status: StatusPayload) {
@@ -22,6 +38,8 @@ export function runtimeSignalsFromStatus(status: StatusPayload) {
     oldestQueuedAt:
       typeof details.oldest_queued_at === "string" ? details.oldest_queued_at : null,
     dueNow: Number(status.scheduler?.due_now_count ?? details.schedules_due_now ?? 0),
+    workerAlive: componentAlive(status, "workflow-worker"),
+    tickerAlive: componentAlive(status, "schedule-ticker"),
   };
 }
 

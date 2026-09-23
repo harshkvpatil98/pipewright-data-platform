@@ -970,6 +970,22 @@ export type SchedulerOperationalSnapshot = {
   note: string;
 };
 
+export type RuntimeComponentHeartbeat = {
+  component: string;
+  host: string | null;
+  last_beat_at: string | null;
+  age_seconds: number | null;
+  interval_seconds: number | null;
+  status: string;
+  healthy: boolean;
+  detail: Record<string, unknown>;
+};
+
+export type RuntimeSnapshot = {
+  components: RuntimeComponentHeartbeat[];
+  healthy: boolean;
+};
+
 export type PlatformStatusResponse = {
   status: ServiceHealthStatus;
   service: string;
@@ -978,6 +994,7 @@ export type PlatformStatusResponse = {
   services: ServiceStatusRecord[];
   checked_at: string;
   scheduler: SchedulerOperationalSnapshot;
+  runtime: RuntimeSnapshot;
 };
 
 export type HealthLiveResponse = {

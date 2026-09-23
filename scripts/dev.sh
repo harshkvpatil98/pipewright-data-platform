@@ -47,6 +47,18 @@ fi
 
 "$ROOT_DIR/.venv/bin/python" -m uvicorn api_gateway.main:app --reload --host 0.0.0.0 --port "${BACKEND_PORT:-8000}" &
 GATEWAY_PID=$!
-trap 'kill ${GATEWAY_PID} 2>/dev/null || true' EXIT
+
+# The background runtime: without these, workflow runs queue forever and
+# schedules never fire -- the exact "healthy but nothing moves" trap P0 warned
+# about. dev.sh starts them so a fresh clone has a working queue by default.
+# Set PW_DEV_NO_WORKERS=1 to run only the gateway + web (e.g. to test the
+# stalled banners deliberately).
+WORKER_PID=""
+if [[ "${PW_DEV_NO_WORKERS:-0}" != "1" ]]; then
+  "$ROOT_DIR/scripts/worker.sh" &
+  WORKER_PID=$!
+fi
+
+trap 'kill ${GATEWAY_PID} ${WORKER_PID} 2>/dev/null || true' EXIT
 
 npm run dev --workspace @platform/web -- --hostname 0.0.0.0 --port "${FRONTEND_PORT:-3000}"

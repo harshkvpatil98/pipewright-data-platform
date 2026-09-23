@@ -18,6 +18,14 @@ export type RuntimeSignals = {
   oldestQueuedAt: string | null;
   /** Schedules whose cron slot has come due. */
   dueNow: number;
+  /**
+   * Ground truth from heartbeats, when available: is the workflow worker
+   * beating? `true` = alive, `false` = confirmed down, `null`/undefined =
+   * unknown, fall back to queue-age inference.
+   */
+  workerAlive?: boolean | null;
+  /** Same, for the schedule ticker. */
+  tickerAlive?: boolean | null;
   /** Injected for tests; defaults to now. */
   now?: Date;
 };
@@ -50,26 +58,34 @@ export function assessRuntime(signals: RuntimeSignals): RuntimeAssessment {
     return { level: "waiting", message: "", oldestWaitMs };
   }
 
-  // Work is waiting, nothing is running. Only call it stalled once the oldest
-  // waiter is past the threshold; a run queued two seconds ago is not news.
-  const stalled =
-    (signals.queued > 0 && oldestWaitMs > STALL_THRESHOLD_MS) ||
-    // Due schedules have no queued_at; with no runner at all they count as
-    // stalled immediately, because "due" already encodes lateness.
-    (signals.queued === 0 && signals.dueNow > 0);
+  // Work is waiting, nothing is running. Prefer heartbeat ground truth; fall
+  // back to queue-age inference only when a heartbeat is unavailable.
+  //
+  // Queued workflow runs: a confirmed-down worker is stalled the instant work
+  // arrives (no need to wait out the threshold); a confirmed-alive worker is
+  // just draining; unknown reverts to "has it waited too long?".
+  const queuedStalled =
+    signals.queued > 0 &&
+    (signals.workerAlive === false ||
+      (signals.workerAlive == null && oldestWaitMs > STALL_THRESHOLD_MS));
 
-  if (!stalled) {
+  // Due schedules have no queued_at, so age cannot judge them. A confirmed-alive
+  // ticker is just mid-cadence; anything else (confirmed-down, or unknown —
+  // which falls back to treating "due" as already-late) counts as stalled.
+  const dueStalled = signals.dueNow > 0 && signals.tickerAlive !== true;
+
+  if (!queuedStalled && !dueStalled) {
     return { level: "waiting", message: "", oldestWaitMs };
   }
 
   const parts: string[] = [];
-  if (signals.queued > 0) {
+  if (queuedStalled) {
     parts.push(
       `${signals.queued} workflow run${signals.queued === 1 ? "" : "s"} waiting` +
         (oldestWaitMs > 0 ? ` (oldest for ${humanDuration(oldestWaitMs)})` : ""),
     );
   }
-  if (signals.dueNow > 0) {
+  if (dueStalled) {
     parts.push(`${signals.dueNow} schedule${signals.dueNow === 1 ? "" : "s"} due`);
   }
 

@@ -59,6 +59,8 @@ export type SecurityPolicyListResponse = {
 export type SecurityPreview = {
   dataset_id: string;
   role: string;
+  /** Set when previewed as a specific person rather than a bare role. */
+  viewed_as_username?: string | null;
   rows_before: number;
   rows_after: number;
   rows_hidden: number;

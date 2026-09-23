@@ -472,6 +472,50 @@ def preview_policies(
     The only way to know a policy does what was intended is to look at the
     result, and looking at it *before* granting the role is the whole point.
     """
+    return _run_preview(db, project_id, dataset_id, role, current_user, storage)
+
+
+def preview_policies_as_user(
+    db: Session,
+    project_id: uuid.UUID,
+    dataset_id: uuid.UUID,
+    target_user_id: uuid.UUID,
+    current_user: UserRead,
+    storage,
+) -> PolicyPreviewResponse:
+    """What one specific person would see -- their project role resolved for them.
+
+    "View as role" answers the abstract question; "view as user" answers the one
+    a reviewer actually asks -- *would Dana see the salary column?* -- by
+    resolving Dana's effective role in this project rather than making the
+    reviewer know it.
+    """
+    ensure_owned_project(db, project_id, current_user.id)
+    target = db.get(User, target_user_id)
+    if target is None:
+        raise NotFoundError("That user does not exist.")
+    project = db.get(Project, project_id)
+    # The owner is effectively admin; otherwise the membership role, or viewer.
+    if project is not None and project.owner_user_id == target_user_id:
+        role = "admin"
+    else:
+        role = project_role(db, project_id, target_user_id) or "viewer"
+    return _run_preview(
+        db, project_id, dataset_id, role, current_user, storage,
+        viewed_as_username=target.username,
+    )
+
+
+def _run_preview(
+    db: Session,
+    project_id: uuid.UUID,
+    dataset_id: uuid.UUID,
+    role: str,
+    current_user: UserRead,
+    storage,
+    *,
+    viewed_as_username: str | None = None,
+) -> PolicyPreviewResponse:
     ensure_owned_project(db, project_id, current_user.id)
     frame = _load_frame(db, project_id, dataset_id, storage)
 
@@ -489,6 +533,7 @@ def preview_policies(
     return PolicyPreviewResponse(
         dataset_id=dataset_id,
         role=role,  # type: ignore[arg-type]
+        viewed_as_username=viewed_as_username,
         **{key: value for key, value in applied.to_dict().items() if key != "summary"},
         summary=applied.summary(),
         sample_rows=_records(restricted.head(SAMPLE_ROWS)),

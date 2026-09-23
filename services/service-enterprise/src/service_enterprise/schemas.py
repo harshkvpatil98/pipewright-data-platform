@@ -105,6 +105,9 @@ class PolicyListResponse(BaseModel):
 class PolicyPreviewResponse(BaseModel):
     dataset_id: uuid.UUID
     role: ProjectRole
+    # Set when the preview was run as a specific person rather than a bare role,
+    # so the UI can say "viewing as dana (viewer)".
+    viewed_as_username: str | None = None
     rows_before: int
     rows_after: int
     rows_hidden: int

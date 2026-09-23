@@ -46,6 +46,7 @@ from service_enterprise.service import (
     list_policies,
     list_retention,
     preview_policies,
+    preview_policies_as_user,
     request_erasure,
     run_retention,
     update_policy,
@@ -219,11 +220,15 @@ def build_router(
         project_id: uuid.UUID,
         dataset_id: uuid.UUID,
         role: str = Query(default="viewer", pattern="^(viewer|operator|editor|admin)$"),
+        user_id: uuid.UUID | None = Query(default=None),
         db: Session = Depends(get_db),
         current_user: UserRead = Depends(get_current_user),
         storage=Depends(get_storage_backend),
     ) -> PolicyPreviewResponse:
-        """What somebody with this role would actually see."""
+        """What somebody would actually see -- as a bare role, or, when user_id is
+        given, as that specific person (their project role resolved for them)."""
+        if user_id is not None:
+            return preview_policies_as_user(db, project_id, dataset_id, user_id, current_user, storage)
         return preview_policies(db, project_id, dataset_id, role, current_user, storage)
 
     # ---- retention and erasure ----

@@ -13,6 +13,7 @@ import type {
 import { Button, SectionPanel } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
+import { PolicySimulationPanel } from "@/features/enterprise/components/policy-simulation-panel";
 import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { Icon } from "@/components/ui/icon";
 import { apiFetch } from "@/lib/api/client";
@@ -201,6 +202,8 @@ export function GovernancePageView({
           </ul>
         )}
       </SectionPanel>
+
+      <PolicySimulationPanel projectId={projectId} policies={policies.items} />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <SectionPanel

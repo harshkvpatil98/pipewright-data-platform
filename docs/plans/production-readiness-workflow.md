@@ -7,9 +7,8 @@ established alternatives for data work — not by claiming more, but by being
 the only honest, governed, spreadsheet-fast data platform that a business team
 can run without a data engineer on call.
 
-**Status:** P0–P7 done (P7 Time travel complete 2026-09-23, verified live with
-`scripts/e2e/p7_time_travel.sh`); **P8 (BI & collaboration) is next**. One phase
-executes per session-run;
+**Status:** P0–P8 done (P8 BI & collaboration complete 2026-09-23);
+**P9 (market-decider depth) is next**. One phase executes per session-run;
 the owner says **“continue”** to start the next. This file is the single
 source of truth for what each phase contains; the session log in
 `docs/HANDOFF.md` records what actually happened.
@@ -464,19 +463,41 @@ cursors on history, `today()` in UTC) are in `docs/HANDOFF.md` §7.
 
 ---
 
-## P8 — BI & collaboration
+## P8 — BI & collaboration ✅ done (2026-09-23)
 
-- Dashboard builder v2: grid layout (drag/size), global filters, text tiles,
-  auto-refresh; chart types rounded out (pie/donut sparingly, tables,
-  big-number with delta).
-- **Comments everywhere** (existing `/discussion` API): datasets, pipelines,
-  dashboards; @mentions → notifications.
-- Email invites (SMTP config + templates) building on P1 codes.
-- Report formats: PDF via headless print pipeline if a maintained pure
-  approach exists; otherwise print-CSS + “Print to PDF” affordance done
-  properly and stated honestly.
-- Scheduled report delivery to Slack target.
-- *Push further:* dashboard subscriptions (“email me this every Monday”).
+**Delivered, one commit each:** (1) **Dashboard builder v2** — there was no
+authenticated dashboard page at all (only the list and the public share link
+rendered tiles); a dashboard now has its own page with every tile computed in
+one request under the dashboard's global filters (saved, or an ad-hoc scope
+applied to look), in-place layout editing (drag to reorder, width on a
+twelve-column grid, height in rows, add chart / add text / remove), text tiles
+(migration 0041), a stored auto-refresh cadence, donut, and a KPI that compares
+the latest period with the one before over a chosen date column — degrading to
+the all-time value with a warning when it cannot, never to a silent zero. One
+helper computes chart data for the builder preview, a saved chart, a dashboard
+tile and the public share, so they cannot disagree. (2) **Comments everywhere**
+— one discussion component on datasets, pipelines, dashboards and change
+requests with @mention autocomplete and notifications that carry the thing
+discussed; two defects fixed on the way: the P6 review thread called
+`/comments` while the API served `/discussion` (it never worked), and
+`discussion` was missing from the operator segments so a viewer could read a
+thread and an operator could not join it. (3) **Emailed invitations and reset
+codes** through one shared email primitive; the code is returned to the admin
+only when it could not be emailed, with the reason stated; the login page
+prefills a code from the emailed link. (4) **Report delivery**: Slack target
+(message with link), email target and each recipient (file attached, one
+message each), every channel's outcome recorded on the delivery (migration
+0042) and summarised honestly; **PDF** is a real paginated format via
+reportlab (maintained, pure Python), so the earlier honest refusal is retired.
+(5) **Dashboard subscriptions** — "email me this every Monday" as a scheduled
+report in the person's own name, with unsubscribe.
+
+**Honest scope:** this dev machine has no SMTP server and no reachable Slack
+webhook, so every email/Slack path was exercised with captured senders in tests
+and, live, produced the stated failure ("SMTP is not configured", "nodename
+nor servname provided") in the delivery history — which is the designed
+behaviour, not a pass. Drag-to-reorder uses native HTML5 drag events (no
+library); resize is by width/height controls rather than a drag handle.
 
 ---
 

@@ -15,9 +15,10 @@ against the tree before relying on line-level claims.
 - **Erasure reconciliation (§2):** done (2026-09-23; commit `5ca73a3`) — see below.
 - **Concurrent GC protocol (§4) + a `dataset_versions` retention policy:** done
   (2026-09-23) — see below.
-- Replay with a recorded execution context (§3), the `AS OF` SQL query, the
-  full authz matrix in practice (§6) and the live e2e (§8) follow in their own
-  increments; this file is updated as each lands.
+- **Execution context + frozen clock (§3):** done (2026-09-23) — see below.
+- **Deterministic replay (§3):** done (2026-09-23) — see below.
+- **`AS OF` SQL query (decision #8):** done (2026-09-23) — see below.
+- The scripted live end-to-end acceptance (§8) and the handoff close-out follow.
 
 ## §1 — Producer and consumer inventory
 
@@ -81,6 +82,63 @@ manifest (§5) is deferred with the content-addressed-storage increment.
 the current data *is*, which is more than "run the nightly job" and less than an
 access change. It is decided centrally in `permissions.py`; no route carries
 role logic.
+
+## Execution context and replay (§3) — decided
+
+`service_transformations/ir/clock.py` is the one clock. `now()`, `today()` and
+`age_years()` read `evaluation_instant()`; a run freezes one instant at its
+start (`ExecutionContext.evaluated_at`, always UTC) and evaluates the whole
+recipe against it; a replay installs the recorded instant instead. `age_years`
+also accepts an explicit as-of second argument. `today()` is therefore the UTC
+date of the instant, no longer the host's local date — stated here because it
+is a (deliberate) semantic change.
+
+Every transformation run records in `summary_json.execution_context`: schema,
+`semantic_version` (`execution_context.SEMANTIC_VERSION`, bumped when a step's
+or function's meaning changes so old results become irreproducible), the
+instant and timezone, the clock-function list, the exact `steps` that ran with
+a `steps_digest`, `inputs` (the head version of the base dataset and of every
+dataset a join/union read — `{dataset_id, version_number, content_hash, role}`),
+and `outputs` (the version it published). Failed runs record the context too.
+
+`POST …/runs/{id}/replay` (editor) pins every input durably (§4) before a byte
+is read, runs the **recorded** steps against the **pinned** versions at the
+**recorded** instant (`ReplayPlan` in `run.py`), publishes the result as a new
+dataset (`run_type = dataset_transformation_replay`, context `replay_of` set),
+releases the pins, and compares with the original output pin. **Result
+equivalence** is: identical content digest, or else the same ordered column
+list, the same canonical type per column, and the same row multiset with
+values compared as text and null equal to null; row order is not part of it.
+Outcomes are `equivalent`, `divergent` (differences listed), `incompatible`
+(semantic version moved / a recorded step no longer exists — never claimed
+equivalent), `unavailable` (an input was pruned, deleted, or its bytes
+rewritten by a destructive erasure — a different input), `failed`,
+`unverifiable` (the original output is gone). The run audit surface shows the
+output pins for **every** producer's runs (from the version table's run link),
+the context, and the Replay action; a run that cannot be replayed says why.
+
+Test that advances the clock: `test_replay.py::test_a_replay_reproduces_the_recorded_result_not_todays`
+edits the pipeline and moves the clock ten years, then replays — the recorded
+ages come back.
+
+## `AS OF` SQL over stored datasets (decision #8) — decided
+
+`POST …/datasets/{id}/versions/query` (viewer; `query` is a read-only segment)
+lives in `service_workbench/temporal.py` because the workbench owns SQL
+execution. It never touches SQL sent to customer databases. The request names
+a `version_number` **or** an `as_of` instant (neither → the head); the
+resolved version's artifact is loaded into a private in-memory SQLite database
+as a table named `dataset`, and one SELECT runs there under the workbench's
+read-only policy (15 s timeout, `row_limit` ≤ 1000, `truncated` reported).
+Only a `read` statement is accepted — a write is refused with a sentence that
+does not offer a write mode, because there is none.
+
+§8 answers: **ordering** — "as of T" is the greatest `created_at ≤ T`, ties on
+the higher version number; an instant before version 1 is a 404 naming when
+version 1 was published, never the head. **Representation** — the workbench's
+own JSON rendering: decimals as text, timestamps ISO 8601, nulls as null,
+nested values as JSON text. **Pruned** — 409 with the reason. UI: a Query
+action per readable version and a "Query as of" control on the history panel.
 
 ## Security posture of temporal reads (§6)
 

@@ -82,6 +82,37 @@ class RunResponse(BaseModel):
     policy: str
 
 
+class TemporalQueryRequest(BaseModel):
+    """SQL over one recorded version of a stored dataset (time travel).
+
+    Exactly one of `version_number` / `as_of` picks the version; neither means
+    the current head. The data is exposed as a table named `dataset`.
+    """
+
+    sql: str = Field(min_length=1, max_length=MAX_SCRIPT_LENGTH)
+    version_number: int | None = Field(default=None, ge=1)
+    as_of: datetime | None = None
+    parameters: dict[str, Any] = Field(default_factory=dict)
+    row_limit: int = Field(default=200, ge=1, le=1000)
+
+
+class TemporalQueryResponse(BaseModel):
+    dataset_id: uuid.UUID
+    #: The version the request resolved to.
+    version_number: int
+    version_published_at: datetime
+    requested_as_of: datetime | None = None
+    table_name: str
+    columns: list[str]
+    rows: list[dict[str, Any]]
+    row_count: int
+    #: True when more rows matched than `row_limit` allowed back.
+    truncated: bool
+    row_limit: int
+    duration_ms: float
+    warnings: list[str] = []
+
+
 class ExplainRequest(BaseModel):
     connection_id: uuid.UUID
     sql: str = Field(min_length=1, max_length=MAX_SCRIPT_LENGTH)

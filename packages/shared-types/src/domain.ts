@@ -785,6 +785,32 @@ export type DatasetVersionDiff = {
   method: string;
 };
 
+/** SQL over one recorded version of a stored dataset (time travel). Exactly
+ * one of `version_number` / `as_of` picks the version; neither means the head.
+ * The data is exposed as a table named `dataset`. */
+export type DatasetTemporalQueryRequest = {
+  sql: string;
+  version_number?: number | null;
+  as_of?: string | null;
+  parameters?: Record<string, unknown>;
+  row_limit?: number;
+};
+
+export type DatasetTemporalQueryResponse = {
+  dataset_id: string;
+  version_number: number;
+  version_published_at: string;
+  requested_as_of: string | null;
+  table_name: string;
+  columns: string[];
+  rows: Record<string, unknown>[];
+  row_count: number;
+  truncated: boolean;
+  row_limit: number;
+  duration_ms: number;
+  warnings: string[];
+};
+
 export type CreateProjectPayload = {
   name: string;
   description?: string | null;

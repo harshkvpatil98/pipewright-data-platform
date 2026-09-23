@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 
 import type {
   DatasetPreview,
+  DatasetTemporalQueryRequest,
+  DatasetTemporalQueryResponse,
   DatasetVersion,
   DatasetVersionDiff,
   DatasetVersionDiffRequest,
@@ -142,10 +144,79 @@ export function DatasetVersionHistoryPanel({
     }
   }, [restoring, projectId, datasetId, load]);
 
+  // Temporal SQL: query the data as of a version or an instant.
+  const [queryTarget, setQueryTarget] = useState<
+    { version_number: number } | { as_of: string } | null
+  >(null);
+  const [sql, setSql] = useState(DEFAULT_SQL);
+  const [queryResult, setQueryResult] = useState<DatasetTemporalQueryResponse | null>(null);
+  const [queryError, setQueryError] = useState<string | null>(null);
+  const [queryBusy, setQueryBusy] = useState(false);
+  const [asOfInput, setAsOfInput] = useState("");
+
+  const runQuery = useCallback(
+    async (target: { version_number: number } | { as_of: string }, statement: string) => {
+      setQueryBusy(true);
+      setQueryError(null);
+      try {
+        const payload: DatasetTemporalQueryRequest = { sql: statement, row_limit: 200, ...target };
+        setQueryResult(
+          await apiFetch<DatasetTemporalQueryResponse>(
+            `/projects/${projectId}/datasets/${datasetId}/versions/query`,
+            { method: "POST", body: JSON.stringify(payload) },
+          ),
+        );
+      } catch (caught) {
+        setQueryResult(null);
+        setQueryError(extractErrorMessage(caught));
+      } finally {
+        setQueryBusy(false);
+      }
+    },
+    [projectId, datasetId],
+  );
+
+  const openQuery = useCallback(
+    (target: { version_number: number } | { as_of: string }) => {
+      setQueryTarget(target);
+      setQueryResult(null);
+      setQueryError(null);
+      setSql(DEFAULT_SQL);
+      void runQuery(target, DEFAULT_SQL);
+    },
+    [runQuery],
+  );
+
   return (
     <SectionPanel
       title="Version history"
       description="Every materialisation appends an immutable snapshot. The newest is the current data; older versions stay readable, and rolling back will append a new version rather than rewrite the past."
+      actions={
+        history && history.items.length > 0 ? (
+          <form
+            className="flex flex-wrap items-center gap-1.5"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (!asOfInput) return;
+              openQuery({ as_of: new Date(asOfInput).toISOString() });
+            }}
+          >
+            <label className="text-[11px] text-muted" htmlFor="version-as-of">
+              Query as of
+            </label>
+            <input
+              id="version-as-of"
+              type="datetime-local"
+              value={asOfInput}
+              onChange={(event) => setAsOfInput(event.target.value)}
+              className="h-8 rounded-lg border border-line bg-sunken px-2 text-[12px] text-ink outline-none transition focus:border-[color:var(--accent)]"
+            />
+            <Button type="submit" variant="secondary" size="sm" disabled={!asOfInput}>
+              Query
+            </Button>
+          </form>
+        ) : null
+      }
     >
       {error ? (
         <div className="rounded-2xl border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger">
@@ -251,6 +322,13 @@ export function DatasetVersionHistoryPanel({
                             className="rounded-lg border border-line px-2 py-1 text-[11.5px] text-ink-3 transition hover:text-ink"
                           >
                             View data
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => openQuery({ version_number: version.version_number })}
+                            className="rounded-lg border border-line px-2 py-1 text-[11.5px] text-ink-3 transition hover:text-ink"
+                          >
+                            Query
                           </button>
                           {!isHead ? (
                             <>
@@ -418,6 +496,102 @@ export function DatasetVersionHistoryPanel({
       </Modal>
 
       <Modal
+        open={queryTarget !== null}
+        title={
+          queryTarget && "version_number" in queryTarget
+            ? `Query version ${queryTarget.version_number}`
+            : "Query as of a time"
+        }
+        description="SQL runs against a private copy of the snapshot, exposed as a table named dataset. Only a SELECT can run; nothing is written, and the current data is untouched."
+        onClose={() => setQueryTarget(null)}
+        widthClassName="max-w-4xl"
+        footer={
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setQueryTarget(null)}>
+              Close
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              disabled={queryBusy || !sql.trim()}
+              onClick={() => queryTarget && void runQuery(queryTarget, sql)}
+            >
+              {queryBusy ? "Running…" : "Run"}
+            </Button>
+          </div>
+        }
+      >
+        <label className="block space-y-1">
+          <span className="text-[11px] text-muted">SQL (Ctrl/⌘ + Enter to run)</span>
+          <textarea
+            value={sql}
+            onChange={(event) => setSql(event.target.value)}
+            onKeyDown={(event) => {
+              if ((event.metaKey || event.ctrlKey) && event.key === "Enter" && queryTarget) {
+                event.preventDefault();
+                void runQuery(queryTarget, sql);
+              }
+            }}
+            rows={3}
+            spellCheck={false}
+            className="w-full rounded-lg border border-line bg-sunken px-3 py-2 font-mono text-[12.5px] text-ink outline-none transition focus:border-[color:var(--accent)]"
+          />
+        </label>
+        <div className="mt-3">
+          {queryError ? (
+            <div className="rounded-2xl border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger">
+              {queryError}
+            </div>
+          ) : queryResult === null ? (
+            <p className="text-[12.5px] text-muted">{queryBusy ? "Running…" : "No result yet."}</p>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-[12px] text-ink-3">
+                Resolved to <span className="text-ink">version {queryResult.version_number}</span>, published{" "}
+                {formatDate(queryResult.version_published_at)}
+                {queryResult.requested_as_of
+                  ? ` (the newest at ${formatDate(queryResult.requested_as_of)})`
+                  : null}
+                {" · "}
+                {queryResult.row_count.toLocaleString()} row{queryResult.row_count === 1 ? "" : "s"}
+                {queryResult.truncated ? ` (capped at ${queryResult.row_limit})` : null}
+                {" · "}
+                {Math.round(queryResult.duration_ms)} ms
+              </p>
+              {queryResult.columns.length === 0 ? (
+                <p className="text-[12.5px] text-muted">The statement returned no columns.</p>
+              ) : (
+                <div className="max-h-[50vh] overflow-auto rounded-2xl border border-line">
+                  <table className="min-w-full divide-y divide-line text-left text-[12.5px]">
+                    <thead className="bg-surface text-ink-3">
+                      <tr>
+                        {queryResult.columns.map((column) => (
+                          <th key={column} className="cell-pad font-medium">
+                            {column}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-line">
+                      {queryResult.rows.map((row, index) => (
+                        <tr key={index} className="transition hover:bg-surface">
+                          {queryResult.columns.map((column) => (
+                            <td key={column} className="cell-pad align-top text-ink-2">
+                              {formatCell(row[column])}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </Modal>
+
+      <Modal
         open={restoring !== null}
         title={restoring ? `Restore version ${restoring.version_number}` : "Restore"}
         description="Restoring appends a new version whose data is this snapshot's. Nothing is rewritten or lost — the versions after it stay in the history."
@@ -453,6 +627,8 @@ export function DatasetVersionHistoryPanel({
     </SectionPanel>
   );
 }
+
+const DEFAULT_SQL = "SELECT * FROM dataset LIMIT 100";
 
 function DiffStat({
   label,

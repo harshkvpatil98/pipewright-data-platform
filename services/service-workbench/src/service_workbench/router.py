@@ -17,7 +17,10 @@ from sqlalchemy.orm import Session
 from service_auth.schemas import UserRead
 
 from service_workbench import service
+from service_workbench.temporal import temporal_query
 from service_workbench.schemas import (
+    TemporalQueryRequest,
+    TemporalQueryResponse,
     CellRead,
     CellResultRead,
     CompletionRead,
@@ -138,9 +141,31 @@ def _notebook(entry: Any) -> NotebookRead:
 def build_router(
     get_db: Callable[..., Session],
     get_current_user: Callable[..., UserRead],
+    get_storage_backend: Callable[..., Any] | None = None,
 ) -> APIRouter:
     router = APIRouter(tags=["workbench"])
     base = "/projects/{project_id}/workbench"
+
+    # --------------------------------------------------- temporal SQL (AS OF)
+    # Reads a stored version's artifact, so it exists only when this router was
+    # built with a storage backend -- the same rule the datasets router follows.
+    if get_storage_backend is not None:
+
+        @router.post(
+            "/projects/{project_id}/datasets/{dataset_id}/versions/query",
+            response_model=TemporalQueryResponse,
+        )
+        def query_dataset_version(
+            project_id: uuid.UUID,
+            dataset_id: uuid.UUID,
+            payload: TemporalQueryRequest,
+            db: Session = Depends(get_db),
+            user: UserRead = Depends(get_current_user),
+            storage=Depends(get_storage_backend),
+        ) -> TemporalQueryResponse:
+            """SQL over a dataset as of a version or an instant. A read (viewer):
+            `query` is a read-only segment in the central matrix."""
+            return temporal_query(db, project_id, dataset_id, payload, user, storage)
 
     # ------------------------------------------------------------- analysing
 

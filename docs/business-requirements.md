@@ -5,7 +5,7 @@
 
 Version 1.0 | 23 September 2026 | Business review draft
 
-Repository baseline: `7612d85`
+Repository baseline: `79eb302` (includes the first three P2 increments)
 
 This document describes the business purpose, target users, supported workflows, current requirements and complete documented future scope of Pipewright. It distinguishes implemented capabilities from partial delivery, deployment dependencies, unverified integrations and speculative ideas.
 
@@ -17,7 +17,7 @@ Prepared for the product owner, business sponsors, analysts, data teams, platfor
 ## Purpose and authority
 This is a consolidated BRD for the application as inspected on 23 September 2026. It is a business review draft, not a signed delivery contract. The target segments, proposed success measures and rollout recommendations are business interpretations of the product; they are not evidence of paying customers, market research or approved service levels.
 
-Current capability claims use the checked-out code, executable registries and the latest handoff. Future scope uses the production-readiness plan, product roadmap and accepted time-travel requirements. Existing tests and their last recorded results are evidence of engineering work, not proof that every external integration has been exercised in this review. [S01-S05]
+Current capability claims use the checked-out code, executable registries, handoff and the three P2 commits through `79eb302`. Future scope uses the production-readiness plan, product roadmap and accepted time-travel requirements. Later concurrent development is outside this fixed baseline. Recorded tests are not proof that every external integration was exercised for this BRD. [S01-S05, S15]
 
 ## Status vocabulary
 | Label | Meaning in this document |
@@ -56,7 +56,7 @@ Pipewright combines a spreadsheet-style preparation surface with reusable pipeli
 The product is an internal data preparation and operations platform. It can feed existing BI and database systems. It is not presently a complete replacement for an enterprise warehouse, master-data management suite, enterprise identity provider or mature streaming platform.
 
 ## Position at the baseline
-The application includes broad batch ingestion, preparation, quality, governance, reporting and operations capabilities. Production-readiness P0 and P1 are recorded as complete. Time travel, semantic metrics, streaming, live co-editing, advanced optimization and the wider ecosystem remain future work. Runtime packaging and guided onboarding are important remaining adoption work. [S01-S03]
+The application includes broad batch ingestion, preparation, quality, governance, reporting and operations capabilities. Production-readiness P0 and P1 are recorded as complete; P2 is partially delivered through canonical type display, a project checklist and pipeline naming. Time travel, semantic metrics, streaming, live co-editing, advanced optimization and the wider ecosystem remain future work. Runtime packaging and the rest of guided onboarding remain adoption work. [S01-S03, S15]
 
 <!-- PAGE -->
 # Business objectives and measures
@@ -208,7 +208,7 @@ The use cases above describe business tasks rather than separate licensed module
 | BR-08 | Persist user theme and density preferences. | Light, dark and system themes and density controls behave consistently for that user. |
 
 ## User experience and current limits
-The navigation exposes administration to platform administrators, uses project names in context and supplies more readable business labels. P0 also links health information to system status. These improvements are implemented; a complete first-use checklist and sample-workspace creation are planned under P2.
+The navigation exposes administration to platform administrators, uses project names in context and supplies more readable business labels. P0 links health information to system status. Initial P2 commits add the project checklist, grouped Workspace menu and simpler data-entry choices; Home mirroring, sample-workspace creation and tours remain future work. [S15]
 
 Invitation currently means a code workflow, not an automated invitation email. Login remains password-based for ordinary users. Existing OIDC-related backend work does not constitute an end-to-end available SSO experience; OIDC, SAML and MFA remain P4 work. The P1 plan's active-session inventory and expiry display are not present in the inspected surface; sign-out-everywhere uses token versioning. Login throttling is an unevidenced optional improvement. These distinctions remain open backlog items rather than silently inheriting the phase's done label.
 
@@ -247,7 +247,7 @@ The current connector registry reports **155 available in the inspected environm
 | BR-21 | Offer a discoverable transformation library. | 173 named tools across 11 categories; searchable names/synonyms and type-aware context menus; examples derive from the registry. |
 | BR-22 | Support formula-based derived columns. | Spreadsheet-style formulas compile to the shared expression model; actionable syntax/type errors identify unsupported requests. |
 | BR-23 | Show column profiles and preparation effects. | Null/quality summaries and distributions are labelled with sampling limits; a preview statistic must not imply a full-dataset scan. |
-| BR-24 | Save, edit and run pipelines to produce derived datasets. | Persist the recipe and run relationship; preview success and a saved definition do not substitute for a completed run. |
+| BR-24 | Name, save, edit and run pipelines to produce derived datasets. | Save-time naming and inline list rename exist; persist recipe/run relationships. Preview success is not completed execution. |
 | BR-25 | Make execution location explainable. | The plan explains which operations could run in a source and why others remain local; actual run pushdown is still deferred. |
 
 ## Library coverage
@@ -416,7 +416,7 @@ These requirements are business acceptance conditions. Current mechanisms are di
 | NFR-04 | Reliability: show real state and recover from process failure without misleading success. | Run states, leases and stalled hints exist. Supervision, direct heartbeats and durable upload recovery are P3 work. |
 | NFR-05 | Performance: keep previews interactive and execution bounded. | Virtualised grid, bounded notebook execution and sampling exist. P5 must measure hot-endpoint performance; P9/22 improves execution. |
 | NFR-06 | Recoverability: restore metadata and artifacts together. | Backup and restore-drill tooling exists. Agree RPO/RTO and demonstrate them with representative data before production. |
-| NFR-07 | Usability: business users can interpret types, failures and next actions. | P0 labels/navigation plus theme/density exist. P2's independently completed sub-20-minute workflow remains an adoption target. |
+| NFR-07 | Usability: business users can interpret types, failures and next actions. | Labels, themes, project checklist and pipeline naming exist. P2's independent sub-20-minute workflow remains an adoption target. |
 | NFR-08 | Observability: correlate requests and operational outcomes. | Request identifiers, health endpoints, metrics and audit history exist. P3/P5 add direct runtime health and operating guidance. |
 | NFR-09 | Maintainability: new capabilities must obey shared contracts. | Registered service hooks, connector conformance and generated tool documentation exist; broad plugin compatibility is Phase 23. |
 | NFR-10 | Honest degradation: unavailable features must be labelled or refused. | Verification tiers, driver gating, unsupported dialect errors and sandbox checks are existing design rules. |
@@ -441,7 +441,7 @@ Define supported concurrent users, data sizes, completion windows, p95 response 
 | Tool depth | 173 current tools, not the roadmap's approximately 420 ambition. | Advanced windows, ML/statistics, geospatial and recipe-management workflows still need development. |
 
 ## Evidence interpretation
-The handoff reports a last verification baseline of 6,038 Python tests (573 skipped) and 678 web tests, all passing with zero warnings. Those are recorded historical results, not proof that all integration infrastructure ran or a fresh live test of every feature for this BRD. Container-backed connector tests can skip locally; CI has separate real-server prerequisites.
+The handoff records 6,038 Python tests (573 skipped) and 678 web tests; the latest P2 commit records 6,041 Python passes, 573 skips and 678 web passes with zero warnings. Those are historical results, not proof that all integration infrastructure ran or a fresh live test of every feature for this BRD. Container-backed tests can skip locally; CI has separate real-server prerequisites. [S15]
 
 Older feature-guide and roadmap statements conflict with newer code in places. The reconciliation register near the end records those differences and the chosen interpretation. [S01-S05]
 
@@ -454,7 +454,7 @@ Two planning views overlap: the product roadmap describes capability depth; the 
 |---|---|---|
 | P0 - Truth and trust | Done | Clear language/navigation and honest visibility into stalled background work. |
 | P1 - Identity core | Done with noted residuals | Account lifecycle, password/session invalidation and scoped API tokens; remaining plan/code deltas are listed here. |
-| P2 - Guided first win | Planned; next | Checklist, sample project, consistent types and resumable-upload UI. |
+| P2 - Guided first win | Partial; in progress | Project checklist, initial type consistency and naming delivered; sample project, Home mirroring, tours and resumable UI remain. |
 | P3 - Operational backbone | Planned | Supervised workers/ticker, heartbeats, durable uploads, public dashboard viewer and cross-project operator views. |
 | P4 - Enterprise identity | Planned | Live OIDC integration, SAML and TOTP MFA. |
 | P5 - Deployability and scale | Planned | Production packaging, Helm, operations evidence and performance baseline. |
@@ -471,15 +471,15 @@ The original phases 08-15 and 17 are recorded as done, but their explicit exclus
 <!-- PAGE -->
 # Planned: onboarding and operations
 
-## P2 - Guided first win (Should)
-- **PL-01:** Replace empty-project complexity with a live checklist: Add data, Shape it, Guard it, Schedule it. Each step has one primary action; advanced areas regroup under a More menu. Mirror progress on Home and allow dismissal when complete.
-- **PL-02:** Clarify Add data versus Connect a source; move manual dataset registration into advanced controls. Add a deletable sample workspace containing orders data, a pipeline, a rule, a schedule and a chart/dashboard.
-- **PL-03:** Prompt for a pipeline name and support inline rename. Add first-project, Data Quality and Schedules tours.
-- **PL-04:** Carry canonical ingest types through schema, Studio and publish surfaces with a cross-surface acceptance check.
+## P2 - Guided first win (Should; partially delivered)
+- **PL-01 - Partial:** The project checklist now tracks Add data, Shape it, Guard it and Schedule it, supports dismissal and hides when complete. The grouped Workspace menu exists. Mirroring this state on Home remains planned.
+- **PL-02 - Partial:** Add data versus Connect a source is clarified and manual registration is under advanced controls. A deletable sample workspace with orders, pipeline, rule, schedule and chart/dashboard remains planned.
+- **PL-03 - Partial:** Save-time pipeline naming and inline rename are implemented. First-project, Data Quality and Schedules tours remain planned.
+- **PL-04 - Partial:** Canonical type metadata and consistent dataset/Studio display, with ingestion/preview tests, are implemented. Complete upload-to-publish acceptance remains part of P2.
 - **PL-05:** Wire the resumable/chunked API into upload UI with progress, retry/resume and a truthful configured limit; remove the UI's 25 MB soft cap only within backend limits.
 - **Candidates:** Inline "Explain this step" help from registry documentation and purpose-specific empty-state illustrations.
 
-**Exit condition:** three non-technical testers independently build a scheduled, validated pipeline in under 20 minutes. Test interruption/retry and ambiguous-data flows, not only the clean demo. [S02 P2]
+**Exit condition remains open:** three non-technical testers independently build a scheduled, validated pipeline in under 20 minutes. Include interruption/retry and ambiguity. Partial delivery is established by three P2 commits; the phase is not declared complete. [S02 P2, S15]
 
 ## P3 - Operational backbone (Must for unattended use)
 - **PL-06:** Package worker and schedule-ticker processes with the API in development and deployment profiles; supervise and restart them. Persist component heartbeats and show host, last activity and queue depth in System status/Home.
@@ -664,12 +664,12 @@ The complete category ambition includes the following additional areas. Many hav
 
 | Category group | Remaining breadth to reconcile and prioritise |
 |---|---|
-| Numeric and temporal | Robust scaling, quantile/frequency buckets, percentages/running changes, currency/unit conversion, business calendars/holidays, fiscal periods, date spines and missing-date filling. |
-| Missing data | Forward/backward fill, linear/spline interpolation, mean/median/mode and cross-column imputation, null-heavy column handling. |
+| Numeric and temporal | Robust/z-score scaling, quantile/frequency buckets, running changes, currency/unit conversion, holiday calendars, fiscal-period extensions, date spines and missing-date filling. Basic rescaling, percent-of, business-day calculations and fiscal year/quarter tools already exist. |
+| Missing data | Forward/backward fill, linear/spline interpolation, mean/median/mode imputation and null-heavy column removal. Constant and cross-column filling already exist. |
 | Aggregation and join | Rich collection/positional aggregates, weighted averages, correlation/covariance/percentiles; specialised semi/anti/as-of/range/set-operation experiences beyond current steps. |
-| Cleansing | Address/name/postal normalization, country/currency/unit reference standardisation, mojibake/swapped-column correction and lookup-based standardisation beyond current simple rules. |
+| Cleansing | Address parsing/standardisation, currency/unit reference standardisation, swapped-column correction and richer lookup-based cleansing. Basic name splitting, country/postal cleanup and mojibake repair already exist. |
 | Validation/assertions | Referential integrity, monotonicity, cross-total assertions, schema/distribution contracts, quarantine/flag/fail integration and custom formula assertions beyond the current 9 tools and 8 quality rule types. |
-| Encoding and privacy | Additional hashing/HMAC, reversible tokenisation, consistent pseudonymisation and surrogate-key workflows where not in the current catalogue. |
+| Encoding and privacy | Reversible tokenisation, surrogate-key/UUID generation and any additional algorithms beyond current coverage. MD5, SHA variants, HMAC-SHA-256, masking and consistent pseudonymisation already exist. |
 | Code escape hatches | Richer regex/jq-style JSON, inline lookup tables, explicit HTTP enrichment, safe file transforms, template rendering and custom plugins. SQL/notebooks/formulas/YAML already cover part of this ambition. |
 | Metadata and productivity | Column descriptions/tags, ownership/glossary/classification editing, data dictionaries, schema snapshots/comparison, step notes, templates, branches and merges. Existing catalog, governance and YAML support are partial foundations. |
 
@@ -757,7 +757,7 @@ Name sponsor, product owner and operational owners; confirm first target segment
 | Phase 07 lists SSO; security document says planned. | Backend groundwork is partial; end-to-end supported enterprise SSO is P4, without recorded live IdP assurance. |
 | P1 is done but session inventory/throttling are not evidenced. | Token-version sign-out is delivered; session list/expiry display are residuals and throttling an optional candidate. |
 | P8 names pie/table/KPI capabilities already in code. | Treat P8 as refinement/extension; do not relabel current chart types as absent. |
-| Phase 18 suggests next; later P2 plan sets adoption order. | P2 is the next readiness increment; Phase 18 remains P7/product-depth work. Its accepted requirements still control its scope. |
+| Phase 18 suggests next; newer plan/commits advance P2. | P2 is now partially delivered, though the plan header still says next. Phase 18 remains P7/product-depth work with its accepted scope. |
 | P9 calls cutovers pre-approved; Phase 18 explicitly defers them. | Keep them planned for deliberate P9 work, excluded from incidental Phase 18 implementation. |
 
 ## Business glossary
@@ -766,7 +766,7 @@ Name sponsor, product owner and operational owners; confirm first target segment
 <!-- PAGE -->
 # Evidence register
 
-Sources are local repository documents and implementation paths inspected for this BRD at baseline `7612d85`. References identify evidence to revisit, not external endorsements. No market-size, competitor or regulatory claims rely on unperformed research.
+Sources are local repository documents and implementation paths inspected for this BRD at baseline `79eb302`. References identify evidence to revisit, not external endorsements. No market-size, competitor or regulatory claims rely on unperformed research.
 
 | Ref | Source and purpose |
 |---|---|
@@ -784,6 +784,7 @@ Sources are local repository documents and implementation paths inspected for th
 | S12 | `services/service-reporting/`; `services/service-destinations/`; `apps/web/src/features/reporting/components/dashboards-page.tsx` - reports, charts, target publication and explicit missing share viewer. |
 | S13 | `services/service-workbench/`; `services/service-writeback/`; relevant handoff/roadmap sections - SQL, notebooks and guarded table changes. |
 | S14 | `docs/features-guide.md`; `docs/project-case-study.md` - original business narrative and basic workflows; superseded where newer evidence differs. |
+| S15 | Commits `ab924f3`, `85492d0`, `79eb302`; type-fidelity tests, project-checklist/workspace-menu components and pipeline naming UI - initial P2 implementation ahead of the ledger. |
 
 **Document validation:** current connector/tool counts were read from executable registries. The PDF is generated from this maintained text, with page layout and extracted text checked separately. Status evidence is a point-in-time inventory; it must be refreshed when features ship.
 

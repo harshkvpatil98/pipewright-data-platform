@@ -47,6 +47,7 @@ ST = {
  'cell': ParagraphStyle('cell',fontName='Body',fontSize=8.65,leading=11.65,textColor=INK,spaceAfter=0,splitLongWords=True),
  'th': ParagraphStyle('th',fontName='Body-Bold',fontSize=8.6,leading=11,textColor=colors.white,spaceAfter=0),
  'tool': ParagraphStyle('tool',fontName='Body',fontSize=8.5,leading=11,textColor=INK,spaceAfter=0),
+ 'toolhead': ParagraphStyle('toolhead',fontName='Body-Bold',fontSize=11.5,leading=14,textColor=TEAL,spaceBefore=5,spaceAfter=5),
  'small': ParagraphStyle('small',fontName='Body',fontSize=8.3,leading=11.4,textColor=MUTED,spaceAfter=6),
  'kicker': ParagraphStyle('kicker',fontName='Body-Bold',fontSize=8,leading=10,textColor=COPPER,spaceAfter=8),
 }
@@ -84,6 +85,8 @@ def table(rows,widths=None):
        ('ROWBACKGROUNDS',(0,1),(-1,-1),[PALE,colors.white]),
        ('LINEBELOW',(0,1),(-1,-1),0.35,LINE),
     ]))
+    if rows[0][0] == 'Ref':
+        t.setStyle(TableStyle([('TOPPADDING',(0,1),(-1,-1),5),('BOTTOMPADDING',(0,1),(-1,-1),5)]))
     t.spaceAfter=10
     return t
 
@@ -107,7 +110,7 @@ def tools_block(categories):
     out=[]
     for category in categories:
         tools=sorted([t for t in INV['tools'] if t['category']==category],key=lambda t:t['title'])
-        out.append(para(f'{category} / {len(tools)} tools','h2'))
+        out.append(para(f'{category} / {len(tools)} tools','toolhead'))
         rows=[]
         for i in range(0,len(tools),2):
             cells=[]
@@ -116,7 +119,7 @@ def tools_block(categories):
             if len(cells)==1: cells.append('')
             rows.append(cells)
         t=Table(rows,colWidths=[CW/2,CW/2],hAlign='LEFT')
-        t.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'TOP'),('LEFTPADDING',(0,0),(-1,-1),0),('RIGHTPADDING',(0,0),(-1,-1),10),('TOPPADDING',(0,0),(-1,-1),3),('BOTTOMPADDING',(0,0),(-1,-1),4),('LINEBELOW',(0,0),(-1,-1),.3,LINE)]))
+        t.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'TOP'),('LEFTPADDING',(0,0),(-1,-1),0),('RIGHTPADDING',(0,0),(-1,-1),10),('TOPPADDING',(0,0),(-1,-1),1),('BOTTOMPADDING',(0,0),(-1,-1),1),('LINEBELOW',(0,0),(-1,-1),.3,LINE)]))
         out.append(t);out.append(Spacer(1,4))
     return out
 
@@ -208,7 +211,7 @@ def draw_cover(c):
         c.setFillColor(COPPER);c.setFont('Body-Bold',8);c.drawString(x+10,y+31,f'0{i+1}')
         c.setFillColor(TEAL);c.setFont('Body-Bold',8);c.drawString(x+10,y+13,label)
     c.setFillColor(INK);c.setFont('Body-Bold',10);c.drawString(M,148,'Version 1.0  |  23 September 2026')
-    c.setFillColor(MUTED);c.setFont('Body',9);c.drawString(M,129,'Business review draft  /  Repository baseline 7612d85')
+    c.setFillColor(MUTED);c.setFont('Body',9);c.drawString(M,129,'Business review draft  /  Repository baseline 79eb302')
     p=para('For product sponsors, business users, data teams, governance reviewers and platform operators. Status is explicitly separated into available, partial, conditional, planned and candidate capabilities.','small')
     _,ph=p.wrap(CW,55);p.drawOn(c,M,80-ph)
 

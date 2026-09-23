@@ -74,6 +74,20 @@ class Settings(BaseSettings):
     oidc_client_id: str | None = None
     oidc_client_secret: str | None = None
     oidc_redirect_uri: str | None = None
+    # Space-separated OIDC scopes; the defaults cover identity + email + profile.
+    oidc_scopes: str = "openid email profile"
+    # JSON object mapping an IdP group/role claim value to a platform role, e.g.
+    # '{"data-admins": "admin"}'. Empty means everyone lands on the default role.
+    oidc_group_role_map: str = "{}"
+    # Role a newly provisioned SSO user gets when no group maps them.
+    oidc_default_role: str = "viewer"
+    # When false, an SSO sign-in by someone with no account is refused rather
+    # than silently creating one.
+    oidc_allow_jit: bool = True
+    # Where the SSO callback sends the browser after issuing a session. The web
+    # app origin; the gateway and web must share a host for the session cookie
+    # to carry across (documented in docs/security.md).
+    web_base_url: str = "http://localhost:3000"
     # Shared secret for POST /internal/schedules/* (due-schedule executor). If unset, internal routes return 503.
     scheduler_internal_token: str | None = None
     # Stable id for this scheduler worker process (set per replica for lease ownership in multi-instance deploys).

@@ -153,3 +153,26 @@ class UsageRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     compute_ms: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     bytes_written: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class SsoLoginState(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """The short-lived state of one in-flight SSO sign-in.
+
+    The authorization redirect and the callback are two separate requests, and
+    the second must prove it belongs to the first: the `state` guards against a
+    forged callback, and the PKCE `code_verifier` is the secret that binds the
+    token exchange to the browser that started it. Both live here rather than in
+    process memory so the callback works even if it lands on a different gateway
+    than the redirect -- and so a restart mid-sign-in does not strand the user.
+    Rows are one-time and short-lived; they are deleted on use and swept by age.
+    """
+
+    __tablename__ = "sso_login_states"
+    __table_args__ = (Index("ix_sso_login_states_state", "state", unique=True),)
+
+    state: Mapped[str] = mapped_column(String(64), nullable=False)
+    code_verifier: Mapped[str] = mapped_column(String(128), nullable=False)
+    nonce: Mapped[str] = mapped_column(String(64), nullable=False)
+    #: Where to send the browser after a successful sign-in (a relative path).
+    next_path: Mapped[str] = mapped_column(String(512), nullable=False, default="/")
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

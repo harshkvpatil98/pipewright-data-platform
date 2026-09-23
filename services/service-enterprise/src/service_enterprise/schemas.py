@@ -8,6 +8,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from service_auth.contracts import MAX_SESSION_MINUTES, MIN_SESSION_MINUTES
 from service_enterprise.retention import MAX_RETAIN_DAYS, MIN_RETAIN_DAYS
 
 ColumnAction = Literal["allow", "mask", "hash", "redact", "deny"]
@@ -23,12 +24,19 @@ class OrganisationCreate(BaseModel):
 
 
 class OrganisationUpdate(BaseModel):
-    """Rename a tenant, or adjust its plan and limits. Unset fields are left alone."""
+    """Rename a tenant, or adjust its plan, limits and session policy. Unset
+    fields are left alone; an explicit null clears the field."""
 
     name: str | None = Field(default=None, min_length=1, max_length=160)
     plan: str | None = Field(default=None, max_length=32)
     max_projects: int | None = Field(default=None, ge=1)
     max_datasets: int | None = Field(default=None, ge=1)
+    # How long this tenant's sessions last. Null means "follow the deployment
+    # default"; the bounds match what token issuing will clamp to anyway, so an
+    # unusable value is refused here rather than silently corrected later.
+    session_max_minutes: int | None = Field(
+        default=None, ge=MIN_SESSION_MINUTES, le=MAX_SESSION_MINUTES
+    )
 
 
 class OrganisationRead(BaseModel):
@@ -38,6 +46,7 @@ class OrganisationRead(BaseModel):
     plan: str
     max_projects: int | None
     max_datasets: int | None
+    session_max_minutes: int | None = None
     is_active: bool
     project_count: int = 0
     member_count: int = 0

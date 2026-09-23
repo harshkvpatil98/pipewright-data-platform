@@ -106,6 +106,7 @@ def _organisation_read(db: Session, organisation: Organisation) -> OrganisationR
         plan=organisation.plan,
         max_projects=organisation.max_projects,
         max_datasets=organisation.max_datasets,
+        session_max_minutes=organisation.session_max_minutes,
         is_active=organisation.is_active,
         project_count=db.scalar(
             select(func.count(Project.id)).where(Project.organisation_id == organisation.id)
@@ -236,8 +237,8 @@ def unassign_project(
 def update_organisation(
     db: Session, organisation_id: uuid.UUID, payload: "OrganisationUpdate", current_user: UserRead
 ) -> OrganisationRead:
-    """Rename a tenant or adjust its limits. The slug is left alone, because it
-    is what other records refer to it by."""
+    """Rename a tenant, or adjust its limits and session policy. The slug is
+    left alone, because it is what other records refer to it by."""
     _require_platform_admin(current_user)
     organisation = db.get(Organisation, organisation_id)
     if organisation is None:
@@ -251,6 +252,11 @@ def update_organisation(
         organisation.max_projects = fields["max_projects"]
     if "max_datasets" in fields:
         organisation.max_datasets = fields["max_datasets"]
+    if "session_max_minutes" in fields:
+        # Takes effect on the next sign-in, not retroactively: a token already
+        # issued carries its own expiry and there is no session table to shorten.
+        # Ending current sessions is what sign-out-everywhere is for.
+        organisation.session_max_minutes = fields["session_max_minutes"]
     db.commit()
     db.refresh(organisation)
     return _organisation_read(db, organisation)

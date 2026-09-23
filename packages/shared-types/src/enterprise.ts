@@ -10,11 +10,21 @@ export type Organisation = {
   plan: string;
   max_projects: number | null;
   max_datasets: number | null;
+  /** Session lifetime for this tenant's people, in minutes. Null follows the deployment default. */
+  session_max_minutes: number | null;
   is_active: boolean;
   project_count: number;
   member_count: number;
   created_at: string;
 };
+
+/**
+ * The bounds a session policy is held to, mirroring `service_auth.contracts`.
+ * The server clamps to the same range whatever arrives, so these exist to make
+ * the form refuse a value before it is sent rather than to be the rule.
+ */
+export const MIN_SESSION_MINUTES = 5;
+export const MAX_SESSION_MINUTES = 60 * 24 * 30;
 
 export type OrganisationListResponse = { items: Organisation[] };
 
@@ -130,9 +140,32 @@ export type UsageResponse = {
   summary: string;
 };
 
+/**
+ * What SAML can do on this deployment. `implemented` is about the code and
+ * never changes; `supported` is about this install, and is only true when the
+ * signature library is present *and* a provider is configured.
+ */
+export type SamlStatus = {
+  supported: boolean;
+  implemented: boolean;
+  signature_library: string;
+  signature_library_available: boolean;
+  configured: boolean;
+  reason: string;
+  notes: string;
+  alternative: string;
+};
+
 export type SsoStatus = {
   oidc_configured: boolean;
   issuer: string | null;
-  saml: { supported: boolean; reason: string; alternative: string };
+  saml: SamlStatus;
   note: string;
+};
+
+/** What the login screen reads to decide which sign-in buttons to show. */
+export type SsoAvailability = {
+  oidc_configured: boolean;
+  saml_configured: boolean;
+  saml: SamlStatus;
 };

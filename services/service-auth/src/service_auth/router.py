@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from service_auth.codes import DEFAULT_TTL_MINUTES, RESET, issue_code
+from service_auth.contracts import session_minutes_for
 from service_auth.dependencies import build_current_user_dependency
 from service_auth import mfa as mfa_service
 from service_auth.schemas import (
@@ -63,14 +64,18 @@ def build_router(get_db: Callable[..., Session], settings) -> APIRouter:
     router = APIRouter(prefix="/auth", tags=["auth"])
     current_user = build_current_user_dependency(get_db, settings)
 
-    def _issue_token(user) -> TokenResponse:
+    def _issue_token(user, db: Session) -> TokenResponse:
         token, expires_in = create_access_token(
             user_id=str(user.id),
             username=user.username,
             secret_key=settings.auth_jwt_secret,
             issuer=settings.auth_jwt_issuer,
             audience=settings.auth_jwt_audience,
-            expires_minutes=settings.auth_access_token_exp_minutes,
+            # An organisation may hold its people to a shorter session than the
+            # deployment default; with no policy this is that default.
+            expires_minutes=session_minutes_for(
+                db, user.id, default=settings.auth_access_token_exp_minutes
+            ),
             token_version=user.token_version,
         )
         return TokenResponse(
@@ -81,8 +86,8 @@ def build_router(get_db: Callable[..., Session], settings) -> APIRouter:
         if actor.role != "admin":
             raise ForbiddenError(f"Only a platform admin can {verb}.")
 
-    def _ok_result(user) -> LoginResult:
-        issued = _issue_token(user)
+    def _ok_result(user, db: Session) -> LoginResult:
+        issued = _issue_token(user, db)
         return LoginResult(
             status="ok",
             access_token=issued.access_token,
@@ -100,7 +105,7 @@ def build_router(get_db: Callable[..., Session], settings) -> APIRouter:
                 status="mfa_required",
                 mfa_ticket=mfa_service.mint_mfa_ticket(user_id=user.id, settings=settings),
             )
-        return _ok_result(user)
+        return _ok_result(user, db)
 
     @router.post("/login/mfa", response_model=LoginResult, status_code=status.HTTP_200_OK)
     def login_mfa(payload: MfaLoginRequest, db: Session = Depends(get_db)) -> LoginResult:
@@ -112,7 +117,7 @@ def build_router(get_db: Callable[..., Session], settings) -> APIRouter:
             raise ForbiddenError("This account cannot sign in.")
         if not mfa_service.verify_second_factor(db, user_id=user_id, code=payload.code):
             raise ForbiddenError("That code is not right.")
-        return _ok_result(user)
+        return _ok_result(user, db)
 
     @router.get("/me", response_model=UserRead)
     def me(db: Session = Depends(get_db), user: UserRead = Depends(current_user)) -> UserRead:
@@ -207,7 +212,7 @@ def build_router(get_db: Callable[..., Session], settings) -> APIRouter:
         Public by design: the whole point is that the person cannot sign in yet.
         """
         user = set_password_with_code(db, code=payload.code, new=payload.new_password)
-        return _issue_token(user)
+        return _issue_token(user, db)
 
     @router.get("/me/preferences", response_model=PreferencesRead)
     def read_preferences(

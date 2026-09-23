@@ -17,6 +17,7 @@ from service_enterprise.retention import (
     redact_subject,
     resource_type_label,
 )
+from service_enterprise.saml import saml_status
 from service_enterprise.sso import (
     ProviderConfig,
     build_authorization_request,
@@ -24,7 +25,6 @@ from service_enterprise.sso import (
     generate_pkce,
     map_identity,
     normalise_username,
-    saml_status,
     verify_state,
 )
 from service_enterprise.telemetry import Metric, render
@@ -291,8 +291,11 @@ def test_usernames_are_normalised_to_something_storable():
     assert len(normalise_username("x" * 200)) == 80
 
 
-def test_saml_says_why_it_is_absent_rather_than_pretending():
-    status = saml_status()
+def test_saml_is_off_until_a_provider_is_configured():
+    """Implemented is not the same as available, and the status says which."""
+    status = saml_status(None)
+    assert status["implemented"] is True
     assert status["supported"] is False
-    assert "authentication bypass" in status["reason"]
+    assert status["configured"] is False
+    assert "no identity provider is configured" in status["reason"]
     assert "OIDC" in status["alternative"]

@@ -14,6 +14,12 @@ dependencies = [
   "pandas>=2.2,<3.0",
   "httpx>=0.27,<1.0",
   "pyjwt>=2.8,<3.0",
+  # SAML assertion signatures. signxml is pure Python over lxml + cryptography,
+  # so it installs from a wheel everywhere; python-xmlsec would make the
+  # libxmlsec1 system library a prerequisite of setup and CI for everybody,
+  # including the majority who never enable SAML. Pinned below 5.0 because that
+  # release requires cryptography>=45 and shared-python pins cryptography<45.
+  "signxml>=4.5,<5",
   "shared-python>=0.1.0",
   "service-auth>=0.1.0",
   "service-projects>=0.1.0",

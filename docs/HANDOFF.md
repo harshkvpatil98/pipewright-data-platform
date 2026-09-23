@@ -4,8 +4,8 @@
 last one stopped. Keep it current. If you change project state, update the **Progress ledger**
 and **Session log** at the bottom before you finish.
 
-**Last updated:** 2026-09-22
-**Updated by:** session `7b73c2ff` (development orchestrator removed; single-session workflow restored)
+**Last updated:** 2026-09-23
+**Updated by:** production-readiness P4 (enterprise identity: TOTP, OIDC, SAML, SCIM-lite, per-org sessions)
 
 ---
 
@@ -67,8 +67,8 @@ session log).
 npm run verify     # ruff + pytest + ESLint + tsc + production build
 ```
 
-Everything must be green before moving on. Current baseline: **6,038 Python tests
-(573 skipped), 678 web tests, all passing, zero warnings.**
+Everything must be green before moving on. Current baseline: **6,181 Python tests
+(573 skipped), 693 web tests, all passing, zero warnings.**
 
 Other commands: `npm test` (tests only) · `npm run smoke` (end-to-end smoke) ·
 `npm run lint` · `npm run typecheck` · `scripts/backup.sh --verify` (real restore drill).
@@ -112,7 +112,7 @@ was for that push, not a standing one.
 | 06 | Intelligence | `service-intelligence` | PII, join keys, entity resolution — **no model calls** |
 | 07 | Enterprise | `service-enterprise` | Tenancy, row/column security, retention, SSO, `/metrics` |
 
-**Migrations:** `apps/api-gateway/alembic/versions/`, 30 files, head is `0030_ingest_specs`.
+**Migrations:** `apps/api-gateway/alembic/versions/`, 38 files, head is `0038_org_session_policy`.
 
 ### Roadmap v2: in progress
 
@@ -180,8 +180,10 @@ honesty; if you verify one, update its status here.
 | 161 of 211 connectors are tier 4 | Written from vendor documentation and never executed here. Said on every card, in the config form, in the connection test and in the run's warnings — which is the design, not a gap to close by relaxing the claim |
 | Tier 3 ("Recorded") is empty | It means replaying a *captured real session*, and there are no credentials on this machine for any of these vendors. Fabricating a recording would be the exact failure the tier system prevents |
 | 5 SaaS connectors never run live | Stripe/HubSpot/Shopify/Salesforce/Sheets — no credentials on this machine |
-| OIDC network legs never run | Token exchange + JWKS written to spec; no IdP available |
-| SAML absent | Needs `xmlsec`; a SAML that skips signature checking is an auth bypass |
+| SSO network legs never run against a live IdP | OIDC token exchange + JWKS, and SAML's browser hops, are written to spec with no Okta/Entra tenant on this machine. The SAML *signature* path is genuinely exercised — tests mint a key, sign assertions and verify them through the product's own verifier — but the wire protocol is unverified |
+| SAML is SP-initiated only | An unsolicited assertion has no request of ours to bind to, so accepting one means accepting anything the IdP key ever signed. Refused by name, not omitted |
+| Encrypted SAML assertions unsupported | Refused by name with the setting to turn off. Decryption needs an SP key this deployment does not hold |
+| Inbound SCIM 2.0 push API absent | The deactivate-on-absence pull job is the half that matters for security and is the one shipped |
 | 5 warehouse connectors driver-gated | Snowflake/BigQuery/Redshift/SQL Server/Oracle declare `test` only |
 | PDF export absent | No layout engine; HTML export prints correctly from a browser |
 | Write-back run only against SQLite | PostgreSQL and MySQL paths are written and dialect-aware; no server on this machine to run them |
@@ -637,5 +639,7 @@ Report honestly. If something is unverified, say so and add it to §7.
 | 2026-09-23 | `4d2333f` | **Production-readiness P2 (Guided first win).** Project page leads with a live-ticking, dismissible checklist (Add data → Shape → Guard → Schedule) and the old chip-wall regrouped behind a Workspace menu (Build/Govern/Operate/Publish); entry-points merged to Add data · Connect a source (Register dataset moved to advanced). Home “Get started” now mirrors the first project’s real state. One-click **Create a demo project** seeds a full worked example from the same service functions a user’s clicks call — orders CSV (missing amount, missing email, negative refund) → filter pipeline → not-null rule → daily schedule → revenue-by-region chart → dashboard — deletable like any project, composed in the gateway (the one layer already allowed to touch every service) and covered by an end-to-end test against a real DB. Save-pipeline naming prompt + inline rename; first-run mini-tours for Data quality and Schedules; type fidelity via a stored `canonical_type` with a cross-surface test. Resumable chunked upload carried to P3. `npm run verify` green with zero warnings; every surface verified live in the browser (checklist, Workspace menu, both mini-tours all 3 steps, demo seed → chart renders on its dashboard, Home get-started mirror confirmed accurate against the API). Commits 6c5c55e, 9fe4d4c, d7f19b4, 4d2333f — author/committer harshkvpatil98, no AI attribution. |
 
 | 2026-09-23 | `1d3af1b` | **Production-readiness P3 (Operational backbone).** Migrations 0032 (runtime_heartbeats) + 0033 (upload_sessions). Runtime heartbeats: the workflow worker and schedule ticker each beat a row every loop, so platform status carries ground truth (fresh=alive, stale=dead, none=never started); assessRuntime consumes beats first and falls back to queue-age inference. Packaged runtime: scripts/worker.sh supervises both processes, dev.sh starts them (PW_DEV_NO_WORKERS=1 to opt out), run_due_schedules gains a --loop ticker mode, docker compose gains app/worker profiles with restart policies. System-status Runtime panel + Home card show per-component heartbeat/host + queue depths. A stalled queue (>30 min, no beating worker) opens a runtime incident from the ticker and auto-resolves on drain. Workflow-run failures now notify in-app like every other run; the first-run checklist offers Slack/email targets. Dashboard sharing finished end to end: unauthenticated GET /public/dashboards/{token} + a /shared/dashboards/{token} viewer (robots-noindex, results-only payload, immediate revocation), with Share/Copy link/Revoke on the dashboards page. Real cross-project /runs (status filter) and /datasets (name search) replace the redirects, scoped by the same owner-or-shared rule as the project list, with nav + palette entries. Upload sessions moved to a durable upload_sessions table (absorbs the resumable item carried from P2) — verified live: a 20MB upload's first chunk survived a mid-upload gateway restart. `npm run verify` green with zero warnings: 6,069 Python passed / 573 skipped, 683 web passed, lint/typecheck/build green. Every surface verified live in the browser (Runtime panel healthy + down states, both mini-tours, stalled-queue incident open+resolve against the real DB, notification offer, shared-dashboard chart render, /runs status filter, /datasets search). Deferred stretch: dead-letter view for failed workflow nodes with re-run. Commits 0c0c538, 25414bb, 1a393de, c10d6c6, e619875, b8ec220, 8f46f24, bfdf560, 1d3af1b — author/committer harshkvpatil98, no AI attribution.|
+
+| 2026-09-23 | P4 | **Production-readiness P4 (Enterprise identity).** Migrations 0034 (user_mfa), 0035 (sso_login_states), 0036 (user_auth_source), 0037 (saml_login_states), 0038 (org_session_policy). TOTP two-factor: enrolment QR + typed secret, activation only after a live code, hashed single-use recovery codes, admin reset, and a two-step login whose first step returns a distinct-audience ticket rather than a session. OIDC SSO end to end: discovery, PKCE, ID-token verification against the provider's JWKS, claim mapping, JIT provisioning with group->role mapping. **SAML 2.0 service provider** using `signxml` (not the plan's `python-xmlsec`, which would make the libxmlsec1 system library a prerequisite of setup and CI for everyone -- delta recorded in the plan and in docs/enterprise-identity.md): status/metadata/start/ACS routes, signature verified against the configured certificate, and *every claim read from the signed subtree* so signature wrapping has nothing to exploit. Refusals for unsigned, tampered, wrapped (two assertions), replayed, expired, not-yet-valid, wrong-audience, wrong-recipient, wrong-issuer, unsolicited and encrypted assertions; SP-initiated only, by design. Okta and Entra attribute shapes normalise to one identity via the last segment of the claim name, and both protocols share `map_identity` + `provision_user` so a group means the same role either way. SCIM-lite deactivate-on-absence offboarding touches only `auth_source="sso"` accounts and never removes the last active admin. *Push further:* per-organisation session length, injected into token issuing by a registered resolver (`service_auth.contracts`) so service_auth still never imports service_enterprise, clamped to 5 min-30 days, applied at every mint site, and failing back to the deployment default rather than blocking sign-in. `npm run verify` green with zero warnings: 6,181 Python passed / 573 skipped, 693 web passed, lint/typecheck/build green (75 new Python tests, 10 new web tests). Verified live against the running stack on a throwaway database: a real signed assertion drove a real sign-in through the real ACS (session cookie issued, Entra-style claim URIs mapped to admin), replay refused, an assertion signed by an untrusted key refused, "Continue with SSO" shown for a SAML-only deployment and redirecting with a deflated AuthnRequest, and a tenant's 25-minute policy visible in the next session's expiry. Not verified: either protocol against a live Okta/Entra tenant -- there is none on this machine. Commits fe1e3cc, 9f614e1, c02d68b, a2735dd and this one -- author/committer harshkvpatil98, no AI attribution. |
 
 <!-- Add a row above when you finish a session. Keep it to one line. -->

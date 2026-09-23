@@ -4,10 +4,17 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { Button, FormField, Input, LogoMark, SectionPanel } from "@platform/shared-ui";
-import type { AuthTokenResponse, LoginPayload, LoginResult } from "@platform/shared-types";
+import type {
+  AuthTokenResponse,
+  LoginPayload,
+  LoginResult,
+  SsoAvailability,
+} from "@platform/shared-types";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { setAccessToken } from "@/lib/auth/session";
+import { SSO_START_PATH, chooseSsoProvider } from "@/features/auth/sso-choice";
+import type { SsoProvider } from "@/features/auth/sso-choice";
 import { appConfig } from "@/lib/config";
 import { brand } from "@/lib/brand";
 
@@ -23,23 +30,27 @@ export function LoginForm() {
   const [codePassword, setCodePassword] = useState("");
   const [mfaTicket, setMfaTicket] = useState<string | null>(null);
   const [mfaCode, setMfaCode] = useState("");
-  const [ssoConfigured, setSsoConfigured] = useState(false);
+  const [ssoProvider, setSsoProvider] = useState<SsoProvider | null>(null);
 
   const nextPath = searchParams.get("next") || "/projects";
 
   // Show "Continue with SSO" only when a provider is actually configured, and
-  // surface a message if the provider bounced us back with an error.
+  // surface a message if the provider bounced us back with an error. OIDC wins
+  // when both are on: it is the better protocol, and offering two buttons that
+  // say the same thing to the person signing in helps nobody.
   useEffect(() => {
     const ssoError = searchParams.get("sso_error");
     if (ssoError) setError(ssoError);
-    apiFetch<{ oidc_configured: boolean }>("/auth/sso/status")
-      .then((status) => setSsoConfigured(Boolean(status.oidc_configured)))
-      .catch(() => setSsoConfigured(false));
+    apiFetch<Pick<SsoAvailability, "oidc_configured" | "saml_configured">>("/auth/sso/status")
+      .then((status) => setSsoProvider(chooseSsoProvider(status)))
+      .catch(() => setSsoProvider(null));
   }, [searchParams]);
 
   const startSso = () => {
-    // A full navigation, not a fetch: the flow is a 302 to the provider.
-    window.location.href = `${appConfig.apiBaseUrl}/auth/sso/start?next=${encodeURIComponent(nextPath)}`;
+    if (!ssoProvider) return;
+    // A full navigation, not a fetch: the flow is a redirect to the provider.
+    const path = SSO_START_PATH[ssoProvider];
+    window.location.href = `${appConfig.apiBaseUrl}${path}?next=${encodeURIComponent(nextPath)}`;
   };
 
   const finishLogin = (result: LoginResult) => {
@@ -170,7 +181,7 @@ export function LoginForm() {
             <Button type="submit" disabled={submitting || username.length < 3 || password.length < 8} className="w-full">
               {submitting ? "Signing in..." : "Sign in"}
             </Button>
-            {ssoConfigured ? (
+            {ssoProvider ? (
               <>
                 <div className="flex items-center gap-3 text-[11px] uppercase tracking-[0.16em] text-muted">
                   <span className="h-px flex-1 bg-line" />

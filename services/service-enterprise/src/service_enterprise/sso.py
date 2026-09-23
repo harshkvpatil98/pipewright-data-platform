@@ -11,10 +11,11 @@ generation, claim mapping, provisioning decisions -- are tested; the wire
 protocol is written to the specification and should be treated as unverified
 until somebody points it at a real provider.
 
-**SAML is not implemented.** It needs XML signature verification, which needs
-`xmlsec` and a system library, and a half-implemented SAML that skips signature
-checking is an authentication bypass rather than a feature. Saying it is absent
-is the honest answer.
+**SAML lives next door,** in `saml.py`. It was absent for a long time because
+XML signature verification needs a real implementation and a half-implemented
+SAML that skips the signature check is an authentication bypass; it is present
+now because that implementation is a dependency rather than a rewrite. OIDC
+remains the protocol to prefer where a provider offers both.
 """
 
 from __future__ import annotations
@@ -261,16 +262,3 @@ def _find_key(jwks: dict[str, Any], kid: str | None) -> dict[str, Any] | None:
         if isinstance(key, dict) and (kid is None or key.get("kid") == kid):
             return key
     return None
-
-
-def saml_status() -> dict[str, Any]:
-    """Why SAML is absent, said plainly."""
-    return {
-        "supported": False,
-        "reason": (
-            "SAML needs XML signature verification, which requires the xmlsec native "
-            "library. A SAML implementation that skips signature checking is an "
-            "authentication bypass, so it is not offered rather than offered badly."
-        ),
-        "alternative": "Most providers that speak SAML also speak OIDC; use that instead.",
-    }

@@ -45,6 +45,11 @@ class Organisation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     max_datasets: Mapped[int | None] = mapped_column(Integer, nullable=True)
     max_rows_per_month: Mapped[int | None] = mapped_column(Integer, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # How long a session issued to a member of this tenant lasts, in minutes.
+    # Null means "use the deployment default": a tenant that has never set a
+    # policy must not be silently given one, and the column cannot distinguish
+    # "unset" from "set to the default" any other way.
+    session_max_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     settings_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
 
 
@@ -173,6 +178,30 @@ class SsoLoginState(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     state: Mapped[str] = mapped_column(String(64), nullable=False)
     code_verifier: Mapped[str] = mapped_column(String(128), nullable=False)
     nonce: Mapped[str] = mapped_column(String(64), nullable=False)
+    #: Where to send the browser after a successful sign-in (a relative path).
+    next_path: Mapped[str] = mapped_column(String(512), nullable=False, default="/")
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class SamlLoginState(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """The short-lived state of one in-flight SAML sign-in.
+
+    The SAML equivalent of `SsoLoginState`, and it does two jobs with one row.
+    The `request_id` is demanded back in the assertion's `InResponseTo`, which
+    is what makes an assertion minted for somebody else useless here; and
+    because the row is deleted the moment it is spent, the same assertion
+    cannot be presented twice. A separate "seen assertion ids" table would be a
+    second way to say the same thing, and a second thing to sweep.
+
+    A deliberate consequence: an unsolicited (IdP-initiated) assertion has no
+    row to match and is refused. That is the intended behaviour, not a gap --
+    accepting one means accepting anything the IdP's key has ever signed.
+    """
+
+    __tablename__ = "saml_login_states"
+    __table_args__ = (Index("ix_saml_login_states_request_id", "request_id", unique=True),)
+
+    request_id: Mapped[str] = mapped_column(String(64), nullable=False)
     #: Where to send the browser after a successful sign-in (a relative path).
     next_path: Mapped[str] = mapped_column(String(512), nullable=False, default="/")
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

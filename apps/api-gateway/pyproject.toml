@@ -14,6 +14,10 @@ dependencies = [
   "psycopg[binary]>=3.2,<4.0",
   "pydantic-settings>=2.8,<3.0",
   "python-dotenv>=1.1,<2.0",
+  # FastAPI parses form bodies through this. The SAML assertion consumer route
+  # is a form POST, so the gateway needs it directly rather than by inheritance
+  # from whichever service happens to declare it for file uploads.
+  "python-multipart>=0.0.20,<1.0",
   "service-auth>=0.1.0",
   "service-comparisons>=0.1.0",
   "service-destinations>=0.1.0",

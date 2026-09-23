@@ -84,6 +84,23 @@ class Settings(BaseSettings):
     # When false, an SSO sign-in by someone with no account is refused rather
     # than silently creating one.
     oidc_allow_jit: bool = True
+    # SAML 2.0, for the identity providers that speak it and nothing else. Unset
+    # means SAML is off; `oidc_default_role` and `oidc_allow_jit` above govern
+    # provisioning for both protocols, so a person's role does not depend on
+    # which one they arrived by.
+    saml_idp_entity_id: str | None = None
+    saml_idp_sso_url: str | None = None
+    # The provider's signing certificate: a PEM block, or the bare base64 that
+    # federation metadata carries inside <X509Certificate>. Both are accepted.
+    saml_idp_x509_cert: str | None = None
+    # What this deployment calls itself to the provider, and where assertions
+    # are posted back. The ACS URL must match the route exactly, because it is
+    # checked against the assertion's Destination and Recipient.
+    saml_sp_entity_id: str | None = None
+    saml_sp_acs_url: str | None = None
+    # JSON object mapping a SAML group attribute value to a platform role, e.g.
+    # '{"data-admins": "admin"}'.
+    saml_group_role_map: str = "{}"
     # Where the SSO callback sends the browser after issuing a session. The web
     # app origin; the gateway and web must share a host for the session cookie
     # to carry across (documented in docs/security.md).

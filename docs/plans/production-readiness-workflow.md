@@ -7,7 +7,7 @@ established alternatives for data work — not by claiming more, but by being
 the only honest, governed, spreadsheet-fast data platform that a business team
 can run without a data engineer on call.
 
-**Status:** P3 done (2026-09-23); P4 (Enterprise identity) is next on “continue”. One phase executes per session-run;
+**Status:** P4 done (2026-09-23); P5 (Deployability & scale) is next on “continue”. One phase executes per session-run;
 the owner says **“continue”** to start the next. This file is the single
 source of truth for what each phase contains; the session log in
 `docs/HANDOFF.md` records what actually happened.
@@ -316,7 +316,40 @@ recorded here rather than silently dropped.
 
 ---
 
-## P4 — Enterprise identity
+## P4 — Enterprise identity *(status: **done** 2026-09-23)*
+
+**Delivered:** TOTP two-factor authentication (enrolment QR, live-code
+activation, hashed recovery codes, admin reset, a two-step login that hands
+back a distinct-audience ticket rather than a session). OIDC single sign-on end
+to end (discovery, PKCE, ID-token verification against the provider's JWKS,
+claim mapping, JIT provisioning with group→role mapping, "Continue with SSO" on
+the login screen). **SAML 2.0** as a service provider, with every assertion's
+XML signature verified and every claim read from the subtree that verified —
+plus status, metadata, start and assertion-consumer routes, migration 0037
+(`saml_login_states`), and refusals for wrapped, unsigned, tampered, replayed,
+expired, wrong-audience, wrong-recipient, wrong-issuer, unsolicited and
+encrypted assertions. SCIM-lite deactivate-on-absence offboarding (migration
+0036), which only ever touches `auth_source = "sso"` accounts and never leaves
+the platform without an active admin. *Push further, delivered:* per-organisation
+session length (migration 0038), injected into token issuing through a
+registered resolver so `service_auth` still does not import `service_enterprise`,
+applied at every mint site so the policy holds however somebody signs in.
+
+**Delta from the plan, recorded rather than glossed:** the plan named
+`python-xmlsec` for SAML signatures. That package needs the `libxmlsec1` system
+library, which would make a native package a prerequisite of `npm run setup`
+and of CI for everyone, including the majority who never enable SAML. SAML here
+uses **`signxml`** instead — pure Python over `lxml` and `cryptography`,
+installable from a wheel. The requirement the plan was protecting is unchanged
+and met: the signature is verified by a real implementation, never hand-rolled
+and never skipped. See `docs/enterprise-identity.md`.
+
+**Also not done, and said so:** encrypted assertions (refused by name), the
+inbound SCIM 2.0 push API, and IdP-initiated SAML (refused deliberately — an
+unsolicited assertion has no request of ours to bind to). Neither SSO protocol
+has been run against a live Okta/Entra tenant on this machine; the SAML
+*signature* path is genuinely exercised against real keys and real signatures,
+but the browser hops to a real provider are not.
 
 - **OIDC SSO** end-to-end against a real IdP (Auth0/Okta dev tenant):
   discovery, PKCE, JIT-provision with default role, group→role mapping

@@ -10,6 +10,12 @@ import { Icon } from "@/components/ui/icon";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { formatDate } from "@/lib/format";
+import { MAX_SESSION_MINUTES, MIN_SESSION_MINUTES } from "@platform/shared-types";
+import {
+  isSessionMinutesValid,
+  sessionMinutesInput,
+  sessionMinutesPayload,
+} from "@/features/organisations/session-policy";
 import type { AuthUser } from "@platform/shared-types";
 
 export type Organisation = {
@@ -19,6 +25,7 @@ export type Organisation = {
   plan: string;
   max_projects: number | null;
   max_datasets: number | null;
+  session_max_minutes: number | null;
   is_active: boolean;
   project_count: number;
   member_count: number;
@@ -61,8 +68,12 @@ export function OrganisationsPageView({
   const [assigning, setAssigning] = useState<string>("");
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
-  const [renaming, setRenaming] = useState<Organisation | null>(null);
-  const [renameValue, setRenameValue] = useState("");
+  const [editing, setEditing] = useState<Organisation | null>(null);
+  const [nameValue, setNameValue] = useState("");
+  // "" means "follow the deployment default" -- the same thing null means
+  // in the database. A tenant that never set a policy must not acquire one
+  // just because somebody opened this dialog.
+  const [sessionValue, setSessionValue] = useState("");
 
   const membersByOrg = useMemo(() => {
     const map = new Map<string, AuthUser[]>();
@@ -81,6 +92,9 @@ export function OrganisationsPageView({
       ),
     [users],
   );
+
+  const sessionValid = isSessionMinutesValid(sessionValue);
+  const settingsValid = nameValue.trim().length >= 2 && sessionValid;
 
   const setOrganisationOf = (userId: string, organisationId: string | null) =>
     setUsers((current) =>
@@ -113,18 +127,25 @@ export function OrganisationsPageView({
     }
   };
 
-  const renameOrganisation = async () => {
-    if (!renaming) return;
+  const saveOrganisation = async () => {
+    if (!editing) return;
     setBusy(true);
     setError(null);
     try {
-      const updated = await apiFetch<Organisation>(`/organisations/${renaming.id}`, {
+      const updated = await apiFetch<Organisation>(`/organisations/${editing.id}`, {
         method: "PATCH",
-        body: JSON.stringify({ name: renameValue.trim() }),
+        body: JSON.stringify({
+          name: nameValue.trim(),
+          session_max_minutes: sessionMinutesPayload(sessionValue),
+        }),
       });
       applyCounts(updated);
-      setRenaming(null);
-      setFeedback(`Renamed to ${updated.name}.`);
+      setEditing(null);
+      setFeedback(
+        updated.session_max_minutes === null
+          ? `Saved ${updated.name}. Sessions follow the deployment default.`
+          : `Saved ${updated.name}. Sessions last ${updated.session_max_minutes} minutes.`,
+      );
     } catch (caught) {
       setError(extractErrorMessage(caught));
     } finally {
@@ -255,17 +276,22 @@ export function OrganisationsPageView({
                           </button>
                           <span className="text-[11.5px] text-muted">
                             {org.member_count} member(s) · {org.project_count} project(s) ·
-                            created {formatDate(org.created_at)}
+                            sessions{" "}
+                            {org.session_max_minutes === null
+                              ? "default"
+                              : `${org.session_max_minutes} min`}{" "}
+                            · created {formatDate(org.created_at)}
                           </span>
                           <button
                             type="button"
                             onClick={() => {
-                              setRenaming(org);
-                              setRenameValue(org.name);
+                              setEditing(org);
+                              setNameValue(org.name);
+                              setSessionValue(sessionMinutesInput(org.session_max_minutes));
                             }}
                             className="rounded-lg border border-line px-2.5 py-1 text-[12px] text-ink transition hover:bg-surface-2"
                           >
-                            Rename
+                            Settings
                           </button>
                           <button
                             type="button"
@@ -364,22 +390,47 @@ export function OrganisationsPageView({
       </Modal>
 
       <Modal
-        open={renaming !== null}
-        onClose={() => setRenaming(null)}
-        title="Rename organisation"
+        open={editing !== null}
+        onClose={() => setEditing(null)}
+        title="Organisation settings"
         widthClassName="max-w-md"
         footer={
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setRenaming(null)}>Cancel</Button>
-            <Button size="sm" onClick={() => void renameOrganisation()} disabled={busy || renameValue.trim().length < 2}>
+            <Button variant="ghost" size="sm" onClick={() => setEditing(null)}>Cancel</Button>
+            <Button size="sm" onClick={() => void saveOrganisation()} disabled={busy || !settingsValid}>
               Save
             </Button>
           </div>
         }
       >
-        <FormField label="Name" htmlFor="org-rename">
-          <Input id="org-rename" value={renameValue} onChange={(e) => setRenameValue(e.target.value)} />
-        </FormField>
+        <div className="space-y-4">
+          <FormField label="Name" htmlFor="org-rename">
+            <Input id="org-rename" value={nameValue} onChange={(e) => setNameValue(e.target.value)} />
+          </FormField>
+          <FormField label="Session length (minutes)" htmlFor="org-session">
+            <Input
+              id="org-session"
+              type="number"
+              min={MIN_SESSION_MINUTES}
+              max={MAX_SESSION_MINUTES}
+              value={sessionValue}
+              onChange={(e) => setSessionValue(e.target.value)}
+              placeholder="Deployment default"
+            />
+          </FormField>
+          {sessionValid ? null : (
+            <p className="text-[11.5px] text-danger">
+              Enter a whole number of minutes between {MIN_SESSION_MINUTES} and{" "}
+              {MAX_SESSION_MINUTES}, or leave it empty for the deployment default.
+            </p>
+          )}
+          <p className="text-[11.5px] text-muted">
+            How long a session lasts for this tenant&apos;s people, however they sign in.
+            Leave it empty to follow the deployment default. It applies from the next
+            sign-in — a session already issued carries its own expiry, and ending those
+            now is what sign-out-everywhere does.
+          </p>
+        </div>
       </Modal>
 
       <ConfirmDeleteDialog

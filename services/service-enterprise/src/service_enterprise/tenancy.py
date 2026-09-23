@@ -45,14 +45,26 @@ def same_tenant(db: Session, project_id: uuid.UUID, user_id: uuid.UUID) -> bool:
     return organisation_of_project(db, project_id) == organisation_of_user(db, user_id)
 
 
+def session_minutes_of_user(db: Session, user_id: uuid.UUID) -> int | None:
+    """This person's organisation's session lifetime, or None for no opinion."""
+    from service_enterprise.models import Organisation
+
+    organisation_id = organisation_of_user(db, user_id)
+    if organisation_id is None:
+        return None
+    organisation = db.get(Organisation, organisation_id)
+    return getattr(organisation, "session_max_minutes", None) if organisation else None
+
+
 def register() -> None:
-    """Make every access check tenant-aware.
+    """Make every access check tenant-aware, and every session tenant-policed.
 
     Wrapping the existing resolver rather than replacing it: membership still
     decides what someone may do, and this only decides whether the question is
     asked at all.
     """
     from service_access.resolver import role_for as membership_role
+    from service_auth.contracts import register_session_policy_resolver
     from service_projects.contracts import register_role_resolver
 
     def tenant_aware_role(
@@ -63,6 +75,7 @@ def register() -> None:
         return membership_role(db, project_id, user_id)
 
     register_role_resolver(tenant_aware_role)
+    register_session_policy_resolver(session_minutes_of_user)
 
 
 def visible_project_ids(db: Session, user_id: uuid.UUID) -> list[uuid.UUID]:

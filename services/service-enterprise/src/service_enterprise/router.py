@@ -51,7 +51,8 @@ from service_enterprise.service import (
     update_policy,
     usage_report,
 )
-from service_enterprise.sso import saml_status
+from service_enterprise.saml import config_from_settings as saml_config_from_settings
+from service_enterprise.saml import saml_status
 from service_enterprise.telemetry import collect, render
 
 
@@ -304,9 +305,9 @@ def build_router(
         return SsoStatusResponse(
             oidc_configured=bool(issuer),
             issuer=issuer,
-            saml=saml_status(),
+            saml=saml_status(saml_config_from_settings(settings)),
             note=(
-                "The OIDC flow is implemented to specification but has not been run "
+                "Both flows are implemented to specification. Neither has been run "
                 "against a live identity provider on this deployment."
             ),
         )

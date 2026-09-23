@@ -22,9 +22,25 @@ today and, where something is planned rather than present, says so plainly.
   stored only as a SHA-256 hash. A `read` token cannot perform any mutating
   request even if its owner is an admin.
 
-**Planned, not yet present:** SSO (OIDC then SAML) and MFA (TOTP). These are
-scheduled and are not claimed as available. SAML will verify signatures — an
-unsigned-assertion shortcut will not be shipped.
+- **Second factor (TOTP)** is opt-in per person. Once active, the password step
+  returns a short-lived, distinct-audience ticket rather than a session, and a
+  second step exchanges that ticket plus a code for the session. Recovery codes
+  are shown once and stored hashed.
+- **Single sign-on** speaks OIDC (authorization code with PKCE) and SAML 2.0.
+  Every SAML assertion's XML signature is verified against the configured
+  identity-provider certificate, and every claim is read from the subtree whose
+  signature verified — the unsigned-assertion shortcut is not shipped, and the
+  parsed document is never read a second time. Sign-in is
+  service-provider-initiated only; an unsolicited assertion has no request of
+  ours to bind to and is refused.
+- **Session length** is a deployment setting an organisation may shorten or
+  lengthen for its own people. Every token this platform mints goes through one
+  place, so the policy applies however somebody signs in.
+
+**Not present, and said so:** encrypted SAML assertions, the inbound SCIM 2.0
+push API, and any verification of either SSO protocol against a live identity
+provider on this deployment — see [enterprise identity](enterprise-identity.md)
+for exactly what has and has not been exercised.
 
 ## Authorisation
 

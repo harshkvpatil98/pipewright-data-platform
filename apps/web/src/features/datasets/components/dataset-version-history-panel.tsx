@@ -5,6 +5,8 @@ import { useCallback, useEffect, useState } from "react";
 import type {
   DatasetPreview,
   DatasetVersion,
+  DatasetVersionDiff,
+  DatasetVersionDiffRequest,
   DatasetVersionListResponse,
 } from "@platform/shared-types";
 import { Button, SectionPanel } from "@platform/shared-ui";
@@ -75,6 +77,71 @@ export function DatasetVersionHistoryPanel({
     [projectId, datasetId],
   );
 
+  // Diff modal state: the version being compared against the head.
+  const [diffing, setDiffing] = useState<DatasetVersion | null>(null);
+  const [diff, setDiff] = useState<DatasetVersionDiff | null>(null);
+  const [diffError, setDiffError] = useState<string | null>(null);
+  const [identityText, setIdentityText] = useState("");
+
+  const runDiff = useCallback(
+    async (version: DatasetVersion, identity: string) => {
+      if (!history?.current_version) return;
+      setDiff(null);
+      setDiffError(null);
+      try {
+        const payload: DatasetVersionDiffRequest = {
+          from_version: version.version_number,
+          to_version: history.current_version,
+          identity_columns: identity
+            .split(",")
+            .map((column) => column.trim())
+            .filter(Boolean),
+        };
+        setDiff(
+          await apiFetch<DatasetVersionDiff>(
+            `/projects/${projectId}/datasets/${datasetId}/versions/diff`,
+            { method: "POST", body: JSON.stringify(payload) },
+          ),
+        );
+      } catch (caught) {
+        setDiffError(extractErrorMessage(caught));
+      }
+    },
+    [projectId, datasetId, history],
+  );
+
+  const openDiff = useCallback(
+    (version: DatasetVersion) => {
+      setDiffing(version);
+      setIdentityText("");
+      void runDiff(version, "");
+    },
+    [runDiff],
+  );
+
+  // Restore (rollback): appends a new version with the target's data.
+  const [restoring, setRestoring] = useState<DatasetVersion | null>(null);
+  const [restoreBusy, setRestoreBusy] = useState(false);
+  const [restoreError, setRestoreError] = useState<string | null>(null);
+
+  const restore = useCallback(async () => {
+    if (!restoring) return;
+    setRestoreBusy(true);
+    setRestoreError(null);
+    try {
+      await apiFetch<DatasetVersion>(
+        `/projects/${projectId}/datasets/${datasetId}/versions/${restoring.version_number}/rollback`,
+        { method: "POST" },
+      );
+      setRestoring(null);
+      await load();
+    } catch (caught) {
+      setRestoreError(extractErrorMessage(caught));
+    } finally {
+      setRestoreBusy(false);
+    }
+  }, [restoring, projectId, datasetId, load]);
+
   return (
     <SectionPanel
       title="Version history"
@@ -140,13 +207,36 @@ export function DatasetVersionHistoryPanel({
                         {shortDigest(version.content_hash)}
                       </td>
                       <td className="cell-pad align-top text-right">
-                        <button
-                          type="button"
-                          onClick={() => void openVersion(version)}
-                          className="rounded-lg border border-line px-2 py-1 text-[11.5px] text-ink-3 transition hover:text-ink"
-                        >
-                          View data
-                        </button>
+                        <div className="flex justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => void openVersion(version)}
+                            className="rounded-lg border border-line px-2 py-1 text-[11.5px] text-ink-3 transition hover:text-ink"
+                          >
+                            View data
+                          </button>
+                          {!isHead ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => openDiff(version)}
+                                className="rounded-lg border border-line px-2 py-1 text-[11.5px] text-ink-3 transition hover:text-ink"
+                              >
+                                Diff vs current
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setRestoreError(null);
+                                  setRestoring(version);
+                                }}
+                                className="rounded-lg border border-line px-2 py-1 text-[11.5px] text-ink-3 transition hover:text-ink"
+                              >
+                                Restore
+                              </button>
+                            </>
+                          ) : null}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -206,7 +296,143 @@ export function DatasetVersionHistoryPanel({
           </div>
         )}
       </Modal>
+
+      <Modal
+        open={diffing !== null}
+        title={
+          diffing
+            ? `v${diffing.version_number} → v${history?.current_version ?? "?"}`
+            : "Diff"
+        }
+        description="What changed between this version and the current data. Supplying identity columns lets rows be matched; without them the diff reports duplicate-aware added/removed counts and says why."
+        onClose={() => setDiffing(null)}
+        widthClassName="max-w-3xl"
+        footer={
+          <Button variant="secondary" size="sm" onClick={() => setDiffing(null)}>
+            Close
+          </Button>
+        }
+      >
+        <div className="mb-3 flex flex-wrap items-end gap-2">
+          <label className="flex-1 space-y-1">
+            <span className="text-[11px] text-muted">
+              Identity columns (comma-separated, optional)
+            </span>
+            <input
+              value={identityText}
+              onChange={(event) => setIdentityText(event.target.value)}
+              placeholder="id"
+              className="h-9 w-full rounded-lg border border-line bg-sunken px-3 text-[13px] text-ink outline-none transition focus:border-[color:var(--accent)]"
+            />
+          </label>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => diffing && void runDiff(diffing, identityText)}
+          >
+            Recompute
+          </Button>
+        </div>
+        {diffError ? (
+          <div className="rounded-2xl border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger">
+            {diffError}
+          </div>
+        ) : diff === null ? (
+          <p className="text-[12.5px] text-muted">Comparing…</p>
+        ) : diff.identical ? (
+          <p className="text-[12.5px] text-success">
+            The two versions hold identical data — answered from the content digests.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            <div className="grid gap-2 sm:grid-cols-3">
+              <DiffStat label="Added" value={diff.rows_added} />
+              <DiffStat label="Removed" value={diff.rows_removed} />
+              <DiffStat
+                label="Changed"
+                value={diff.changed_available ? diff.rows_changed : null}
+                note={diff.changed_available ? undefined : "needs identity"}
+              />
+            </div>
+            {diff.columns_added.length > 0 || diff.columns_removed.length > 0 ? (
+              <p className="text-[12px] text-ink-3">
+                Schema: {diff.columns_added.length > 0 ? `+${diff.columns_added.join(", +")}` : null}
+                {diff.columns_added.length > 0 && diff.columns_removed.length > 0 ? " · " : null}
+                {diff.columns_removed.length > 0 ? `−${diff.columns_removed.join(", −")}` : null}
+              </p>
+            ) : null}
+            {diff.reason ? (
+              <p className="text-[11.5px] text-muted">{diff.reason}</p>
+            ) : null}
+            {Object.keys(diff.cells_changed_by_column).length > 0 ? (
+              <p className="text-[12px] text-ink-3">
+                Cells changed:{" "}
+                {Object.entries(diff.cells_changed_by_column)
+                  .map(([column, count]) => `${column} (${count})`)
+                  .join(", ")}
+              </p>
+            ) : null}
+            <p className="text-[10.5px] text-muted">
+              {diff.method}. Samples capped at {diff.sample_limit}; counts are exact.
+            </p>
+          </div>
+        )}
+      </Modal>
+
+      <Modal
+        open={restoring !== null}
+        title={restoring ? `Restore version ${restoring.version_number}` : "Restore"}
+        description="Restoring appends a new version whose data is this snapshot's. Nothing is rewritten or lost — the versions after it stay in the history."
+        onClose={() => setRestoring(null)}
+        footer={
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setRestoring(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => void restore()}
+              disabled={restoreBusy}
+            >
+              {restoreBusy ? "Restoring…" : "Restore this version"}
+            </Button>
+          </div>
+        }
+      >
+        {restoreError ? (
+          <div className="rounded-2xl border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger">
+            {restoreError}
+          </div>
+        ) : (
+          <p className="text-[12.5px] text-ink-2">
+            The current data will become version {history ? (history.current_version ?? 0) + 1 : "…"},
+            holding exactly what version {restoring?.version_number} holds. The restored
+            version's fingerprint will match this one's, so the copy can be verified.
+          </p>
+        )}
+      </Modal>
     </SectionPanel>
+  );
+}
+
+function DiffStat({
+  label,
+  value,
+  note,
+}: {
+  label: string;
+  value: number | null;
+  note?: string;
+}) {
+  return (
+    <div className="rounded-xl border border-line bg-sunken px-3 py-2.5">
+      <div className="text-[11px] uppercase tracking-[0.14em] text-muted">{label}</div>
+      <div className="mt-0.5 text-xl font-semibold text-ink">
+        {value === null ? "—" : value.toLocaleString()}
+      </div>
+      {note ? <div className="text-[10.5px] text-muted">{note}</div> : null}
+    </div>
   );
 }
 

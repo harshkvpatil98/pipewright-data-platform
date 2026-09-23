@@ -678,6 +678,36 @@ export type DatasetVersionListResponse = {
   current_version: number | null;
 };
 
+export type DatasetVersionDiffRequest = {
+  from_version: number;
+  to_version: number;
+  /** Columns that uniquely identify a row in BOTH versions; without them the
+   * diff cannot classify changed rows and says so. */
+  identity_columns?: string[];
+};
+
+export type DatasetVersionDiff = {
+  dataset_id: string;
+  from_version: number;
+  to_version: number;
+  identical: boolean;
+  rows_before: number | null;
+  rows_after: number | null;
+  columns_added: string[];
+  columns_removed: string[];
+  rows_added: number | null;
+  rows_removed: number | null;
+  rows_changed: number | null;
+  changed_available: boolean;
+  reason: string | null;
+  sample_added: Record<string, unknown>[];
+  sample_removed: Record<string, unknown>[];
+  sample_changed: Record<string, unknown>[];
+  cells_changed_by_column: Record<string, number>;
+  sample_limit: number;
+  method: string;
+};
+
 export type CreateProjectPayload = {
   name: string;
   description?: string | null;

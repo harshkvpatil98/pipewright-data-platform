@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   cellAtPoint,
@@ -152,8 +152,13 @@ describe("the React tree does not grow with the data", () => {
       },
     });
 
-    // jsdom provides neither ResizeObserver nor a 2d context. The component
-    // tolerates both being absent; the tree it commits is what is measured.
+    // jsdom provides neither ResizeObserver nor a 2d context, and its
+    // getComputedStyle resolves no CSS custom properties -- so the grid's
+    // palette read correctly finds nothing and warns. That warning is the right
+    // behaviour in a real browser and expected here; capture it so this test
+    // exercises the null-palette path without spilling noise into the run, and
+    // assert it is the palette warning rather than a real one hiding in it.
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const host = document.createElement("div");
     document.body.appendChild(host);
     const root = createRoot(host);
@@ -162,6 +167,11 @@ describe("the React tree does not grow with the data", () => {
     await act(async () => {
       root.render(createElement(DataGrid, { columns, rows }));
     });
+
+    expect(
+      warn.mock.calls.every(([first]) => String(first).includes("Grid palette could not resolve")),
+    ).toBe(true);
+    warn.mockRestore();
 
     // jsdom has no 2d context, so nothing is painted -- but React has committed
     // its tree, and that is what is being measured.

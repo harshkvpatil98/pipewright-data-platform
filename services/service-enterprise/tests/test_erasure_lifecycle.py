@@ -13,17 +13,18 @@ from collections.abc import Iterator
 from datetime import UTC, datetime
 
 import pytest
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 
 import api_gateway.metadata  # noqa: F401  -- registers every model onto one Base
 from service_auth.models import User
 from service_auth.schemas import UserRead
-from service_datasets.models import Dataset
+from service_datasets.models import Dataset, DatasetVersion
 from service_enterprise.schemas import ErasureCreate
 from service_enterprise.service import request_erasure
 from service_projects.models import Project
 from shared_python.db import Base
+from shared_python.storage import content_digest
 
 NOW = datetime(2026, 9, 23, tzinfo=UTC)
 CSV = b"name,email\nAlice,alice@acme.com\nBob,bob@acme.com\n"
@@ -98,9 +99,14 @@ def test_report_only_finds_the_subject_without_touching_data(db: Session, world:
     assert b"alice@acme.com" in storage.files["d/customers.csv"]  # untouched
 
 
-def test_correction_clears_the_live_base_data_and_completes(db: Session, world: dict) -> None:
+def test_correction_appends_a_clean_head_and_keeps_history_readable(
+    db: Session, world: dict
+) -> None:
+    """Correction is forward-moving: the head advances to a corrected version;
+    the artifact that held the subject stays readable as history. That is the
+    documented difference from a destructive erasure (phase-18 §2)."""
     storage = world["storage"]
-    _dataset(db, world["project"], storage, "customers", path="d/customers.csv")
+    ds = _dataset(db, world["project"], storage, "customers", path="d/customers.csv")
     db.commit()
     result = request_erasure(
         db, world["project"].id,
@@ -109,8 +115,22 @@ def test_correction_clears_the_live_base_data_and_completes(db: Session, world: 
     )
     assert result.status == "completed"
     assert result.report["erased"] == ["customers"]
-    assert b"alice@acme.com" not in storage.files["d/customers.csv"]  # actually gone
-    assert b"bob@acme.com" in storage.files["d/customers.csv"]  # others untouched
+
+    db.refresh(ds)
+    # The head moved to a new, clean artifact...
+    assert ds.file_path != "d/customers.csv"
+    head_bytes = storage.files[ds.file_path]
+    assert b"alice@acme.com" not in head_bytes
+    assert b"bob@acme.com" in head_bytes  # others untouched
+    # ...the head's own preview no longer carries the subject...
+    assert "alice@acme.com" not in str(ds.preview_json)
+    # ...and history remains readable: the original bytes are still there.
+    assert b"alice@acme.com" in storage.files["d/customers.csv"]
+    # The correction was published as a version whose hash tells the truth.
+    versions = list(db.scalars(select(DatasetVersion).where(
+        DatasetVersion.dataset_id == ds.id)).all())
+    assert [v.version_number for v in versions] == [1]
+    assert versions[0].content_hash == content_digest(head_bytes)
 
 
 def test_destructive_refuses_to_overwrite_a_derived_artifact(db: Session, world: dict) -> None:
@@ -133,11 +153,13 @@ def test_destructive_refuses_to_overwrite_a_derived_artifact(db: Session, world:
     assert result.status == "partial"
 
 
-def test_a_correction_over_a_derived_dataset_still_clears_it(db: Session, world: dict) -> None:
-    # Correction is not the strict historical claim, so it may clear the derived
-    # live file too and complete.
+def test_a_correction_over_a_derived_dataset_still_advances_its_head(
+    db: Session, world: dict
+) -> None:
+    # Correction is not the strict historical claim, so a derived dataset's head
+    # can be corrected too — it just advances, like any other correction.
     storage = world["storage"]
-    _dataset(db, world["project"], storage, "derived", path="d/derived.csv", derived=True)
+    ds = _dataset(db, world["project"], storage, "derived", path="d/derived.csv", derived=True)
     db.commit()
     result = request_erasure(
         db, world["project"].id,
@@ -145,7 +167,105 @@ def test_a_correction_over_a_derived_dataset_still_clears_it(db: Session, world:
         _read(world["owner"]), storage,
     )
     assert result.status == "completed"
-    assert b"alice@acme.com" not in storage.files["d/derived.csv"]
+    db.refresh(ds)
+    assert b"alice@acme.com" not in storage.files[ds.file_path]
+
+
+def test_destructive_scrubs_every_historical_version(db: Session, world: dict) -> None:
+    """The failure §2 names: a clean head whose old bytes are still readable
+    through history. Destructive rewrites each version artifact, re-digests it
+    so the recorded hash keeps telling the truth, and scrubs the previews."""
+    storage = world["storage"]
+    ds = _dataset(db, world["project"], storage, "customers", path="d/v2.csv")
+    storage.files["d/v1.csv"] = CSV  # the older snapshot holds the subject too
+    db.add_all([
+        DatasetVersion(
+            dataset_id=ds.id, version_number=1, file_path="d/v1.csv", file_type="csv",
+            content_hash=content_digest(CSV),
+            preview_json={"columns": ["email"], "rows": [{"email": "alice@acme.com"}]},
+        ),
+        DatasetVersion(
+            dataset_id=ds.id, version_number=2, file_path="d/v2.csv", file_type="csv",
+            content_hash=content_digest(CSV),
+            preview_json={"columns": ["email"], "rows": [{"email": "alice@acme.com"}]},
+        ),
+    ])
+    db.commit()
+
+    result = request_erasure(
+        db, world["project"].id,
+        ErasureCreate(subject_value="alice@acme.com", apply=True, mode="destructive"),
+        _read(world["owner"]), storage,
+    )
+    assert result.status == "completed"
+
+    # Both artifacts scrubbed — history included.
+    assert b"alice@acme.com" not in storage.files["d/v1.csv"]
+    assert b"alice@acme.com" not in storage.files["d/v2.csv"]
+    versions = {
+        v.version_number: v
+        for v in db.scalars(select(DatasetVersion).where(
+            DatasetVersion.dataset_id == ds.id)).all()
+    }
+    # Hashes re-recorded to match the new bytes: no version row lies.
+    assert versions[1].content_hash == content_digest(storage.files["d/v1.csv"])
+    assert versions[2].content_hash == content_digest(storage.files["d/v2.csv"])
+    # Previews scrubbed too — they carried the subject as raw rows.
+    assert "alice@acme.com" not in str(versions[1].preview_json)
+    assert "alice@acme.com" not in str(versions[2].preview_json)
+    db.refresh(ds)
+    assert "alice@acme.com" not in str(ds.preview_json)
+
+
+def test_destructive_reports_an_unreadable_version_as_blocked(
+    db: Session, world: dict
+) -> None:
+    storage = world["storage"]
+    ds = _dataset(db, world["project"], storage, "customers", path="d/head.csv")
+    # A version whose artifact is gone from storage cannot be claimed clean.
+    db.add(DatasetVersion(
+        dataset_id=ds.id, version_number=1, file_path="d/lost.csv", file_type="csv",
+    ))
+    db.commit()
+
+    result = request_erasure(
+        db, world["project"].id,
+        ErasureCreate(subject_value="alice@acme.com", apply=True, mode="destructive"),
+        _read(world["owner"]), storage,
+    )
+    assert result.status == "partial"  # live data gone, history not provably clean
+    blocked = [b["dataset"] for b in result.report["blocked"]]
+    assert "customers (version 1)" in blocked
+
+
+def test_erasure_writes_through_the_real_backend_interface(db: Session, world: dict) -> None:
+    """The production backend exposes save_upload, not write_bytes. The old code
+    guarded on write_bytes and silently skipped the write against the real
+    backend — reporting 'completed' with the data untouched. This pins the fix."""
+
+    class _RealShapedStorage:
+        def __init__(self) -> None:
+            self.files: dict[str, bytes] = {}
+
+        def read_bytes(self, path: str) -> bytes:
+            if path not in self.files:
+                raise FileNotFoundError(path)
+            return self.files[path]
+
+        def save_upload(self, *, relative_path: str, file_bytes: bytes):
+            self.files[relative_path] = file_bytes
+
+    storage = _RealShapedStorage()
+    ds = _dataset(db, world["project"], storage, "customers", path="d/customers.csv")
+    db.commit()
+    result = request_erasure(
+        db, world["project"].id,
+        ErasureCreate(subject_value="alice@acme.com", apply=True, mode="correction"),
+        _read(world["owner"]), storage,
+    )
+    assert result.status == "completed"
+    db.refresh(ds)
+    assert b"alice@acme.com" not in storage.files[ds.file_path]
 
 
 def test_an_unreadable_dataset_blocks_completion(db: Session, world: dict) -> None:

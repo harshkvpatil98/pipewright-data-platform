@@ -13,13 +13,14 @@ from sqlalchemy.orm import Session
 
 from service_auth.models import User
 from service_auth.schemas import UserRead
-from service_datasets.models import Dataset
+from service_datasets.models import Dataset, DatasetVersion
 from service_projects.contracts import ensure_owned_project, project_role
 from service_projects.models import Project
 from shared_python.errors import (
     BadRequestError,
     ConflictError,
     ForbiddenError,
+    InternalServerError,
     NotFoundError,
 )
 
@@ -830,8 +831,13 @@ def request_erasure(
         redacted, affected = retention_ops.redact_subject(
             frame, payload.subject_value, columns
         )
-        if affected:
-            _write_back(storage, dataset, redacted)
+        if not affected:
+            continue
+
+        if mode == "destructive":
+            _erase_destructively(db, storage, dataset, redacted, payload, report)
+        else:
+            _erase_by_correction(db, storage, dataset, redacted, current_user)
             report.erased.append(dataset.name)
 
     if payload.apply:
@@ -871,11 +877,137 @@ def _erasure_status(applied: bool, report: retention_ops.ErasureReport) -> str:
     return "partial" if report.erased else "blocked"
 
 
-def _write_back(storage, dataset: Dataset, frame: pd.DataFrame) -> None:
-    """Replace a dataset's stored file with the redacted version."""
+def _store_frame(storage, path: str, frame: pd.DataFrame) -> bytes:
+    """Write a redacted frame to storage and return the bytes written.
+
+    Prefers the real backend interface (`save_upload`), falls back to the
+    simpler `write_bytes` some test doubles expose, and refuses to proceed if
+    neither exists — a storage backend that cannot write must fail the erasure,
+    never let it report success with the data still there. (The previous
+    `hasattr` guard did exactly that silent skip against the real backend.)
+    """
     payload = frame.to_csv(index=False).encode()
-    if hasattr(storage, "write_bytes"):
-        storage.write_bytes(dataset.file_path, payload)
+    if hasattr(storage, "save_upload"):
+        storage.save_upload(relative_path=path, file_bytes=payload)
+    elif hasattr(storage, "write_bytes"):
+        storage.write_bytes(path, payload)
+    else:
+        raise InternalServerError("The storage backend cannot write redacted data.")
+    return payload
+
+
+def _erase_by_correction(
+    db: Session, storage, dataset: Dataset, redacted: pd.DataFrame, current_user: UserRead
+) -> None:
+    """Ordinary forward-moving correction: append a corrected version.
+
+    The head advances to a clean artifact; history — including the version that
+    still holds the subject's data — remains readable, which is the documented
+    difference from a destructive erasure. Publishing through the same seam as
+    every producer means the corrected head and its version row land together.
+
+    The corrected artifact is CSV regardless of the original format — the same
+    round-trip the legacy in-place path took, and the canonical-type loss §5
+    already names.
+    """
+    from service_datasets.service import apply_dataset_materialization_success
+    from service_ingestion.profiling import build_preview, build_profile, infer_schema
+    from shared_python.storage import content_digest
+
+    new_path = f"corrected/{dataset.project_id}/{dataset.id}/{uuid.uuid4().hex}.csv"
+    payload = _store_frame(storage, new_path, redacted)
+    schema = infer_schema(dataframe=redacted)
+    dataset.file_type = "csv"
+    apply_dataset_materialization_success(
+        db,
+        dataset=dataset,
+        file_path=new_path,
+        file_name="corrected.csv",
+        schema_json=schema,
+        schema_snapshot={"columns": schema["columns"]},
+        preview_json=build_preview(dataframe=redacted, limit=50),
+        profile_json=build_profile(
+            dataframe=redacted, sample_limit=5, file_size_bytes=len(payload)
+        ),
+        row_count=int(len(redacted)),
+        column_count=int(len(redacted.columns)),
+        content_hash=content_digest(payload),
+        created_by_user_id=current_user.id,
+    )
+
+
+def _erase_destructively(
+    db: Session,
+    storage,
+    dataset: Dataset,
+    redacted: pd.DataFrame,
+    payload: ErasureCreate,
+    report: retention_ops.ErasureReport,
+) -> None:
+    """Authorised destructive erasure: remove the subject from the live artifact
+    AND from every historical version — bytes, previews, and content hashes.
+
+    Appending a redacted head while the old bytes stay readable through history
+    is the failure §2 names; this rewrites each version artifact in place (the
+    sanctioned exception to version immutability), re-digests it so the recorded
+    hash keeps telling the truth, and rebuilds the previews that also carried
+    the data. A version whose artifact cannot be read is reported blocked by
+    name — never silently skipped.
+    """
+    from service_ingestion.parsers import parse_tabular_file
+    from service_ingestion.profiling import build_preview, build_profile
+    from shared_python.storage import content_digest
+
+    head_bytes = _store_frame(storage, dataset.file_path, redacted)
+    head_digest = content_digest(head_bytes)
+    head_preview = build_preview(dataframe=redacted, limit=50)
+    dataset.file_type = "csv"
+    dataset.preview_json = head_preview
+    dataset.profile_json = build_profile(
+        dataframe=redacted, sample_limit=5, file_size_bytes=len(head_bytes)
+    )
+
+    versions = list(
+        db.scalars(
+            select(DatasetVersion).where(DatasetVersion.dataset_id == dataset.id)
+        ).all()
+    )
+    for version in versions:
+        if version.file_path == dataset.file_path:
+            # The head version's artifact was just rewritten above; keep its
+            # recorded hash and preview true to the new bytes.
+            version.content_hash = head_digest
+            version.file_type = "csv"
+            version.preview_json = dict(head_preview)
+            continue
+        try:
+            stored = storage.read_bytes(version.file_path)
+            v_frame = parse_tabular_file(
+                file_bytes=stored,
+                file_type=version.file_type or dataset.file_type or "csv",
+            ).dataframe
+        except Exception:  # noqa: BLE001 - an unreadable version is reported, not skipped
+            report.blocked.append(
+                {
+                    "dataset": f"{dataset.name} (version {version.version_number})",
+                    "reason": "historical artifact could not be read to redact",
+                }
+            )
+            continue
+        v_columns = retention_ops.candidate_columns(
+            [str(column) for column in v_frame.columns], payload.subject_kind
+        )
+        v_redacted, v_affected = retention_ops.redact_subject(
+            v_frame, payload.subject_value, v_columns
+        )
+        if not v_affected:
+            continue
+        v_bytes = _store_frame(storage, version.file_path, v_redacted)
+        version.content_hash = content_digest(v_bytes)
+        version.file_type = "csv"
+        version.preview_json = build_preview(dataframe=v_redacted, limit=50)
+
+    report.erased.append(dataset.name)
 
 
 def list_erasures(

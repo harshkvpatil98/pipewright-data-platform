@@ -21,6 +21,11 @@ type HomeDashboardProps = {
   status: PlatformStatusResponse | null;
 };
 
+const WORKER_LABELS: Record<string, string> = {
+  "workflow-worker": "Worker",
+  "schedule-ticker": "Ticker",
+};
+
 function detail(status: PlatformStatusResponse | null, service: string, key: string): number {
   const record = status?.services.find((item) => item.name === service);
   const value = record?.details?.[key];
@@ -292,6 +297,32 @@ export function HomeDashboard({ currentUser, projects, status }: HomeDashboardPr
                       </div>
                     ))}
                   </div>
+                  {(status?.runtime?.components?.length ?? 0) > 0 ? (
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {status?.runtime?.components.map((component) => (
+                        <span
+                          key={`${component.component}:${component.host ?? "-"}`}
+                          className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10.5px] ${
+                            component.healthy
+                              ? "border-success-line bg-success-soft text-success"
+                              : "border-danger-line bg-danger-soft text-danger"
+                          }`}
+                          title={
+                            component.healthy
+                              ? "Beating normally"
+                              : "No recent heartbeat — this component is not running"
+                          }
+                        >
+                          <span
+                            className={`h-1.5 w-1.5 rounded-full ${
+                              component.healthy ? "bg-success" : "bg-danger"
+                            }`}
+                          />
+                          {WORKER_LABELS[component.component] ?? component.component}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
                   {runtime?.level === "stalled" ? (
                     <p className="mt-3 rounded-lg border border-danger-line bg-danger-soft px-3 py-2 text-[12px] leading-5 text-danger">
                       Nothing is picking it up — the oldest run has waited{" "}

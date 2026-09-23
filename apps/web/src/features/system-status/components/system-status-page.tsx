@@ -73,6 +73,111 @@ async function fetchJson<T>(path: string): Promise<T> {
   return parseApiResponse<T>(response);
 }
 
+/** "just now", "8s ago", "4m ago", "2h ago" — seconds matter for a heartbeat. */
+function formatAge(seconds: number | null): string {
+  if (seconds == null) return "never";
+  if (seconds < 5) return "just now";
+  if (seconds < 90) return `${Math.round(seconds)}s ago`;
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 90) return `${minutes}m ago`;
+  return `${Math.round(minutes / 60)}h ago`;
+}
+
+const COMPONENT_LABELS: Record<string, string> = {
+  "workflow-worker": "Workflow worker",
+  "schedule-ticker": "Schedule ticker",
+};
+
+/**
+ * The one panel that answers "is anything actually running?" — the leading
+ * signal P0 could only infer. Each background component's last heartbeat sits
+ * next to the work waiting for it, so a stalled queue and its cause are read
+ * together, not on two different screens.
+ */
+function RuntimePanel({ platform }: { platform: PlatformStatusResponse }) {
+  const runtime = platform.runtime;
+  const workflows = platform.services.find((s) => s.name === "service-workflows");
+  const details = (workflows?.details ?? {}) as Record<string, unknown>;
+  const queued = Number(details.runs_queued ?? 0);
+  const running = Number(details.runs_running ?? 0);
+  const dueNow = Number(platform.scheduler.due_now_count ?? 0);
+
+  return (
+    <SectionPanel
+      title="Runtime"
+      description="Background workers report a heartbeat each loop. A component with no fresh beat is not running — queued work will sit until it comes back."
+    >
+      <div className="mb-4 grid gap-3 sm:grid-cols-3">
+        <div className="rounded-xl border border-line bg-surface px-3 py-2.5 text-sm">
+          <div className="text-[11px] uppercase tracking-[0.16em] text-muted">Runs queued</div>
+          <div className="mt-1 font-mono text-lg text-ink">{queued}</div>
+        </div>
+        <div className="rounded-xl border border-line bg-surface px-3 py-2.5 text-sm">
+          <div className="text-[11px] uppercase tracking-[0.16em] text-muted">Runs running</div>
+          <div className="mt-1 font-mono text-lg text-ink">{running}</div>
+        </div>
+        <div className="rounded-xl border border-line bg-surface px-3 py-2.5 text-sm">
+          <div className="text-[11px] uppercase tracking-[0.16em] text-muted">Schedules due</div>
+          <div className="mt-1 font-mono text-lg text-ink">{dueNow}</div>
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-[24px] border border-line bg-sunken">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[560px] border-collapse text-left text-sm text-ink">
+            <thead className="border-b border-line text-xs uppercase tracking-[0.14em] text-muted">
+              <tr>
+                <th className="py-2 pr-3 font-medium">Component</th>
+                <th className="py-2 pr-3 font-medium">State</th>
+                <th className="py-2 pr-3 font-medium">Last heartbeat</th>
+                <th className="py-2 font-medium">Host</th>
+              </tr>
+            </thead>
+            <tbody>
+              {runtime.components.map((component) => {
+                const key = `${component.component}:${component.host ?? "—"}`;
+                const stateLabel =
+                  component.status === "absent"
+                    ? "not running"
+                    : component.healthy
+                      ? "running"
+                      : component.status === "stopping"
+                        ? "stopping"
+                        : "no recent beat";
+                return (
+                  <tr key={key} className="border-b border-line">
+                    <td className="py-2 pr-3 text-ink-2">
+                      {COMPONENT_LABELS[component.component] ?? component.component}
+                    </td>
+                    <td className="py-2 pr-3">
+                      <span
+                        className={`inline-flex items-center gap-1.5 rounded-lg border px-2 py-0.5 text-[11px] font-semibold uppercase ${toneClasses(
+                          component.healthy ? "success" : "danger",
+                        )}`}
+                      >
+                        <span
+                          className={`h-1.5 w-1.5 rounded-full ${
+                            component.healthy ? "bg-success" : "bg-danger"
+                          }`}
+                        />
+                        {stateLabel}
+                      </span>
+                    </td>
+                    <td className="py-2 pr-3 text-xs text-ink-3">
+                      {formatAge(component.age_seconds)}
+                    </td>
+                    <td className="py-2 font-mono text-xs text-ink-3">{component.host ?? "—"}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </SectionPanel>
+  );
+}
+
 export function SystemStatusPage() {
   const [platform, setPlatform] = useState<PlatformStatusResponse | null>(null);
   const [live, setLive] = useState<HealthLiveResponse | null>(null);
@@ -173,6 +278,8 @@ export function SystemStatusPage() {
           </div>
         </div>
       ) : null}
+
+      {platform ? <RuntimePanel platform={platform} /> : null}
 
       {platform ? (
         <SectionPanel

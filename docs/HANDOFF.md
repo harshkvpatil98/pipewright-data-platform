@@ -4,8 +4,8 @@
 last one stopped. Keep it current. If you change project state, update the **Progress ledger**
 and **Session log** at the bottom before you finish.
 
-**Last updated:** 2026-09-22
-**Updated by:** session `7b73c2ff` (development orchestrator removed; single-session workflow restored)
+**Last updated:** 2026-09-23
+**Updated by:** session `9744ba1b` (P7 time travel complete; P8 next)
 
 ---
 
@@ -112,12 +112,12 @@ was for that push, not a standing one.
 | 06 | Intelligence | `service-intelligence` | PII, join keys, entity resolution — **no model calls** |
 | 07 | Enterprise | `service-enterprise` | Tenancy, row/column security, retention, SSO, `/metrics` |
 
-**Migrations:** `apps/api-gateway/alembic/versions/`, 30 files, head is `0030_ingest_specs`.
+**Migrations:** `apps/api-gateway/alembic/versions/`, 40 files, head is `0040_dataset_version_lifecycle`.
 
 ### Roadmap v2: in progress
 
 See [`roadmap-v2.md`](./roadmap-v2.md) — 16 phases across 4 tracks, ≈58 sessions.
-Phases **08, 09, 10, 11, 12, 13, 14, 15, 17** are done and **16** shipped its
+Phases **08, 09, 10, 11, 12, 13, 14, 15, 17, 18** are done and **16** shipped its
 machinery plus 173 tools; the progress ledger in §8 tracks the rest.
 
 ---
@@ -196,6 +196,10 @@ honesty; if you verify one, update its status here.
 | Streaming, queues and CDC absent from the catalogue | 13 sources the roadmap itself defers to Phase 20. A different execution model, not another declaration |
 | Inbound webhooks and gRPC absent | A webhook is a receiver needing an endpoint, a store and a replay story (Phase 20's shape); gRPC needs `grpcio` and a reflection-based dynamic client |
 | 9 engines are declared but undriveable | Cassandra, ScyllaDB, Couchbase, Redis, ArangoDB, HBase, Aerospike, Timestream, HDFS. Each declares only `test`, reports `available: false`, and names the interface this platform *can* read instead |
+| Extraction still creates a dataset per run | Versions are recorded for every producer's output, but repeated extraction does not append versions to one logical dataset — the watermark lives on the job, so head/watermark consistency does not depend on dataset identity. Collapsing runs onto one logical dataset is a deliberate later refinement (`phase-18-decisions.md` §1) |
+| Temporal SQL runs in SQLite over a copy | `AS OF` queries load the version's artifact into an in-memory SQLite table named `dataset`; the dialect is SQLite's, not the source's, and results are capped at 1,000 rows. Customer SQL sent to customer databases is never rewritten (settled decision #8) |
+| No pagination on version history or diff samples | Listings return every version; diff samples are capped at a declared 20 while counts stay exact. A dataset with thousands of versions would want cursors, which do not exist yet |
+| `today()` is the UTC date of the frozen instant | Before P7 it was the host's local date. Recorded in the run's execution context (`timezone: UTC`); a deliberate semantic change, stated rather than hidden |
 | Tool library is 167, not the roadmap's 420 | Window, statistical/ML, geospatial, fuzzy-matching, enrichment and recipe-management families are absent by name in `roadmap-v2.md`. Each needs something the IR does not have yet (a window node, a geometry type, a network policy) rather than more declarations |
 
 ---
@@ -216,7 +220,7 @@ honesty; if you verify one, update its status here.
 | 15 | Write-back | **done** | 3/3 | Change sets, identity, dry run, blast radius, batching, Table editor page |
 | 16 | Tool library (→420) | **partial** | 3/6 | 173 tools + the registry, harness, API, docs and UI. Window/statistical/geo/enrichment families deliberately absent |
 | 17 | SQL IDE & notebook | **done** | 3/3 | Workbench, notebook, sandbox, recipe-as-code. Python cells disabled on macOS by design |
-| 18 | Time travel | not started | 0/3 | Needs 08 |
+| 18 | Time travel | **done** | 3/3 | Immutable versions (0038–0040), temporal reads, `AS OF` SQL, diff, rollback, deterministic replay with recorded execution context, erasure reconciled, pin + two-step prune protocol, viewer/editor matrix, scripted live acceptance. Delivered as production-readiness P7 — see `docs/plans/phase-18-decisions.md` |
 | 19 | Semantic layer & contracts | not started | 0/3 | Needs 08, 18 |
 | 20 | Streaming & CDC | not started | 0/4 | Needs 08, 10 |
 | 21 | Collaboration | not started | 0/3 | Needs 13 |
@@ -231,9 +235,12 @@ increments without declaring P2 complete; later development is outside that snap
 
 ### Recommended next action
 
-**Track D (18–23) is the whole of what is left**, plus more tool categories on
-the Phase 16 registry. Tracks A, B and C are complete: 18 (time travel) is the
-natural next one and unlocks 19 and 22.
+**Track D (19–23) is what is left of the product roadmap**, plus more tool
+categories on the Phase 16 registry. Tracks A, B and C are complete and 18 (time
+travel) shipped as production-readiness P7, which unlocks 19 and 22. The
+production-readiness plan (`docs/plans/production-readiness-workflow.md`) is the
+active sequence: **P8 (BI & collaboration) is next**, then P9 (pushdown cutover,
+IR-only executor, CDC, semantic layer).
 
 The thesis track is finished: 08 (types + IR) → 09 (design) → 13 (grid) → 14 (formulas) →
 12 (pushdown) → 15 (write-back) → 17 (SQL IDE) are all done, and 16 shipped its
@@ -654,5 +661,7 @@ Report honestly. If something is unverified, say so and add it to §7.
 | 2026-09-23 | Business requirements | Created a business-review BRD and 40-page PDF covering target groups, personas, use cases, 65 current requirements, 41 planned/partial scope groups, 7 exploratory bets, acceptance/risk/rollout guidance and the 173-tool inventory. Reconciled stale counts and the first three P2 commits against baseline `79eb302`. All pages rendered and visually reviewed; text checks confirmed every requirement/tool ID and 40 bookmarks, with no unresolved placeholders or boundary overflows. `npm run verify` passed outside the sandbox: 6,041 Python passed, 573 skipped, 678 web passed, lint/typecheck/build green; local skips do not establish live infrastructure coverage. The first sandbox attempt had 306 socket-permission setup errors, not a passing check. No application source was changed for this document; concurrent P2 development is separate. |
 
 | 2026-09-23 | P7 increment 2 | **P7 (Time travel) increment 2: temporal reads, §1 decisions, live verification.** Versions now store the preview they published (migration 0039, schema-only); `GET …/versions/{n}` + `GET …/versions/{n}/preview` read a dataset **as of** a version (both GET → viewer, §6-correct); a View-data modal per version in the history panel. `docs/plans/phase-18-decisions.md` records the §1 per-producer identity answers — every producer creates a new dataset per run today, so each dataset has exactly one recorded version until rollback lands; extraction keeps dataset-per-run (the watermark lives on the job); temporal reads mirror the head preview's security posture (apply_policies has no read-path caller — simulation only), so no new bypass. **Verified live in the browser this time** (the prior HONEST GAP is closed for these surfaces): dev Postgres migrated 0037→0039 (both new migrations ran clean on real Postgres); dev gateway restarted from this checkout on :8100 — it needs `BACKEND_CORS_ORIGINS` as a JSON list including `http://localhost:3002` or every client-side panel fails with "Failed to fetch" (the config default allows only :3000); uploaded a CSV → version 1 recorded, server digest matched a local sha256 of the same bytes byte-for-byte, 404 for a missing version; history panel + current pill + View-data modal render the snapshot; PII scan on a card/phone/email dataset found all three (high) with the method stated, Add-as-tags → steward → certify → Save persisted and surfaced as catalog facets (certified count and tag list confirmed via API). `npm run verify` green, zero warnings: 6,148 Python passed / 573 skipped, 683 web passed. Remaining P7 (unchanged): AS-OF SQL query, diff, rollback, replay with recorded context, erasure reconciliation, GC protocol, authz matrix for the write ops, scripted e2e acceptance. Two demo datasets (p7_sales, p7_people) left in the Consumption E2E project as evidence. Commits: temporal-read backend, version-view UI, phase-18-decisions doc, this docs update — author/committer harshkvpatil98, no AI attribution.|
+
+| 2026-09-23 | `9744ba1b` | **P7 (Time travel / product Phase 18) complete.** Increments 3–6 on top of the earlier storage, temporal-read, diff, rollback and erasure work: (1) **§4 pin + two-step prune protocol** — migration 0040 (`dataset_version_pins`, `retention_state`/`delete_after`/`pruned_at`/`artifact_removed_at`), `version_lifecycle.py` (pin durable-before-read under a row lock; mark with a 30-min lease → re-validate under the lock → tombstone → delete bytes; rescue on pin; refuse after prune; crash-resume; shared bytes never deleted), a `dataset_versions` retention policy wired into the governance sweep and the ticker, `EDITOR_SEGMENTS` (rollback/replay) + `query` read-only in the central matrix; (2) **§3 frozen clock + execution context** — `ir/clock.py` is the one clock for now/today/age_years, every transformation run records instant, semantic version, steps snapshot + digest, input pins (base + join/union datasets) and the output pin; (3) **deterministic replay** — `POST /runs/{id}/replay` re-executes recorded steps against pinned versions at the recorded instant, compares by digest or by ordered columns + canonical types + row multiset, answers equivalent / divergent / incompatible / unavailable / failed / unverifiable; audit page shows output pins for every producer, the context, and a Replay action; (4) **`AS OF` SQL** — `POST …/versions/query` in the workbench over an in-memory SQLite copy, by version or instant with the stated tie rule, viewer role; Query action + "Query as of" on the history panel. **Verified live**: dev Postgres migrated 0039→0040; gateway restarted from this checkout on :8100; `scripts/e2e/p7_time_travel.sh` ran **39/39** against it (upload→v1 digest = local sha256, context pins, replay equivalent, correction erasure → v2 with v1 still readable, diff with/without identity, rollback → v3 with v1's digest, AS OF by version/instant/before-first → 404, write refused, retention policy report-only); in the browser: history panel with Query/Diff/Restore (diff with identity → 1 changed/email; restore → v4 = v2's fingerprint), temporal query modal incl. Ctrl+Enter, run audit page pins + execution context + Replay → Equivalent. Browser gotcha: the web client reads its token from `localStorage["idp.access_token"]` first, so a cookie alone shows "Invalid or expired access token" in client panels. `npm run verify` green, zero warnings: 6,162 → 6,211 Python passed / 573 skipped, 683 → 685 web. Commits 3184037, 3e62192, 8b84a4a, b1a84f2 + this close-out — author/committer harshkvpatil98, no AI attribution. **Next: P8.** |
 
 <!-- Add a row above when you finish a session. Keep it to one line. -->

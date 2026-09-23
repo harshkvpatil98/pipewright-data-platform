@@ -18,7 +18,33 @@ against the tree before relying on line-level claims.
 - **Execution context + frozen clock (§3):** done (2026-09-23) — see below.
 - **Deterministic replay (§3):** done (2026-09-23) — see below.
 - **`AS OF` SQL query (decision #8):** done (2026-09-23) — see below.
-- The scripted live end-to-end acceptance (§8) and the handoff close-out follow.
+- **Scripted live acceptance (§8):** done (2026-09-23) — `scripts/e2e/p7_time_travel.sh`,
+  39 assertions against a gateway started from the checkout under test, plus
+  browser verification of the history panel (query, diff, restore) and the run
+  audit page (pins, context, replay). **Phase 18 is complete**; what remains by
+  design is listed in `docs/HANDOFF.md` §7.
+
+### §8 acceptance answers, in one place
+
+- **Input and canonical types:** whatever the ingestion readers produce; the
+  version stores `schema_json` with per-column `inferred_type`/`canonical_type`.
+- **API representation:** decimals as text, timestamps ISO 8601, nulls as
+  `null`, nested values as JSON (temporal query); previews as stored.
+- **Ordering and ties:** publication order is `version_number`; "as of T" is
+  the greatest `created_at ≤ T`, ties on the higher number.
+- **Limits:** temporal query ≤ 1,000 rows (declared), 15 s timeout; diff samples
+  20 (counts exact); version artifacts bounded by the upload size limit.
+- **Schema evolution in diff:** `columns_added`/`columns_removed`; changed
+  cells only over shared columns with identity.
+- **Null/duplicate identity keys:** a non-unique key demotes to multiset counts
+  and says why (decision #7).
+- **Cursor stability:** not applicable — history is unpaginated (gap recorded).
+- **Pruned / erased / unavailable:** 409 with the reason for reads; replay
+  answers `unavailable` naming the version.
+- **Migration interruption:** schema-only migrations; no backfill exists to
+  interrupt.
+- **Historical navigation + replay compatibility:** semantic version check →
+  `incompatible`; recorded steps re-validated → `incompatible` with the step.
 
 ## §1 — Producer and consumer inventory
 

@@ -16,7 +16,7 @@ import { Button, SectionPanel } from "@platform/shared-ui";
 import { Modal } from "@/components/ui/modal";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
-import { formatDate, formatNumber } from "@/lib/format";
+import { formatDateTime, formatDurationMs, formatNumber } from "@/lib/format";
 import { cx } from "@/lib/utils";
 
 type DatasetVersionHistoryPanelProps = {
@@ -268,7 +268,7 @@ export function DatasetVersionHistoryPanel({
                               className="rounded-full border border-line bg-sunken px-1.5 py-0.5 text-[10px] text-muted"
                               title={
                                 version.pruned_at
-                                  ? `Data removed by retention on ${formatDate(version.pruned_at)}; the record is kept.`
+                                  ? `Data removed by retention on ${formatDateTime(version.pruned_at)}; the record is kept.`
                                   : "Data removed by retention; the record is kept."
                               }
                             >
@@ -280,7 +280,7 @@ export function DatasetVersionHistoryPanel({
                               className="rounded-full border border-warning-line bg-warning-soft px-1.5 py-0.5 text-[10px] text-warning"
                               title={
                                 version.delete_after
-                                  ? `Marked by a retention sweep; removable after ${formatDate(version.delete_after)} unless restored or replayed first.`
+                                  ? `Marked by a retention sweep; removable after ${formatDateTime(version.delete_after)} unless restored or replayed first.`
                                   : "Marked by a retention sweep for removal after its grace period."
                               }
                             >
@@ -298,7 +298,7 @@ export function DatasetVersionHistoryPanel({
                         </span>
                       </td>
                       <td className="cell-pad align-top text-ink-2">
-                        {formatDate(version.created_at)}
+                        {formatDateTime(version.created_at)}
                       </td>
                       <td className="cell-pad align-top text-ink-2">
                         {version.row_count === null ? "--" : formatNumber(version.row_count)}
@@ -315,7 +315,7 @@ export function DatasetVersionHistoryPanel({
                         {pruned ? (
                           <span className="text-[11px] text-muted">data removed</span>
                         ) : (
-                        <div className="flex justify-end gap-1.5">
+                        <div className="flex flex-wrap justify-end gap-1">
                           <button
                             type="button"
                             onClick={() => void openVersion(version)}
@@ -548,15 +548,15 @@ export function DatasetVersionHistoryPanel({
             <div className="space-y-2">
               <p className="text-[12px] text-ink-3">
                 Resolved to <span className="text-ink">version {queryResult.version_number}</span>, published{" "}
-                {formatDate(queryResult.version_published_at)}
+                {formatDateTime(queryResult.version_published_at)}
                 {queryResult.requested_as_of
-                  ? ` (the newest at ${formatDate(queryResult.requested_as_of)})`
+                  ? ` (the newest at ${formatDateTime(queryResult.requested_as_of)})`
                   : null}
                 {" · "}
                 {queryResult.row_count.toLocaleString()} row{queryResult.row_count === 1 ? "" : "s"}
                 {queryResult.truncated ? ` (capped at ${queryResult.row_limit})` : null}
                 {" · "}
-                {Math.round(queryResult.duration_ms)} ms
+                {formatDurationMs(queryResult.duration_ms)}
               </p>
               {queryResult.columns.length === 0 ? (
                 <p className="text-[12.5px] text-muted">The statement returned no columns.</p>

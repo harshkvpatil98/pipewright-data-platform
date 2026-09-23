@@ -1761,7 +1761,7 @@ They are sequenced last because each depends on the foundations, not because the
 
 ---
 
-## Phase 18 — Time travel & dataset versioning
+## Phase 18 — Time travel & dataset versioning ✅ COMPLETE (2026-09-23, as production-readiness P7; decisions in `docs/plans/phase-18-decisions.md`)
 
 **The idea:** every dataset is an append-only sequence of immutable snapshots, addressable by
 time. Not a feature — a substrate that several others sit on.

@@ -7,9 +7,9 @@ established alternatives for data work — not by claiming more, but by being
 the only honest, governed, spreadsheet-fast data platform that a business team
 can run without a data engineer on call.
 
-**Status:** P6 done, plus its deferred items closed (data-classification tags,
-zero-warning gate); P7 (Time travel) **in progress — increment 1 (version
-storage) done** (2026-09-23). One phase executes per session-run;
+**Status:** P0–P7 done (P7 Time travel complete 2026-09-23, verified live with
+`scripts/e2e/p7_time_travel.sh`); **P8 (BI & collaboration) is next**. One phase
+executes per session-run;
 the owner says **“continue”** to start the next. This file is the single
 source of truth for what each phase contains; the session log in
 `docs/HANDOFF.md` records what actually happened.
@@ -406,7 +406,7 @@ against a cluster.
 
 ---
 
-## P7 — Time travel (Phase 18 of the product roadmap)
+## P7 — Time travel (Phase 18 of the product roadmap) ✅ done (2026-09-23)
 
 Execute `docs/plans/phase-18-review-requirements.md` in full — it is already
 the accepted requirements set (producers inventory, immutable snapshots,
@@ -446,15 +446,21 @@ temporal reads → diff/rollback → replay), each gated.
   reflected in catalog facets. Dev DB migrated to 0039; dev gateway restarted
   from this checkout (port 8100, CORS incl. :3002).
 
-**Remaining increments (not started):** `AS OF` **SQL query** over stored
-datasets (the temporal read so far is version-pinned metadata + preview, not a
-query surface); diff (with the identity-key rules of decision #7); rollback
-(append-a-version, decision #6); deterministic replay with a recorded execution
-context (§3); erasure-vs-immutable-snapshot reconciliation (§2 — P6 gave it the
-mode + blocked pre-work, but a destructive erasure still overwrites the head
-artifact in place, which the content-addressed storage increment must resolve);
-the concurrent-GC protocol (§4); the full authz matrix for query/rollback/replay
-(§6); and the scripted end-to-end acceptance run (§8). **P7 is not complete.**
+**Increments 3–6 — ✅ done (2026-09-23).** Diff (decision #7 identity rules)
+and rollback (append-a-version, decision #6) with their history-panel actions;
+erasure reconciled with immutable snapshots (correction appends, destructive
+scrubs every version and re-digests, blocked never skipped); the §4 pin +
+two-step prune protocol with a `dataset_versions` retention policy (migration
+0040); the §3 frozen evaluation clock and recorded execution context on every
+run; deterministic replay with a six-way honest answer and output pins on the
+run audit page; `AS OF` SQL over stored versions (decision #8) with a Query
+action and "Query as of" control; the §6 matrix pinned centrally
+(`EDITOR_SEGMENTS`, `query` read-only). **Live acceptance:**
+`scripts/e2e/p7_time_travel.sh` — 39/39 against a gateway started from this
+checkout, plus browser verification of every new surface. Decisions and the §8
+answers are in `docs/plans/phase-18-decisions.md`; limitations that remain by
+design (extraction dataset-per-run, SQLite dialect for temporal SQL, no
+cursors on history, `today()` in UTC) are in `docs/HANDOFF.md` §7.
 
 ---
 

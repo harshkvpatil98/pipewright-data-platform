@@ -16,7 +16,7 @@ import { Modal } from "@/components/ui/modal";
 import { apiFetch } from "@/lib/api/client";
 import { downloadFromApi } from "@/lib/api/download";
 import { extractErrorMessage } from "@/lib/api/errors";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatDateTime } from "@/lib/format";
 import { formatRunTypeLabel } from "@/lib/run-labels";
 
 type RunAuditPageProps = {
@@ -237,9 +237,7 @@ export function RunAuditPageView({ currentUser, projectId, audit }: RunAuditPage
           <dl className="grid gap-3 text-sm sm:grid-cols-2">
             <div>
               <dt className="text-xs uppercase tracking-[0.18em] text-muted">Evaluated at</dt>
-              <dd className="mt-1 text-ink">
-                {formatDate(context.evaluated_at)} <span className="text-muted">({context.timezone})</span>
-              </dd>
+              <dd className="mt-1 text-ink">{formatDateTime(context.evaluated_at)}</dd>
             </div>
             <div>
               <dt className="text-xs uppercase tracking-[0.18em] text-muted">Engine semantics</dt>
@@ -377,7 +375,7 @@ export function RunAuditPageView({ currentUser, projectId, audit }: RunAuditPage
         ) : (
           <p className="text-[12.5px] text-ink-2">
             {context
-              ? `Evaluated at ${formatDate(context.evaluated_at)} against ${context.inputs.length} pinned input${context.inputs.length === 1 ? "" : "s"}.`
+              ? `Evaluated at ${formatDateTime(context.evaluated_at)} against ${context.inputs.length} pinned input${context.inputs.length === 1 ? "" : "s"}.`
               : "No execution context is recorded for this run."}
           </p>
         )}

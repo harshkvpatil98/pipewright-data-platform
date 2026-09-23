@@ -832,9 +832,9 @@ function InspectorIdle({
                 <span className="truncate text-[12px] text-ink">{column.name}</span>
                 <span
                   className="shrink-0 text-[10.5px] text-muted"
-                  title={column.inferred_type}
+                  title={column.canonical_type ?? column.inferred_type}
                 >
-                  {typeLabel(column.inferred_type)}
+                  {typeLabel(column.canonical_type ?? column.inferred_type)}
                 </span>
               </li>
             ))}

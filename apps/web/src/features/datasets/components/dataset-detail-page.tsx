@@ -16,6 +16,7 @@ import type {
 import { Button, SectionPanel, StatCard, StatusBadge } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
+import { typeLabel } from "@/lib/labels";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { apiFetch } from "@/lib/api/client";
 import { Modal } from "@/components/ui/modal";
@@ -335,7 +336,7 @@ export function DatasetDetailPageView({
                   {schemaColumns.map((column) => (
                     <tr key={String(column.name)} className="transition hover:bg-surface">
                       <td className="cell-pad align-top text-ink">{String(column.name)}</td>
-                      <td className="cell-pad align-top text-ink-2">{String(column.inferred_type ?? "--")}</td>
+                      <td className="cell-pad align-top text-ink-2">{column.inferred_type ? typeLabel(column.canonical_type ?? column.inferred_type) : "--"}</td>
                       <td className="cell-pad align-top text-ink-2">{column.nullable ? "Yes" : "No"}</td>
                     </tr>
                   ))}
@@ -521,7 +522,7 @@ export function DatasetDetailPageView({
                 {profileColumns.map((column) => (
                   <tr key={column.name} className="transition hover:bg-surface">
                     <td className="cell-pad align-top text-ink">{column.name}</td>
-                    <td className="cell-pad align-top text-ink-2">{column.inferred_type ?? "--"}</td>
+                    <td className="cell-pad align-top text-ink-2">{column.inferred_type ? typeLabel(column.inferred_type) : "--"}</td>
                     <td className="cell-pad align-top text-ink-2">{column.null_percentage}%</td>
                     <td className="cell-pad align-top text-ink-2">{column.unique_percentage}%</td>
                     <td className="cell-pad align-top text-ink-3">

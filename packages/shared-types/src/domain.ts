@@ -9,6 +9,7 @@ export type TransformationPipelineStatus = "draft" | "active";
 export type DatasetSchemaColumn = {
   name: string;
   inferred_type: string;
+  canonical_type?: string;
   nullable: boolean;
 };
 

@@ -17,12 +17,21 @@ from pandas.api.types import (
 
 
 def infer_schema(*, dataframe: pd.DataFrame) -> dict[str, Any]:
+    from shared_python.types import infer_pw_type
+
     ordered_columns = [str(column) for column in dataframe.columns]
     return {
         'columns': [
             {
                 'name': column,
+                # Two vocabularies travel together so every surface can show
+                # the same word: `inferred_type` is the seven-word legacy set,
+                # `canonical_type` is the lattice answer (precision, timezone,
+                # exactness, or an honest "unknown"). Studio, the dataset page
+                # and the schema panel all read `canonical_type` now, falling
+                # back to `inferred_type` for rows written before this existed.
                 'inferred_type': _infer_series_type(dataframe[column]),
+                'canonical_type': str(infer_pw_type(dataframe[column])),
                 'nullable': bool(dataframe[column].isna().any()),
             }
             for column in ordered_columns

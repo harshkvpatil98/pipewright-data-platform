@@ -22,6 +22,12 @@
 :root {
   color-scheme: light;
 
+  /* ---- layout ------------------------------------------------------- */
+  /* Default column span for a dashboard tile: full width until a tile sets
+     its own stored width. Defined here so the span is a real, documented
+     token rather than an undefined var that silently collapses. */
+  --tile-w: 12;
+
   /* ---- surfaces ----------------------------------------------------- */
   --canvas: #fafbfa;
   --surface: #ffffff;

@@ -99,10 +99,11 @@ describe("design tokens: three-state theming", () => {
     // one theme's text on the other theme's ground, the classic bug.
     //
     // Two legitimate exemptions:
-    //   - radius / motion / density are theme-independent by design
+    //   - radius / motion / density / tile are theme-independent by design
+    //     (geometry and layout, not colour)
     //   - an ALIAS (`--panel: var(--surface)`) inherits whatever its target
     //     resolves to, so it needs no dark value of its own. Checked below.
-    const themeIndependent = /^(radius|ease|duration|density)-/;
+    const themeIndependent = /^(radius|ease|duration|density|tile)-/;
     const isAlias = (value: string) => /^var\(--[a-z0-9-]+\)$/.test(value);
     const missing = Object.keys(light).filter(
       (token) =>

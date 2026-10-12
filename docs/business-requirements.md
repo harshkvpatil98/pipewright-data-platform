@@ -770,7 +770,7 @@ Sources are local repository documents and implementation paths inspected for th
 
 | Ref | Source and purpose |
 |---|---|
-| S01 | `AGENTS.md`; `docs/HANDOFF.md` - authority order, invariants, delivery ledger, limitations and session history through P1. |
+| S01 | `CONTRIBUTING.md`; `docs/HANDOFF.md` - authority order, invariants, delivery ledger, limitations and session history through P1. |
 | S02 | `docs/plans/production-readiness-workflow.md` - P0-P9 scope, current sequencing and optional improvements. |
 | S03 | `docs/roadmap-v2.md` - Phase 08-23 ambitions, explicit exclusions, source/tool catalogues and seven exploratory bets. |
 | S04 | `docs/plans/phase-18-review-requirements.md` - accepted versioning, replay, erasure, concurrency and acceptance requirements. |

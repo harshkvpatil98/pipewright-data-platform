@@ -218,4 +218,4 @@ This is useful because operational outcomes stay visible in the product instead 
 - `docs/demo-guide.md`
 - `docs/deployment-guide.md`
 - `docs/reviewer-quick-summary.md`
-- `docs/agent-context.md`
+- `docs/HANDOFF.md`

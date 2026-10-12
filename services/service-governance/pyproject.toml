@@ -1,10 +1,11 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "service-governance"
 version = "0.1.0"
+license = "MIT"
 description = "Version history, approvals, audit log, and comments for Pipewright"
 requires-python = ">=3.11"
 dependencies = [

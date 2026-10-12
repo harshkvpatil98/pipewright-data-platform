@@ -354,7 +354,7 @@ export function CaseStudyPage() {
           </div>
           <div className="rounded-2xl border border-line bg-surface px-4 py-4">
             <div className="text-sm font-semibold text-ink">Architecture docs</div>
-            <p className="mt-2 text-sm text-ink-3">Use `README.md`, `docs/architecture.md`, and `docs/agent-context.md` for deeper technical detail.</p>
+            <p className="mt-2 text-sm text-ink-3">Use `README.md`, `docs/architecture.md`, and `docs/HANDOFF.md` for deeper technical detail.</p>
           </div>
         </div>
       </SectionPanel>

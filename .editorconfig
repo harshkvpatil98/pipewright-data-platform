@@ -1,0 +1,23 @@
+# Matches what the repository already does: four-space Python (checked by
+# ruff), two-space TypeScript, JSON, CSS and YAML (prettier's defaults, from
+# apps/web/.prettierrc), two-space shell scripts, and tabs where Make needs
+# them. No max_line_length: ruff does not enforce one here, and prettier would
+# read it as its print width.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+[*.py]
+indent_size = 4
+
+[Makefile]
+indent_style = tab
+
+[*.md]
+trim_trailing_whitespace = false

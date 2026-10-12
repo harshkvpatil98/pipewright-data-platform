@@ -1,7 +1,7 @@
 # Production-Readiness Workflow
 
-**Goal:** take every dimension of the 2026-09-23 adoption review
-(`https://claude.ai/code/artifact/60390e70-34fd-42a8-bc23-05c2dd1a661f`) to
+**Goal:** take every dimension of the 2026-09-23 adoption review (published
+outside the repository; its scorecard is reproduced below) to
 **9+/10**, and make Pipewright the product a company picks *over* the
 established alternatives for data work — not by claiming more, but by being
 the only honest, governed, spreadsheet-fast data platform that a business team
@@ -17,7 +17,7 @@ the session log in `docs/HANDOFF.md` records what actually happened.
 
 ## Operating protocol (applies to every phase)
 
-1. **Read first:** `AGENTS.md`, `docs/HANDOFF.md`, this file, and the phase’s
+1. **Read first:** `CONTRIBUTING.md`, `docs/HANDOFF.md`, this file, and the phase’s
    section below. Re-verify any “current state” claim against the tree — a
    previous phase may have moved things.
 2. **Implement the phase completely.** Nothing in the phase list is optional.
@@ -49,7 +49,7 @@ the session log in `docs/HANDOFF.md` records what actually happened.
    `harshkvpatil98 <harshkvpatil@gmail.com>`, **no AI attribution of any
    kind** — and push the branch. Then report: what shipped, what the browser
    showed, scores moved, and stop for “continue”.
-6. **Never regress the honesty invariants** (`AGENTS.md`): tier disclaimers,
+6. **Never regress the honesty invariants** (`CONTRIBUTING.md`): tier disclaimers,
    null-not-zero, stated refusals, single permission choke point, no model
    calls in the product runtime.
 

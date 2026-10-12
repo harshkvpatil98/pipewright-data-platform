@@ -21,10 +21,20 @@ today and, where something is planned rather than present, says so plainly.
   (`read` / `write` / `admin`) and revocable, shown once at creation and
   stored only as a SHA-256 hash. A `read` token cannot perform any mutating
   request even if its owner is an admin.
+- **Two-factor authentication (TOTP)**, opt-in per user and implemented
+  against RFC 6238. Once it is on, the password step returns a short-lived,
+  distinct-audience ticket instead of a session, and the session is issued only
+  for a valid code or a one-time recovery code (stored hashed).
+- **Single sign-on over OIDC**, with PKCE, a one-time state, ID tokens verified
+  against the provider's JWKS, and group-to-role mapping on just-in-time
+  provisioning. A SCIM-lite job deactivates directory-managed accounts that have
+  left the directory. Details and configuration are in
+  [enterprise-identity.md](enterprise-identity.md).
 
-**Planned, not yet present:** SSO (OIDC then SAML) and MFA (TOTP). These are
-scheduled and are not claimed as available. SAML will verify signatures — an
-unsigned-assertion shortcut will not be shipped.
+**Not present, and not claimed:** SAML. It needs XML signature verification,
+and a SAML implementation that skips it is an authentication bypass, so none is
+shipped. The OIDC network legs (token exchange, JWKS fetch) are unit-tested with
+the transport faked and have not been run against a live identity provider.
 
 ## Authorisation
 
@@ -55,8 +65,9 @@ unsigned-assertion shortcut will not be shipped.
 
 ## Reporting a vulnerability
 
-Email the maintainer (see the repository owner) with details and a proof of
-concept. Please do not open a public issue for an unpatched vulnerability.
+Report it privately through GitHub's advisory form, as described in the
+repository's [security policy](../SECURITY.md). Please do not open a public
+issue for an unpatched vulnerability.
 
 ---
 

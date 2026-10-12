@@ -50,3 +50,11 @@ Thumbs.db
 
 # Database dumps and file archives from scripts/backup.sh.
 backups/
+
+# Assistant working files: instructions, prompts, sessions and local tool
+# configuration. Kept on the machine, never in the repository.
+/AGENTS.md
+/CLAUDE.md
+/docs/agent-context.md
+.claude/
+.mcp.json

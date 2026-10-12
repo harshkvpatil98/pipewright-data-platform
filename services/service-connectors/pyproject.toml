@@ -1,10 +1,11 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "service-connectors"
 version = "0.1.0"
+license = "MIT"
 description = "The connector SDK for Pipewright: one interface for every source and destination"
 requires-python = ">=3.11"
 dependencies = [

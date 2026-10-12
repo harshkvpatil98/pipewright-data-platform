@@ -7,9 +7,14 @@ from api_gateway.main import app
 client = TestClient(app)
 
 
+# Since TOTP arrived the route also asks whether the user has a second factor.
+# That lookup is part of the route, not of this test: without the patch it reads
+# `user_mfa` from whatever database DATABASE_URL names, which fails with no
+# server at all and with a server whose schema was never migrated (CI's).
+@patch("service_auth.router.mfa_service.is_active", return_value=False)
 @patch("service_auth.router.authenticate_user")
 @patch("service_auth.router.create_access_token")
-def test_login_returns_bearer_token(create_access_token, authenticate_user) -> None:
+def test_login_returns_bearer_token(create_access_token, authenticate_user, _mfa_is_active) -> None:
     authenticate_user.return_value = type(
         "User",
         (),

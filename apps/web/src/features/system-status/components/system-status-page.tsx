@@ -7,6 +7,7 @@ import type { AuthUser, HealthLiveResponse, PlatformStatusResponse } from "@plat
 import { SectionPanel } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
+import { serviceLabel } from "@/lib/service-labels";
 import { ReleaseBuildMeta } from "@/components/release/release-build-meta";
 import { OperationalError, OperationalLoading } from "@/components/operational/operational-messages";
 import { appConfig } from "@/lib/config";
@@ -300,7 +301,10 @@ export function SystemStatusPage({ currentUser }: { currentUser?: AuthUser | nul
                 <tbody>
                   {platform.services.map((s) => (
                     <tr key={s.name} className="border-b border-line">
-                      <td className="py-2 pr-3 font-mono text-xs text-ink-2">{s.name}</td>
+                      <td className="py-2 pr-3">
+                        <div className="text-[13px] text-ink">{serviceLabel(s.name)}</div>
+                        <div className="font-mono text-[12px] text-muted">{s.name}</div>
+                      </td>
                       <td className="py-2 pr-3">
                         <span
                           className={`rounded-lg border px-2 py-0.5 text-[11px] font-semibold uppercase ${toneClasses(serviceHealthTone(s.status))}`}

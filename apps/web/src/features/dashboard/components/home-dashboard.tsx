@@ -13,6 +13,7 @@ import { Icon, type IconName } from "@/components/ui/icon";
 import { useToast } from "@/components/providers/toast-provider";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
+import { serviceLabel } from "@/lib/service-labels";
 import { cx } from "@/lib/utils";
 
 type HomeDashboardProps = {
@@ -113,8 +114,8 @@ export function HomeDashboard({ currentUser, projects, status }: HomeDashboardPr
   );
   const degradedServices = orderedServices.filter((s) => s.status !== "healthy");
   const healthLabel = healthy
-    ? "All systems healthy"
-    : `${degradedServices.length} module${degradedServices.length === 1 ? "" : "s"} degraded`;
+    ? "Everything is working"
+    : `${degradedServices.length} part${degradedServices.length === 1 ? "" : "s"} need${degradedServices.length === 1 ? "s" : ""} attention`;
   const degradedReason = (service: { name: string; details?: Record<string, unknown> }) => {
     const d = (service.details ?? {}) as Record<string, unknown>;
     if (typeof d.incidents_open === "number" && d.incidents_open > 0) {
@@ -131,7 +132,7 @@ export function HomeDashboard({ currentUser, projects, status }: HomeDashboardPr
       statusItems={[
         { id: "projects", label: "Projects", value: String(projectCount) },
         { id: "datasets", label: "Datasets", value: String(datasetCount) },
-        { id: "jobs", label: "Extraction jobs", value: String(jobCount) },
+        { id: "jobs", label: "Imports", value: String(jobCount) },
         {
           id: "attention",
           label: "Needs attention",
@@ -147,8 +148,8 @@ export function HomeDashboard({ currentUser, projects, status }: HomeDashboardPr
             {greeting}
             {currentUser ? `, ${currentUser.display_name || currentUser.username}` : ""}
           </h1>
-          <p className="mt-2 text-[13px] text-ink-3">
-            Here is the current state of your data platform.
+          <p className="mt-2 text-[14px] text-ink-3">
+            What needs attention across your projects, and where you left off.
           </p>
         </header>
 
@@ -162,14 +163,14 @@ export function HomeDashboard({ currentUser, projects, status }: HomeDashboardPr
           />
           <Kpi
             icon="database"
-            label="Source connections"
+            label="Databases connected"
             value={connectionCount}
-            caption={`${jobCount} extraction job${jobCount === 1 ? "" : "s"}`}
+            caption={`${jobCount} import${jobCount === 1 ? "" : "s"} set up`}
             href={firstProject ? `/projects/${firstProject.id}/sources` : "/projects"}
           />
           <Kpi
             icon="shield"
-            label="Quality rules"
+            label="Checks"
             value={ruleCount}
             caption={failingRules > 0 ? `${failingRules} currently failing` : "All passing"}
             tone={failingRules > 0 ? "warn" : "good"}
@@ -177,7 +178,7 @@ export function HomeDashboard({ currentUser, projects, status }: HomeDashboardPr
           />
           <Kpi
             icon="drift"
-            label="Open schema drift"
+            label="Schema changes to review"
             value={openDrift}
             caption={breakingDrift > 0 ? `${breakingDrift} breaking` : "Nothing breaking"}
             tone={breakingDrift > 0 ? "bad" : openDrift > 0 ? "warn" : "good"}
@@ -292,7 +293,7 @@ export function HomeDashboard({ currentUser, projects, status }: HomeDashboardPr
                     ].map((stat) => (
                       <div key={stat.label} className="rounded-xl bg-surface-2 px-2 py-2.5">
                         <div className="tabular text-[18px] font-semibold text-ink">{stat.value}</div>
-                        <div className="text-[10.5px] uppercase tracking-[0.12em] text-muted">{stat.label}</div>
+                        <div className="text-[12px] text-muted">{stat.label}</div>
                       </div>
                     ))}
                   </div>
@@ -357,17 +358,17 @@ export function HomeDashboard({ currentUser, projects, status }: HomeDashboardPr
                         service.status === "healthy" ? "bg-success" : "bg-danger",
                       )}
                     />
-                    <span className="min-w-0 flex-1 truncate text-[12px] text-ink-2">
-                      {service.name.replace("service-", "")}
+                    <span className="min-w-0 flex-1 truncate text-[13px] text-ink-2">
+                      {serviceLabel(service.name)}
                     </span>
                     <span
                       className={cx(
-                        "shrink-0 text-[11px]",
+                        "shrink-0 text-[12px]",
                         service.status === "healthy" ? "text-success" : "text-danger",
                       )}
                     >
                       {service.status === "healthy"
-                        ? "healthy"
+                        ? "Working"
                         : degradedReason(service) ?? service.status}
                     </span>
                   </div>
@@ -396,10 +397,10 @@ export function HomeDashboard({ currentUser, projects, status }: HomeDashboardPr
               </p>
               <ol className="mt-4 space-y-2.5">
                 {[
-                  { step: "Connect a source database or upload a file", done: firstProgress.data },
-                  { step: "Shape the data in Studio", done: firstProgress.shape },
-                  { step: "Add quality rules so bad data cannot pass", done: firstProgress.guard },
-                  { step: "Schedule it and publish downstream", done: firstProgress.schedule },
+                  { step: "Upload a file or connect a database", done: firstProgress.data },
+                  { step: "Clean it in Studio", done: firstProgress.shape },
+                  { step: "Add a check so bad rows are caught", done: firstProgress.guard },
+                  { step: "Put it on a schedule", done: firstProgress.schedule },
                 ].map((item, index) => {
                   const base = firstProject ? `/projects/${firstProject.id}` : "/projects";
                   const hrefs = firstProject
@@ -490,7 +491,7 @@ function Kpi({
       className="group rounded-2xl border border-line bg-[color:var(--panel)] p-4 transition duration-[var(--duration-base)] ease-[var(--ease-out)] hover:border-line-strong hover:bg-surface"
     >
       <div className="flex items-center justify-between">
-        <span className="text-[11px] uppercase tracking-[0.16em] text-muted">{label}</span>
+        <span className="text-[13px] font-medium text-ink-3">{label}</span>
         <Icon
           name={icon}
           size={15}
@@ -500,7 +501,7 @@ function Kpi({
       <div className="tabular mt-3 text-[30px] font-semibold leading-none tracking-tight text-ink">
         {value.toLocaleString()}
       </div>
-      <div className={cx("mt-2 text-[11px]", toneText)}>{caption}</div>
+      <div className={cx("mt-2 text-[12px]", toneText)}>{caption}</div>
     </Link>
   );
 }

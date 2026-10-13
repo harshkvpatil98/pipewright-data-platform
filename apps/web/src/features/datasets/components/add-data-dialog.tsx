@@ -67,7 +67,7 @@ export function AddDataDialog({ open, onClose, projectId }: AddDataDialogProps) 
       <Modal
         open={open && !uploadOpen}
         title="Add data"
-        description="Bring in a file, connect a database, or start with sample data."
+        description="Bring in a file, connect a source, or start with sample data."
         onClose={onClose}
         widthClassName="max-w-xl"
       >
@@ -83,9 +83,9 @@ export function AddDataDialog({ open, onClose, projectId }: AddDataDialogProps) 
             }
           />
           <Choice
-            icon="database"
-            title="Connect a database"
-            description="PostgreSQL, MySQL or SQLite. Import tables once or keep them up to date."
+            icon="link"
+            title="Connect a source"
+            description="A database, an app such as GitHub or HubSpot, an API or a storage bucket. Import once or keep it up to date."
             action={
               <Button
                 size="sm"

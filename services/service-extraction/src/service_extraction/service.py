@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from service_auth.schemas import UserRead
 from service_extraction.connectors import sql_database
-from service_extraction.connectors.base import SENSITIVE_CONFIG_FIELDS
+from service_extraction import connector_sources as sources
 from service_extraction.tiers import note_for
 from service_extraction.shaping import validate_job_steps
 from service_extraction.models import ExtractionConnection, ExtractionJob
@@ -46,10 +46,10 @@ REQUIRED_CONFIG_FIELDS: dict[str, tuple[str, ...]] = {
 _REDACTED = "***"
 
 
-def _redact(config: dict[str, Any]) -> dict[str, Any]:
+def _redact(config: dict[str, Any], connector_type: str) -> dict[str, Any]:
     """Mask secrets so a stored config can be safely returned by the API."""
     out = dict(config)
-    for key in SENSITIVE_CONFIG_FIELDS:
+    for key in sources.secret_fields(connector_type):
         if out.get(key):
             out[key] = _REDACTED
     return out
@@ -57,12 +57,16 @@ def _redact(config: dict[str, Any]) -> dict[str, Any]:
 
 def _to_read(connection: ExtractionConnection) -> ExtractionConnectionRead:
     data = ExtractionConnectionRead.model_validate(connection, from_attributes=True)
-    return data.model_copy(update={"config_json": _redact(dict(connection.config_json or {}))})
+    return data.model_copy(
+        update={"config_json": _redact(dict(connection.config_json or {}), connection.connector_type)}
+    )
 
 
 def _validate_config(connector_type: str, config: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(config, dict):
         raise BadRequestError("Connection config must be an object.")
+    if not sources.is_sql(connector_type):
+        return sources.validate(connector_type, config)
 
     missing = [field for field in REQUIRED_CONFIG_FIELDS[connector_type] if not str(config.get(field, "")).strip()]
     if missing:
@@ -75,7 +79,9 @@ def _validate_config(connector_type: str, config: dict[str, Any]) -> dict[str, A
 
 
 def _decrypted_config(connection: ExtractionConnection) -> dict[str, Any]:
-    return decrypt_sensitive_fields(dict(connection.config_json or {}), SENSITIVE_CONFIG_FIELDS)
+    return decrypt_sensitive_fields(
+        dict(connection.config_json or {}), sources.secret_fields(connection.connector_type)
+    )
 
 
 def get_connection_for_project(
@@ -119,7 +125,7 @@ def create_connection(
         connector_type=payload.connector_type,
         description=payload.description,
         status="active",
-        config_json=encrypt_sensitive_fields(config, SENSITIVE_CONFIG_FIELDS),
+        config_json=encrypt_sensitive_fields(config, sources.secret_fields(payload.connector_type)),
         created_by_user_id=current_user.id,
     )
     db.add(connection)
@@ -149,16 +155,17 @@ def update_connection(
         stored = dict(connection.config_json or {})
         # An omitted, blank, or still-redacted secret means "leave it alone", so the
         # stored ciphertext is carried forward instead of being wiped.
-        for key in SENSITIVE_CONFIG_FIELDS:
+        secrets = sources.secret_fields(connection.connector_type)
+        for key in secrets:
             if incoming.get(key) in (None, "", _REDACTED):
                 incoming.pop(key, None)
                 if stored.get(key):
                     incoming[key] = stored[key]
         # decrypt/encrypt are both pass-through when the value is already in the
         # target form, so this normalises a mix of ciphertext and new plaintext.
-        plain = decrypt_sensitive_fields(incoming, SENSITIVE_CONFIG_FIELDS)
-        _validate_config(connection.connector_type, plain)
-        connection.config_json = encrypt_sensitive_fields(plain, SENSITIVE_CONFIG_FIELDS)
+        plain = decrypt_sensitive_fields(incoming, secrets)
+        validated = _validate_config(connection.connector_type, plain)
+        connection.config_json = encrypt_sensitive_fields(validated, secrets)
 
     db.commit()
     db.refresh(connection)
@@ -180,7 +187,11 @@ def test_connection(
     ensure_owned_project(db, project_id, current_user.id)
     connection = get_connection_for_project(db, project_id, connection_id)
 
-    result = sql_database.test_connection(connection.connector_type, _decrypted_config(connection))
+    if sources.is_sql(connection.connector_type):
+        result = sql_database.test_connection(connection.connector_type, _decrypted_config(connection))
+    else:
+        # The connector attaches its own tier note to a successful test.
+        result = sources.test(connection.connector_type, _decrypted_config(connection))
 
     connection.last_tested_at = datetime.now(UTC)
     connection.last_test_status = "succeeded" if result.success else "failed"
@@ -191,7 +202,7 @@ def test_connection(
     # A working connection proves the credential, not the connector. Said here
     # because this screen is where somebody decides whether to trust a source.
     tier_note = note_for(connection.connector_type)
-    if tier_note and result.success:
+    if tier_note and result.success and tier_note not in warnings:
         warnings.append(tier_note)
 
     return ConnectionTestResponse(
@@ -208,8 +219,25 @@ def discover_tables(
 ) -> DiscoveredTablesResponse:
     ensure_owned_project(db, project_id, current_user.id)
     connection = get_connection_for_project(db, project_id, connection_id)
+    if not sources.is_sql(connection.connector_type):
+        streams = sources.discover(connection.connector_type, _decrypted_config(connection))
+        return DiscoveredTablesResponse(
+            items=[
+                DiscoveredTable(
+                    schema_name=stream.get("namespace"),
+                    name=str(stream["name"]),
+                    kind=str(stream.get("kind") or "table"),
+                    qualified_name=str(stream.get("qualified_name") or stream["name"]),
+                    detail=dict(stream.get("detail") or {}),
+                )
+                for stream in streams
+            ],
+            can_list=sources.can_list(connection.connector_type),
+            can_resume=sources.can_resume(connection.connector_type),
+        )
     tables = sql_database.list_tables(connection.connector_type, _decrypted_config(connection))
     return DiscoveredTablesResponse(
+        can_resume=True,
         items=[
             DiscoveredTable(
                 schema_name=ref.schema,
@@ -233,6 +261,8 @@ def discover_columns(
 ) -> DiscoveredColumnsResponse:
     ensure_owned_project(db, project_id, current_user.id)
     connection = get_connection_for_project(db, project_id, connection_id)
+    if not sources.is_sql(connection.connector_type):
+        raise BadRequestError("This source is not a database; preview what it returns to see its columns.")
     columns = sql_database.list_columns(
         connection.connector_type, _decrypted_config(connection), table=table, schema=schema
     )
@@ -272,6 +302,18 @@ def preview_extraction(
     connection = get_connection_for_project(db, project_id, connection_id)
     config = _decrypted_config(connection)
 
+    from service_transformations.tabular import json_preview_rows  # local import avoids a package cycle
+
+    if not sources.is_sql(connection.connector_type):
+        read = sources.read(connection.connector_type, config, payload.stream, limit=payload.limit)
+        return ExtractionPreviewResponse(
+            columns=[str(column) for column in read.dataframe.columns],
+            rows=json_preview_rows(read.dataframe, payload.limit),
+            row_count=int(read.row_count),
+            truncated=bool(read.truncated),
+            warnings=list(read.warnings),
+        )
+
     statement = resolve_job_query(
         connection.connector_type,
         source_kind=payload.source_kind,
@@ -288,8 +330,6 @@ def preview_extraction(
         chunk_size=payload.limit,
     )
     frame = result.dataframe
-
-    from service_transformations.tabular import json_preview_rows  # local import avoids a package cycle
 
     return ExtractionPreviewResponse(
         columns=[str(column) for column in frame.columns],
@@ -328,14 +368,28 @@ def create_job(
     ensure_owned_project(db, project_id, current_user.id)
     connection = get_connection_for_project(db, project_id, payload.connection_id)
 
-    # Validate the query now so a broken job cannot be saved and later scheduled.
-    resolve_job_query(
-        connection.connector_type,
-        source_kind=payload.source_kind,
-        table=payload.table,
-        schema=payload.schema_name,
-        query_sql=payload.query_sql,
-    )
+    if sources.is_sql(connection.connector_type):
+        if payload.source_kind == "stream":
+            raise BadRequestError("Choose a table or write a query to import from a database.")
+        # Validate the query now so a broken job cannot be saved and later scheduled.
+        resolve_job_query(
+            connection.connector_type,
+            source_kind=payload.source_kind,
+            table=payload.table,
+            schema=payload.schema_name,
+            query_sql=payload.query_sql,
+        )
+    else:
+        if payload.source_kind != "stream":
+            raise BadRequestError("This source is not a database; choose what to import from it.")
+        if payload.steps:
+            raise BadRequestError(
+                "Shaping during the import works for databases. Clean this data in the Studio once it arrives."
+            )
+        if payload.load_mode != "full_refresh" and not sources.can_resume(connection.connector_type):
+            raise BadRequestError(
+                f"{sources.spec(connection.connector_type).label} cannot bring only new rows; import everything each time."
+            )
 
     job = ExtractionJob(
         project_id=project_id,
@@ -346,6 +400,7 @@ def create_job(
         source_schema=payload.schema_name,
         source_table=payload.table,
         query_sql=payload.query_sql,
+        stream_json=dict(payload.stream) if payload.source_kind == "stream" and payload.stream else None,
         load_mode=payload.load_mode,
         cursor_column=payload.cursor_column,
         primary_key_columns=list(payload.primary_key_columns),
@@ -391,7 +446,11 @@ def update_job(
     if payload.enabled is not None:
         job.enabled = payload.enabled
 
-    if job.load_mode != "full_refresh" and not (job.cursor_column or "").strip():
+    if job.source_kind == "stream" and job.load_mode != "full_refresh":
+        connection = get_connection_for_project(db, project_id, job.connection_id)
+        if job.load_mode == "incremental_merge" or not sources.can_resume(connection.connector_type):
+            raise BadRequestError("This source can bring all rows each time, not only new ones.")
+    if job.source_kind != "stream" and job.load_mode != "full_refresh" and not (job.cursor_column or "").strip():
         raise BadRequestError("cursor_column is required for incremental load modes.")
     if job.load_mode == "incremental_merge" and not (job.primary_key_columns or []):
         raise BadRequestError("primary_key_columns is required for incremental_merge.")

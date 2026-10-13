@@ -125,7 +125,7 @@ export function LiveSourcesPanel({ projectId, connections, initial }: LiveSource
     <>
       <SectionPanel
         title="Live feeds"
-        description="Data that arrives by itself: events sent to a web address, or changes followed in a PostgreSQL table."
+        description="Data that arrives by itself: events sent to a web address, or changes followed in a PostgreSQL table. Following changes works for PostgreSQL only; other databases are imported on a schedule."
         actions={
           <Button variant="secondary" size="sm" onClick={() => setFormOpen((open) => !open)}>
             {formOpen ? "Cancel" : "Set up a live feed"}

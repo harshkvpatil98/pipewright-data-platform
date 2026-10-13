@@ -6,15 +6,16 @@ from typing import Any, Literal
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from service_extraction.connectors.base import LOAD_MODES, SUPPORTED_CONNECTOR_TYPES
+from service_extraction.connectors.base import LOAD_MODES
 
-_CONNECTOR_PATTERN = "^(" + "|".join(SUPPORTED_CONNECTOR_TYPES) + ")$"
 _LOAD_MODE_PATTERN = "^(" + "|".join(LOAD_MODES) + ")$"
 
 
 class ExtractionConnectionCreate(BaseModel):
     name: str = Field(min_length=2, max_length=160)
-    connector_type: str = Field(pattern=_CONNECTOR_PATTERN)
+    #: A SQL database (postgresql, mysql, sqlite) or any connector in the
+    #: catalogue that can read; checked against the catalogue on create.
+    connector_type: str = Field(pattern=r"^[a-z][a-z0-9_]{1,31}$")
     description: str | None = Field(default=None, max_length=2000)
     config: dict[str, Any] = Field(default_factory=dict)
 
@@ -62,10 +63,17 @@ class DiscoveredTable(BaseModel):
     name: str
     kind: str
     qualified_name: str
+    #: What a connector needs to read this back beyond its name (a path, a URL).
+    detail: dict[str, Any] = Field(default_factory=dict)
 
 
 class DiscoveredTablesResponse(BaseModel):
     items: list[DiscoveredTable]
+    #: False for a connector that cannot list what it holds (a single API
+    #: endpoint): it is imported whole.
+    can_list: bool = True
+    #: True when imports can bring only what is new since the last run.
+    can_resume: bool = False
 
 
 class DiscoveredColumnRead(BaseModel):
@@ -84,10 +92,12 @@ class DiscoveredColumnsResponse(BaseModel):
 class ExtractionPreviewRequest(BaseModel):
     """Ad hoc preview of a table or query before a job is saved."""
 
-    source_kind: str = Field(default="table", pattern="^(table|query)$")
+    source_kind: str = Field(default="table", pattern="^(table|query|stream)$")
     schema_name: str | None = Field(default=None, max_length=160)
     table: str | None = Field(default=None, max_length=320)
     query_sql: str | None = None
+    #: source_kind "stream": what a connector listed, or None for everything.
+    stream: dict[str, Any] | None = None
     limit: int = Field(default=50, ge=1, le=500)
 
     @model_validator(mode="after")
@@ -110,10 +120,13 @@ class ExtractionPreviewResponse(BaseModel):
 class ExtractionJobBase(BaseModel):
     name: str = Field(min_length=2, max_length=160)
     description: str | None = Field(default=None, max_length=2000)
-    source_kind: str = Field(default="table", pattern="^(table|query)$")
+    source_kind: str = Field(default="table", pattern="^(table|query|stream)$")
     schema_name: str | None = Field(default=None, max_length=160)
     table: str | None = Field(default=None, max_length=320)
     query_sql: str | None = None
+    #: source_kind "stream" (any connector but the SQL databases): the stream
+    #: to import, as the connector listed it, or None for everything it returns.
+    stream: dict[str, Any] | None = None
     load_mode: str = Field(default="full_refresh", pattern=_LOAD_MODE_PATTERN)
     cursor_column: str | None = Field(default=None, max_length=160)
     primary_key_columns: list[str] = Field(default_factory=list)
@@ -128,6 +141,12 @@ class ExtractionJobBase(BaseModel):
             raise ValueError("table is required when source_kind is 'table'.")
         if self.source_kind == "query" and not (self.query_sql or "").strip():
             raise ValueError("query_sql is required when source_kind is 'query'.")
+        if self.source_kind == "stream":
+            # A connector keeps its own place ("only new rows" resumes from
+            # where the last run stopped), so there is no cursor column.
+            if self.load_mode == "incremental_merge":
+                raise ValueError("Imports from this kind of source can bring all rows or only new ones.")
+            return self
         if self.load_mode != "full_refresh" and not (self.cursor_column or "").strip():
             raise ValueError("cursor_column is required for incremental load modes.")
         if self.load_mode == "incremental_merge" and not self.primary_key_columns:
@@ -162,6 +181,7 @@ class ExtractionJobRead(BaseModel):
     source_schema: str | None
     source_table: str | None
     query_sql: str | None
+    stream_json: dict[str, Any] | None = None
     load_mode: str
     cursor_column: str | None
     primary_key_columns: list[str] | None

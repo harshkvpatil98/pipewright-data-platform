@@ -77,6 +77,9 @@ class ExtractionJob(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     source_schema: Mapped[str | None] = mapped_column(String(160), nullable=True)
     source_table: Mapped[str | None] = mapped_column(String(320), nullable=True)
     query_sql: Mapped[str | None] = mapped_column(Text, nullable=True)
+    #: source_kind "stream": what a non-SQL connector listed (name, namespace,
+    #: kind, detail), or NULL to import everything the connection returns.
+    stream_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
 
     load_mode: Mapped[str] = mapped_column(String(32), nullable=False, default="full_refresh")
     cursor_column: Mapped[str | None] = mapped_column(String(160), nullable=True)

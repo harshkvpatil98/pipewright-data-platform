@@ -302,6 +302,16 @@ def retry_delay_seconds(headers: dict[str, str], attempt: int) -> float:
     return min(2.0**attempt, MAX_RETRY_WAIT_SECONDS)
 
 
+def _path(raw: Any) -> str:
+    """A path under the base URL. Several leading slashes ("//issues.json",
+    easy to type after the default "/") would make httpx read the rest as
+    another host, so they become one; a full URL is left as it is."""
+    text = str(raw or "").strip()
+    if text.lower().startswith(("http://", "https://")):
+        return text
+    return "/" + text.lstrip("/")
+
+
 def _guard_request(request) -> None:
     """Refuse addresses the platform must not call (shared_python.outbound),
     on every request including redirects, as an error people can read."""
@@ -431,7 +441,7 @@ class RestConnector:
         try:
             with self._client(config) as client:
                 response = client.get(
-                    str(config.get("path") or "/"),
+                    _path(config.get("path")),
                     params={**_query_params(config), "limit": 1},
                 )
         except Exception as exc:  # noqa: BLE001 - any transport failure is a failed test
@@ -484,7 +494,7 @@ class RestConnector:
     ) -> ReadResult:
         from service_connectors.flatten import flatten_records
 
-        path = stream.name if stream is not None else str(config.get("path") or "/")
+        path = _path(stream.name if stream is not None else config.get("path"))
         strategy = str(config.get("pagination") or "none")
         page_size = int(config.get("page_size") or 100)
         names = PageParams.from_config(config)

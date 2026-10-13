@@ -3,7 +3,21 @@
  * These mirror the Pydantic schemas in service-extraction and service-quality.
  */
 
-export type ConnectorType = "postgresql" | "mysql" | "sqlite";
+/** The SQL databases, which import tables and queries directly. */
+export type SqlConnectorType = "postgresql" | "mysql" | "sqlite";
+
+/** A SQL database or any connector in the catalogue that can read. */
+export type ConnectorType = SqlConnectorType | (string & {});
+
+export const SQL_CONNECTOR_TYPES: readonly SqlConnectorType[] = ["postgresql", "mysql", "sqlite"];
+
+/** What a connector listed, stored on an import; null means everything it returns. */
+export type SourceStream = {
+  name: string;
+  namespace: string | null;
+  kind: string;
+  detail: Record<string, unknown>;
+};
 
 export type LoadMode = "full_refresh" | "incremental_append" | "incremental_merge";
 
@@ -39,10 +53,16 @@ export type DiscoveredTable = {
   name: string;
   kind: string;
   qualified_name: string;
+  /** What a connector needs to read this back beyond its name. */
+  detail?: Record<string, unknown>;
 };
 
 export type DiscoveredTablesResponse = {
   items: DiscoveredTable[];
+  /** False for a source that cannot list what it holds; it is imported whole. */
+  can_list?: boolean;
+  /** True when imports can bring only what is new since the last run. */
+  can_resume?: boolean;
 };
 
 export type DiscoveredColumn = {
@@ -72,10 +92,12 @@ export type ExtractionJob = {
   connection_id: string;
   name: string;
   description: string | null;
-  source_kind: "table" | "query";
+  source_kind: "table" | "query" | "stream";
   source_schema: string | null;
   source_table: string | null;
   query_sql: string | null;
+  /** source_kind "stream": what to read from a non-database source. */
+  stream_json?: SourceStream | null;
   load_mode: LoadMode;
   cursor_column: string | null;
   primary_key_columns: string[] | null;

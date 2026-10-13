@@ -17,8 +17,11 @@ import type {
   ExtractionPreviewResponse,
   ExtractionRunResponse,
   LoadMode,
+  SourceStream,
+  SqlConnectorType,
   StreamSource,
 } from "@platform/shared-types";
+import { SQL_CONNECTOR_TYPES } from "@platform/shared-types";
 import {
   Button,
   EmptyState,
@@ -35,6 +38,7 @@ import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { Icon } from "@/components/ui/icon";
 import { AddDataDialog } from "@/features/datasets/components/add-data-dialog";
 import { UploadDatasetModal } from "@/features/datasets/components/upload-dataset-modal";
+import { ConnectSourceDialog } from "@/features/extraction/components/connect-source-dialog";
 import { LiveSourcesPanel } from "@/features/extraction/components/live-sources-panel";
 import { groupDatasets, originHints } from "@/lib/dataset-origin";
 import { apiFetch } from "@/lib/api/client";
@@ -51,14 +55,28 @@ type ExtractionPageProps = {
   /** For the uploaded-files list: datasets and the runs that made them. */
   datasets: DatasetRecord[];
   runs: PipelineRunRecord[];
-  /** Open "Connect a database" straight away (`?connect=1`). */
+  /** Open "Connect a source" straight away (`?connect=1`). */
   startConnecting?: boolean;
 };
 
-const CONNECTOR_LABELS: Record<ConnectorType, string> = {
+const CONNECTOR_LABELS: Record<SqlConnectorType, string> = {
   postgresql: "PostgreSQL",
   mysql: "MySQL",
   sqlite: "SQLite",
+};
+
+/** "1 row", "3 rows", "1,200 rows". */
+const countOf = (count: number, noun: string) => `${count.toLocaleString()} ${noun}${count === 1 ? "" : "s"}`;
+
+const isSqlType = (type: ConnectorType): type is SqlConnectorType =>
+  (SQL_CONNECTOR_TYPES as readonly string[]).includes(type);
+
+/** "Everything it returns": the import for a source that cannot list what it holds. */
+const WHOLE_SOURCE = "__everything__";
+
+const STREAM_LOAD_MODE_LABELS: Partial<Record<LoadMode, string>> = {
+  full_refresh: "Everything, every time",
+  incremental_append: "Only what is new",
 };
 
 /**
@@ -134,7 +152,12 @@ export function ExtractionPageView({
   const [busy, setBusy] = useState<string | null>(null);
 
   const [connectorType, setConnectorType] =
-    useState<ConnectorType>("postgresql");
+    useState<SqlConnectorType>("postgresql");
+  const [sourcePickerOpen, setSourcePickerOpen] = useState(startConnecting);
+  // What the selected connection can do when it is not a database.
+  const [listing, setListing] = useState({ canList: true, canResume: true });
+  const [previewedStream, setPreviewedStream] = useState<SourceStream | null>(null);
+  const [jobStream, setJobStream] = useState<SourceStream | null>(null);
   const [catalogue, setCatalogue] = useState<Map<string, ConnectorSpec>>(
     new Map(),
   );
@@ -172,7 +195,7 @@ export function ExtractionPageView({
   const [jobForm, setJobForm] = useState(EMPTY_JOB_FORM);
   // Creating things happens in dialogs; the page itself is the list of what
   // exists (A0 page template: no form-first pages).
-  const [connectionDialogOpen, setConnectionDialogOpen] = useState(startConnecting);
+  const [connectionDialogOpen, setConnectionDialogOpen] = useState(false);
   const [addDataOpen, setAddDataOpen] = useState(false);
   const [jobDialogOpen, setJobDialogOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -290,28 +313,50 @@ export function ExtractionPageView({
       ),
     );
     if (result) {
-      setTables(result.items);
+      const canList = result.can_list ?? true;
+      setListing({ canList, canResume: result.can_resume ?? false });
+      // A source that cannot list what it holds is imported whole.
+      setTables(
+        canList
+          ? result.items
+          : [{ schema_name: null, name: WHOLE_SOURCE, kind: "everything", qualified_name: "Everything it returns" }],
+      );
       setPreview(null);
+      const connection = connections.find((row) => row.id === connectionId);
+      const noun = connection && isSqlType(connection.connector_type) ? "table" : "item";
       setFeedback(
-        `Found ${result.items.length} table${result.items.length === 1 ? "" : "s"}. Pick one to preview it.`,
+        canList
+          ? `Found ${result.items.length} ${noun}${result.items.length === 1 ? "" : "s"}. Pick one to preview it.`
+          : "This source is imported whole. Preview what it returns.",
       );
     }
   };
 
-  const previewTable = async (table: string) => {
+  const streamFor = (table: (typeof tables)[number]): SourceStream | null =>
+    table.name === WHOLE_SOURCE
+      ? null
+      : { name: table.name, namespace: table.schema_name, kind: table.kind, detail: table.detail ?? {} };
+
+  const previewTable = async (table: string, stream?: SourceStream | null) => {
     if (!selectedConnectionId) return;
+    const asStream = selectedConnection ? !isSqlType(selectedConnection.connector_type) : false;
     const result = await run(`preview-${table}`, () =>
       apiFetch<ExtractionPreviewResponse>(
         `/projects/${projectId}/extraction/connections/${selectedConnectionId}/preview`,
         {
           method: "POST",
-          body: JSON.stringify({ source_kind: "table", table, limit: 10 }),
+          body: JSON.stringify(
+            asStream
+              ? { source_kind: "stream", stream: stream ?? null, limit: 10 }
+              : { source_kind: "table", table, limit: 10 },
+          ),
         },
       ),
     );
     if (result) {
       setPreview(result);
       setPreviewedTable(table);
+      setPreviewedStream(stream ?? null);
     }
   };
 
@@ -333,6 +378,18 @@ export function ExtractionPageView({
             },
           );
           steps = parsed.steps;
+        }
+        if (selectedConnection && !isSqlType(selectedConnection.connector_type)) {
+          return apiFetch<ExtractionJob>(`/projects/${projectId}/extraction/jobs`, {
+            method: "POST",
+            body: JSON.stringify({
+              connection_id: selectedConnectionId,
+              name: jobForm.name,
+              source_kind: "stream",
+              stream: jobStream,
+              load_mode: jobForm.loadMode,
+            }),
+          });
         }
         return apiFetch<ExtractionJob>(
           `/projects/${projectId}/extraction/jobs`,
@@ -382,8 +439,8 @@ export function ExtractionPageView({
       const plan = result.shaping;
       const placement = plan
         ? plan.pushed_steps > 0
-          ? ` The ${plan.surface} source ran ${plan.pushed_steps} of ${plan.pushed_steps + plan.local_steps} step(s) as SQL; ${plan.local_steps} ran here.`
-          : ` All ${plan.local_steps} step(s) ran here (${plan.note || "the source could not run them"}).`
+          ? ` The ${plan.surface} source ran ${plan.pushed_steps} of ${countOf(plan.pushed_steps + plan.local_steps, "step")} as SQL; ${plan.local_steps} ran here.`
+          : ` ${countOf(plan.local_steps, "step")} ran here (${plan.note || "the source could not run them"}).`
         : "";
       const rewritten =
         plan && plan.rewrites && plan.rewrites.length > 0
@@ -391,7 +448,7 @@ export function ExtractionPageView({
           : "";
       const shaping = placement + rewritten;
       setFeedback(
-        `Imported ${result.rows_extracted} row(s): ${result.rows_added} added, ${result.rows_updated} updated. The dataset now has ${result.total_rows}.${shaping}`,
+        `Imported ${countOf(result.rows_extracted, "row")}: ${result.rows_added.toLocaleString()} added, ${result.rows_updated.toLocaleString()} updated. The dataset now has ${countOf(result.total_rows, "row")}.${shaping}`,
       );
     }
   };
@@ -416,16 +473,23 @@ export function ExtractionPageView({
 
   const isSqlite = connectorType === "sqlite";
 
-  const openImportFor = (table: string) => {
+  const openImportFor = (table: string, stream: SourceStream | null = null) => {
+    const label = table === WHOLE_SOURCE ? selectedConnection?.name ?? "Import" : table.replace(/\.[a-z0-9]+$/i, "");
+    setJobStream(stream);
     setJobForm((form) => ({
       ...form,
       table,
+      loadMode: "full_refresh",
       name:
         form.name ||
-        table.replace(/[_-]+/g, " ").replace(/^\w/, (c) => c.toUpperCase()),
+        label.replace(/[_-]+/g, " ").replace(/^\w/, (c) => c.toUpperCase()),
     }));
     setJobDialogOpen(true);
   };
+
+  const sourceLabel = (type: ConnectorType) =>
+    catalogue.get(type)?.label ?? (isSqlType(type) ? CONNECTOR_LABELS[type] : type);
+  const selectedIsSql = selectedConnection ? isSqlType(selectedConnection.connector_type) : true;
 
   // Sections with something in them come first: a project that connected a
   // database but uploaded nothing should see its database without scrolling
@@ -495,7 +559,7 @@ export function ExtractionPageView({
       <AppShell
         currentUser={currentUser}
         title="Sources"
-        subtitle="Upload files, connect databases and receive live data."
+        subtitle="Upload files, connect databases, apps and storage, and receive live data."
         actions={
           <>
             <Button onClick={() => setUploadOpen(true)}>
@@ -504,10 +568,10 @@ export function ExtractionPageView({
             </Button>
             <Button
               variant="secondary"
-              onClick={() => setConnectionDialogOpen(true)}
+              onClick={() => setSourcePickerOpen(true)}
             >
-              <Icon name="database" size={16} />
-              Connect a database
+              <Icon name="link" size={16} />
+              Connect a source
             </Button>
           </>
         }
@@ -540,14 +604,14 @@ export function ExtractionPageView({
         {filesFirst ? uploadedFilesPanel : null}
 
         <SectionPanel
-          title="Databases"
-          description="Live connections to your databases. Passwords are encrypted and never shown again."
+          title="Connections"
+          description="Databases, apps, APIs and storage you import from. Passwords and keys are encrypted and never shown again."
           actions={
             connections.length > 0 ? (
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={() => setConnectionDialogOpen(true)}
+                onClick={() => setSourcePickerOpen(true)}
               >
                 Connect another
               </Button>
@@ -556,11 +620,11 @@ export function ExtractionPageView({
         >
           {connections.length === 0 ? (
             <EmptyState
-              title="No databases connected"
-              description="Connect PostgreSQL, MySQL or SQLite to import tables and keep them up to date."
+              title="Nothing connected yet"
+              description="Connect a database, an app such as GitHub or HubSpot, an API or a storage bucket to import from it and keep it up to date."
               action={
-                <Button size="sm" onClick={() => setConnectionDialogOpen(true)}>
-                  Connect a database
+                <Button size="sm" onClick={() => setSourcePickerOpen(true)}>
+                  Connect a source
                 </Button>
               }
             />
@@ -583,14 +647,10 @@ export function ExtractionPageView({
                           {connection.name}
                         </h3>
                         <span className="border-line text-ink-3 rounded-full border px-2 py-0.5 text-[12px]">
-                          {CONNECTOR_LABELS[connection.connector_type]}
+                          {sourceLabel(connection.connector_type)}
                         </span>
-                        {catalogue.get(connection.connector_type) &&
-                        !catalogue.get(connection.connector_type)!.verified ? (
-                          <TierBadge
-                            spec={catalogue.get(connection.connector_type)}
-                          />
-                        ) : null}
+                        {/* Every connection says how far its kind of source is tested here. */}
+                        <TierBadge spec={catalogue.get(connection.connector_type)} />
                         {connection.last_test_status ? (
                           <StatusBadge
                             value={
@@ -618,7 +678,9 @@ export function ExtractionPageView({
                       >
                         {busy === `tables-${connection.id}`
                           ? "Reading…"
-                          : "Browse tables"}
+                          : isSqlType(connection.connector_type)
+                            ? "Browse tables"
+                            : "See what it holds"}
                       </Button>
                       <Button
                         size="sm"
@@ -633,10 +695,10 @@ export function ExtractionPageView({
                       <DeleteRowButton
                         path={`/projects/${projectId}/extraction/connections/${connection.id}`}
                         name={connection.name}
-                        kind="database connection"
+                        kind="connection"
                         consequences={[
-                          "Its stored password goes with it.",
-                          "Imports set up from it will no longer have a database to read.",
+                          "Its saved settings, passwords and keys go with it.",
+                          "Imports set up from it will no longer have a source to read.",
                         ]}
                         onDeleted={() => {
                           const left = connections.filter(
@@ -660,8 +722,16 @@ export function ExtractionPageView({
 
         {tables.length > 0 ? (
           <SectionPanel
-            title={`Tables in ${selectedConnection?.name ?? "this database"}`}
-            description="Pick a table to see its first rows, then import it."
+            title={
+              selectedIsSql
+                ? `Tables in ${selectedConnection?.name ?? "this database"}`
+                : `What ${selectedConnection?.name ?? "this source"} holds`
+            }
+            description={
+              selectedIsSql
+                ? "Pick a table to see its first rows, then import it."
+                : "Pick something to see its first rows, then import it."
+            }
             actions={
               <Button variant="ghost" size="sm" onClick={() => setTables([])}>
                 Close
@@ -678,7 +748,7 @@ export function ExtractionPageView({
                   }
                   onClick={() => {
                     setJobForm((form) => ({ ...form, table: table.name }));
-                    previewTable(table.name);
+                    previewTable(table.name, streamFor(table));
                   }}
                   className={cx(
                     "text-ink rounded-xl border px-3 py-2 text-[13px] transition duration-[var(--duration-fast)] hover:border-[color:var(--accent-soft)] hover:bg-[color:var(--accent-faint)]",
@@ -688,7 +758,7 @@ export function ExtractionPageView({
                   )}
                 >
                   <span className="font-medium">{table.qualified_name}</span>
-                  {table.kind !== "table" ? (
+                  {table.kind !== "table" && table.name !== WHOLE_SOURCE ? (
                     <span className="text-muted ml-2 text-[12px]">
                       {table.kind}
                     </span>
@@ -701,13 +771,14 @@ export function ExtractionPageView({
               <>
                 <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
                   <p className="text-ink-3 text-[13px]">
-                    The first {preview.rows.length} rows of {previewedTable}.
+                    The first {preview.rows.length} rows of{" "}
+                    {previewedTable === WHOLE_SOURCE ? "what it returns" : previewedTable}.
                   </p>
                   <Button
                     size="sm"
-                    onClick={() => openImportFor(previewedTable)}
+                    onClick={() => openImportFor(previewedTable, previewedStream)}
                   >
-                    Import this table
+                    {selectedIsSql ? "Import this table" : "Import this"}
                   </Button>
                 </div>
                 <div className="border-line mt-3 overflow-x-auto rounded-2xl border">
@@ -750,7 +821,7 @@ export function ExtractionPageView({
         {connections.length > 0 ? (
           <SectionPanel
             title="Imports"
-            description="Saved imports that copy a table into a dataset. Run them by hand or on a schedule."
+            description="Saved imports that copy a table, or what a source holds, into a dataset. Run them by hand or on a schedule."
             actions={
               <Button
                 variant="secondary"
@@ -763,8 +834,8 @@ export function ExtractionPageView({
           >
             {jobs.length === 0 ? (
               <p className="border-line text-muted rounded-2xl border border-dashed px-4 py-6 text-center text-[14px]">
-                No imports yet. Browse a database&apos;s tables and pick one to
-                import.
+                No imports yet. Open a connection, pick a table or what it holds, and
+                import it.
               </p>
             ) : (
               <div className="space-y-3">
@@ -984,7 +1055,7 @@ export function ExtractionPageView({
               id={`${fieldPrefix}-type`}
               value={connectorType}
               onChange={(event) => {
-                const next = event.target.value as ConnectorType;
+                const next = event.target.value as SqlConnectorType;
                 setConnectorType(next);
                 setConnectionForm((form) => ({
                   ...form,
@@ -1106,7 +1177,11 @@ export function ExtractionPageView({
       <Modal
         open={jobDialogOpen}
         title="New import"
-        description="Copy a table into a dataset. You can run it by hand or on a schedule."
+        description={
+          selectedIsSql
+            ? "Copy a table into a dataset. You can run it by hand or on a schedule."
+            : "Copy what this source holds into a dataset. You can run it by hand or on a schedule."
+        }
         onClose={() => setJobDialogOpen(false)}
         widthClassName="max-w-lg"
         footer={
@@ -1139,7 +1214,7 @@ export function ExtractionPageView({
               {error}
             </p>
           ) : null}
-          <FormField label="Database" htmlFor={`${fieldPrefix}-job-connection`}>
+          <FormField label="Source" htmlFor={`${fieldPrefix}-job-connection`}>
             <Select
               id={`${fieldPrefix}-job-connection`}
               value={selectedConnectionId}
@@ -1152,6 +1227,50 @@ export function ExtractionPageView({
               ))}
             </Select>
           </FormField>
+          {!selectedIsSql ? (
+            <>
+              <p className="rounded-xl border border-line bg-surface px-3 py-2 text-[13px] text-ink-2">
+                Importing{" "}
+                <span className="font-medium text-ink">
+                  {jobStream ? jobStream.name : "everything it returns"}
+                </span>
+                . Clean it in the Studio once it arrives.
+              </p>
+              <FormField label="Name the dataset" htmlFor={`${fieldPrefix}-job-stream-name`}>
+                <Input
+                  id={`${fieldPrefix}-job-stream-name`}
+                  value={jobForm.name}
+                  onChange={(event) => setJobForm((form) => ({ ...form, name: event.target.value }))}
+                  placeholder="Contacts"
+                />
+              </FormField>
+              <FormField
+                label="What each run brings in"
+                htmlFor={`${fieldPrefix}-job-stream-mode`}
+                description={
+                  jobForm.loadMode === "incremental_append"
+                    ? "Each run adds only what arrived since the last run."
+                    : "Each run replaces the dataset with everything the source holds."
+                }
+              >
+                <Select
+                  id={`${fieldPrefix}-job-stream-mode`}
+                  value={jobForm.loadMode}
+                  onChange={(event) => setJobForm((form) => ({ ...form, loadMode: event.target.value as LoadMode }))}
+                >
+                  {Object.entries(STREAM_LOAD_MODE_LABELS)
+                    .filter(([value]) => value === "full_refresh" || listing.canResume)
+                    .map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                </Select>
+              </FormField>
+            </>
+          ) : null}
+          {selectedIsSql ? (
+          <>
           <div className="grid gap-3 sm:grid-cols-2">
             <FormField label="Table" htmlFor={`${fieldPrefix}-job-table`}>
               <Input
@@ -1266,8 +1385,29 @@ export function ExtractionPageView({
               </FormField>
             </div>
           </details>
+          </>
+          ) : null}
         </div>
       </Modal>
+
+      <ConnectSourceDialog
+        open={sourcePickerOpen}
+        onClose={() => setSourcePickerOpen(false)}
+        projectId={projectId}
+        catalogue={Array.from(catalogue.values())}
+        onPickDatabase={(type) => {
+          setSourcePickerOpen(false);
+          setConnectorType(type);
+          setConnectionDialogOpen(true);
+        }}
+        onCreated={(created) => {
+          setSourcePickerOpen(false);
+          setConnections((current) => [created, ...current]);
+          setSelectedConnectionId(created.id);
+          // Connected is not the same as working: check it at once.
+          void testConnection(created.id);
+        }}
+      />
     </>
   );
 }

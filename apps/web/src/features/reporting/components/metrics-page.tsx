@@ -432,7 +432,7 @@ export function MetricsPageView({ currentUser, projectId, initial, datasets }: M
       <Modal
         open={inspecting !== null}
         title={inspecting ? `${inspecting.name} · v${inspecting.version_number}` : "Metric"}
-        description="The number now, what resolves through it, and its definition as SQL — rendered from the same IR that computes it here."
+        description="The number now, what uses it, and its definition as SQL, written from the same definition that computes it here."
         onClose={() => setInspecting(null)}
         widthClassName="max-w-3xl"
         footer={
@@ -486,7 +486,7 @@ export function MetricsPageView({ currentUser, projectId, initial, datasets }: M
               {usage === null ? (
                 <p className="mt-1 text-[12px] text-muted">Loading…</p>
               ) : usage.charts.length === 0 ? (
-                <p className="mt-1 text-[12px] text-muted">No chart names this metric yet — <Link href={`/projects/${projectId}/charts`} className="text-accent">build one</Link>.</p>
+                <p className="mt-1 text-[12px] text-muted">No chart uses this metric yet. <Link href={`/projects/${projectId}/charts`} className="text-accent">Build one</Link>.</p>
               ) : (
                 <ul className="mt-1 space-y-1 text-[12.5px]">
                   {usage.charts.map((chart) => (

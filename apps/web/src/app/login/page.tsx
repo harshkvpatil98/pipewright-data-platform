@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { LoginForm } from "@/features/auth/components/login-form";
 import { getCurrentUser } from "@/lib/auth/server";
 
+export const metadata = { title: "Sign in" };
+
 export default async function LoginPage() {
   const user = await getCurrentUser();
   if (user !== null) {

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { DatasetDetailPageView } from "@/features/datasets/components/dataset-detail-page";
@@ -17,6 +18,17 @@ import type {
 type DatasetDetailPageProps = {
   params: Promise<{ projectId: string; datasetId: string }>;
 };
+
+/** The browser tab names the dataset, so several open side by side can be told apart. */
+export async function generateMetadata({ params }: DatasetDetailPageProps): Promise<Metadata> {
+  const { projectId, datasetId } = await params;
+  try {
+    const record = await serverApiFetch<DatasetRecord>(`/projects/${projectId}/datasets/${datasetId}`);
+    return { title: record.name };
+  } catch {
+    return { title: "Dataset" };
+  }
+}
 
 export default async function DatasetDetailPage({ params }: DatasetDetailPageProps) {
   const { projectId, datasetId } = await params;

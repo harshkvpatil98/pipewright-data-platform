@@ -97,7 +97,7 @@ export function AssistantPageView({
     <AppShell
       currentUser={currentUser}
       title={`Assistant · ${datasetName}`}
-      subtitle="Everything here is worked out from the data itself — patterns, overlap, similarity, and timing. There are no model calls, and each panel says what produced its answer."
+      subtitle="Everything here is worked out from the data itself: patterns, overlap, similarity and timing. There are no model calls, and each panel says what produced its answer."
     >
       {error ? (
         <div className="rounded-2xl border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger">
@@ -183,7 +183,7 @@ export function AssistantPageView({
         >
           {!pii || pii.findings.length === 0 ? (
             <p className="text-[12.5px] text-muted">
-              Nothing here looks like personal data. Known formats only — an unusual national
+              Nothing here looks like personal data. It knows common formats only, so an unusual national
               ID format would be missed.
             </p>
           ) : (
@@ -310,7 +310,7 @@ export function AssistantPageView({
       {documentation ? (
         <SectionPanel
           title="A description, drafted"
-          description="Assembled from facts already recorded. Edit it before accepting — a generated description presented as authoritative is how a catalog fills with confidently wrong text."
+          description="Assembled from facts already recorded. Edit it before accepting. A generated description presented as fact is how a catalog fills with confidently wrong text."
         >
           <p className="rounded-lg border border-line bg-surface px-3 py-2.5 text-[12.5px] leading-5 text-ink">
             {documentation.dataset.text}

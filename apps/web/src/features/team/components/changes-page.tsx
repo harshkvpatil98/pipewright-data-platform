@@ -229,7 +229,7 @@ export function ChangesPageView({ currentUser, projectId, initial }: ChangesPage
                   Review discussion
                 </h3>
                 <p className="mt-1 mb-3 text-[12px] text-muted">
-                  Ask for changes without rejecting — the proposal stays open.
+                  Ask for changes without rejecting. The proposal stays open.
                 </p>
                 <DiscussionPanel
                   key={open.id}

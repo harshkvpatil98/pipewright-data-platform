@@ -3,6 +3,8 @@ import { getCurrentUser } from "@/lib/auth/server";
 import { serverApiFetch } from "@/lib/api/server";
 import type { PlatformStatusResponse, ProjectListResponse } from "@platform/shared-types";
 
+export const metadata = { title: "Home" };
+
 // Operational numbers must be current on every visit, not cached from a build.
 export const dynamic = "force-dynamic";
 

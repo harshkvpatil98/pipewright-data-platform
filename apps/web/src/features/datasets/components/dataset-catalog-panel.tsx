@@ -217,7 +217,7 @@ export function DatasetCatalogPanel({ projectId, datasetId, columns }: DatasetCa
   return (
     <SectionPanel
       title="Catalog"
-      description="Ownership, certification, and the business vocabulary bound to this dataset — the metadata that lets someone who did not build it decide whether to trust it."
+      description="Who owns this dataset, whether it is certified, and the business words tied to it. This lets someone who did not build it decide whether to trust it."
     >
       {loadError ? (
         <div className="rounded-2xl border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger">

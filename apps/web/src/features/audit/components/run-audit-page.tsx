@@ -345,7 +345,7 @@ export function RunAuditPageView({ currentUser, projectId, audit }: RunAuditPage
       <Modal
         open={replayOpen}
         title="Replay this run"
-        description="Re-executes the recorded steps against the input versions this run pinned, at the instant it froze — then compares the result with the version it published. The replay is a new run and publishes a new dataset; nothing here is rewritten."
+        description="Re-executes the recorded steps against the input versions this run pinned, at the moment it froze, then compares the result with the version it published. The replay is a new run and publishes a new dataset; nothing here is rewritten."
         onClose={() => setReplayOpen(false)}
         widthClassName="max-w-2xl"
         footer={

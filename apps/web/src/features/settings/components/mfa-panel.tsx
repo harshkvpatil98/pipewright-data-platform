@@ -121,7 +121,7 @@ export function MfaPanel() {
     return (
       <div className="space-y-4">
         <p className="text-[13px] leading-6 text-ink-2">
-          Save these recovery codes now — each works once if you lose your authenticator. They are
+          Save these recovery codes now. Each one works once if you lose your authenticator. They are
           shown only this once.
         </p>
         <ul className="grid grid-cols-2 gap-2 rounded-xl border border-line bg-sunken p-4 font-mono text-[13px] text-ink">

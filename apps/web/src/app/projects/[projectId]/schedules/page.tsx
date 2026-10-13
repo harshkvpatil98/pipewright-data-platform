@@ -6,6 +6,8 @@ import { serverApiFetch } from "@/lib/api/server";
 import { requireCurrentUser } from "@/lib/auth/server";
 import type { ScheduleListResponse, ScheduleType } from "@platform/shared-types";
 
+export const metadata = { title: "Schedules" };
+
 type PageProps = {
   params: Promise<{ projectId: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;

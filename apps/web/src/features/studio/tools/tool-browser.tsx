@@ -122,7 +122,7 @@ export function ToolBrowser({
               ref={searchRef}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder={`Search ${tools.length} tools — try “title case” or “zip”`}
+              placeholder={`Search ${tools.length} tools, for example “title case” or “zip”`}
             />
             <div className="flex items-center gap-2">
               <Select

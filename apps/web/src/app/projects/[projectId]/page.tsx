@@ -12,6 +12,8 @@ import { ApiError } from "@/lib/api/errors";
 import { serverApiFetch } from "@/lib/api/server";
 import { requireCurrentUser } from "@/lib/auth/server";
 
+export const metadata = { title: "Overview" };
+
 type ProjectDetailPageProps = {
   params: Promise<{ projectId: string }>;
 };

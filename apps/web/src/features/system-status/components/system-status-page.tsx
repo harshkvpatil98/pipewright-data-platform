@@ -106,7 +106,7 @@ function RuntimePanel({ platform }: { platform: PlatformStatusResponse }) {
   return (
     <SectionPanel
       title="Runtime"
-      description="Background workers report a heartbeat each loop. A component with no fresh beat is not running — queued work will sit until it comes back."
+      description="Background workers report a heartbeat each loop. A component with no fresh beat is not running, and queued work waits until it comes back."
     >
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
         <div className="rounded-xl border border-line bg-surface px-3 py-2.5 text-sm">

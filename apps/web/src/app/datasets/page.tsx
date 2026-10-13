@@ -4,6 +4,8 @@ import { DatasetsSearchPageView } from "@/features/operator/components/datasets-
 import { serverApiFetch } from "@/lib/api/server";
 import { requireCurrentUser } from "@/lib/auth/server";
 
+export const metadata = { title: "Find a dataset" };
+
 export const dynamic = "force-dynamic";
 
 export default async function DatasetsPage() {

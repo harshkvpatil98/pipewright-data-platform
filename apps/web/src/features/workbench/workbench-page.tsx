@@ -260,7 +260,7 @@ export function WorkbenchPage({
       const created = await apiFetch<{ id: string; name: string }>(`${base}/notebooks`, {
         method: "POST",
         body: JSON.stringify({
-          name: `From the workbench — ${new Date().toLocaleString()}`,
+          name: `From the workbench, ${new Date().toLocaleString()}`,
           connection_id: connectionId || null,
           cells: [{ kind: "sql", source: text, output_name: "result" }],
         }),

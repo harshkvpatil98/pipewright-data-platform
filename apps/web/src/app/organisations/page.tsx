@@ -7,6 +7,8 @@ import { requireCurrentUser } from "@/lib/auth/server";
 import { serverApiFetch } from "@/lib/api/server";
 import type { AuthUser } from "@platform/shared-types";
 
+export const metadata = { title: "Organisations" };
+
 export default async function OrganisationsPage() {
   const currentUser = await requireCurrentUser();
 

@@ -12,8 +12,8 @@ import { formatDate } from "@/lib/format";
 import type { ApiToken, ApiTokenCreatedResponse, ApiTokenListResponse } from "@platform/shared-types";
 
 const SCOPE_HELP: Record<ApiToken["scope"], string> = {
-  read: "Read only — can fetch, cannot change anything.",
-  write: "Read and write — can create and edit, but not manage accounts.",
+  read: "Read only. Can fetch data but cannot change anything.",
+  write: "Read and write. Can create and edit, but cannot manage accounts.",
   admin: "Full access, including account administration. Use sparingly.",
 };
 
@@ -72,7 +72,7 @@ export function ApiTokensPanel() {
     if (!freshSecret) return;
     try {
       await navigator.clipboard.writeText(freshSecret);
-      toast.success("Copied", "Store it somewhere safe — it will not be shown again.");
+      toast.success("Copied", "Store it somewhere safe. It will not be shown again.");
     } catch {
       toast.info("Copy it now", "It will not be shown again.");
     }
@@ -83,7 +83,7 @@ export function ApiTokensPanel() {
       {freshSecret ? (
         <div className="rounded-xl border border-success-line bg-success-soft px-3.5 py-3">
           <div className="text-[12px] font-medium text-success">
-            Your new token — copy it now, it will not be shown again.
+            Your new token. Copy it now; it will not be shown again.
           </div>
           <div className="mt-2 flex items-center gap-2">
             <code className="flex-1 overflow-x-auto whitespace-nowrap rounded-lg bg-surface px-2.5 py-1.5 font-mono text-[12px] text-ink">

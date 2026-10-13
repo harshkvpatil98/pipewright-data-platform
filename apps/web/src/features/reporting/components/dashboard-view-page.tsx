@@ -341,7 +341,7 @@ export function DashboardViewPage({
           <Icon name="filter" size={12} className="text-muted" />
           <span className="text-[13px] font-medium text-ink-3">Filters</span>
           {activeFilters.length === 0 ? (
-            <span className="text-[12.5px] text-ink-3">None — every tile shows all of its data.</span>
+            <span className="text-[12.5px] text-ink-3">None. Every tile shows all of its data.</span>
           ) : (
             activeFilters.map((filter, index) => (
               <span
@@ -354,7 +354,7 @@ export function DashboardViewPage({
           )}
           {filtersDiffer ? (
             <span className="rounded-full border border-warning-line bg-warning-soft px-2 py-0.5 text-[10.5px] text-warning">
-              applied here only — not saved
+              applied here only, not saved
             </span>
           ) : null}
           <div className="ml-auto flex items-center gap-2">

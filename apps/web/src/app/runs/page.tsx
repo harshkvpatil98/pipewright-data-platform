@@ -4,6 +4,8 @@ import { RunsPageView } from "@/features/operator/components/runs-page";
 import { serverApiFetch } from "@/lib/api/server";
 import { requireCurrentUser } from "@/lib/auth/server";
 
+export const metadata = { title: "All runs" };
+
 export const dynamic = "force-dynamic";
 
 export default async function RunsPage() {

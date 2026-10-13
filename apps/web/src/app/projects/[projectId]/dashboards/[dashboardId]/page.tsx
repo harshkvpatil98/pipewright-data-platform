@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import type { ChartListResponse, DashboardDetail } from "@platform/shared-types";
@@ -10,6 +11,17 @@ import { requireCurrentUser } from "@/lib/auth/server";
 type PageProps = {
   params: Promise<{ projectId: string; dashboardId: string }>;
 };
+
+/** The browser tab names the dashboard, so several open side by side can be told apart. */
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { projectId, dashboardId } = await params;
+  try {
+    const record = await serverApiFetch<DashboardDetail>(`/projects/${projectId}/dashboards/${dashboardId}`);
+    return { title: record.name };
+  } catch {
+    return { title: "Dashboard" };
+  }
+}
 
 export default async function DashboardPage({ params }: PageProps) {
   const { projectId, dashboardId } = await params;

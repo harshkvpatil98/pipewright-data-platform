@@ -341,7 +341,7 @@ export function PeoplePageView({ currentUser, users: initialUsers }: PeoplePageV
         kind="account"
         requireTypedName
         consequences={[
-          "Deactivating is usually the better answer — it keeps their name on the projects and runs they own.",
+          "Deactivating is usually better. It keeps their name on the projects and runs they own.",
           "Deleting is refused while they still own any project, because a project with no owner is reachable by nobody.",
         ]}
         confirmLabel="Delete account"

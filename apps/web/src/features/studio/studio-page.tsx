@@ -388,7 +388,7 @@ export function StudioPage({
             label: `All tools${catalogue.items.length ? ` (${catalogue.items.length})` : ""}`,
             icon: "sparkles",
             prominent: true,
-            hint: "Search the whole library — or right-click a column header",
+            hint: "Search the whole library, or right-click a column header",
             disabled: !dataset || catalogue.items.length === 0,
             onClick: () => {
               setBrowserColumn(null);
@@ -1021,7 +1021,7 @@ function ExecutionPlanStrip({
         <span className="text-[12px] text-ink">
           {pushes
             ? `${plan.pushed_steps} step${plan.pushed_steps === 1 ? "" : "s"} would run in ${plan.source_type}`
-            : `All steps will run in Pipewright — a ${plan.source_type} source cannot run them at the source`}
+            : `All steps run in Pipewright, because a ${plan.source_type} source cannot run them itself`}
         </span>
         {plan.local_steps > 0 ? (
           <span className="tabular text-[11px] text-muted">

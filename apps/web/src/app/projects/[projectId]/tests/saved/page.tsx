@@ -6,6 +6,8 @@ import { serverApiFetch } from "@/lib/api/server";
 import { requireCurrentUser } from "@/lib/auth/server";
 import type { SavedStatisticalTestListResponse } from "@platform/shared-types";
 
+export const metadata = { title: "Comparisons" };
+
 type PageProps = {
   params: Promise<{ projectId: string }>;
   searchParams: Promise<{ left?: string; right?: string }>;

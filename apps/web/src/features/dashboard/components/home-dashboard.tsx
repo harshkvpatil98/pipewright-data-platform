@@ -364,7 +364,7 @@ export function HomeDashboard({
                               title={
                                 component.healthy
                                   ? "Beating normally"
-                                  : "No recent heartbeat — this component is not running"
+                                  : "No recent heartbeat, so this part is not running"
                               }
                             >
                               <span

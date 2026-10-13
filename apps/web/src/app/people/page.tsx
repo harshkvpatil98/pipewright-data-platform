@@ -3,6 +3,8 @@ import { requireCurrentUser } from "@/lib/auth/server";
 import { serverApiFetch } from "@/lib/api/server";
 import type { AuthUser } from "@platform/shared-types";
 
+export const metadata = { title: "Accounts" };
+
 export default async function PeoplePage() {
   const currentUser = await requireCurrentUser();
   const response = await serverApiFetch<{ items: AuthUser[] }>("/auth/users");

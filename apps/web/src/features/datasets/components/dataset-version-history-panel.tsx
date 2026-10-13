@@ -365,7 +365,7 @@ export function DatasetVersionHistoryPanel({
       <Modal
         open={viewing !== null}
         title={viewing ? `Version ${viewing.version_number}` : "Version"}
-        description="The data as it was published in this version — a snapshot, not the current head."
+        description="The data as it was in this version. This is a snapshot, not the latest data."
         onClose={() => setViewing(null)}
         widthClassName="max-w-4xl"
         footer={
@@ -456,7 +456,7 @@ export function DatasetVersionHistoryPanel({
           <p className="text-[12.5px] text-muted">Comparing…</p>
         ) : diff.identical ? (
           <p className="text-[12.5px] text-success">
-            The two versions hold identical data — answered from the content digests.
+            The two versions hold identical data. Their content fingerprints match.
           </p>
         ) : (
           <div className="space-y-3">
@@ -593,7 +593,7 @@ export function DatasetVersionHistoryPanel({
       <Modal
         open={restoring !== null}
         title={restoring ? `Restore version ${restoring.version_number}` : "Restore"}
-        description="Restoring appends a new version whose data is this snapshot's. Nothing is rewritten or lost — the versions after it stay in the history."
+        description="Restoring appends a new version whose data is this snapshot's. Nothing is rewritten or lost. The versions after it stay in the history."
         onClose={() => setRestoring(null)}
         footer={
           <div className="flex items-center gap-2">

@@ -7,6 +7,8 @@ import { ApiError } from "@/lib/api/errors";
 import { requireCurrentUser } from "@/lib/auth/server";
 import { serverApiFetch } from "@/lib/api/server";
 
+export const metadata = { title: "New recipe" };
+
 type NewPipelinePageProps = {
   params: Promise<{ projectId: string }>;
   searchParams?: Promise<{ sourceDatasetId?: string; starterSteps?: string }>;

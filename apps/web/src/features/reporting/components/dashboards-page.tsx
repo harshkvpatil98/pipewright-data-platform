@@ -170,7 +170,7 @@ export function DashboardsPageView({
       );
       if (updated.share_token) {
         await copyLink(updated.share_token);
-        setFeedback(`${updated.name} is now shared — link copied to your clipboard.`);
+        setFeedback(`${updated.name} is now shared. The link is copied to your clipboard.`);
       }
     } catch (caught) {
       setError(extractErrorMessage(caught));
@@ -404,7 +404,7 @@ export function DashboardsPageView({
       <Modal
         open={editing !== null}
         title="Rename dashboard"
-        description="Changes the label only — the tiles on it are left exactly as they are."
+        description="Changes the name only. The tiles on it stay exactly as they are."
         onClose={() => setEditing(null)}
         widthClassName="max-w-md"
       >

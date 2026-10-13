@@ -6,6 +6,8 @@ import { serverApiFetch } from "@/lib/api/server";
 import { requireCurrentUser } from "@/lib/auth/server";
 import type { ExternalNotificationTargetListResponse } from "@platform/shared-types";
 
+export const metadata = { title: "Alerts" };
+
 type PageProps = {
   params: Promise<{ projectId: string }>;
 };

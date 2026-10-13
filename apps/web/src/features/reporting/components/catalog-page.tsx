@@ -186,7 +186,7 @@ export function CatalogPageView({
 
       <SectionPanel
         title="Glossary"
-        description="What a word means here, bound to the columns that hold it — so 'revenue' means one thing."
+        description="What a word means here, tied to the columns that hold it, so “revenue” means one thing."
       >
         {terms.items.length === 0 ? (
           <p className="text-[12.5px] text-muted">

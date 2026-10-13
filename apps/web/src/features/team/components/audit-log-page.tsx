@@ -82,7 +82,7 @@ export function AuditLogPageView({ currentUser, projectId, initial }: AuditLogPa
 
         {data.items.length === 0 ? (
           <p className="rounded-xl border border-line px-4 py-8 text-center text-[12.5px] text-muted">
-            Nothing recorded yet. Reads are not audited — only requests that could change something.
+            Nothing recorded yet. Only requests that could change something are recorded, not reads.
           </p>
         ) : (
           <div className="overflow-x-auto">

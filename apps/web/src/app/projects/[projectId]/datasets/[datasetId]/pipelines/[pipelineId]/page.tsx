@@ -7,6 +7,8 @@ import { ApiError } from "@/lib/api/errors";
 import { requireCurrentUser } from "@/lib/auth/server";
 import { serverApiFetch } from "@/lib/api/server";
 
+export const metadata = { title: "Recipe" };
+
 type DatasetPipelineEditorPageProps = {
   params: Promise<{ projectId: string; datasetId: string; pipelineId: string }>;
 };

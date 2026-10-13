@@ -3,6 +3,8 @@ import { requireCurrentUser } from "@/lib/auth/server";
 import { serverApiFetch } from "@/lib/api/server";
 import type { ChartListResponse, DashboardListResponse } from "@platform/shared-types";
 
+export const metadata = { title: "Dashboards" };
+
 type DashboardsPageProps = {
   params: Promise<{ projectId: string }>;
 };

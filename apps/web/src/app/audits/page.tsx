@@ -5,6 +5,8 @@ import { ApiError } from "@/lib/api/errors";
 import { serverApiFetch } from "@/lib/api/server";
 import { requireCurrentUser } from "@/lib/auth/server";
 
+export const metadata = { title: "Audit (all projects)" };
+
 export const dynamic = "force-dynamic";
 
 export default async function AuditsPage() {

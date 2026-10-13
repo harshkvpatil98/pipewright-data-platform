@@ -6,6 +6,8 @@ import { serverApiFetch } from "@/lib/api/server";
 import { requireCurrentUser } from "@/lib/auth/server";
 import type { DatasetComparisonSummary } from "@platform/shared-types";
 
+export const metadata = { title: "Compare datasets" };
+
 type PageProps = {
   params: Promise<{ projectId: string; datasetId: string; otherDatasetId: string }>;
 };

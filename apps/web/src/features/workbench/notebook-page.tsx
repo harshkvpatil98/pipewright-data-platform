@@ -291,7 +291,7 @@ export function NotebookPage({
               onChange={(event) => setConnectionId(event.target.value || null)}
               className="w-56"
             >
-              <option value="">None — Python and recipes only</option>
+              <option value="">None (Python and recipes only)</option>
               {connections.map((connection) => (
                 <option key={connection.id} value={connection.id}>
                   {connection.name}

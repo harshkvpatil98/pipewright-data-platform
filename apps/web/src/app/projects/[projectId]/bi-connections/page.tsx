@@ -6,6 +6,8 @@ import { serverApiFetch } from "@/lib/api/server";
 import { requireCurrentUser } from "@/lib/auth/server";
 import type { BiIntegrationListResponse } from "@platform/shared-types";
 
+export const metadata = { title: "BI tools" };
+
 type PageProps = {
   params: Promise<{ projectId: string }>;
 };

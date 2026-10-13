@@ -47,8 +47,8 @@ export function IngestReviewPanel({ analysis, spec, onSpecChange }: Props) {
     <div className="space-y-4">
       {analysis.matched_spec ? (
         <div className="rounded-2xl border border-info-line bg-info-soft px-4 py-3 text-sm text-info">
-          Read the way <strong>{analysis.matched_spec.label}</strong> says to — a saved
-          setting used {analysis.matched_spec.use_count} time
+          Read the way <strong>{analysis.matched_spec.label}</strong> says to. That saved
+          setting was used {analysis.matched_spec.use_count} time
           {analysis.matched_spec.use_count === 1 ? "" : "s"} before. Change anything below
           and it applies to this file only unless you save it again.
         </div>
@@ -60,7 +60,7 @@ export function IngestReviewPanel({ analysis, spec, onSpecChange }: Props) {
             {questions.length} question{questions.length === 1 ? "" : "s"} only you can answer
           </h4>
           <p className="mt-1 text-[12.5px] leading-5 text-danger">
-            The file genuinely does not say. Nothing is imported until these are settled —
+            The file genuinely does not say. Nothing is imported until these are settled, because
             guessing would produce a table that looks right and is not.
           </p>
           <ul className="mt-3 space-y-3">
@@ -242,7 +242,7 @@ export function IngestReviewPanel({ analysis, spec, onSpecChange }: Props) {
 
       <section>
         <h4 className="mb-2 text-sm font-semibold text-ink">
-          Preview — the first {analysis.preview.rows.length} row
+          Preview: the first {analysis.preview.rows.length} row
           {analysis.preview.rows.length === 1 ? "" : "s"}, read the way above
         </h4>
         <div className="max-h-64 overflow-auto rounded-2xl border border-line">

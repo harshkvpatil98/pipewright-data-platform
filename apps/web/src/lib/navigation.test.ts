@@ -61,6 +61,14 @@ describe("the navigation tree", () => {
     expect(orphans).toEqual([]);
   });
 
+  it("gives every page a name for the browser tab", () => {
+    const untitled = routes
+      .filter(({ file }) => !isRedirectOnly(file))
+      .filter(({ file }) => !/export (const metadata|async function generateMetadata)/.test(readFileSync(file, "utf8")))
+      .map(({ route }) => route);
+    expect(untitled).toEqual([]);
+  });
+
   it("points every tab at a page that exists", () => {
     const known = new Set(routes.map(({ route }) => route));
     const missing: string[] = [];

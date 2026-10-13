@@ -251,7 +251,7 @@ function ConnectorWatchPanel({ projectId }: { projectId: string }) {
   return (
     <SectionPanel
       title="Connector schema watch"
-      description="Re-reads each connection's schema and compares it with the last one seen. Run it on a schedule — create a “Connector schema watch” schedule — and a vendor changing an API becomes an incident rather than a pipeline failing overnight."
+      description="Re-reads each connection's schema and compares it with the last one seen. Put it on a “Connector schema watch” schedule and a vendor changing an API becomes an incident, not a recipe failing overnight."
     >
       {error ? (
         <div className="mb-3 rounded-2xl border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger">
@@ -267,7 +267,7 @@ function ConnectorWatchPanel({ projectId }: { projectId: string }) {
           {busy === "run" ? "Running…" : "Run the watch now"}
         </Button>
         <span className="text-[11.5px] text-muted">
-          Checking records nothing and opens no incidents — useful the first time, when
+          Checking records nothing and opens no incidents. Useful the first time, when
           everything looks like a change.
         </span>
       </div>

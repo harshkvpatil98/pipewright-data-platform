@@ -388,7 +388,7 @@ export function OrganisationsPageView({
         kind="organisation"
         requireTypedName
         consequences={[
-          "Refused while it still holds any project or member — move them first.",
+          "Not allowed while it still holds a project or member. Move them first.",
           "Nothing in the database enforces this: `organisation_id` has no foreign key, so leftover rows would point at a tenant that no longer exists and match nothing.",
         ]}
         confirmLabel="Delete organisation"

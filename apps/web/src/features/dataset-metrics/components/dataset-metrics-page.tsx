@@ -268,7 +268,7 @@ export function DatasetMetricsPageView({
                     ? ` (${Math.round(policy.last_age_minutes)} minutes old)`
                     : ""
                 }.`
-              : "Not checked yet — run a freshness check from the incidents page."}
+              : "Not checked yet. Run a freshness check from the incidents page."}
           </p>
         ) : (
           <p className="mt-3 text-[12px] text-muted">

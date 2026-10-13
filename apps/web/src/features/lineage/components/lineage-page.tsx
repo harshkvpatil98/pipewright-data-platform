@@ -88,7 +88,7 @@ export function LineagePageView({
 
       <SectionPanel
         title="How this dataset came to exist"
-        description="Upstream to the left, downstream to the right. Dashed edges are joins and unions — a second input rather than the main one."
+        description="Upstream to the left, downstream to the right. Dashed lines are joins and unions: a second input rather than the main one."
       >
         <LineageGraph lineage={initial} />
         {initial.notes.length > 0 ? (

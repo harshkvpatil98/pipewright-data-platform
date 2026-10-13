@@ -89,7 +89,7 @@ export function PolicySimulationPanel({
   return (
     <SectionPanel
       title="Policy simulation"
-      description="See exactly what a role — or a specific person — would see on a dataset, before you grant it."
+      description="See exactly what a role, or one person, would see on a dataset before you grant it."
     >
       <div className="flex flex-wrap items-end gap-3">
         <label className="flex flex-col gap-1 text-[11px] uppercase tracking-[0.14em] text-muted">

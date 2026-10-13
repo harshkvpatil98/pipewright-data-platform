@@ -221,7 +221,7 @@ export function UploadDatasetModal({ open, onClose, projectId }: UploadDatasetMo
           <div className="mb-2 text-sm font-medium text-ink">Source file</div>
           <p className="mb-3 text-xs leading-5 text-ink-3">
             Spreadsheets, delimited text, JSON, XML, Parquet, Avro, ORC, SQL dumps and the
-            statistical formats — compressed or not. Maximum size:{" "}
+            statistical formats, compressed or not. Maximum size:{" "}
             {formatBytes(appConfig.maxUploadSizeBytes)}. The contents decide the format, so a
             file with the wrong extension still reads correctly.
           </p>

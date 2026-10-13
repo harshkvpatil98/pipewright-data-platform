@@ -97,6 +97,8 @@ class ExternalNotificationTarget(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     config_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     subscribed_event_types_json: Mapped[list[Any]] = mapped_column(JSON, nullable=False)
+    #: When this target was last sent the weekly summary (A6, W6); NULL means never.
+    last_summary_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_by_user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )

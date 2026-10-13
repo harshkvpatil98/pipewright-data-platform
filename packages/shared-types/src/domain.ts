@@ -1175,7 +1175,7 @@ export type NotificationPreference = {
   category: string;
   label: string;
   description: string;
-  mode: "each" | "digest" | "off";
+  mode: "each" | "digest" | "weekly" | "off";
   default: string;
 };
 
@@ -1192,6 +1192,10 @@ export type UserNotificationListResponse = {
 export type ExternalNotificationTargetType = "email" | "slack_webhook";
 
 export const EXTERNAL_NOTIFICATION_EVENT_TYPES = [
+  "incident_opened",
+  "workflow_run_failed",
+  "workflow_run_partial",
+  "weekly_summary",
   "schedule_run_failed",
   "schedule_run_succeeded",
   "dataset_publish_failed",

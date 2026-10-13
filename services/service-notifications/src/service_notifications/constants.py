@@ -8,6 +8,12 @@ ALLOWED_EXTERNAL_NOTIFICATION_EVENT_TYPES: frozenset[str] = frozenset(
         "dataset_publish_succeeded",
         "transformation_run_failed",
         "transformation_run_succeeded",
+        # A6 (W6): the failures nobody was told about outside the app, and a
+        # weekly round-up for whoever wants the trend rather than each event.
+        "incident_opened",
+        "workflow_run_failed",
+        "workflow_run_partial",
+        "weekly_summary",
     }
 )
 

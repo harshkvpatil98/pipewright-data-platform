@@ -214,37 +214,68 @@ def report(
     db.add(incident)
     db.flush()
     _add_event(db, incident, kind="opened", message=summary or title)
-    _notify_owner(db, incident)
+    _notify_people(db, incident)
     db.flush()
     return incident
 
 
-def _notify_owner(db: Session, incident: Incident) -> None:
-    """Tell someone an incident opened.
+#: Roles that can act on an incident: acknowledge, assign or resolve it.
+ACTING_ROLES = ("operator", "editor", "admin")
 
-    An incident nobody is told about is a list nobody opens. Only the *first*
-    occurrence notifies -- a nightly failure that has already been reported
-    should not send a message every night, which is how people learn to filter
-    the whole channel away.
 
-    Best effort: failing to notify must never roll back the incident itself.
+def _notify_people(db: Session, incident: Incident) -> None:
+    """Tell everyone who can act on it that an incident opened (A6, W6).
+
+    In the app: the project's owner and every member who can acknowledge or
+    resolve it, each as their notification preferences say. Outside it: the
+    project's email and Slack targets subscribed to "incident_opened", once.
+    It used to reach only the owner, in the app, so an incident at night
+    waited for whoever happened to look next.
+
+    Only the *first* occurrence notifies -- a nightly failure that has already
+    been reported should not send a message every night, which is how people
+    learn to filter the whole channel away. Best effort: failing to notify
+    must never roll back the incident itself.
     """
     try:
+        from sqlalchemy import select
+
+        from service_access.models import ProjectMembership
+        from service_notifications.external_dispatch import dispatch_external_notifications
         from service_notifications.service import create_user_notification
         from service_projects.models import Project
 
         project = db.get(Project, incident.project_id)
-        if project is None or project.owner_user_id is None:
+        if project is None:
             return
-
-        create_user_notification(
+        people = {project.owner_user_id} if project.owner_user_id else set()
+        people.update(
+            db.scalars(
+                select(ProjectMembership.user_id).where(
+                    ProjectMembership.project_id == incident.project_id,
+                    ProjectMembership.role.in_(ACTING_ROLES),
+                )
+            ).all()
+        )
+        level = "error" if incident.severity in ("critical", "high") else "warning"
+        message = incident.summary or "An automated check failed."
+        for user_id in sorted(people, key=str):
+            create_user_notification(
+                db,
+                user_id=user_id,
+                project_id=incident.project_id,
+                type="incident",
+                level=level,
+                title=incident.title,
+                message=message,
+            )
+        dispatch_external_notifications(
             db,
-            user_id=project.owner_user_id,
             project_id=incident.project_id,
-            type="incident",
-            level="error" if incident.severity in ("critical", "high") else "warning",
-            title=incident.title,
-            message=incident.summary or "An automated check failed.",
+            event_type="incident_opened",
+            title=f"Incident: {incident.title}",
+            message=f"{message} Severity: {incident.severity}.",
+            level=level,
         )
     except Exception:  # noqa: BLE001 - see docstring
         logger.exception("incident_notify_failed incident_id=%s", incident.id)

@@ -10,9 +10,11 @@ logger = get_logger(__name__)
 
 
 def _payload_text(*, title: str, message: str, level: str, event_type: str | None) -> str:
+    from service_notifications.event_words import event_words, level_words
+
     parts = [f"*{title}*", message]
     if event_type:
-        parts.append(f"_event: `{event_type}` · level: {level}_")
+        parts.append(f"_{event_words(event_type)} · {level_words(level)}_")
     return "\n\n".join(parts)
 
 

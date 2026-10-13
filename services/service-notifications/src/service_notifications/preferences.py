@@ -1,4 +1,4 @@
-"""Which notifications a person sees one by one, as a daily summary, or not at all.
+"""Which notifications a person sees one by one, as a daily or weekly summary, or not at all.
 
 Every manual run, scheduled run and report used to write its own in-app
 notification, and a busy account collected seventy unread messages that said
@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 from service_notifications.models import NotificationPreference
 from shared_python.errors import BadRequestError
 
-MODES = ("each", "digest", "off")
+MODES = ("each", "digest", "weekly", "off")
 
 
 @dataclass(frozen=True)

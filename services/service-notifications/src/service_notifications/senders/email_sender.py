@@ -21,9 +21,11 @@ def send_email_event_message(
     level: str,
     event_type: str,
 ) -> tuple[bool, str]:
+    from service_notifications.event_words import event_words, level_words
+
     prefix = (config.get("subject_prefix") or "").strip()
-    subject = f"{prefix} [{level.upper()}] {title}" if prefix else f"[{level.upper()}] {title}"
-    body = f"Event: {event_type}\n\n{message}"
+    subject = f"{prefix} {title}" if prefix else title
+    body = f"{event_words(event_type)} · {level_words(level)}\n\n{message}"
     return _send_email(config=config, subject=subject[:900], body=body)
 
 

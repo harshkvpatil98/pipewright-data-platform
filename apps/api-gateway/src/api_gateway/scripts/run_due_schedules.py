@@ -110,6 +110,21 @@ def _sweep_dataset_versions() -> None:
         db.close()
 
 
+def _sweep_weekly_summaries() -> None:
+    """Send the weekly summaries that are due (A6, W6). Best effort."""
+    from service_notifications.weekly import send_weekly_summaries
+
+    db = SessionLocal()
+    try:
+        sent = send_weekly_summaries(db)
+        if sent:
+            logger.info("weekly_summaries attempted=%s", sent)
+    except Exception:  # noqa: BLE001 - a sweep failure must not stop the ticker
+        logger.exception("weekly_summary_sweep_failed")
+    finally:
+        db.close()
+
+
 def _sweep_streams() -> None:
     """Poll every change-data-capture source and materialise what arrived.
     Micro-batch: this loop's interval is the latency. Best effort."""
@@ -157,6 +172,7 @@ def main() -> None:
         _sweep_audit()
         _sweep_dataset_versions()
         _sweep_streams()
+        _sweep_weekly_summaries()
         try:
             summary = _drain_once()
             if summary.triggered_count or summary.failure_count:

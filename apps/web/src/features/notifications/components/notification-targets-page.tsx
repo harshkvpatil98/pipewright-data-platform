@@ -34,6 +34,10 @@ import { formatDate } from "@/lib/format";
 import { channelLabel } from "@/lib/labels";
 
 const EVENT_LABELS: Record<string, string> = {
+  incident_opened: "An incident opened",
+  workflow_run_failed: "A workflow failed",
+  workflow_run_partial: "A workflow finished with problems",
+  weekly_summary: "A weekly summary of the project",
   schedule_run_failed: "A scheduled run failed",
   schedule_run_succeeded: "A scheduled run finished",
   dataset_publish_failed: "A delivery failed",

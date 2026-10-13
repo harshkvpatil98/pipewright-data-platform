@@ -28,12 +28,21 @@ _DIGEST_NOUNS = {
 }
 
 
-def _digest_title(category: str, count: int) -> str:
-    """The running count a daily summary shows as its title."""
+def _digest_title(category: str, count: int, period: str = "today") -> str:
+    """The running count a daily or weekly summary shows as its title."""
     if category == "successes":
-        return f"{count} run{'' if count == 1 else 's'} finished without problems today"
+        return f"{count} run{'' if count == 1 else 's'} finished without problems {period}"
     one, many = _DIGEST_NOUNS.get(category, ("update", "updates"))
-    return f"{count} {one if count == 1 else many} today"
+    return f"{count} {one if count == 1 else many} {period}"
+
+
+def _summary_period(mode: str) -> tuple[str, str]:
+    """The group a summary row collects into, and how its title names the period."""
+    now = datetime.now(UTC)
+    if mode == "weekly":
+        year, week, _day = now.isocalendar()
+        return f"{year}-W{week:02d}", "this week"
+    return now.date().isoformat(), "today"
 
 
 def create_user_notification(
@@ -65,8 +74,10 @@ def create_user_notification(
         return None
 
     group_key: str | None = None
-    if mode == "digest":
-        group_key = f"digest:{category}:{project_id or 'all'}:{datetime.now(UTC).date().isoformat()}"
+    summary = mode in ("digest", "weekly")
+    period_key, period = _summary_period(mode)
+    if summary:
+        group_key = f"{mode}:{category}:{project_id or 'all'}:{period_key}"
     elif level in {"error", "warning"}:
         subject = related_schedule_id or related_pipeline_id or related_dataset_id
         if subject is not None:
@@ -76,14 +87,14 @@ def create_user_notification(
         query = select(UserNotification).where(
             UserNotification.user_id == user_id, UserNotification.group_key == group_key
         )
-        if mode != "digest":
+        if not summary:
             # A repeat after the person has read the first is news again.
             query = query.where(UserNotification.is_read.is_(False))
         existing = db.scalars(query.limit(1)).first()
         if existing is not None:
             existing.group_count = (existing.group_count or 1) + 1
-            if mode == "digest":
-                existing.title = _digest_title(category, existing.group_count)
+            if summary:
+                existing.title = _digest_title(category, existing.group_count, period)
                 existing.message = f"Latest: {title}. {message}".strip()[:4000]
             else:
                 existing.title = title[:240]
@@ -98,10 +109,10 @@ def create_user_notification(
     row = UserNotification(
         user_id=user_id,
         project_id=project_id,
-        type=f"digest_{category}" if mode == "digest" else type,
+        type=f"digest_{category}" if summary else type,
         level=level,
-        title=(_digest_title(category, 1) if mode == "digest" else title)[:240],
-        message=(f"Latest: {title}. {message}".strip()[:4000] if mode == "digest" else message),
+        title=(_digest_title(category, 1, period) if summary else title)[:240],
+        message=(f"Latest: {title}. {message}".strip()[:4000] if summary else message),
         related_run_id=related_run_id,
         related_schedule_id=related_schedule_id,
         related_dataset_id=related_dataset_id,

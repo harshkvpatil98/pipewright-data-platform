@@ -11,6 +11,7 @@ import { cx } from "@/lib/utils";
 const MODE_LABELS: Record<NotificationPreference["mode"], string> = {
   each: "Each one",
   digest: "Daily summary",
+  weekly: "Weekly summary",
   off: "Off",
 };
 

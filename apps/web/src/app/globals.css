@@ -1,4 +1,8 @@
 @import "tailwindcss";
+/* Tailwind only scans this app by default; the shared components live in
+   packages/shared-ui, and a class used only there (the empty state's 48px
+   icon tile, for one) was never generated. */
+@source "../../../../packages/shared-ui/src";
 
 /*
  * Pipewright design tokens.

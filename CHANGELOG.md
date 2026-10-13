@@ -13,6 +13,38 @@ the test counts at the time — is in the session log in
 
 ---
 
+## A6 — trust, help and support for buyers (2026-10-14)
+
+- **Help inside the product**: `/help`, built from `docs/user/` with the
+  app: getting started, a page per area, a glossary, an admin guide, a
+  security page in questionnaire form, an API guide and What's new. The Help
+  menu has Documentation, What's new and Contact support (`SUPPORT_CONTACT`);
+  each tab's "About this page" links to its section.
+- **An API guide that is run by a test**: signing in with a token and three
+  worked examples, executed against the API on every change.
+- **Policies everywhere**: row and column policies hold on every read path,
+  not only downloads: the dataset page, versions, SQL, charts, dashboards
+  and their public links, the Studio, the assistant, comparisons and
+  deliveries.
+- **What a security review asks for**: network allow-lists per organisation
+  (sign-in, sessions and API tokens), a stated session policy, stored files
+  encrypted at rest with a key and a command to encrypt existing files,
+  browser security headers, and System status saying which are on.
+  `docs/security.md` rewritten to what ships; `scripts/check-oidc.py` checks
+  single sign-on against a real provider.
+- **Failures reach people**: incidents and failed workflows go to the
+  project's email and Slack, everyone who can act hears in the app, and a
+  weekly summary joins "each" and "daily summary".
+- **A connector catalogue that reassures**: the 50 tested connectors first,
+  the rest "Available on request" with how validation works, and tier words
+  that say what was tested.
+- **Fixed**: single sign-on did not check an ID token's nonce and trusted the
+  token's own algorithm; buttons and links ignored their size, weight and
+  colour classes app-wide; a workflow with an unfilled task said "ready to
+  run", and its Deliver task wrote to PostgreSQL only; the add-a-task
+  buttons sat off-screen; a malformed link crashed instead of saying "not
+  found"; platform roles showed raw codes.
+
 ## A5 — copy, design system and consistency (2026-10-14)
 
 - **Every screen in the product's words**: recipe, import, check, schema

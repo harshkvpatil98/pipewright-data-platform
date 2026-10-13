@@ -9,8 +9,8 @@ read-only audits of the code (information architecture and copy; feature
 coverage against what a data-platform buyer expects). Every number below was
 measured, not estimated.
 
-**Status:** **A0 and A1 done (2026-10-13); A2 to A5 done (2026-10-14); A6
-(trust, help and support for buyers) is next.** Each phase's "What shipped" note below says what was delivered, what
+**Status:** **A0 and A1 done (2026-10-13); A2 to A6 done (2026-10-14); A7
+(scale and reliability) is next.** Each phase's "What shipped" note below says what was delivered, what
 was measured, and what moved to a later phase. `docs/HANDOFF.md` records the
 session.
 
@@ -1249,7 +1249,7 @@ linted yet.
 
 ---
 
-## A6 — Trust, help and support for buyers
+## A6 — Trust, help and support for buyers *(done 2026-10-14)*
 
 **Why.** §0 blocker 5, §7, D1, D11.
 
@@ -1335,6 +1335,81 @@ provided and the gap stays stated until someone runs it.
 
 **W8. Defects.** D1 to D20 re-checked live, plus anything found on the way
 (a REST import labelled "Database import"); nothing found is left open.
+
+**What shipped.**
+
+- **W1, policies on every read.** `service_enterprise/policy_view.py` gives
+  each read path one call that narrows rows, columns, previews, profiles and
+  schemas for the reader's role. The dataset page (detail, preview, profile,
+  versions, audit summary), SQL over a version, charts, pivots and
+  dashboards (public links read as a viewer), the Studio preview and the
+  datasets it joins, the assistant, comparisons and statistical tests,
+  downloads and every delivery use it. `test_policies_everywhere.py` calls
+  each path as a restricted reader; all six of its tests fail with policies
+  switched off.
+- **W2, help inside the product.** `/help` renders `docs/user/` (12 pages:
+  getting started, one per area, glossary, admin guide, security, API guide,
+  What's new) with the app, readable signed in or not. The Help menu gained
+  Documentation, What's new and Contact support (`SUPPORT_CONTACT`, served
+  by `GET /status/support`); every tab's "About this page" links to its
+  section. `help.test.ts` holds the pages to the navigation (every link and
+  every tab's section exists) and to the app's word rules.
+- **W3, the API guide, run by a test.** Signing in with a token and three
+  worked examples as curl commands; `test_api_guide.py` runs every example,
+  in order, against the API and checks every request the guide names exists
+  in the published reference.
+- **W4, a catalogue that reassures.** The 50 tested connectors are the
+  catalogue; the 161 others sit under "Available on request" with how
+  validation works. Tiers read "Tested", "Tested live", "Tested on a
+  recording" and "Not yet tested", each saying what was run; untested is
+  plain, not amber. Nothing untested reads as tested, and a run from an
+  untested source still says so.
+- **W5, what a security review asks for.** Network allow-lists per
+  organisation (sign-in, sessions, SSO, renewal and API tokens refused from
+  outside, with the reason; a list that would lock out its saver is
+  refused); `TRUSTED_PROXY_HOPS`; the session policy stated in Your settings
+  and System status; stored files encrypted with AES-256-GCM when
+  `STORAGE_ENCRYPTION_KEY` is set, `platform-encrypt-storage` for existing
+  files; System status's Security panel says which are on.
+- **W6, failures reach people.** Incidents reach the owner and every
+  operator, editor and admin in the app, and the project's email and Slack
+  targets once; failed and partial workflows reach the targets; a weekly
+  summary joins "each" and "daily summary". Messages read in words.
+- **W7, security overview, true and complete.** `docs/security.md`
+  rewritten to what ships, and the questionnaire-style page in the help.
+  `scripts/check-oidc.py` checks a configured provider end to end (with
+  `--sign-in`, a real sign-in that writes nothing), tested against a provider
+  served locally. Browser security headers on every page and API answer.
+- **W8, defects.** D1 to D20 re-checked live: all hold. Found on the way and
+  fixed: SSO never compared the ID token's nonce and trusted the token's own
+  algorithm (four tests, all failing on the old code); unlayered element
+  rules in `globals.css` cancelled every button's size and weight and every
+  link's colour (a test now fails on any); a workflow with an unfilled task
+  read "ready to run", and tasks now say what they need; the workflow
+  Deliver task wrote to PostgreSQL only while offering every destination;
+  the add-a-task buttons sat off-screen at laptop widths; four pages drew
+  an Office-style ribbon; a side panel squeezed the tab strip; a malformed id
+  in an address crashed instead of reading "not found"; platform roles
+  showed raw codes and the Accounts table overflowed; the audit middleware
+  wrote tests' requests into the configured database.
+
+**Measured.**
+
+| | Before | After |
+|---|---|---|
+| Read paths applying row and column policies | 1 of 10 | 10 of 10 (tested) |
+| Events that can reach email or Slack | 6 | 10 |
+| Help pages inside the product | 0 | 12, each tab linked to its section |
+| Help menu: documentation, support contact, What's new | none | all three |
+| API guide requests run against the API by a test | 0 | 12, in order |
+| Connectors shown by default | 211 (161 "Unverified") | 50 tested; 161 on request |
+| Questionnaire sections answerable with links | identity (SSO unproven), audit | identity, sessions, network, encryption, audit, data handling |
+| Pages walked in the browser with a problem (47 checked) | 6 | 0 (Workflows and Schedules rightly say no worker is running here) |
+
+**Not done here, and stated.** OIDC against a live identity provider: no
+tenant exists on this machine; the script that does it is provided and the
+gap stays in `docs/security.md` until someone runs it. Rate limiting moves
+to A7 as planned. A content security policy is left to the proxy.
 
 ---
 

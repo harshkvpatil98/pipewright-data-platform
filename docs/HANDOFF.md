@@ -4,8 +4,8 @@
 last one stopped. Keep it current. If you change project state, update the **Progress ledger**
 and **Session log** at the bottom before you finish.
 
-**Last updated:** 2026-10-14 (adoption-readiness A0–A5 complete)
-**Updated by:** session `75332b59` (A0 product definition and quick wins, A1 navigation and shell, A2 golden path, A3 Studio, A4 sources and destinations, A5 copy and design system)
+**Last updated:** 2026-10-14 (adoption-readiness A0–A6 complete)
+**Updated by:** session `75332b59` (A0 product definition and quick wins, A1 navigation and shell, A2 golden path, A3 Studio, A4 sources and destinations, A5 copy and design system, A6 trust, help and support)
 
 ---
 
@@ -113,7 +113,7 @@ was for that push, not a standing one.
 | 06 | Intelligence | `service-intelligence` | PII, join keys, entity resolution — **no model calls** |
 | 07 | Enterprise | `service-enterprise` | Tenancy, row/column security, retention, SSO, `/metrics` |
 
-**Migrations:** `apps/api-gateway/alembic/versions/`, 48 files, head is `0048_imports_from_any_connector`.
+**Migrations:** `apps/api-gateway/alembic/versions/`, 50 files, head is `0050_weekly_summaries`.
 
 ### Roadmap v2: in progress
 
@@ -177,6 +177,17 @@ production-readiness P9; the progress ledger in §8 tracks the rest.
 - **A connector that fetches URLs refuses 127.0.0.1 by default.** Set
   `OUTBOUND_ALLOW_LOOPBACK=true` for a local API in development; the connector
   tests' `conftest.py` sets it for their loopback servers.
+- **Sourcing `.env` in a shell breaks `BACKEND_CORS_ORIGINS`**: the quotes
+  inside its JSON list are stripped, and pydantic then fails to parse it.
+  Export it again as JSON after sourcing (the CLI scripts read `.env` through
+  pydantic directly and are fine).
+- **In zsh, `path` is `PATH`.** A loop variable called `path` empties the
+  shell's search path for the rest of the command.
+- **A test that overrides `get_db` also moves the audit log** (A6): the audit
+  middleware writes through the same override, so tests no longer write
+  their requests into the configured database.
+- **The API answers 422 for a malformed id in a path**; the web app's
+  `parseApiResponse` turns that into 404, so pages show "not found".
 
 ---
 
@@ -187,10 +198,10 @@ honesty; if you verify one, update its status here.
 
 | Gap | Why |
 |---|---|
-| 161 of 211 connectors are tier 4 | Written from vendor documentation and never executed here. Said on every card, in the config form, in the connection test and in the run's warnings — which is the design, not a gap to close by relaxing the claim |
+| 161 of 211 connectors are tier 4 ("Not yet tested") | Written from vendor documentation and never executed here. Since A6 they sit under "Available on request" in the catalogue; each still says so on its card, in the config form, in the connection test and in the run's warnings — the design, not a gap to close by relaxing the claim |
 | Tier 3 ("Recorded") is empty | It means replaying a *captured real session*, and there are no credentials on this machine for any of these vendors. Fabricating a recording would be the exact failure the tier system prevents |
 | 5 SaaS connectors never run live | Stripe/HubSpot/Shopify/Salesforce/Sheets — no credentials on this machine |
-| OIDC network legs never run | Token exchange + JWKS written to spec; no IdP available |
+| OIDC never run against a live provider | No identity provider tenant on this machine. `scripts/check-oidc.py` checks a configured provider end to end (with `--sign-in`, a real sign-in that writes nothing) and is itself tested against a provider served locally; run it before relying on SSO |
 | SAML absent | Needs `xmlsec`; a SAML that skips signature checking is an auth bypass |
 | 5 warehouse connectors driver-gated | Snowflake/BigQuery/Redshift/SQL Server/Oracle declare `test` only |
 | Email and Slack delivery unverified against a real server | Report delivery, emailed invitations and reset codes are implemented and tested with captured senders; this machine has no SMTP server or reachable webhook, so live runs record the stated failure per channel — set `EXTERNAL_NOTIFICATION_SMTP_*` and a real webhook to exercise them |
@@ -202,7 +213,6 @@ honesty; if you verify one, update its status here.
 | Notebooks run in the request, not on the worker | Bounded instead: 15s per Python cell, a SQL statement timeout, 120s for the whole notebook. A queue would add a job table, a worker node type and client polling for the same result |
 | PDF table extraction absent | Needs camelot or pdfplumber, neither installed. The format detector refuses `.pdf` by name with that sentence rather than failing inside a parser |
 | SPSS `.sav`, `.ods` and 7-Zip unreadable | Need `pyreadstat`, `odfpy` and `py7zr`. Each is declared and refused with the package to install. SAS and Stata, which pandas reads natively, work |
-| Upload sessions live in process memory | A session is worthless without its chunks and the chunks are in that process's storage, so a session table would be a write per 8MB for state that cannot outlive them. A multi-process gateway needs sticky sessions for uploads |
 | Duplicate-row detection is skipped when streaming | It needs every row held at once. The streaming profile reports `null` rather than `0`, which would be a claim |
 | Streaming is PostgreSQL CDC and inbound webhooks only | P9 shipped `service_extraction/streams.py`: a token-keyed webhook receiver and Postgres logical replication through a `test_decoding` slot, read in micro-batches by the ticker, materialised as versions of one append-only dataset, **at-least-once** (a crash between store and advance re-reads; the position hash makes it a no-op). MySQL binlog, MongoDB change streams, SQL Server CDC, Kafka/Kinesis/Pub/Sub and the other queues, streaming transforms (windows, watermarks, stateful aggregation) and exactly-once are absent by name in `roadmap-v2.md` Phase 20 |
 | CDC's live test skips on CI | `test_streams.py` runs the slot round-trip only against a Postgres with `wal_level=logical` (the dev compose sets it; the CI service container runs the default `replica`). It ran green here against the local server; on CI that one test is skipped and says why, not passed |
@@ -213,7 +223,8 @@ honesty; if you verify one, update its status here.
 | 9 engines are declared but undriveable | Cassandra, ScyllaDB, Couchbase, Redis, ArangoDB, HBase, Aerospike, Timestream, HDFS. Each declares only `test`, reports `available: false`, and names the interface this platform *can* read instead |
 | Old duplicate datasets are not merged | Since A4 an import's runs and a recipe's runs add versions to one dataset (`reusable_dataset`, `TransformationPipeline.output_dataset_id`). Datasets created one-per-run before that stay separate records; merging them would rewrite version history, so the Datasets list still folds same-named records into one row ("12 loads") |
 | The v1 source registry is hidden, not removed | `service-sources` (`/api/v1/projects/{id}/sources`, the "Register source" records) is no longer shown anywhere in the web app since A1; its API and tables stay for compatibility. A4 did not retire it: nothing reads it, and deleting the tables needs a decision about existing rows |
-| The dataset preview does not apply row and column policies | Download (A4) is the first read path that applies `visible_frame`; the preview grid, the workbench and charts still show what the policy simulation says they would hide. Enforcing policies on every read path is adoption-readiness A6 work |
+| Column names appear in lineage and recipe definitions | Policies (A6) hold on every path that hands rows or values to a person; lineage and recipes describe the data's shape, so a denied column's name still appears there |
+| No rate limiting on sign-in or public addresses | Planned for A7 |
 | No warehouse destinations | Datasets deliver to PostgreSQL, MySQL, S3 (or a compatible store) and a server folder. Snowflake, BigQuery and Redshift are not destinations until a customer names one |
 | A database copy runs inside one request | `copy_database.run_copy` streams rows 1,000 at a time but holds the request until it finishes, up to 2,000,000 rows a table. A background copy with progress belongs with A7's scale work |
 | Temporal SQL runs in SQLite over a copy | `AS OF` queries load the version's artifact into an in-memory SQLite table named `dataset`; the dialect is SQLite's, not the source's, and results are capped at 1,000 rows. Customer SQL sent to customer databases is never rewritten (settled decision #8) |
@@ -260,8 +271,8 @@ definition, vocabulary, navigation tree, templates, voice guide, plus the
 quick-win defect fixes) and A1 (navigation and shell) are done as of
 2026-10-13, and A2 (golden path and onboarding) and A3 (Studio redesign) as
 of 2026-10-14, as are A4 (sources, destinations and migration) and A5 (copy,
-design system and consistency); A6 (trust, help and support for buyers) is
-next.** Each phase's section in the plan lists what shipped, the
+design system and consistency) and A6 (trust, help and support for
+buyers); A7 (scale and reliability) is next.** Each phase's section in the plan lists what shipped, the
 measured cold-user task results and what moved to later phases. Rules for anyone touching the web app now:
 
 - **`apps/web/src/lib/navigation.ts` is the navigation.** A new page goes into
@@ -341,6 +352,38 @@ measured cold-user task results and what moved to later phases. Rules for anyone
   cloud metadata address is always refused; loopback and private networks
   are governed by `OUTBOUND_ALLOW_LOOPBACK` and
   `OUTBOUND_BLOCK_PRIVATE_NETWORKS`.
+- **Every read path that hands rows, values or column names to a person
+  goes through `service_enterprise/policy_view.py`** (A6): `Reader.for_user`
+  (or `PUBLIC` for a shared link), then `view_for(...).frame/preview/profile/
+  schema` or `narrow_frame`. Import it inside the function to avoid a cycle.
+  A new read path belongs in `test_policies_everywhere.py`.
+- **The network gate is in `get_current_user`** (`service_auth/network_gate.py`,
+  registered by `service_enterprise`): sign-in, SSO, renewal, sessions and API
+  tokens all pass it. Client addresses come from `request_address`, which
+  trusts `X-Forwarded-For` only for `TRUSTED_PROXY_HOPS` hops.
+- **Storage is wrapped in `EncryptedStorageBackend` when
+  `STORAGE_ENCRYPTION_KEY` is set** (`storage/factory.py`); files without the
+  `PWENC1` header still read. Go through the backend, never the disk.
+- **Counts in words**: `countOf` on the web (`lib/format.ts`) and
+  `shared_python.words` (`noun`, `count_of`, `listing`) on the server; never
+  "(s)". Platform roles show through `platformRoleLabel` ("Platform
+  administrator" or "Member"; only `admin` means anything platform-wide).
+- **The help is `docs/user/`**, rendered at `/help` by `lib/help/markdown.ts`.
+  A page is listed in `lib/help/pages.ts`; `help.test.ts` fails a broken link,
+  a tab whose "Read more" has no section, or a retired word. The API guide's
+  curl examples are run by `test_api_guide.py`: change the API and the guide
+  together.
+- **Element CSS lives in `@layer base`** in `globals.css`. An unlayered rule
+  beats every Tailwind utility; `global-styles.test.ts` fails one.
+- **A workflow has tasks, a recipe has steps.** A task that is not filled in
+  (`graph.missing_setting`) lets the workflow save but not run; the editor
+  checks the same rules live (`features/workflows/missing-setting.ts`). Keep
+  the two in step. The Deliver task goes through `deliver_dataset`, like
+  Send to.
+- **Tier words**: "Tested", "Tested live", "Tested on a recording", "Not yet
+  tested" (`service_connectors/protocol.py`). The catalogue shows tested
+  connectors first and the rest under "Available on request"; never relabel
+  an untested connector as tested.
 
 **The production-readiness sequence (P0–P9) is complete** as of 2026-09-23 —
 see `docs/plans/production-readiness-workflow.md` for what each phase delivered
@@ -795,3 +838,4 @@ Report honestly. If something is unverified, say so and add it to §7.
 <!-- Add a row above when you finish a session. Keep it to one line. -->
 | 2026-10-14 | `75332b59` | **Adoption-readiness A4 complete.** Spec U1–U6 written first. U1: an import's and a recipe's runs add versions to one dataset (`reusable_dataset`, `output_dataset_id`, migration 0047 with backfill). U2: imports from any connector that can read through `service_extraction/connector_sources.py` (settings validated and secrets encrypted per connector, list/preview/import/resume, `stream_json`, migration 0048); "Connect a source" catalogue with tiers. U3: `sql_writer.py` loads PostgreSQL and MySQL (replace / add rows / update matching rows, keys become the primary key, types inferred from values), S3 and a server folder through the SDK's file connectors, a preview before writing, each delivery a run; Destinations page rebuilt; "Send to → A destination". U4: Copy a database plans through the type lattice (lossy casts marked, not-carried items counted), creates tables with keys and NOT NULL, streams rows, reports per table. U5: download any version as CSV/Parquet with policies applied. Security found on the way: the local-files connector read any server path (now `SERVER_FILES_ROOT`), URL-fetching connectors could reach the metadata service and the server (now `shared_python/outbound.py`). Also fixed: delivered columns all TEXT, TIMESTAMPTZ discovered as TIMESTAMP, "timestamp(3) with time zone" unparsed, REST `//path` became a host. Measured live: REST source (tier 2) imported 3 rows; MySQL update-matching-rows twice gave 20 added then 20 updated / 0 added; PostgreSQL shop schema (3 tables) copied to MySQL with microseconds, JSON, exact decimals, keys and NOT NULL. `npm run verify` green: 6,407 Python passed / 591 skipped, 770 web, ESLint/tsc/build clean. Pushed to `main`. **Next: A5 (copy, design system and consistency).** |
 | 2026-10-14 | `75332b59` | **Adoption-readiness A5 complete.** Spec V1–V6 measured first (3,786 on-screen strings via the TS parser; 41 pages in the browser). V1: `lib/language.test.ts` (retired words, code names, HTTP paths, em-dashes, purpose ≤15 / description and tour step ≤25 words, capital and sentence case, UK spelling; replaces `wording.test.ts`) and `test_error_words.py` for raised API errors. V2: every flagged string rewritten; Run audit, Dataset audit, both comparisons and System status rebuilt in words with names from the API (`triggered_by_name`, `pipeline_name`, `dataset_names`; dataset audit names); run logs, audit/comparison notes, role descriptions, impact summaries and 29 error messages reworded at the source; Power BI/Tableau dialogs became "Send to"; raw-JSON "Try a change" and create-pipeline dialogs removed. V3: `service_governance/audit_words.py` turns all 165 audited routes into phrases and names the object; Audit Center outcome filter fixed (sent values no entry had). V4: 343 sub-12px sizes, 200 uppercase uses, 10 letter-spacings gone (`type-scale.test.ts`). V5: shared-ui Badge/Table/Tabs/Toast/StatTile/PageHeader/Overlay (+Modal drawer, compact EmptyState, icons); 33 tables, ~80 pills, 3 dialogs, 3 tab lists migrated (`components.test.ts`). V6: `docs/design-system.md`, light theme for demos. Measured: pages with sub-12px text 17→0, uppercase 16→0, raw ids 4→0, retired words 13→1 (vendor "endpoint" on Connectors). `npm run verify` green: 6,416 Python passed / 591 skipped, 783 web, ESLint/tsc/build clean. Pushed to `main`. **Next: A6 (trust, help and support for buyers).** |
+| 2026-10-14 | `75332b59` | **Adoption-readiness A6 complete.** Spec W1–W8 measured first. W1: `service_enterprise/policy_view.py` on every read path (dataset page, versions, SQL, charts, pivots, dashboards and public links, Studio preview and joins, assistant, comparisons, downloads, deliveries); `test_policies_everywhere.py` fails all six with policies off. W2: `/help` from `docs/user/` (12 pages), Help menu Documentation / What's new / Contact support (`SUPPORT_CONTACT`, `GET /status/support`), "Read more" from every tab; `help.test.ts`. W3: `test_api_guide.py` runs the guide's 12 curl requests in order. W4: catalogue of 50 tested connectors, 161 "Available on request", tier words rewritten. W5: org network allow-lists (migration 0049), `TRUSTED_PROXY_HOPS`, session policy shown, AES-256-GCM files at rest + `platform-encrypt-storage`. W6: incidents and failed workflows to email/Slack, weekly summary (migration 0050). W7: `docs/security.md` rewritten, `scripts/check-oidc.py` (tested against a local provider), security headers. W8: D1–D20 hold; fixed SSO nonce never compared and token-chosen algorithm, unlayered CSS cancelling every button/link utility, unfilled workflow tasks reading "ready to run", Deliver task PostgreSQL-only, add-task buttons off-screen, ribbon on four pages, tab strip squeezed by side panels, malformed ids crashing, raw platform roles, audit middleware writing tests into the configured DB. `npm run verify` green: 6,455 Python passed / 591 skipped, 797 web. Live OIDC still unproven (no tenant); rate limiting is A7. **Next: A7.** |

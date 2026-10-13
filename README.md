@@ -51,7 +51,11 @@ what goes in and out: import from any connector that can read, deliver to
 PostgreSQL, MySQL, S3 or a server folder, download any version, and copy a
 whole database with a report of what did not come across. A5 put every
 screen into the product's own words, with one type scale and one set of
-components, kept that way by tests. The progress ledger lives in [docs/HANDOFF.md](docs/HANDOFF.md).
+components, kept that way by tests. A6 made it ready for a buyer's review:
+help inside the product (`/help`, from [docs/user/](docs/user/)), an API
+guide whose examples a test runs, row and column policies on every read,
+network allow-lists, a stated session policy, files encrypted at rest, and
+failures that reach email and Slack. The progress ledger lives in [docs/HANDOFF.md](docs/HANDOFF.md).
 
 At a glance, measured on `main`:
 
@@ -366,9 +370,10 @@ infra/             reserved; nothing deployed from here yet
 
 | | |
 |---|---|
+| [User help](docs/user/) | What people read at `/help` in the app: getting started, each area, the glossary, the admin guide, security and the API guide |
 | [Handoff](docs/HANDOFF.md) | Project state, architecture rules, gotchas, known gaps, the progress ledger and the session log |
 | [Operations](docs/operations.md) · [Disaster recovery](docs/disaster-recovery.md) | Upgrades, backups, scaling, sizing, observability; recovering from loss |
-| [Security overview](docs/security.md) · [Enterprise identity](docs/enterprise-identity.md) | Accounts, credentials, audit; MFA, SSO, SCIM-lite |
+| [Security overview](docs/security.md) · [Enterprise identity](docs/enterprise-identity.md) | Identity, sessions, policies, network lists, encryption at rest, audit; MFA, SSO, SCIM-lite |
 | [Design system](docs/design-system.md) | Tokens, the shared components and when to use each, the voice rules, and the tests that keep them |
 | [Adding a connector](docs/adding-a-connector.md) · [Transformation tools](docs/transformation-tools.md) | The four ways to add a connector; the generated reference for all 173 tools |
 | [Roadmap v2](docs/roadmap-v2.md) | The Studio-era roadmap (its opening status line predates the work; the handoff ledger is current) |

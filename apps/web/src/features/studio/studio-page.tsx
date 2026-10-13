@@ -386,6 +386,9 @@ export function StudioPage({ currentUser, projectId, datasets, initialDatasetId,
                 method: "POST",
                 body,
               });
+        // The draft was kept under this recipe's key before it was saved; a
+        // first save changes the key, so the old one is cleared here.
+        clearDraft(draftKey(projectId, saved?.id ?? null, dataset.id));
         setSaved({ id: result.id, name: result.name });
         setName(result.name);
         setNameTouched(true);

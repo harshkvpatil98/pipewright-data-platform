@@ -8,6 +8,7 @@ from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from service_auth.schemas import UserRead
+from service_datasets.download import download_dataset
 from service_datasets.schemas import (
     DatasetAuditSummary,
     DatasetCreate,
@@ -86,6 +87,26 @@ def build_router(
     # they exist only when this router was built with a storage backend --
     # the same rule the delete route follows.
     if get_storage_backend is not None:
+
+        @router.get("/projects/{project_id}/datasets/{dataset_id}/download")
+        def get_project_dataset_download(
+            project_id: uuid.UUID,
+            dataset_id: uuid.UUID,
+            export_format: str = Query("csv", alias="format"),
+            version: int | None = Query(None, ge=1),
+            db: Session = Depends(get_db),
+            current_user: UserRead = Depends(get_current_user),
+            storage=Depends(get_storage_backend),
+        ) -> Response:
+            content, media_type, filename = download_dataset(
+                db, project_id, dataset_id, current_user, storage,
+                export_format=export_format, version_number=version,
+            )
+            return Response(
+                content=content,
+                media_type=media_type,
+                headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+            )
 
         @router.post(
             "/projects/{project_id}/datasets/{dataset_id}/versions/diff",

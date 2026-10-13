@@ -27,6 +27,8 @@ import { Icon } from "@/components/ui/icon";
 import { typeLabel } from "@/lib/labels";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { apiFetch } from "@/lib/api/client";
+import { downloadFromApi } from "@/lib/api/download";
+import { useToast } from "@/components/providers/toast-provider";
 import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { DatasetCatalogPanel } from "@/features/datasets/components/dataset-catalog-panel";
 import { DatasetVersionHistoryPanel } from "@/features/datasets/components/dataset-version-history-panel";
@@ -81,6 +83,17 @@ export function DatasetDetailPageView({
   const [isPublishOpen, setIsPublishOpen] = useState(false);
   const [isPublishPowerBiOpen, setIsPublishPowerBiOpen] = useState(false);
   const [isPublishTableauOpen, setIsPublishTableauOpen] = useState(false);
+  const toast = useToast();
+  const download = async (format: "csv" | "parquet") => {
+    try {
+      await downloadFromApi(
+        `/projects/${projectId}/datasets/${dataset.id}/download?format=${format}`,
+        `${dataset.name}.${format}`,
+      );
+    } catch (caught) {
+      toast.error("Could not download the dataset", extractErrorMessage(caught));
+    }
+  };
   const profileColumns = profile?.columns ?? [];
   const qualityFlags = profile?.quality_flags ?? {
     high_null_columns: [],
@@ -133,6 +146,20 @@ export function DatasetDetailPageView({
                   label: "Tableau",
                   description: "Make a Tableau extract.",
                   onSelect: () => setIsPublishTableauOpen(true),
+                },
+                {
+                  id: "download-csv",
+                  label: "Download as CSV",
+                  icon: "download",
+                  description: "Opens in any spreadsheet.",
+                  onSelect: () => void download("csv"),
+                },
+                {
+                  id: "download-parquet",
+                  label: "Download as Parquet",
+                  icon: "download",
+                  description: "Keeps column types; for data tools.",
+                  onSelect: () => void download("parquet"),
                 },
               ]}
             />

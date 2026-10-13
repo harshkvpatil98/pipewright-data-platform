@@ -14,6 +14,7 @@ import type {
 import { Button, Modal, SectionPanel } from "@platform/shared-ui";
 
 import { apiFetch } from "@/lib/api/client";
+import { downloadFromApi } from "@/lib/api/download";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { formatDateTime, formatDurationMs, formatNumber } from "@/lib/format";
 import { cx } from "@/lib/utils";
@@ -124,6 +125,7 @@ export function DatasetVersionHistoryPanel({
   const [restoring, setRestoring] = useState<DatasetVersion | null>(null);
   const [restoreBusy, setRestoreBusy] = useState(false);
   const [restoreError, setRestoreError] = useState<string | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   const restore = useCallback(async () => {
     if (!restoring) return;
@@ -217,6 +219,11 @@ export function DatasetVersionHistoryPanel({
         ) : null
       }
     >
+      {downloadError ? (
+        <p role="alert" className="mb-3 rounded-2xl border border-danger-line bg-danger-soft px-4 py-2 text-sm text-danger">
+          {downloadError}
+        </p>
+      ) : null}
       {error ? (
         <div className="rounded-2xl border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger">
           {error}
@@ -328,6 +335,18 @@ export function DatasetVersionHistoryPanel({
                             className="rounded-lg border border-line px-2 py-1 text-[11.5px] text-ink-3 transition hover:text-ink"
                           >
                             Query
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void downloadFromApi(
+                                `/projects/${projectId}/datasets/${datasetId}/download?format=csv&version=${version.version_number}`,
+                                `version-${version.version_number}.csv`,
+                              ).catch((caught) => setDownloadError(extractErrorMessage(caught)))
+                            }
+                            className="rounded-lg border border-line px-2 py-1 text-[11.5px] text-ink-3 transition hover:text-ink"
+                          >
+                            Download
                           </button>
                           {!isHead ? (
                             <>

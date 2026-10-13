@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field, model_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from service_extraction.connectors.base import LOAD_MODES, SUPPORTED_CONNECTOR_TYPES
 
@@ -178,6 +178,15 @@ class ExtractionJobRead(BaseModel):
     execution_count: int
     created_at: datetime
     updated_at: datetime
+
+    @field_validator("steps", mode="before")
+    @classmethod
+    def _no_steps_is_an_empty_list(cls, value: Any) -> Any:
+        # A job without shaping steps stores NULL (create_job writes `or
+        # None`). Reading that as "not a list" made every such job a 500 --
+        # the job list, and with it the whole Sources page, for any project
+        # with a plain import.
+        return [] if value is None else value
 
 
 class ExtractionJobListResponse(BaseModel):

@@ -673,7 +673,21 @@ export const AREAS: NavArea[] = [
 ];
 
 /** Pages outside every area: reached from the top bar. */
-export const STANDALONE_PAGES: { path: string; label: string; icon: IconName; description: string }[] = [
+export const STANDALONE_PAGES: {
+  path: string;
+  label: string;
+  icon: IconName;
+  description: string;
+  /** Pages inside this one, written like a tab's `also`. */
+  also?: string[];
+}[] = [
+  {
+    path: "/help",
+    label: "Help",
+    icon: "book",
+    description: "How to use Pipewright: getting started, each area, the glossary and the API.",
+    also: ["/help/*"],
+  },
   {
     path: "/notifications",
     label: "Notifications",
@@ -806,7 +820,11 @@ export function breadcrumbsFor(pathname: string, title: string, isAdmin = false)
   const location = locate(pathname);
   if (!location) {
     const page = STANDALONE_PAGES.find((candidate) => candidate.path === pathname);
-    return [{ label: page?.label ?? title }];
+    if (page) return [{ label: page.label }];
+    const parent = STANDALONE_PAGES.find((candidate) =>
+      (candidate.also ?? []).some((pattern) => matchesPattern(pattern, pathname)),
+    );
+    return parent ? [{ label: parent.label, href: parent.path }, { label: title }] : [{ label: title }];
   }
   const { area, tab, projectId, isTabRoot } = location;
   const crumbs: Crumb[] = [];

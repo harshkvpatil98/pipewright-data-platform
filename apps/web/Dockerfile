@@ -12,6 +12,8 @@ RUN npm install
 
 COPY apps/web /repo/apps/web
 COPY packages /repo/packages
+# The help pages (/help) are read from docs/user, so they match this build.
+COPY docs/user /repo/docs/user
 
 EXPOSE 3000
 

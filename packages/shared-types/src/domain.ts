@@ -1306,6 +1306,13 @@ export type SessionPolicy = {
   address: string | null;
 };
 
+/** Where people get help (the deployment's SUPPORT_CONTACT), and the running version. */
+export type SupportContact = {
+  contact: string | null;
+  href: string | null;
+  version: string;
+};
+
 export type HealthLiveResponse = {
   status: string;
   service: string;

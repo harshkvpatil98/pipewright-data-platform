@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
@@ -90,3 +92,23 @@ class PlatformStatus(BaseModel):
     scheduler: SchedulerOperationalSnapshot
     runtime: RuntimeSnapshot = Field(default_factory=RuntimeSnapshot)
     security: SecuritySnapshot = Field(default_factory=SecuritySnapshot)
+
+
+class SupportContact(BaseModel):
+    """Where people get help: the address a deployment sets (SUPPORT_CONTACT)."""
+
+    #: As written in the setting: an email address or a web address. None when unset.
+    contact: str | None = None
+    #: What a link to it opens: a `mailto:` for an email, the web address itself.
+    href: str | None = None
+    version: str
+
+
+def support_contact(setting: str | None, version: str) -> SupportContact:
+    """Reads SUPPORT_CONTACT. Anything that is neither an email nor a web address is ignored."""
+    value = (setting or "").strip()
+    if re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", value):
+        return SupportContact(contact=value, href=f"mailto:{value}", version=version)
+    if re.fullmatch(r"https?://\S+", value):
+        return SupportContact(contact=value, href=value, version=version)
+    return SupportContact(version=version)

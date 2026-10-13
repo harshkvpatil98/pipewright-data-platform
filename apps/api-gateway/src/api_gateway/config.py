@@ -63,6 +63,8 @@ class Settings(BaseSettings):
     #: address is read from X-Forwarded-For that many hops back; at zero it is
     #: the connecting address and the header is ignored (anyone can forge it).
     trusted_proxy_hops: int = 0
+    # Shown under Help, Contact support: an email address or a web address.
+    support_contact: str | None = None
     storage_backend: Literal["local"] = "local"
     upload_root_path: str = "data/uploads"
     #: 32 random bytes, base64. When set, every stored file is AES-256-GCM

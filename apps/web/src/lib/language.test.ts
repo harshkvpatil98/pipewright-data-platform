@@ -5,6 +5,8 @@ import { fileURLToPath } from "node:url";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
+import { RETIRED, US_SPELLING } from "@/lib/voice";
+
 /*
  * The language lint (adoption-readiness A5). It reads every string a person
  * can see, through the TypeScript parser rather than a regex over the file,
@@ -127,31 +129,6 @@ function offenders(test: (item: Shown) => boolean): string[] {
   return SHOWN.filter((item) => test(item) && !allowed(item)).map((item) => `${item.file}:${item.line}: ${item.text.slice(0, 120)}`);
 }
 
-/** Retired words (A0, S2) and engine words a business user would have to look up. */
-const RETIRED: [RegExp, string][] = [
-  [/\bpipelines?\b/i, "recipe"],
-  [/\bwatermarks?\b/i, "loaded up to"],
-  [/\bupserts?\b/i, "update matching rows"],
-  [/\btenants?\b/i, "organisation"],
-  [/\bmateriali[sz]\w*/i, "save, make"],
-  [/\bartifacts?\b/i, "file, dataset"],
-  [/\bsnapshots?\b/i, "version"],
-  [/\bpersisted\b/i, "saved, recorded"],
-  [/\bextraction\b/i, "import"],
-  [/\bingestion\b/i, "import, upload"],
-  [/\bdrift\b/i, "schema change"],
-  [/\bDAG\b/, "workflow"],
-  [/\bcron\b/i, "schedule, timetable"],
-  [/\bleases?\b/i, "(say what it means)"],
-  [/\bpayload\b/i, "(say what it is)"],
-  [/\bsemantic (layer|version)\b/i, "metric, version"],
-  [/\bHyper extract\b/i, "Tableau file"],
-  [/\bdatasource\b/i, "data source"],
-  [/\bpublish\w*/i, "deliver, send"],
-  [/\bUUID\b/, "(name the thing)"],
-  [/\bendpoint\b/i, "web address"],
-];
-
 describe("on-screen language", () => {
   it("reads at least the strings it means to", () => {
     expect(SHOWN.length).toBeGreaterThan(2500);
@@ -219,9 +196,7 @@ describe("on-screen language", () => {
   it("spells the UK way", () => {
     expect(
       offenders((item) =>
-        /\b\w*(organiz|customiz|normaliz|prioritiz|summariz|analyz|initializ|authoriz|recogniz|visualiz|standardiz|optimiz|materializ|minimiz|maximiz)\w*|\b(color|behavior|favorite|license|center)\b|\bcatalog\b|\bCenter\b/.test(
-          item.text,
-        ),
+        US_SPELLING.test(item.text),
       ),
     ).toEqual([]);
   });

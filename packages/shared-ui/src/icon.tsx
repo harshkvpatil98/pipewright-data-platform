@@ -60,7 +60,10 @@ export type IconName =
   | "keyboard"
   | "external"
   | "undo"
-  | "redo";
+  | "redo"
+  | "mail"
+  | "code"
+  | "compass";
 
 const PATHS: Record<IconName, React.ReactNode> = {
   home: <path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z" />,
@@ -274,6 +277,19 @@ const PATHS: Record<IconName, React.ReactNode> = {
     <>
       <rect x="3" y="6" width="18" height="12" rx="2" />
       <path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10" />
+    </>
+  ),
+  mail: (
+    <>
+      <rect x="3.5" y="5.5" width="17" height="13" rx="1.5" />
+      <path d="m4 7 8 6 8-6" />
+    </>
+  ),
+  code: <path d="m8.5 8-4 4 4 4M15.5 8l4 4-4 4M13.5 5.5l-3 13" />,
+  compass: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="m15.5 8.5-2 5-5 2 2-5z" />
     </>
   ),
   external: (

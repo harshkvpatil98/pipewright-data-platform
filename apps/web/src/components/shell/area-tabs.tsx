@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
+import { helpLinkFor } from "@/lib/help/pages";
 import { tabHref, visibleTabs, type NavArea, type NavTab } from "@/lib/navigation";
 import { cx } from "@/lib/utils";
 import { Icon } from "@platform/shared-ui";
@@ -76,12 +77,12 @@ export function AreaTabs({ area, activeTabId, projectId, isAdmin }: AreaTabsProp
       ) : (
         <div className="flex-1" />
       )}
-      {active ? <AboutThisPage tab={active} /> : null}
+      {active ? <AboutThisPage area={area} tab={active} /> : null}
     </div>
   );
 }
 
-function AboutThisPage({ tab }: { tab: NavTab }) {
+function AboutThisPage({ area, tab }: { area: NavArea; tab: NavTab }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -142,6 +143,14 @@ function AboutThisPage({ tab }: { tab: NavTab }) {
               </li>
             ))}
           </ul>
+          <Link
+            href={helpLinkFor(area, tab).href}
+            onClick={() => setOpen(false)}
+            className="mt-3 inline-flex items-center gap-1.5 text-[13px] font-medium text-accent hover:underline"
+          >
+            <Icon name="book" size={14} />
+            Read more in the help
+          </Link>
         </div>
       ) : null}
     </div>

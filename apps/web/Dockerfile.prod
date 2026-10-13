@@ -24,6 +24,8 @@ RUN npm ci
 
 COPY apps/web /repo/apps/web
 COPY packages /repo/packages
+# The help pages (/help) are read from docs/user, so they match this build.
+COPY docs/user /repo/docs/user
 
 RUN npm run build --workspace @platform/web
 

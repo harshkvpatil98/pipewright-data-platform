@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from api_gateway.config import settings
 from api_gateway.dependencies import get_db
 from api_gateway.status import collect_service_statuses, platform_status, security_snapshot
-from shared_python.status import PlatformStatus, ServiceStatus
+from shared_python.status import PlatformStatus, ServiceStatus, SupportContact, support_contact
 
 router = APIRouter(prefix="/status", tags=["status"])
 DbSession = Annotated[Session, Depends(get_db)]
@@ -30,3 +30,9 @@ def get_platform_status(db: DbSession) -> PlatformStatus:
 @router.get("/services", response_model=list[ServiceStatus])
 def get_service_statuses(db: DbSession) -> list[ServiceStatus]:
     return collect_service_statuses(db)
+
+
+@router.get("/support", response_model=SupportContact)
+def get_support_contact() -> SupportContact:
+    """Where to get help, and which version is running. Readable without signing in."""
+    return support_contact(settings.support_contact, settings.app_version)

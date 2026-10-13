@@ -4,13 +4,14 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import type { AuthUser } from "@platform/shared-types";
+import type { AuthUser, SupportContact } from "@platform/shared-types";
 import { Icon, type IconName, LogoMark, Modal } from "@platform/shared-ui";
 
 import { ProjectSwitcher } from "@/components/shell/project-switcher";
 import { Tooltip } from "@/components/ui/tooltip";
 import { ThemeToggle } from "@/features/preferences/components/appearance-controls";
 import { brand } from "@/lib/brand";
+import { apiFetch } from "@/lib/api/client";
 import { clearAccessToken } from "@/lib/auth/session";
 import { appConfig } from "@/lib/config";
 import type { Crumb } from "@/lib/navigation";
@@ -49,6 +50,7 @@ export function TopBar({
   const [menuOpen, setMenuOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [support, setSupport] = useState<SupportContact | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const helpRef = useRef<HTMLDivElement>(null);
 
@@ -73,6 +75,20 @@ export function TopBar({
       document.removeEventListener("keydown", onKey);
     };
   }, [menuOpen, helpOpen]);
+
+  // Where to get help is asked for the first time the Help menu opens.
+  useEffect(() => {
+    if (!helpOpen || support) return;
+    let cancelled = false;
+    apiFetch<SupportContact>("/status/support")
+      .then((found) => {
+        if (!cancelled) setSupport(found);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [helpOpen, support]);
 
   const logout = () => {
     clearAccessToken();
@@ -191,9 +207,17 @@ export function TopBar({
           </button>
         </Tooltip>
         {helpOpen ? (
-          <div className="animate-fade-up absolute right-0 top-11 z-50 w-60 overflow-hidden rounded-xl border border-line bg-[color:var(--panel-strong)] p-1.5 shadow-[var(--shadow-lg)] backdrop-blur-xl">
+          <div className="animate-fade-up absolute right-0 top-11 z-50 w-64 overflow-hidden rounded-xl border border-line bg-[color:var(--panel-strong)] p-1.5 shadow-[var(--shadow-lg)] backdrop-blur-xl">
+            <Link href="/help" onClick={() => setHelpOpen(false)} className={MENU_ITEM}>
+              <Icon name="book" size={15} className="text-[color:var(--accent-muted)]" />
+              Documentation
+            </Link>
+            <Link href="/help/whats-new" onClick={() => setHelpOpen(false)} className={MENU_ITEM}>
+              <Icon name="sparkles" size={15} className="text-[color:var(--accent-muted)]" />
+              What&apos;s new
+            </Link>
             <MenuButton
-              icon="sparkles"
+              icon="compass"
               onClick={() => {
                 setHelpOpen(false);
                 onReplayTour();
@@ -210,6 +234,7 @@ export function TopBar({
             >
               Keyboard shortcuts
             </MenuButton>
+            <div className="my-1 border-t border-line" />
             <a
               href={apiReferenceUrl()}
               target="_blank"
@@ -217,14 +242,34 @@ export function TopBar({
               onClick={() => setHelpOpen(false)}
               className={MENU_ITEM}
             >
-              <Icon name="book" size={15} className="text-ink-3" />
+              <Icon name="code" size={15} className="text-[color:var(--accent-muted)]" />
               <span className="flex-1">API reference</span>
               <Icon name="external" size={13} className="text-muted" />
             </a>
             <Link href="/system-status" onClick={() => setHelpOpen(false)} className={MENU_ITEM}>
-              <Icon name="activity" size={15} className="text-ink-3" />
+              <Icon name="activity" size={15} className="text-[color:var(--accent-muted)]" />
               System status
             </Link>
+            {support?.href ? (
+              <a
+                href={support.href}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => setHelpOpen(false)}
+                className={MENU_ITEM}
+              >
+                <Icon name="mail" size={15} className="text-[color:var(--accent-muted)]" />
+                <span className="min-w-0 flex-1">
+                  Contact support
+                  <span className="block truncate text-[12px] text-ink-3">{support.contact}</span>
+                </span>
+              </a>
+            ) : (
+              <Link href="/help#getting-help" onClick={() => setHelpOpen(false)} className={MENU_ITEM}>
+                <Icon name="mail" size={15} className="text-[color:var(--accent-muted)]" />
+                Contact support
+              </Link>
+            )}
           </div>
         ) : null}
       </div>

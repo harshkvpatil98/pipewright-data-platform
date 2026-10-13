@@ -51,10 +51,13 @@ describe("the navigation tree", () => {
   });
 
   it("places every page in exactly one area, or names why it is outside", () => {
-    const standalone = new Set(STANDALONE_PAGES.map((page) => page.path));
+    const standalone = (route: string) =>
+      STANDALONE_PAGES.some(
+        (page) => page.path === route || (page.also ?? []).some((pattern) => matchesPattern(pattern, route)),
+      );
     const orphans = routes
       .filter(({ route, file }) => {
-        if (FRAMELESS.has(route) || standalone.has(route) || isRedirectOnly(file)) return false;
+        if (FRAMELESS.has(route) || standalone(route) || isRedirectOnly(file)) return false;
         return locate(route) === null;
       })
       .map(({ route }) => route);

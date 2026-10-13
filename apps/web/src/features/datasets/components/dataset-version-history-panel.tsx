@@ -11,9 +11,8 @@ import type {
   DatasetVersionDiffRequest,
   DatasetVersionListResponse,
 } from "@platform/shared-types";
-import { Button, SectionPanel } from "@platform/shared-ui";
+import { Button, Modal, SectionPanel } from "@platform/shared-ui";
 
-import { Modal } from "@/components/ui/modal";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { formatDateTime, formatDurationMs, formatNumber } from "@/lib/format";

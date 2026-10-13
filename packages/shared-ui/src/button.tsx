@@ -19,6 +19,28 @@ const sizeClasses: Record<NonNullable<ButtonProps["size"]>, string> = {
   md: "h-11 px-4 text-sm",
 };
 
+/**
+ * The button look, for things that navigate rather than act: a `<Link>` that
+ * should read as "Go to Home" uses this instead of hand-rolling a pill, so a
+ * link and a button side by side are the same shape.
+ */
+export function buttonClassName(
+  variant: NonNullable<ButtonProps["variant"]> = "primary",
+  size: NonNullable<ButtonProps["size"]> = "md",
+  className?: string,
+): string {
+  return cx(
+    // `saturate-0` alongside the fade because opacity alone is theme-blind:
+    // half-strength bright teal on a near-black ground still reads as an
+    // active button, while half-strength dark teal on white correctly
+    // washes out. Desaturating removes the "this is live" signal in both.
+    "inline-flex items-center justify-center gap-2 rounded-xl font-medium transition duration-200 disabled:cursor-not-allowed disabled:opacity-50 disabled:saturate-0",
+    variantClasses[variant],
+    sizeClasses[size],
+    className,
+  );
+}
+
 export function Button({
   className,
   variant = "primary",
@@ -26,20 +48,5 @@ export function Button({
   type = "button",
   ...props
 }: ButtonProps) {
-  return (
-    <button
-      type={type}
-      className={cx(
-        // `saturate-0` alongside the fade because opacity alone is theme-blind:
-        // half-strength bright teal on a near-black ground still reads as an
-        // active button, while half-strength dark teal on white correctly
-        // washes out. Desaturating removes the "this is live" signal in both.
-        "inline-flex items-center justify-center gap-2 rounded-xl font-medium transition duration-200 disabled:cursor-not-allowed disabled:opacity-50 disabled:saturate-0",
-        variantClasses[variant],
-        sizeClasses[size],
-        className,
-      )}
-      {...props}
-    />
-  );
+  return <button type={type} className={buttonClassName(variant, size, className)} {...props} />;
 }

@@ -87,9 +87,20 @@ export function duplicateNames(cells: Cell[]): string[] {
   return [...seen.entries()].filter(([, count]) => count > 1).map(([name]) => name);
 }
 
-/** Problems worth showing before anybody presses run. */
-export function validate(cells: Cell[]): { cell: number; message: string }[] {
-  const problems: { cell: number; message: string }[] = [];
+export type NotebookProblem = {
+  cell: number;
+  message: string;
+  /**
+   * An empty cell is unfinished rather than wrong. It still stops a run, but
+   * the page waits for the user to try before saying so -- a brand-new
+   * notebook opening with "This cell is empty." is an error before any input.
+   */
+  empty?: true;
+};
+
+/** Problems that stop a run; see `NotebookProblem.empty` for when to show them. */
+export function validate(cells: Cell[]): NotebookProblem[] {
+  const problems: NotebookProblem[] = [];
   const duplicates = duplicateNames(cells);
 
   cells.forEach((cell, index) => {
@@ -120,7 +131,7 @@ export function validate(cells: Cell[]): { cell: number; message: string }[] {
       }
     }
     if (cell.kind !== "markdown" && !cell.source.trim() && cell.kind !== "recipe") {
-      problems.push({ cell: index, message: "This cell is empty." });
+      problems.push({ cell: index, message: "This cell is empty.", empty: true });
     }
   });
 

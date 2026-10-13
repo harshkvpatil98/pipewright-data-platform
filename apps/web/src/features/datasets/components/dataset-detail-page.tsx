@@ -13,13 +13,12 @@ import type {
   TransformationPipelineRecord,
   TransformationSuggestion,
 } from "@platform/shared-types";
-import { Button, SectionPanel, StatCard, StatusBadge } from "@platform/shared-ui";
+import { Button, Modal, SectionPanel, StatCard, StatusBadge } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { typeLabel } from "@/lib/labels";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { apiFetch } from "@/lib/api/client";
-import { Modal } from "@/components/ui/modal";
 import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { DatasetCatalogPanel } from "@/features/datasets/components/dataset-catalog-panel";
 import { DatasetVersionHistoryPanel } from "@/features/datasets/components/dataset-version-history-panel";
@@ -35,6 +34,7 @@ import {
   isDatasetIngestionRunSummary,
   isDatasetTransformationRunSummary,
 } from "@/features/datasets/run-summary";
+import { describeParserMetadata } from "@/features/datasets/parser-metadata";
 import { formatDate, formatNumber, titleCase } from "@/lib/format";
 import { formatRunTypeLabel } from "@/lib/run-labels";
 
@@ -428,16 +428,7 @@ export function DatasetDetailPageView({
                         {runSummary.profile ? formatNumber(runSummary.profile.duplicate_row_count) : "--"}
                       </div>
                     </div>
-                    <div>
-                      <div className="text-sm text-muted">Parser metadata</div>
-                      <div className="mt-2 text-sm text-ink">
-                        {runSummary.parser_metadata
-                          ? Object.entries(runSummary.parser_metadata)
-                              .map(([key, value]) => `${titleCase(key)}: ${String(value)}`)
-                              .join(" · ")
-                          : "--"}
-                      </div>
-                    </div>
+                    <ParserMetadataSummary metadata={runSummary.parser_metadata} />
                   </div>
                 ) : isDatasetTransformationRunSummary(runSummary) ? (
                   <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -604,5 +595,57 @@ export function DatasetDetailPageView({
         ) : null}
       </Modal>
     </AppShell>
+  );
+}
+
+const PARSER_NOTES_SHOWN = 4;
+
+/** How the uploaded file was read, in words; see `parser-metadata.ts`. */
+function ParserMetadataSummary({ metadata }: { metadata?: Record<string, unknown> }) {
+  const [showAll, setShowAll] = useState(false);
+  const { facts, notes } = describeParserMetadata(metadata);
+  const visibleNotes = showAll ? notes : notes.slice(0, PARSER_NOTES_SHOWN);
+
+  return (
+    <div className="md:col-span-2">
+      <div className="text-sm text-muted">How the file was read</div>
+      {facts.length === 0 && notes.length === 0 ? (
+        <div className="mt-2 text-sm text-ink">--</div>
+      ) : null}
+      {facts.length > 0 ? (
+        <dl className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm">
+          {facts.map((fact) => (
+            <div key={fact.label} className="flex gap-1.5">
+              <dt className="text-ink-3">{fact.label}</dt>
+              <dd className="text-ink">{fact.value}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
+      {visibleNotes.length > 0 ? (
+        <ul className="mt-3 space-y-1.5 text-sm">
+          {visibleNotes.map((note, index) => (
+            <li key={`${note.stage}-${index}`} className="flex gap-2">
+              <span
+                className={note.needsReview ? "shrink-0 font-medium text-warning" : "shrink-0 font-medium text-ink-2"}
+              >
+                {note.label}
+                {note.needsReview ? " (check this)" : ""}
+              </span>
+              <span className="text-ink-3">{note.reason}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {notes.length > PARSER_NOTES_SHOWN ? (
+        <button
+          type="button"
+          onClick={() => setShowAll((current) => !current)}
+          className="mt-2 text-sm text-[color:var(--accent-muted)] hover:underline"
+        >
+          {showAll ? "Show fewer" : `Show all ${notes.length} notes`}
+        </button>
+      ) : null}
+    </div>
   );
 }

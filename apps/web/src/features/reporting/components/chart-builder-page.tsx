@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import type {
   AggregationName,
@@ -21,6 +21,8 @@ import { Icon } from "@/components/ui/icon";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { cx } from "@/lib/utils";
+
+import { chooseChartDefaults } from "@/features/reporting/chart-defaults";
 
 import { ChartView } from "./chart-view";
 
@@ -52,9 +54,16 @@ export function ChartBuilderPageView({
   const [chartType, setChartType] = useState<ChartTypeName>("bar");
   const [dimension, setDimension] = useState("");
   const [measureColumn, setMeasureColumn] = useState("");
+  // Read by the defaulting effect without re-running it on every pick.
+  const measureRef = useRef(measureColumn);
+  measureRef.current = measureColumn;
   const [aggregation, setAggregation] = useState<AggregationName>("sum");
   const [name, setName] = useState("");
   const [data, setData] = useState<ChartData | null>(null);
+  // Two kinds of problem, shown in two places: a question the preview cannot
+  // draw is explained beside the preview in a neutral voice, because it often
+  // appears before the user has chosen anything; a failed save is an error.
+  const [previewProblem, setPreviewProblem] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -97,22 +106,15 @@ export function ChartBuilderPageView({
 
   useEffect(() => {
     if (columns.length === 0) return;
-    // Default the measure to something that can actually be summed. Picking the
-    // second column regardless meant the first thing a user saw was an error
-    // about summing text.
-    const numeric = columns.filter((column) =>
-      ["int", "float", "number", "integer", "double", "decimal"].includes(
-        (columnTypes[column] ?? "").toLowerCase(),
-      ),
-    );
-    const categorical = columns.filter((column) => !numeric.includes(column));
-
+    const defaults = chooseChartDefaults(columns, columnTypes);
     setDimension((current) =>
-      current && columns.includes(current) ? current : (categorical[0] ?? columns[0]),
+      current && columns.includes(current) ? current : defaults.dimension,
     );
-    setMeasureColumn((current) =>
-      current && columns.includes(current) ? current : (numeric[0] ?? columns[0]),
-    );
+    const current = measureRef.current;
+    if (!current || !columns.includes(current)) {
+      setMeasureColumn(defaults.measure);
+      setAggregation(defaults.aggregation);
+    }
   }, [columns, columnTypes]);
 
   const spec = types?.items.find((item) => item.name === chartType);
@@ -133,7 +135,7 @@ export function ChartBuilderPageView({
 
   const preview = useCallback(async () => {
     if (!datasetId || (!measureColumn && !metric)) return;
-    setError(null);
+    setPreviewProblem(null);
     try {
       setData(
         await apiFetch<ChartData>(`/projects/${projectId}/charts/preview`, {
@@ -152,7 +154,7 @@ export function ChartBuilderPageView({
       );
     } catch (caught) {
       setData(null);
-      setError(extractErrorMessage(caught));
+      setPreviewProblem(extractErrorMessage(caught));
     }
     // `options` is derived from compareColumn/comparePeriod, listed here.
   }, [projectId, datasetId, chartType, dimension, measureColumn, aggregation, spec, compareColumn, comparePeriod, metric]);
@@ -399,8 +401,20 @@ export function ChartBuilderPageView({
           }
         >
           {data ? <ChartView data={data} /> : (
-            <div className="flex h-[260px] items-center justify-center text-[12.5px] text-muted">
-              Choose a dataset and a measure.
+            <div className="flex h-[260px] flex-col items-center justify-center gap-2 px-6 text-center">
+              {previewProblem ? (
+                <>
+                  <span className="text-[13px] font-medium text-ink">
+                    This combination cannot be drawn yet
+                  </span>
+                  <span className="max-w-md text-[13px] text-ink-3">{previewProblem}</span>
+                  <span className="text-[12px] text-muted">
+                    Try a different measure, or count rows instead.
+                  </span>
+                </>
+              ) : (
+                <span className="text-[13px] text-muted">Choose a dataset and a measure.</span>
+              )}
             </div>
           )}
           {data?.warnings.length ? (
@@ -468,3 +482,4 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     </div>
   );
 }
+

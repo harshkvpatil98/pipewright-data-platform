@@ -46,10 +46,56 @@ SKIPPED_PREFIXES = (
     "/api/v1/auth/tokens",
 )
 
+# POSTs that compute an answer and store nothing: previews, plans, parses and
+# reads too large for a query string. They are reads in every sense an auditor
+# cares about, and recording them buried real changes -- every keystroke in the
+# chart builder or the Studio wrote a row. Matched on the route's skeleton
+# (identifiers replaced), so a new route has to be added here deliberately; an
+# unknown POST is audited, which is the safe direction to be wrong in.
+READ_ONLY_POSTS = frozenset(
+    {
+        "/api/v1/projects/{id}/charts/preview",
+        "/api/v1/projects/{id}/metrics/{id}/preview",
+        "/api/v1/projects/{id}/datasets/{id}/pipelines/preview",
+        "/api/v1/transformations/tools/preview",
+        "/api/v1/projects/{id}/workflows/{id}/backfill/preview",
+        "/api/v1/projects/{id}/extraction/connections/{id}/preview",
+        "/api/v1/projects/{id}/workbench/preview",
+        "/api/v1/projects/{id}/workbench/explain",
+        "/api/v1/projects/{id}/workbench/completions/{id}",
+        "/api/v1/workbench/recipe/yaml",
+        "/api/v1/workbench/recipe/parse",
+        "/api/v1/projects/{id}/datasets/analyze",
+        "/api/v1/projects/{id}/datasets/{id}/versions/diff",
+        "/api/v1/projects/{id}/datasets/{id}/versions/query",
+        "/api/v1/projects/{id}/dashboards/{id}/data",
+        "/api/v1/projects/{id}/pivot",
+        "/api/v1/projects/{id}/datasets/{id}/impact",
+        "/api/v1/projects/{id}/datasets/{id}/join-keys",
+        "/api/v1/projects/{id}/datasets/{id}/duplicates",
+        "/api/v1/projects/{id}/datasets/{id}/pii/mask",
+        "/api/v1/projects/{id}/describe",
+    }
+)
+
 _UUID_PATTERN = re.compile(
     r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
 )
 _PROJECT_PATTERN = re.compile(r"/projects/(" + _UUID_PATTERN.pattern + ")")
+
+
+def route_skeleton(path: str) -> str:
+    """The path with every identifier replaced by `{id}`."""
+    return _UUID_PATTERN.sub("{id}", path.rstrip("/"))
+
+
+def is_audited(method: str, path: str) -> bool:
+    """Whether a request belongs in the audit log."""
+    if method not in AUDITED_METHODS or path.startswith(SKIPPED_PREFIXES):
+        return False
+    if method == "POST" and route_skeleton(path) in READ_ONLY_POSTS:
+        return False
+    return True
 
 
 def describe_action(method: str, path: str) -> str:
@@ -137,7 +183,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
         self._session_factory = session_factory
 
     async def dispatch(self, request: Request, call_next) -> Response:
-        if request.method not in AUDITED_METHODS or request.url.path.startswith(SKIPPED_PREFIXES):
+        if not is_audited(request.method, request.url.path):
             return await call_next(request)
 
         started = time.perf_counter()

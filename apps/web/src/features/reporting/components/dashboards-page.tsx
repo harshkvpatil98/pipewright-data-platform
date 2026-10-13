@@ -3,12 +3,21 @@
 import Link from "next/link";
 import { useState } from "react";
 
-import { Button, EmptyState, FormField, Input, SectionPanel, StatCard, Textarea } from "@platform/shared-ui";
+import {
+  Button,
+  EmptyState,
+  FormField,
+  Input,
+  Modal,
+  SectionPanel,
+  StatCard,
+  Textarea,
+  buttonClassName,
+} from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
 import { Icon } from "@/components/ui/icon";
-import { Modal } from "@/components/ui/modal";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { formatDate } from "@/lib/format";
@@ -265,12 +274,12 @@ export function DashboardsPageView({
                       >
                         {dashboard.name}
                       </Link>
-                      <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[10px] uppercase text-ink-3">
+                      <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[12px] text-ink-3">
                         {dashboard.tile_count} tile{dashboard.tile_count === 1 ? "" : "s"}
                       </span>
                       {dashboard.share_token ? (
-                        <span className="rounded-full border border-warning-line bg-warning-soft px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-warning">
-                          Shared
+                        <span className="rounded-full border border-warning-line bg-warning-soft px-2 py-0.5 text-[12px] text-warning">
+                          Shared by link
                         </span>
                       ) : null}
                     </div>
@@ -283,7 +292,7 @@ export function DashboardsPageView({
                   <div className="flex flex-wrap items-center gap-2">
                     <Link
                       href={`/projects/${projectId}/dashboards/${dashboard.id}`}
-                      className="rounded-full bg-[color:var(--accent)] px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.14em] text-accent-ink"
+                      className={buttonClassName("primary", "sm")}
                     >
                       Open
                     </Link>
@@ -308,6 +317,7 @@ export function DashboardsPageView({
                       </>
                     ) : (
                       <Button
+                        variant="secondary"
                         size="sm"
                         disabled={busy}
                         onClick={() => void shareDashboard(dashboard)}

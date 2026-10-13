@@ -17,6 +17,8 @@ import csv
 import io
 from datetime import UTC, datetime, timedelta
 
+from fastapi import APIRouter, Depends, Query
+from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
@@ -201,10 +203,13 @@ def total_audit_entries(db: Session) -> int:
 
 def build_audit_center_router(get_db, get_current_user, settings):
     """Admin-only cross-project audit endpoints. Top-level (no {project_id}), so
-    the project guard has nothing to gate; the admin check inside does the work."""
-    from fastapi import APIRouter, Depends, Query
-    from fastapi.responses import Response
+    the project guard has nothing to gate; the admin check inside does the work.
 
+    `Response` is imported at module level on purpose: with postponed
+    annotations FastAPI resolves `-> Response` against the module's globals when
+    it builds the OpenAPI schema, and a function-local import left it an
+    unresolvable forward reference that broke `/openapi.json` for the whole API.
+    """
     router = APIRouter(tags=["audit"])
 
     @router.get("/audits", response_model=AuditCenterResponse)

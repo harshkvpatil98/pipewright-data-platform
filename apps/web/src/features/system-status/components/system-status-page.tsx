@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
-import type { HealthLiveResponse, PlatformStatusResponse } from "@platform/shared-types";
+import type { AuthUser, HealthLiveResponse, PlatformStatusResponse } from "@platform/shared-types";
 import { SectionPanel } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -178,7 +178,7 @@ function RuntimePanel({ platform }: { platform: PlatformStatusResponse }) {
   );
 }
 
-export function SystemStatusPage() {
+export function SystemStatusPage({ currentUser }: { currentUser?: AuthUser | null }) {
   const [platform, setPlatform] = useState<PlatformStatusResponse | null>(null);
   const [live, setLive] = useState<HealthLiveResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -208,6 +208,7 @@ export function SystemStatusPage() {
 
   return (
     <AppShell
+      currentUser={currentUser}
       title="System status"
       subtitle="Operational snapshot from the API gateway. No secrets or credentials are shown here."
       actions={

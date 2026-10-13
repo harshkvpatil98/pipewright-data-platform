@@ -326,13 +326,21 @@ function VerificationPanel({ health }: { health: ConnectorHealth }) {
               <span aria-hidden="true">{tier.badge}</span>
               {tier.label}
             </span>
+            {/* A fixed-width track: a bar sized against the whole row squeezed
+                the explanation beside the largest tier into a 70px column. */}
             <span
-              className="h-1.5 min-w-[2px] rounded-full bg-[color:var(--accent)]"
-              style={{ width: `${Math.max(2, (tier.count / total) * 100)}%` }}
+              className="h-1.5 w-32 shrink-0 overflow-hidden rounded-full bg-surface-2"
               aria-hidden="true"
-            />
-            <span className="shrink-0 text-[12px] tabular-nums text-ink-2">{tier.count}</span>
-            <span className="hidden flex-1 text-[11.5px] text-muted lg:block">
+            >
+              <span
+                className="block h-full rounded-full bg-[color:var(--accent)]"
+                style={{ width: `${Math.max(2, (tier.count / total) * 100)}%` }}
+              />
+            </span>
+            <span className="w-8 shrink-0 text-right text-[12px] tabular-nums text-ink-2">
+              {tier.count}
+            </span>
+            <span className="hidden min-w-0 flex-1 text-[12px] text-muted lg:block">
               {tier.explanation}
             </span>
           </li>

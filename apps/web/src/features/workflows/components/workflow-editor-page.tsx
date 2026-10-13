@@ -355,7 +355,7 @@ export function WorkflowEditorPage({
             id: "run",
             label: "Run now",
             icon: "play",
-            disabled: !validation.valid || nodes.length === 0,
+            disabled: nodes.length === 0 || (!dirty && !validation.valid),
             onClick: runNow,
           },
           // Only while a worker could still be stopped from starting: the API
@@ -408,6 +408,22 @@ export function WorkflowEditorPage({
     [dirty, saving, save, runNow, tidy, validation.valid, nodes.length, addNode],
   );
 
+  // Server validation describes the *saved* graph. While edits are unsaved it
+  // is stale -- it kept saying "A workflow needs at least one node." after a
+  // node had been added -- so it is shown only for the saved state. An empty
+  // graph is the canvas's empty state, not an error.
+  const savedIssues = dirty
+    ? []
+    : validation.errors.filter((issue) => issue.code !== "empty_graph");
+  const graphState: { value: string; tone: "neutral" | "good" | "bad" } =
+    nodes.length === 0
+      ? { value: "empty", tone: "neutral" }
+      : dirty
+        ? { value: "unsaved changes", tone: "neutral" }
+        : validation.valid
+          ? { value: "ready to run", tone: "good" }
+          : { value: "needs attention", tone: "bad" };
+
   const scheduleLabel =
     workflow.trigger_type === "cron"
       ? `${workflow.cron_expression} (${workflow.timezone || "UTC"})`
@@ -433,12 +449,7 @@ export function WorkflowEditorPage({
           label: "Next run",
           value: workflow.next_run_at ? formatDate(workflow.next_run_at) : "—",
         },
-        {
-          id: "state",
-          label: "Graph",
-          value: validation.valid ? "valid" : "has errors",
-          tone: validation.valid ? "good" : "bad",
-        },
+        { id: "state", label: "Workflow", value: graphState.value, tone: graphState.tone },
       ]}
       health={
         activeRun
@@ -471,11 +482,11 @@ export function WorkflowEditorPage({
       }}
     >
       <div className="flex h-full min-h-0 flex-col">
-        {!validation.valid ? (
-          <div className="flex items-start gap-2.5 border-b border-danger-line bg-danger-soft px-4 py-2.5 text-[12.5px] text-danger">
+        {savedIssues.length > 0 ? (
+          <div className="flex items-start gap-2.5 border-b border-danger-line bg-danger-soft px-4 py-2.5 text-[13px] text-danger">
             <Icon name="warning" size={14} className="mt-0.5 shrink-0" />
             <div>
-              {validation.errors.map((issue) => (
+              {savedIssues.map((issue) => (
                 <div key={issue.code + (issue.node_key ?? "")}>{issue.message}</div>
               ))}
             </div>

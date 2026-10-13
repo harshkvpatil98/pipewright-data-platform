@@ -3,9 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { ExportFormat, ReportListResponse, ScheduledReport } from "@platform/shared-types";
-import { Button } from "@platform/shared-ui";
+import { Button, Modal } from "@platform/shared-ui";
 
-import { Modal } from "@/components/ui/modal";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { cx } from "@/lib/utils";

@@ -45,6 +45,10 @@ class Detector:
     validator: Callable[[str], bool] | None = None
     default_strategy: str = "redact"
     guidance: str = ""
+    # Whether values alone can identify this kind. A date has the shape of a
+    # date of birth whatever it records -- an order date, a signup date -- so
+    # for that kind only the column name can say it is personal.
+    values_identify: bool = True
 
 
 def _luhn(value: str) -> bool:
@@ -76,8 +80,33 @@ def _valid_phone(value: str) -> bool:
     """
     if "." in value:
         return False
+    if _looks_like_date(value):
+        return False
     digits = re.sub(r"\D", "", value)
     return 7 <= len(digits) <= 15
+
+
+_YEAR_FIRST = re.compile(r"^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$")
+_YEAR_LAST = re.compile(r"^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$")
+
+
+def _looks_like_date(value: str) -> bool:
+    """A calendar date, which the phone pattern would otherwise accept.
+
+    "1990-06-15" is eight digits and two dashes, so a column of birth dates was
+    reported as "Phone number, 100% of values look like it". A value is a date
+    when it is year-first or year-last with a real month and day; the year-last
+    form accepts either day/month order, because both are in common use.
+    """
+    match = _YEAR_FIRST.match(value)
+    if match:
+        _, month, day = (int(part) for part in match.groups())
+        return 1 <= month <= 12 and 1 <= day <= 31
+    match = _YEAR_LAST.match(value)
+    if match:
+        first, second, _ = (int(part) for part in match.groups())
+        return (1 <= first <= 31 and 1 <= second <= 12) or (1 <= first <= 12 and 1 <= second <= 31)
+    return False
 
 
 def _valid_ip(value: str) -> bool:
@@ -161,6 +190,7 @@ DETECTORS: tuple[Detector, ...] = (
         label="Date of birth",
         name_hints=("dob", "date_of_birth", "birth_date", "birthday"),
         pattern=re.compile(r"^\d{4}[-/]\d{1,2}[-/]\d{1,2}$|^\d{1,2}[-/]\d{1,2}[-/]\d{4}$"),
+        values_identify=False,
         default_strategy="partial",
         guidance="Keeping only the year supports age analysis without identifying anyone.",
     ),
@@ -272,6 +302,8 @@ def scan_column(column: str, samples: list[Any]) -> PiiFinding | None:
 
     for detector in DETECTORS:
         name_matched = _name_matches(column, detector)
+        if not detector.values_identify and not name_matched:
+            continue
         rate, sample_size = _value_match_rate(samples, detector)
         confidence, reason = _confidence(
             name_matched, rate, detector.pattern is not None, sample_size

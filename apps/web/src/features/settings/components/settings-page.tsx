@@ -154,7 +154,7 @@ export function SettingsPageView({ currentUser }: SettingsPageProps) {
             <div className="text-[13px] text-ink">
               Navigation and inspector state
               <div className="mt-0.5 text-[11px] text-muted">
-                Restore the default collapsed rail and open inspector.
+                Put the navigation and side panels back where they start.
               </div>
             </div>
             <button

@@ -9,10 +9,9 @@ import type {
   ReplayResult,
   RunAuditSummary,
 } from "@platform/shared-types";
-import { Button, SectionPanel, StatusBadge } from "@platform/shared-ui";
+import { Button, Modal, SectionPanel, StatusBadge } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
-import { Modal } from "@/components/ui/modal";
 import { apiFetch } from "@/lib/api/client";
 import { downloadFromApi } from "@/lib/api/download";
 import { extractErrorMessage } from "@/lib/api/errors";

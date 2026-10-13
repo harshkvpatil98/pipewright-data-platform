@@ -17,10 +17,9 @@ import type { RibbonGroup } from "@/components/shell/ribbon";
 import { useToast } from "@/components/providers/toast-provider";
 import { STUDIO_TOUR_ID, studioTour } from "@/components/tour/tours";
 import { useTour } from "@/components/tour/tour-provider";
-import { Button, FormField, Input } from "@platform/shared-ui";
+import { Button, FormField, Input, Modal } from "@platform/shared-ui";
 
 import { Icon } from "@/components/ui/icon";
-import { Modal } from "@/components/ui/modal";
 import { StepEditor } from "@/features/studio/step-editor";
 import {
   STEP_BY_TYPE,

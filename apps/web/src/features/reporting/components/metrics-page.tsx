@@ -14,12 +14,11 @@ import type {
   MetricSqlResponse,
   MetricUsageResponse,
 } from "@platform/shared-types";
-import { Button, EmptyState, SectionPanel, StatCard } from "@platform/shared-ui";
+import { Button, EmptyState, Modal, SectionPanel, StatCard } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { Icon } from "@/components/ui/icon";
-import { Modal } from "@/components/ui/modal";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { formatDate } from "@/lib/format";

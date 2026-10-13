@@ -18,6 +18,7 @@ from service_auth.schemas import UserRead
 from service_governance import versions as version_ops
 from service_governance.audit import (
     describe_action,
+    is_audited,
     outcome_for,
     project_id_from,
     resource_hint,
@@ -278,6 +279,24 @@ def test_writeback_actions_name_what_happened():
     assert describe_action("POST", f"{base}/plan") == "plan change-set"
     # And the entry points at the change set, which is where the SQL is kept.
     assert resource_hint(f"{base}/commit") == ("change-set", change_set)
+
+
+def test_previews_are_not_audited_but_changes_are():
+    """A preview computes and stores nothing; logging it buried real changes."""
+    project = "11111111-1111-1111-1111-111111111111"
+    metric = "22222222-2222-2222-2222-222222222222"
+    assert not is_audited("POST", f"/api/v1/projects/{project}/charts/preview")
+    assert not is_audited("POST", f"/api/v1/projects/{project}/metrics/{metric}/preview")
+    assert not is_audited("POST", f"/api/v1/projects/{project}/dashboards/{metric}/data")
+    # The same resources' writes still are.
+    assert is_audited("POST", f"/api/v1/projects/{project}/charts")
+    assert is_audited("PATCH", f"/api/v1/projects/{project}/metrics/{metric}")
+    # SQL that can write is never treated as a preview.
+    assert is_audited("POST", f"/api/v1/projects/{project}/workbench/run")
+    # An unknown POST is audited: the safe direction to be wrong in.
+    assert is_audited("POST", f"/api/v1/projects/{project}/something-new")
+    assert not is_audited("GET", f"/api/v1/projects/{project}/charts")
+    assert not is_audited("POST", "/api/v1/auth/login")
 
 
 def test_identifiers_are_stripped_so_actions_group():

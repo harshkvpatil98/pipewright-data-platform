@@ -13,12 +13,11 @@ import type {
   SavedChart,
 } from "@platform/shared-types";
 import { DASHBOARD_REFRESH_CHOICES } from "@platform/shared-types";
-import { Button, SectionPanel } from "@platform/shared-ui";
+import { Button, Modal, SectionPanel } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { DiscussionPanel } from "@/features/team/components/discussion-panel";
 import { Icon } from "@/components/ui/icon";
-import { Modal } from "@/components/ui/modal";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { cx } from "@/lib/utils";

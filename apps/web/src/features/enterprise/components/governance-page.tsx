@@ -213,7 +213,13 @@ export function GovernancePageView({
           description="What gets deleted, and when. New policies start in report-only mode."
           actions={
             retentionState.items.length > 0 ? (
-              <Button variant="secondary" onClick={sweep} disabled={busy !== null}>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="whitespace-nowrap"
+                onClick={sweep}
+                disabled={busy !== null}
+              >
                 {busy === "sweep" ? "Running…" : "Run now"}
               </Button>
             ) : null

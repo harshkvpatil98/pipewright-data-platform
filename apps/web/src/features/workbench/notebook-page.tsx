@@ -79,6 +79,9 @@ export function NotebookPage({
   const [sandboxStatus, setSandboxStatus] = useState<SandboxStatus | null>(null);
 
   const problems = useMemo(() => validate(cells), [cells]);
+  // Set when the user tries to run; until then an empty cell is just unwritten.
+  const [attemptedRun, setAttemptedRun] = useState(false);
+  const shownProblems = attemptedRun ? problems : problems.filter((problem) => !problem.empty);
 
   const load = useCallback(async () => {
     try {
@@ -172,9 +175,12 @@ export function NotebookPage({
           label: running ? "Running…" : "Run all",
           icon: "play",
           prominent: true,
-          disabled: running || !openId || problems.length > 0,
-          hint: problems.length ? "Fix the problems below first" : "Runs every cell in order",
-          onClick: () => void run(),
+          disabled: running || !openId,
+          hint: !openId ? "Save the notebook first" : "Runs every cell in order",
+          onClick: () => {
+            setAttemptedRun(true);
+            if (problems.length === 0) void run();
+          },
         },
         {
           id: "save",
@@ -192,6 +198,7 @@ export function NotebookPage({
             setName("");
             setCells([emptyCell("sql")]);
             setResults({});
+            setAttemptedRun(false);
           },
         },
       ],
@@ -235,7 +242,7 @@ export function NotebookPage({
       ribbon={ribbon}
       statusItems={[
         { id: "cells", label: "Cells", value: String(cells.length) },
-        { id: "problems", label: "Problems", value: String(problems.length) },
+        { id: "problems", label: "Problems", value: String(shownProblems.length) },
         {
           id: "python",
           label: "Python cells",
@@ -307,12 +314,15 @@ export function NotebookPage({
         </div>
 
         {sandboxStatus && !sandboxStatus.usable ? (
-          <p className="rounded-xl border border-[color:var(--warning-line)] bg-[color:var(--warning-soft)] px-4 py-3 text-sm text-ink">
-            {sandboxStatus.reason} Everything else in a notebook still works.
-          </p>
+          <details className="rounded-xl border border-[color:var(--warning-line)] bg-[color:var(--warning-soft)] px-4 py-3 text-sm text-ink">
+            <summary className="cursor-pointer">
+              Python cells are off on this server. SQL, recipe and text cells work as usual.
+            </summary>
+            <p className="mt-2 text-[13px] text-ink-3">{sandboxStatus.reason}</p>
+          </details>
         ) : null}
 
-        {problems.map((problem) => (
+        {shownProblems.map((problem) => (
           <p
             key={`${problem.cell}:${problem.message}`}
             className="rounded-xl border border-[color:var(--danger-line)] bg-[color:var(--danger-soft)] px-4 py-2 text-xs text-ink"

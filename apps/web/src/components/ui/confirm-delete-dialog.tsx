@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { Button } from "@platform/shared-ui";
-import { Modal } from "@/components/ui/modal";
+import { Button, Modal } from "@platform/shared-ui";
 import { extractErrorMessage } from "@/lib/api/errors";
 
 type ConfirmDeleteDialogProps = {

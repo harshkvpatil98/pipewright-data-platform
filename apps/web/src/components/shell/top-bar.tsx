@@ -180,14 +180,6 @@ export function TopBar({
               Replay product tour
             </button>
             <Link
-              href="/demo"
-              onClick={() => setHelpOpen(false)}
-              className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] text-ink transition hover:bg-surface-2"
-            >
-              <Icon name="book" size={15} className="text-ink-3" />
-              Guided walkthrough
-            </Link>
-            <Link
               href="/system-status"
               onClick={() => setHelpOpen(false)}
               className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] text-ink transition hover:bg-surface-2"

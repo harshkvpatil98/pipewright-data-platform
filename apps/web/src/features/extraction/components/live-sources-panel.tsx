@@ -11,10 +11,9 @@ import type {
   StreamSource,
   StreamSourceCreated,
 } from "@platform/shared-types";
-import { Button, FormField, Input, SectionPanel, Select } from "@platform/shared-ui";
+import { Button, FormField, Input, Modal, SectionPanel, Select } from "@platform/shared-ui";
 
 import { DeleteRowButton } from "@/components/ui/delete-row-button";
-import { Modal } from "@/components/ui/modal";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { appConfig } from "@/lib/config";

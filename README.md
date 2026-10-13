@@ -212,10 +212,7 @@ like any other. `samples/demo-customers.csv` is a second file to upload by hand.
 | `http://localhost:3000/system-status` | Health, runtime heartbeats and queue depths |
 | `http://localhost:8000/api/v1/health/live` | Gateway liveness |
 | `http://localhost:8000/metrics` | Prometheus metrics |
-
-The interactive API reference at `/docs` does not load yet: OpenAPI generation
-fails on a forward reference, recorded as defect D1 in the
-[adoption review](docs/plans/adoption-readiness-workflow.md).
+| `http://localhost:8000/docs` | Interactive API reference (also `/redoc`) |
 
 ## Configuration
 
@@ -315,9 +312,8 @@ first-time user meets soonest:
   process has already exceeded it — the CI failure described under
   [Running tests](#running-tests).
 - The [adoption review](docs/plans/adoption-readiness-workflow.md) lists 20
-  user-facing defects (D1–D20) with file evidence, from the broken API
-  reference to v1 pages such as `/demo` and `/case-study` that are still
-  reachable.
+  user-facing defects (D1–D20) with file evidence and the phases (A0–A9) that
+  address them; its status line says which are fixed.
 
 ## Repository map
 

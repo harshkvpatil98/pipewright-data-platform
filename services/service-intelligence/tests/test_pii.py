@@ -60,6 +60,30 @@ def test_a_version_string_is_not_a_phone_number():
     assert _kind("version", ["999.999.999.999", "1.2.3.4444"]) is None
 
 
+def test_a_date_column_is_not_a_phone_number():
+    """Eight digits and two dashes matched the phone pattern at 100%."""
+    assert _kind("signup_date", ["1990-06-15", "2024-12-01", "2001-01-31"]) != "phone"
+    assert _kind("dob", ["15/06/1990", "01/12/2024"]) != "phone"
+    assert _kind("when", ["2024/02/29"]) != "phone"
+
+
+def test_an_ordinary_date_column_is_not_personal_data():
+    """Every date has the shape of a birth date; only the name can say it is one."""
+    assert _kind("order_date", ["2024-01-05", "2024-02-11", "2024-03-09"]) is None
+    assert _kind("when", ["2024/02/29"]) is None
+
+
+def test_a_named_birth_date_column_is_still_found():
+    finding = scan_column("date_of_birth", ["1990-06-15", "1985-01-31"])
+    assert finding is not None
+    assert finding.kind == "date_of_birth"
+    assert finding.confidence == "high"
+
+
+def test_real_phone_numbers_are_still_found_beside_the_date_rule():
+    assert _kind("contact", ["+44 20 7946 0958", "(555) 123-4567", "555-123-4567"]) == "phone"
+
+
 def test_an_out_of_range_address_is_not_an_ip():
     assert _kind("code", ["999.999.999.999"]) is None
 

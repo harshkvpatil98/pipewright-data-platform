@@ -7,9 +7,8 @@ import type {
   TransformationPipelineRecord,
   TransformationSuggestion,
 } from "@platform/shared-types";
-import { Button, FormField, Input, SectionPanel, Textarea } from "@platform/shared-ui";
+import { Button, FormField, Input, Modal, SectionPanel, Textarea } from "@platform/shared-ui";
 
-import { Modal } from "@/components/ui/modal";
 import {
   buildSuggestionPipelinePayload,
   getDefaultSuggestionPipelineName,

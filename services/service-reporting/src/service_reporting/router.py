@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from collections.abc import Callable
 
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, Query, Request, Response, status
 from sqlalchemy.orm import Session
 
 from service_auth.schemas import UserRead
@@ -601,9 +601,14 @@ def build_public_router(
     @router.get("/public/dashboards/{token}", response_model=PublicDashboardView)
     def shared_dashboard(
         token: str,
+        request: Request,
         db: Session = Depends(get_db),
         storage_backend=Depends(get_storage_backend),
     ) -> PublicDashboardView:
+        from service_auth.dependencies import request_address
+        from shared_python import rate_limit
+
+        rate_limit.hit(db, rate_limit.PUBLIC_DASHBOARD_PER_ADDRESS, request_address(request) or "unknown")
         return get_shared_dashboard(db, token=token, storage_backend=storage_backend)
 
     return router

@@ -38,8 +38,10 @@ class _StubSession:
 
 
 @pytest.fixture(autouse=True)
-def stub_db():
+def stub_db(monkeypatch):
     app.dependency_overrides[get_db] = lambda: _StubSession()
+    # The stub cannot count; rate limits have their own tests.
+    monkeypatch.setenv("RATE_LIMITS_ENABLED", "false")
     yield
     app.dependency_overrides.pop(get_db, None)
 

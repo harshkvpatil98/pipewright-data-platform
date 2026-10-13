@@ -110,6 +110,19 @@ def _sweep_dataset_versions() -> None:
         db.close()
 
 
+def _sweep_rate_limits() -> None:
+    """Forget rate-limit windows that ended a day ago (A7, X5). Best effort."""
+    from shared_python.rate_limit import forget_old_windows
+
+    db = SessionLocal()
+    try:
+        forget_old_windows(db)
+    except Exception:  # noqa: BLE001 - a sweep failure must not stop the ticker
+        logger.exception("rate_limit_sweep_failed")
+    finally:
+        db.close()
+
+
 def _sweep_weekly_summaries() -> None:
     """Send the weekly summaries that are due (A6, W6). Best effort."""
     from service_notifications.weekly import send_weekly_summaries
@@ -173,6 +186,7 @@ def main() -> None:
         _sweep_dataset_versions()
         _sweep_streams()
         _sweep_weekly_summaries()
+        _sweep_rate_limits()
         try:
             summary = _drain_once()
             if summary.triggered_count or summary.failure_count:

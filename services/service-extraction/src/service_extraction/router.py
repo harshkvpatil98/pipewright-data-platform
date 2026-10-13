@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+
 import uuid
 from collections.abc import Callable
 
@@ -335,6 +337,11 @@ def build_public_router(get_db: Callable[..., Session]) -> APIRouter:
 
     @router.post("/hooks/{token}", response_model=StreamEventRead, status_code=status.HTTP_202_ACCEPTED)
     async def receive(token: str, request: Request, db: Session = Depends(get_db)) -> StreamEventRead:
+        from shared_python import rate_limit
+
+        # Per webhook, not per address: senders are other companies' servers,
+        # often several behind one address, and the token names the feed.
+        rate_limit.hit(db, rate_limit.WEBHOOK_PER_TOKEN, hashlib.sha256(token.encode()).hexdigest()[:32])
         body = await request.body()
         return receive_webhook(
             db, token=token, body=body, content_type=request.headers.get("content-type"),

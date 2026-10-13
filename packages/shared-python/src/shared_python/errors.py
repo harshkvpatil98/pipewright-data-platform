@@ -43,8 +43,19 @@ class MisconfiguredEnvironmentError(ApplicationError):
     status_code = 503
 
 
+class TooManyRequestsError(ApplicationError):
+    """A rate limit was reached; `retry_after` says how many seconds until it resets."""
+
+    status_code = 429
+
+    def __init__(self, detail: str, *, retry_after: int):
+        super().__init__(detail)
+        self.retry_after = max(1, int(retry_after))
+
+
 # Registering shared exception handling once in the gateway keeps service packages simple.
 def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(ApplicationError)
     async def handle_application_error(_: Request, exc: ApplicationError) -> JSONResponse:
-        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+        headers = {"Retry-After": str(exc.retry_after)} if isinstance(exc, TooManyRequestsError) else None
+        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail}, headers=headers)

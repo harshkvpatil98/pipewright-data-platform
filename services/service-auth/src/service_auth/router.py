@@ -6,6 +6,8 @@ from collections.abc import Callable
 from fastapi import APIRouter, Cookie, Depends, Request, status
 from sqlalchemy.orm import Session
 
+from shared_python import rate_limit
+
 from service_auth.codes import DEFAULT_TTL_MINUTES, RESET, issue_code
 from service_auth.dependencies import build_current_user_dependency, request_address
 from service_auth.network_gate import check_network
@@ -122,6 +124,9 @@ def build_router(get_db: Callable[..., Session], settings, email_sender=None) ->
 
     @router.post("/login", response_model=LoginResult, status_code=status.HTTP_200_OK)
     def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)) -> LoginResult:
+        address = request_address(request, settings) or "unknown"
+        rate_limit.hit(db, rate_limit.SIGN_IN_PER_ADDRESS, address)
+        rate_limit.hit(db, rate_limit.SIGN_IN_PER_ACCOUNT, f"{payload.username.strip().lower()}@{address}")
         user = authenticate_user(db, payload.username, payload.password)
         _from_allowed_network(db, user, request)
         # A password alone is not enough once a second factor is on: hand back a
@@ -137,6 +142,7 @@ def build_router(get_db: Callable[..., Session], settings, email_sender=None) ->
     def login_mfa(payload: MfaLoginRequest, request: Request, db: Session = Depends(get_db)) -> LoginResult:
         """Second step: exchange the ticket plus a TOTP or recovery code for a
         session. The ticket proves the password already passed."""
+        rate_limit.hit(db, rate_limit.CODES_PER_ADDRESS, request_address(request, settings) or "unknown")
         user_id = mfa_service.verify_mfa_ticket(payload.mfa_ticket, settings=settings)
         user = get_user_by_id(db, user_id)
         if user is None or not user.is_active:
@@ -247,6 +253,7 @@ def build_router(get_db: Callable[..., Session], settings, email_sender=None) ->
 
         Public by design: the whole point is that the person cannot sign in yet.
         """
+        rate_limit.hit(db, rate_limit.CODES_PER_ADDRESS, request_address(request, settings) or "unknown")
         user = set_password_with_code(db, code=payload.code, new=payload.new_password)
         _from_allowed_network(db, user, request)
         return _issue_token(user)

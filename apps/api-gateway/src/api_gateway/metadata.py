@@ -1,4 +1,5 @@
 from shared_python.db import Base
+from shared_python.rate_limit import RateLimitWindow  # noqa: F401
 
 # Import models here so Alembic sees a single metadata graph while service code stays modular.
 from service_access.models import ProjectMembership  # noqa: F401

@@ -102,7 +102,12 @@ export function PipelineEditorPageView({
     () => steps.find((step) => step.id === selectedStepId) ?? null,
     [steps, selectedStepId],
   );
-  const nameError = useMemo(() => validatePipelineName(name), [name]);
+  // Shown once the person has typed or tried to save, never on an untouched form.
+  const [nameTouched, setNameTouched] = useState(false);
+  const nameError = useMemo(
+    () => (nameTouched ? validatePipelineName(name) : null),
+    [name, nameTouched],
+  );
   const draftValid = useMemo(() => isPipelineDraftValid({ name, steps }), [name, steps]);
 
   const currentSnapshot = serializePipelineEditorBaseline({
@@ -163,7 +168,8 @@ export function PipelineEditorPageView({
     }
 
     if (!isPipelineDraftValid({ name, steps })) {
-      setFormError("Fix validation errors in the pipeline details and steps before saving.");
+      setNameTouched(true);
+      setFormError("Some details need fixing before this can be saved; they are marked below.");
       return;
     }
 
@@ -216,7 +222,8 @@ export function PipelineEditorPageView({
       return;
     }
     if (!isPipelineDraftValid({ name, steps })) {
-      setPreviewError("Fix validation errors before previewing.");
+      setNameTouched(true);
+      setPreviewError("Some details need fixing before a preview; they are marked below.");
       return;
     }
 
@@ -342,14 +349,20 @@ export function PipelineEditorPageView({
       ) : null}
 
       <div className="grid gap-6 xl:grid-cols-[0.28fr_0.72fr]">
-        <SectionPanel title="Pipeline details" description="Name, lifecycle status, and the source dataset for this reusable pipeline definition.">
+        <SectionPanel title="Recipe details" description="Its name, and the dataset it starts from.">
           <div className="space-y-5">
-            <FormField label="Pipeline name" htmlFor="pipeline-name" error={nameError}>
-              <Input id="pipeline-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Standardize customer orders" />
+            <FormField label="Recipe name" htmlFor="pipeline-name" error={nameError}>
+              <Input
+                id="pipeline-name"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                onBlur={() => setNameTouched(true)}
+                placeholder="Tidy customer orders"
+              />
             </FormField>
 
             <FormField label="Description" htmlFor="pipeline-description">
-              <Textarea id="pipeline-description" value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Normalize incoming order data, remove invalid rows, and prepare a reusable derived dataset." />
+              <Textarea id="pipeline-description" value={description} onChange={(event) => setDescription(event.target.value)} placeholder="What this recipe is for." />
             </FormField>
 
             <div className="grid gap-4 md:grid-cols-2">
@@ -360,7 +373,7 @@ export function PipelineEditorPageView({
                 </Select>
               </FormField>
 
-              <FormField label="Base dataset" htmlFor="pipeline-dataset">
+              <FormField label="Starts from" htmlFor="pipeline-dataset">
                 <Select
                   id="pipeline-dataset"
                   value={baseDatasetId ?? ""}

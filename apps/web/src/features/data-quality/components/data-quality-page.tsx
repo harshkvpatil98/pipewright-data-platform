@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
 
 import type {
@@ -10,12 +11,24 @@ import type {
   RuleSeverity,
   RuleTypeInfo,
 } from "@platform/shared-types";
-import { Button, FormField, Input, SectionPanel, Select, StatusBadge } from "@platform/shared-ui";
+import {
+  Button,
+  FormField,
+  Input,
+  Modal,
+  SectionPanel,
+  Select,
+  StatusBadge,
+} from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
-import { describeCheckSettings, ruleTypeLabel, severityShortLabel } from "@/lib/labels";
+import {
+  describeCheckSettings,
+  ruleTypeLabel,
+  severityShortLabel,
+} from "@/lib/labels";
 import { DATA_QUALITY_TOUR_ID, dataQualityTour } from "@/components/tour/tours";
 import { useTour } from "@/components/tour/tour-provider";
 import { cx } from "@/lib/utils";
@@ -32,12 +45,19 @@ type DataQualityPageProps = {
  * Each rule type needs different config keys. Rather than one generic JSON box,
  * the form renders the fields that rule type actually uses.
  */
-const CONFIG_FIELDS: Record<string, { key: string; label: string; placeholder: string }[]> = {
+const CONFIG_FIELDS: Record<
+  string,
+  { key: string; label: string; placeholder: string }[]
+> = {
   not_null: [{ key: "column", label: "Column", placeholder: "email" }],
   unique: [{ key: "column", label: "Column", placeholder: "id" }],
   allowed_values: [
     { key: "column", label: "Column", placeholder: "status" },
-    { key: "allowed_values", label: "Allowed values (comma separated)", placeholder: "active, archived" },
+    {
+      key: "allowed_values",
+      label: "Allowed values (comma separated)",
+      placeholder: "active, archived",
+    },
   ],
   range: [
     { key: "column", label: "Column", placeholder: "amount" },
@@ -46,10 +66,18 @@ const CONFIG_FIELDS: Record<string, { key: string; label: string; placeholder: s
   ],
   regex_match: [
     { key: "column", label: "Column", placeholder: "email" },
-    { key: "pattern", label: "Pattern", placeholder: "[^@\\s]+@[^@\\s]+\\.[a-z]{2,}" },
+    {
+      key: "pattern",
+      label: "Pattern",
+      placeholder: "[^@\\s]+@[^@\\s]+\\.[a-z]{2,}",
+    },
   ],
   expression: [
-    { key: "expression", label: "Expression must be true for every row", placeholder: "total >= 0" },
+    {
+      key: "expression",
+      label: "Expression must be true for every row",
+      placeholder: "total >= 0",
+    },
   ],
   row_count: [
     { key: "min", label: "Minimum rows", placeholder: "1" },
@@ -63,13 +91,19 @@ const CONFIG_FIELDS: Record<string, { key: string; label: string; placeholder: s
 
 const NUMERIC_KEYS = new Set(["min", "max", "max_age_hours"]);
 
-function buildConfig(ruleType: string, values: Record<string, string>): Record<string, unknown> {
+function buildConfig(
+  ruleType: string,
+  values: Record<string, string>,
+): Record<string, unknown> {
   const config: Record<string, unknown> = {};
   for (const field of CONFIG_FIELDS[ruleType] ?? []) {
     const raw = (values[field.key] ?? "").trim();
     if (!raw) continue;
     if (field.key === "allowed_values") {
-      config[field.key] = raw.split(",").map((value) => value.trim()).filter(Boolean);
+      config[field.key] = raw
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean);
     } else if (NUMERIC_KEYS.has(field.key)) {
       const parsed = Number(raw);
       if (!Number.isNaN(parsed)) config[field.key] = parsed;
@@ -92,15 +126,21 @@ export function DataQualityPageView({
   const [error, setError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const [evaluation, setEvaluation] = useState<DataQualityEvaluationResponse | null>(null);
+  const [evaluation, setEvaluation] =
+    useState<DataQualityEvaluationResponse | null>(null);
 
   const { startIfUnseen } = useTour();
   useEffect(() => {
-    const timer = setTimeout(() => startIfUnseen(dataQualityTour, DATA_QUALITY_TOUR_ID), 900);
+    const timer = setTimeout(
+      () => startIfUnseen(dataQualityTour, DATA_QUALITY_TOUR_ID),
+      900,
+    );
     return () => clearTimeout(timer);
   }, [startIfUnseen]);
 
-  const [ruleType, setRuleType] = useState<string>(ruleTypes[0]?.rule_type ?? "not_null");
+  const [ruleType, setRuleType] = useState<string>(
+    ruleTypes[0]?.rule_type ?? "not_null",
+  );
   const [ruleName, setRuleName] = useState("");
   const [severity, setSeverity] = useState<RuleSeverity>("error");
   const [datasetId, setDatasetId] = useState<string>(datasets[0]?.id ?? "");
@@ -115,7 +155,9 @@ export function DataQualityPageView({
       return;
     }
     let cancelled = false;
-    apiFetch<{ columns: string[] }>(`/projects/${projectId}/datasets/${datasetId}/preview`)
+    apiFetch<{ columns: string[] }>(
+      `/projects/${projectId}/datasets/${datasetId}/preview`,
+    )
       .then((preview) => {
         if (!cancelled) setDatasetColumns(preview.columns ?? []);
       })
@@ -134,7 +176,11 @@ export function DataQualityPageView({
   );
 
   const run = useCallback(
-    async <T,>(key: string, action: () => Promise<T>, successMessage?: string): Promise<T | null> => {
+    async <T,>(
+      key: string,
+      action: () => Promise<T>,
+      successMessage?: string,
+    ): Promise<T | null> => {
       setBusy(key);
       setError(null);
       setFeedback(null);
@@ -152,6 +198,8 @@ export function DataQualityPageView({
     [],
   );
 
+  const [creating, setCreating] = useState(false);
+
   const createRule = async () => {
     const created = await run(
       "create-rule",
@@ -166,12 +214,13 @@ export function DataQualityPageView({
             config: buildConfig(ruleType, configValues),
           }),
         }),
-      "Rule saved.",
+      "Check saved. Run the checks below to see how the data does.",
     );
     if (created) {
       setRules((current) => [created, ...current]);
       setRuleName("");
       setConfigValues({});
+      setCreating(false);
     }
   };
 
@@ -179,29 +228,30 @@ export function DataQualityPageView({
     const done = await run(
       `delete-${ruleId}`,
       () =>
-        apiFetch<void>(`/projects/${projectId}/data-quality/rules/${ruleId}`, { method: "DELETE" }),
-      "Rule deleted.",
+        apiFetch<void>(`/projects/${projectId}/data-quality/rules/${ruleId}`, {
+          method: "DELETE",
+        }),
+      "Check deleted.",
     );
-    if (done !== null) setRules((current) => current.filter((rule) => rule.id !== ruleId));
+    if (done !== null)
+      setRules((current) => current.filter((rule) => rule.id !== ruleId));
   };
 
   const evaluate = async () => {
     if (!datasetId) {
-      setError("Choose a dataset to evaluate.");
+      setError("Choose a dataset to check.");
       return;
     }
-    const result = await run(
-      "evaluate",
-      () =>
-        apiFetch<DataQualityEvaluationResponse>(
-          `/projects/${projectId}/datasets/${datasetId}/data-quality/evaluate`,
-          { method: "POST", body: JSON.stringify({ quarantine }) },
-        ),
+    const result = await run("evaluate", () =>
+      apiFetch<DataQualityEvaluationResponse>(
+        `/projects/${projectId}/datasets/${datasetId}/data-quality/evaluate`,
+        { method: "POST", body: JSON.stringify({ quarantine }) },
+      ),
     );
     if (result) {
       setEvaluation(result);
       setFeedback(
-        `${result.rules_evaluated} rule(s) evaluated · ${result.rules_failed} failed · ${result.rows_quarantined} row(s) quarantined.`,
+        `${result.rules_evaluated} check(s) run · ${result.rules_failed} failed · ${result.rows_quarantined} row(s) set aside.`,
       );
     }
   };
@@ -218,274 +268,360 @@ export function DataQualityPageView({
       currentUser={currentUser}
       title="Checks"
       subtitle="Rules your data must pass, and what happened when they ran."
+      actions={
+        <span data-tour="dq-define">
+          <Button onClick={() => setCreating(true)}>New check</Button>
+        </span>
+      }
     >
       {error ? (
-        <div className="rounded-2xl border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger">
+        <div className="border-danger-line bg-danger-soft text-danger rounded-2xl border px-4 py-3 text-sm">
           {error}
         </div>
       ) : null}
       {feedback ? (
-        <div className="rounded-2xl border border-success-line bg-success-soft px-4 py-3 text-sm text-success">
+        <div className="border-success-line bg-success-soft text-success rounded-2xl border px-4 py-3 text-sm">
           {feedback}
         </div>
       ) : null}
 
-      <div data-tour="dq-define">
       <SectionPanel
-        title="Define a rule"
-        description={activeRuleType?.description ?? "Choose a rule type to begin."}
+        title={
+          rules.length === 0
+            ? "Your checks"
+            : `${rules.length} check${rules.length === 1 ? "" : "s"}`
+        }
+        description="Each check runs whenever its dataset is checked, by hand below or as part of a workflow."
       >
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,380px)_1fr]">
-          <div className="space-y-3 rounded-2xl border border-line bg-surface p-4">
-            <FormField label="Rule name" htmlFor={`${fieldPrefix}-name`}>
-              <Input
-                id={`${fieldPrefix}-name`}
-                value={ruleName}
-                onChange={(event) => setRuleName(event.target.value)}
-                placeholder="Email must be present"
-              />
-            </FormField>
-            <FormField label="Rule type" htmlFor={`${fieldPrefix}-type`}>
-              <Select
-                id={`${fieldPrefix}-type`}
-                value={ruleType}
-                onChange={(event) => {
-                  setRuleType(event.target.value);
-                  setConfigValues({});
-                }}
+        <div className="space-y-3">
+          {rules.length === 0 ? (
+            <div className="border-line flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed px-4 py-6">
+              <p className="text-ink-3 text-[14px]">
+                No checks yet. Start with the one that matters most, such as
+                &quot;every order has an email&quot;.
+              </p>
+              <Button size="sm" onClick={() => setCreating(true)}>
+                New check
+              </Button>
+            </div>
+          ) : (
+            rules.map((rule) => (
+              <article
+                key={rule.id}
+                className="border-line bg-surface flex flex-wrap items-start justify-between gap-3 rounded-2xl border px-4 py-4"
               >
-                {ruleTypes.map((item) => (
-                  <option key={item.rule_type} value={item.rule_type}>
-                    {ruleTypeLabel(item.rule_type)}
-                  </option>
-                ))}
-              </Select>
-            </FormField>
-            <FormField
-              label="Severity"
-              htmlFor={`${fieldPrefix}-severity`}
-              description={
-                severity === "error"
-                  ? "Failures quarantine rows and fail the evaluation."
-                  : "Failures are reported but do not block anything."
-              }
-            >
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-ink text-sm font-semibold">
+                      {rule.name}
+                    </h3>
+                    <span className="border-line text-ink-3 rounded-full border px-2 py-0.5 text-[12px]">
+                      {ruleTypeLabel(rule.rule_type)}
+                    </span>
+                    <span
+                      className={cx(
+                        "rounded-full border px-2 py-0.5 text-[12px]",
+                        rule.severity === "error"
+                          ? "border-danger-line bg-danger-soft text-danger"
+                          : "border-warning-line bg-warning-soft text-warning",
+                      )}
+                    >
+                      {severityShortLabel(rule.severity)}
+                    </span>
+                    {rule.last_status ? (
+                      <StatusBadge
+                        value={
+                          rule.last_status === "passed" ? "passed" : "failed"
+                        }
+                      />
+                    ) : null}
+                  </div>
+                  <p className="text-muted mt-1 text-[13px]">
+                    {describeCheckSettings(rule.config_json)}
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => deleteRule(rule.id)}
+                  disabled={busy === `delete-${rule.id}`}
+                >
+                  Delete
+                </Button>
+              </article>
+            ))
+          )}
+        </div>
+      </SectionPanel>
+
+      <div data-tour="dq-evaluate">
+        <SectionPanel
+          title="Run the checks"
+          description="Checks one dataset against every check that applies to it."
+          actions={
+            <div className="flex flex-wrap items-center gap-3">
               <Select
-                id={`${fieldPrefix}-severity`}
-                value={severity}
-                onChange={(event) => setSeverity(event.target.value as RuleSeverity)}
-              >
-                <option value="error">Error — quarantine failing rows</option>
-                <option value="warning">Warning — report only</option>
-              </Select>
-            </FormField>
-            <FormField
-              label="Dataset"
-              htmlFor={`${fieldPrefix}-dataset`}
-              description="Leave blank to apply the rule to every dataset in the project."
-            >
-              <Select
-                id={`${fieldPrefix}-dataset`}
+                aria-label="Dataset to check"
                 value={datasetId}
                 onChange={(event) => setDatasetId(event.target.value)}
+                className="w-56"
               >
-                <option value="">All datasets</option>
+                <option value="">Choose a dataset…</option>
                 {datasets.map((dataset) => (
                   <option key={dataset.id} value={dataset.id}>
                     {dataset.name}
                   </option>
                 ))}
               </Select>
-            </FormField>
-
-            {(CONFIG_FIELDS[ruleType] ?? []).map((field) => (
-              <FormField
-                key={field.key}
-                label={field.label}
-                htmlFor={`${fieldPrefix}-${field.key}`}
-              >
-                {field.key === "column" && datasetColumns.length > 0 ? (
-                  <Select
-                    id={`${fieldPrefix}-${field.key}`}
-                    value={configValues[field.key] ?? ""}
-                    onChange={(event) =>
-                      setConfigValues((values) => ({ ...values, [field.key]: event.target.value }))
-                    }
-                  >
-                    <option value="">Choose a column…</option>
-                    {datasetColumns.map((column) => (
-                      <option key={column} value={column}>
-                        {column}
-                      </option>
-                    ))}
-                  </Select>
-                ) : (
-                  <Input
-                    id={`${fieldPrefix}-${field.key}`}
-                    value={configValues[field.key] ?? ""}
-                    onChange={(event) =>
-                      setConfigValues((values) => ({ ...values, [field.key]: event.target.value }))
-                    }
-                    placeholder={field.placeholder}
-                  />
+              <label className="text-ink-2 flex items-center gap-2 text-[13px]">
+                <input
+                  type="checkbox"
+                  checked={quarantine}
+                  onChange={(event) => setQuarantine(event.target.checked)}
+                  className="border-line-strong bg-sunken h-4 w-4 rounded"
+                />
+                Set failing rows aside
+              </label>
+              <Button onClick={evaluate} disabled={busy === "evaluate" || !datasetId}>
+                {busy === "evaluate" ? "Checking…" : "Run checks"}
+              </Button>
+            </div>
+          }
+        >
+          {evaluation ? (
+            <div className="space-y-4">
+              <div
+                className={cx(
+                  "rounded-2xl border px-4 py-3 text-sm",
+                  statusTone(evaluation.status),
                 )}
-              </FormField>
-            ))}
+              >
+                <strong>
+                  {evaluation.status === "passed"
+                    ? "Passed"
+                    : evaluation.status === "warning"
+                      ? "Passed with warnings"
+                      : "Failed"}
+                </strong>{" "}
+                · {evaluation.rows_passing} of {evaluation.rows_in} row(s) passed
+                {evaluation.rows_quarantined > 0
+                  ? ` · ${evaluation.rows_quarantined} set aside`
+                  : ""}
+                {evaluation.quarantine_dataset_id ? (
+                  <Link
+                    href={`/projects/${projectId}/datasets/${evaluation.quarantine_dataset_id}`}
+                    className="ml-2 font-medium underline underline-offset-4"
+                  >
+                    See the rows set aside
+                  </Link>
+                ) : null}
+              </div>
 
+              <div className="border-line overflow-x-auto rounded-2xl border">
+                <table className="w-full min-w-max text-left text-xs">
+                  <thead className="bg-surface text-ink-3">
+                    <tr>
+                      <th className="cell-pad font-medium">Check</th>
+                      <th className="cell-pad font-medium">Type</th>
+                      <th className="cell-pad font-medium">Severity</th>
+                      <th className="cell-pad font-medium">Status</th>
+                      <th className="cell-pad font-medium">Failed</th>
+                      <th className="cell-pad font-medium">Detail</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-line divide-y">
+                    {evaluation.results.map((result) => (
+                      <tr
+                        key={`${result.name}-${result.rule_type}`}
+                        className="text-ink-2"
+                      >
+                        <td className="cell-pad text-ink font-medium">
+                          {result.name}
+                        </td>
+                        <td className="cell-pad">
+                          {ruleTypeLabel(result.rule_type)}
+                        </td>
+                        <td className="cell-pad">
+                          {severityShortLabel(result.severity)}
+                        </td>
+                        <td className="cell-pad">
+                          <span
+                            className={cx(
+                              result.status === "passed"
+                                ? "text-success"
+                                : "text-danger",
+                            )}
+                          >
+                            {result.status === "passed" ? "Passed" : "Failed"}
+                          </span>
+                        </td>
+                        <td className="cell-pad tabular">
+                          {result.failed_rows}
+                          {result.failure_rate
+                            ? ` (${result.failure_rate}%)`
+                            : ""}
+                        </td>
+                        <td className="cell-pad text-ink-3 max-w-md">
+                          {result.message}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {evaluation.warnings.length > 0 ? (
+                <ul className="text-warning space-y-1 text-xs">
+                  {evaluation.warnings.map((warning) => (
+                    <li key={warning}>• {warning}</li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          ) : (
+            <p className="border-line text-muted rounded-2xl border border-dashed px-4 py-8 text-center text-sm">
+              Select a dataset above and run an evaluation to see results.
+            </p>
+          )}
+        </SectionPanel>
+      </div>
+      <Modal
+        open={creating}
+        onClose={() => setCreating(false)}
+        title="New check"
+        description={
+          activeRuleType?.description ?? "Choose what the data must do."
+        }
+        widthClassName="max-w-lg"
+        footer={
+          <div className="flex justify-end gap-2">
             <Button
-              className="w-full"
+              variant="secondary"
+              size="sm"
+              onClick={() => setCreating(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
               onClick={createRule}
               disabled={busy === "create-rule" || !ruleName.trim()}
             >
-              {busy === "create-rule" ? "Saving…" : "Save rule"}
-            </Button>
-          </div>
-
-          <div className="space-y-3">
-            {rules.length === 0 ? (
-              <p className="rounded-2xl border border-dashed border-line px-4 py-8 text-center text-sm text-muted">
-                No checks yet. Add one on the left: for example, "email must be present".
-              </p>
-            ) : (
-              rules.map((rule) => (
-                <article
-                  key={rule.id}
-                  className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-line bg-surface px-4 py-4"
-                >
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-sm font-semibold text-ink">{rule.name}</h3>
-                      <span className="rounded-full border border-line px-2 py-0.5 text-[12px] text-ink-3">
-                        {ruleTypeLabel(rule.rule_type)}
-                      </span>
-                      <span
-                        className={cx(
-                          "rounded-full border px-2 py-0.5 text-[12px]",
-                          rule.severity === "error"
-                            ? "border-danger-line bg-danger-soft text-danger"
-                            : "border-warning-line bg-warning-soft text-warning",
-                        )}
-                      >
-                        {severityShortLabel(rule.severity)}
-                      </span>
-                      {rule.last_status ? (
-                        <StatusBadge value={rule.last_status === "passed" ? "passed" : "failed"} />
-                      ) : null}
-                    </div>
-                    <p className="mt-1 text-[13px] text-muted">
-                      {describeCheckSettings(rule.config_json)}
-                    </p>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => deleteRule(rule.id)}
-                    disabled={busy === `delete-${rule.id}`}
-                  >
-                    Delete
-                  </Button>
-                </article>
-              ))
-            )}
-          </div>
-        </div>
-      </SectionPanel>
-      </div>
-
-      <div data-tour="dq-evaluate">
-      <SectionPanel
-        title="Evaluate a dataset"
-        description="Runs every enabled rule that applies to the selected dataset."
-        actions={
-          <div className="flex flex-wrap items-center gap-3">
-            <label className="flex items-center gap-2 text-xs text-ink-2">
-              <input
-                type="checkbox"
-                checked={quarantine}
-                onChange={(event) => setQuarantine(event.target.checked)}
-                className="h-4 w-4 rounded border-line-strong bg-sunken"
-              />
-              Quarantine failing rows
-            </label>
-            <Button onClick={evaluate} disabled={busy === "evaluate" || !datasetId}>
-              {busy === "evaluate" ? "Evaluating…" : "Run evaluation"}
+              {busy === "create-rule" ? "Saving…" : "Save check"}
             </Button>
           </div>
         }
       >
-        {evaluation ? (
-          <div className="space-y-4">
-            <div
-              className={cx(
-                "rounded-2xl border px-4 py-3 text-sm",
-                statusTone(evaluation.status),
-              )}
-            >
-              <strong className="uppercase tracking-[0.16em]">{evaluation.status}</strong> ·{" "}
-              {evaluation.rows_passing} of {evaluation.rows_in} row(s) passed
-              {evaluation.rows_quarantined > 0
-                ? ` · ${evaluation.rows_quarantined} quarantined`
-                : ""}
-              {evaluation.quarantine_dataset_id ? (
-                <span className="ml-1 opacity-80">
-                  (quarantine dataset {evaluation.quarantine_dataset_id.slice(0, 8)}…)
-                </span>
-              ) : null}
-            </div>
-
-            <div className="overflow-x-auto rounded-2xl border border-line">
-              <table className="w-full min-w-max text-left text-xs">
-                <thead className="bg-surface text-ink-3">
-                  <tr>
-                    <th className="cell-pad font-medium">Rule</th>
-                    <th className="cell-pad font-medium">Type</th>
-                    <th className="cell-pad font-medium">Severity</th>
-                    <th className="cell-pad font-medium">Status</th>
-                    <th className="cell-pad font-medium">Failed</th>
-                    <th className="cell-pad font-medium">Detail</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-line">
-                  {evaluation.results.map((result) => (
-                    <tr key={`${result.name}-${result.rule_type}`} className="text-ink-2">
-                      <td className="cell-pad font-medium text-ink">{result.name}</td>
-                      <td className="cell-pad">{ruleTypeLabel(result.rule_type)}</td>
-                      <td className="cell-pad">{severityShortLabel(result.severity)}</td>
-                      <td className="cell-pad">
-                        <span
-                          className={cx(
-                            result.status === "passed" ? "text-success" : "text-danger",
-                          )}
-                        >
-                          {result.status === "passed" ? "Passed" : "Failed"}
-                        </span>
-                      </td>
-                      <td className="cell-pad tabular">
-                        {result.failed_rows}
-                        {result.failure_rate ? ` (${result.failure_rate}%)` : ""}
-                      </td>
-                      <td className="max-w-md cell-pad text-ink-3">{result.message}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {evaluation.warnings.length > 0 ? (
-              <ul className="space-y-1 text-xs text-warning">
-                {evaluation.warnings.map((warning) => (
-                  <li key={warning}>• {warning}</li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
-        ) : (
-          <p className="rounded-2xl border border-dashed border-line px-4 py-8 text-center text-sm text-muted">
-            Select a dataset above and run an evaluation to see results.
+        {error && creating ? (
+          <p role="alert" className="text-danger mb-3 text-[13px]">
+            {error}
           </p>
-        )}
-      </SectionPanel>
-      </div>
+        ) : null}
+        <div className="space-y-4">
+          <FormField label="Name" htmlFor={`${fieldPrefix}-name`}>
+            <Input
+              id={`${fieldPrefix}-name`}
+              value={ruleName}
+              onChange={(event) => setRuleName(event.target.value)}
+              placeholder="Email must be present"
+            />
+          </FormField>
+          <FormField label="What it checks" htmlFor={`${fieldPrefix}-type`}>
+            <Select
+              id={`${fieldPrefix}-type`}
+              value={ruleType}
+              onChange={(event) => {
+                setRuleType(event.target.value);
+                setConfigValues({});
+              }}
+            >
+              {ruleTypes.map((item) => (
+                <option key={item.rule_type} value={item.rule_type}>
+                  {ruleTypeLabel(item.rule_type)}
+                </option>
+              ))}
+            </Select>
+          </FormField>
+          <FormField
+            label="Severity"
+            htmlFor={`${fieldPrefix}-severity`}
+            description={
+              severity === "error"
+                ? "Rows that fail are set aside, and the check counts as failed."
+                : "Failures are reported; nothing is blocked."
+            }
+          >
+            <Select
+              id={`${fieldPrefix}-severity`}
+              value={severity}
+              onChange={(event) =>
+                setSeverity(event.target.value as RuleSeverity)
+              }
+            >
+              <option value="error">Error: set failing rows aside</option>
+              <option value="warning">Warning: report only</option>
+            </Select>
+          </FormField>
+          <FormField
+            label="Dataset"
+            htmlFor={`${fieldPrefix}-dataset`}
+            description="Leave as All datasets to check every dataset in the project."
+          >
+            <Select
+              id={`${fieldPrefix}-dataset`}
+              value={datasetId}
+              onChange={(event) => setDatasetId(event.target.value)}
+            >
+              <option value="">All datasets</option>
+              {datasets.map((dataset) => (
+                <option key={dataset.id} value={dataset.id}>
+                  {dataset.name}
+                </option>
+              ))}
+            </Select>
+          </FormField>
+
+          {(CONFIG_FIELDS[ruleType] ?? []).map((field) => (
+            <FormField
+              key={field.key}
+              label={field.label}
+              htmlFor={`${fieldPrefix}-${field.key}`}
+            >
+              {field.key === "column" && datasetColumns.length > 0 ? (
+                <Select
+                  id={`${fieldPrefix}-${field.key}`}
+                  value={configValues[field.key] ?? ""}
+                  onChange={(event) =>
+                    setConfigValues((values) => ({
+                      ...values,
+                      [field.key]: event.target.value,
+                    }))
+                  }
+                >
+                  <option value="">Choose a column…</option>
+                  {datasetColumns.map((column) => (
+                    <option key={column} value={column}>
+                      {column}
+                    </option>
+                  ))}
+                </Select>
+              ) : (
+                <Input
+                  id={`${fieldPrefix}-${field.key}`}
+                  value={configValues[field.key] ?? ""}
+                  onChange={(event) =>
+                    setConfigValues((values) => ({
+                      ...values,
+                      [field.key]: event.target.value,
+                    }))
+                  }
+                  placeholder={field.placeholder}
+                />
+              )}
+            </FormField>
+          ))}
+        </div>
+      </Modal>
     </AppShell>
   );
 }

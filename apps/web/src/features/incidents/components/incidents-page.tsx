@@ -165,8 +165,8 @@ function EmptyState({ filter }: { filter: IncidentStatus | "all" }) {
           : `No ${filter === "all" ? "" : filter + " "}incidents.`}
       </div>
       <div className="mt-1 text-[12px] text-muted">
-        Incidents appear when a quality gate fails, a schema breaks, a dataset goes stale, or a
-        metric leaves its usual range.
+        Incidents appear when a check fails, a source changes shape, data arrives late, or a
+        number leaves its usual range.
       </div>
     </div>
   );

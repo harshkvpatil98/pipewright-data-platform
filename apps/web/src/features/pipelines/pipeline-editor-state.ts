@@ -71,7 +71,7 @@ export function validatePipelineName(name: string): string | null {
     return "Pipeline name is required.";
   }
   if (trimmed.length < 2) {
-    return "Pipeline name must be at least 2 characters.";
+    return "Give the recipe a name of at least two characters.";
   }
   return null;
 }

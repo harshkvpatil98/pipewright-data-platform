@@ -4,7 +4,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import type { AuthUser, PlatformStatusResponse, ProjectSummary } from "@platform/shared-types";
+import type {
+  AuthUser,
+  PlatformStatusResponse,
+  ProjectSummary,
+} from "@platform/shared-types";
 
 import { AppFrame } from "@/components/shell/app-frame";
 import { runtimeSignalsFromStatus } from "@/components/ui/runtime-banner";
@@ -27,13 +31,21 @@ const WORKER_LABELS: Record<string, string> = {
   "schedule-ticker": "Ticker",
 };
 
-function detail(status: PlatformStatusResponse | null, service: string, key: string): number {
+function detail(
+  status: PlatformStatusResponse | null,
+  service: string,
+  key: string,
+): number {
   const record = status?.services.find((item) => item.name === service);
   const value = record?.details?.[key];
   return typeof value === "number" ? value : 0;
 }
 
-export function HomeDashboard({ currentUser, projects, status }: HomeDashboardProps) {
+export function HomeDashboard({
+  currentUser,
+  projects,
+  status,
+}: HomeDashboardProps) {
   // Time of day is resolved after mount: the server's clock and the viewer's can
   // sit on opposite sides of a boundary, which would be a hydration mismatch.
   const [greeting, setGreeting] = useState("Welcome back");
@@ -41,12 +53,28 @@ export function HomeDashboard({ currentUser, projects, status }: HomeDashboardPr
 
   const datasetCount = detail(status, "service-datasets", "dataset_count");
   const projectCount = detail(status, "service-projects", "project_count");
-  const connectionCount = detail(status, "service-extraction", "connection_count");
+  const connectionCount = detail(
+    status,
+    "service-extraction",
+    "connection_count",
+  );
   const jobCount = detail(status, "service-extraction", "job_count");
   const ruleCount = detail(status, "service-quality", "rule_count");
-  const failingRules = detail(status, "service-quality", "rules_currently_failing");
-  const openDrift = detail(status, "service-quality", "unacknowledged_drift_events");
-  const breakingDrift = detail(status, "service-quality", "breaking_drift_events");
+  const failingRules = detail(
+    status,
+    "service-quality",
+    "rules_currently_failing",
+  );
+  const openDrift = detail(
+    status,
+    "service-quality",
+    "unacknowledged_drift_events",
+  );
+  const breakingDrift = detail(
+    status,
+    "service-quality",
+    "breaking_drift_events",
+  );
 
   const attention = failingRules + openDrift;
   const healthy = status?.status === "healthy";
@@ -94,8 +122,13 @@ export function HomeDashboard({ currentUser, projects, status }: HomeDashboardPr
   const createDemo = async () => {
     setSeeding(true);
     try {
-      const demo = await apiFetch<{ id: string }>("/projects/demo", { method: "POST" });
-      toast.success("Demo project created", "A worked example: data, a pipeline, a rule, a schedule.");
+      const demo = await apiFetch<{ id: string }>("/projects/demo", {
+        method: "POST",
+      });
+      toast.success(
+        "Demo project created",
+        "A worked example: data, a pipeline, a rule, a schedule.",
+      );
       router.push(`/projects/${demo.id}`);
     } catch (caught) {
       toast.error("Could not create the demo", extractErrorMessage(caught));
@@ -104,24 +137,35 @@ export function HomeDashboard({ currentUser, projects, status }: HomeDashboardPr
   };
 
   // Background work: the one card that says whether queued work is moving.
-  const runtime = status ? assessRuntime(runtimeSignalsFromStatus(status)) : null;
+  const runtime = status
+    ? assessRuntime(runtimeSignalsFromStatus(status))
+    : null;
   const runtimeSignals = status ? runtimeSignalsFromStatus(status) : null;
 
   // Health, honestly ordered: whatever is not healthy comes first and is
   // never hidden by the display cap, and a degraded module says why.
-  const orderedServices = [...(status?.services ?? [])].sort((a, b) =>
-    (a.status === "healthy" ? 1 : 0) - (b.status === "healthy" ? 1 : 0),
+  const orderedServices = [...(status?.services ?? [])].sort(
+    (a, b) =>
+      (a.status === "healthy" ? 1 : 0) - (b.status === "healthy" ? 1 : 0),
   );
-  const degradedServices = orderedServices.filter((s) => s.status !== "healthy");
+  const degradedServices = orderedServices.filter(
+    (s) => s.status !== "healthy",
+  );
   const healthLabel = healthy
     ? "Everything is working"
     : `${degradedServices.length} part${degradedServices.length === 1 ? "" : "s"} need${degradedServices.length === 1 ? "s" : ""} attention`;
-  const degradedReason = (service: { name: string; details?: Record<string, unknown> }) => {
+  const degradedReason = (service: {
+    name: string;
+    details?: Record<string, unknown>;
+  }) => {
     const d = (service.details ?? {}) as Record<string, unknown>;
     if (typeof d.incidents_open === "number" && d.incidents_open > 0) {
-      const critical = typeof d.incidents_critical === "number" ? d.incidents_critical : 0;
-      return `${d.incidents_open} open incident${d.incidents_open === 1 ? "" : "s"}` +
-        (critical ? ` (${critical} critical)` : "");
+      const critical =
+        typeof d.incidents_critical === "number" ? d.incidents_critical : 0;
+      return (
+        `${d.incidents_open} open incident${d.incidents_open === 1 ? "" : "s"}` +
+        (critical ? ` (${critical} critical)` : "")
+      );
     }
     return null;
   };
@@ -144,300 +188,350 @@ export function HomeDashboard({ currentUser, projects, status }: HomeDashboardPr
     >
       <div className="px-6 py-6 lg:px-8">
         <header className="mb-7">
-          <h1 className="text-[26px] font-semibold tracking-tight text-ink">
+          <h1 className="text-ink text-[26px] font-semibold tracking-tight">
             {greeting}
-            {currentUser ? `, ${currentUser.display_name || currentUser.username}` : ""}
+            {currentUser
+              ? `, ${currentUser.display_name || currentUser.username}`
+              : ""}
           </h1>
-          <p className="mt-2 text-[14px] text-ink-3">
+          <p className="text-ink-3 mt-2 text-[14px]">
             What needs attention across your projects, and where you left off.
           </p>
         </header>
 
-        <section className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <Kpi
-            icon="grid"
-            label="Projects"
-            value={projectCount}
-            caption={`${datasetCount} dataset${datasetCount === 1 ? "" : "s"} total`}
-            href="/projects"
+        {projects.length === 0 ? (
+          <WelcomeHero
+            seeding={seeding}
+            onCreateDemo={() => void createDemo()}
           />
-          <Kpi
-            icon="database"
-            label="Databases connected"
-            value={connectionCount}
-            caption={`${jobCount} import${jobCount === 1 ? "" : "s"} set up`}
-            href={firstProject ? `/projects/${firstProject.id}/sources` : "/projects"}
-          />
-          <Kpi
-            icon="shield"
-            label="Checks"
-            value={ruleCount}
-            caption={failingRules > 0 ? `${failingRules} currently failing` : "All passing"}
-            tone={failingRules > 0 ? "warn" : "good"}
-            href={firstProject ? `/projects/${firstProject.id}/checks` : "/projects"}
-          />
-          <Kpi
-            icon="drift"
-            label="Schema changes to review"
-            value={openDrift}
-            caption={breakingDrift > 0 ? `${breakingDrift} breaking` : "Nothing breaking"}
-            tone={breakingDrift > 0 ? "bad" : openDrift > 0 ? "warn" : "good"}
-            href={firstProject ? `/projects/${firstProject.id}/schema-drift` : "/projects"}
-          />
-        </section>
-
-        <div className="grid gap-5 lg:grid-cols-[1.5fr_1fr]">
-          <section className="rounded-2xl border border-line bg-[color:var(--panel)]">
-            <div className="flex items-center justify-between border-b border-line px-5 py-3.5">
-              <h2 className="text-[14px] font-semibold text-ink">Your projects</h2>
-              <Link
+        ) : (
+          <>
+            <section className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <Kpi
+                icon="grid"
+                label="Projects"
+                value={projectCount}
+                caption={`${datasetCount} dataset${datasetCount === 1 ? "" : "s"} total`}
                 href="/projects"
-                className="flex items-center gap-1 text-[12px] text-ink-3 transition hover:text-ink"
-              >
-                View all
-                <Icon name="chevronRight" size={12} />
-              </Link>
-            </div>
-            <div className="p-3">
-              {projects.length === 0 ? (
-                <div className="px-3 py-10 text-center">
-                  <Icon name="grid" size={24} className="mx-auto text-muted" />
-                  <p className="mt-3 text-[13px] text-ink-3">No projects yet.</p>
-                  <p className="mt-1 text-[12px] text-muted">
-                    Create one to start connecting sources and building pipelines.
-                  </p>
-                  <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-                    <Link
-                      href="/projects"
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-[color:var(--accent)] px-3 py-2 text-[12px] font-medium text-accent-ink transition hover:brightness-110"
-                    >
-                      <Icon name="plus" size={13} />
-                      New project
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => void createDemo()}
-                      disabled={seeding}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-2 text-[12px] font-medium text-ink transition hover:bg-surface-2 disabled:opacity-60"
-                    >
-                      <Icon name="sparkles" size={13} />
-                      {seeding ? "Building…" : "Create a demo project"}
-                    </button>
-                  </div>
-                  <p className="mt-2 text-[11px] text-muted">
-                    The demo seeds real data, a pipeline, a quality rule and a schedule — deletable
-                    like any project.
-                  </p>
+              />
+              <Kpi
+                icon="database"
+                label="Databases connected"
+                value={connectionCount}
+                caption={`${jobCount} import${jobCount === 1 ? "" : "s"} set up`}
+                href={
+                  firstProject
+                    ? `/projects/${firstProject.id}/sources`
+                    : "/projects"
+                }
+              />
+              <Kpi
+                icon="shield"
+                label="Checks"
+                value={ruleCount}
+                caption={
+                  failingRules > 0
+                    ? `${failingRules} currently failing`
+                    : "All passing"
+                }
+                tone={failingRules > 0 ? "warn" : "good"}
+                href={
+                  firstProject
+                    ? `/projects/${firstProject.id}/checks`
+                    : "/projects"
+                }
+              />
+              <Kpi
+                icon="drift"
+                label="Schema changes to review"
+                value={openDrift}
+                caption={
+                  breakingDrift > 0
+                    ? `${breakingDrift} breaking`
+                    : "Nothing breaking"
+                }
+                tone={
+                  breakingDrift > 0 ? "bad" : openDrift > 0 ? "warn" : "good"
+                }
+                href={
+                  firstProject
+                    ? `/projects/${firstProject.id}/schema-drift`
+                    : "/projects"
+                }
+              />
+            </section>
+
+            <div className="grid gap-5 lg:grid-cols-[1.5fr_1fr]">
+              <section className="border-line rounded-2xl border bg-[color:var(--panel)]">
+                <div className="border-line flex items-center justify-between border-b px-5 py-3.5">
+                  <h2 className="text-ink text-[14px] font-semibold">
+                    Your projects
+                  </h2>
+                  <Link
+                    href="/projects"
+                    className="text-ink-3 hover:text-ink flex items-center gap-1 text-[12px] transition"
+                  >
+                    View all
+                    <Icon name="chevronRight" size={12} />
+                  </Link>
                 </div>
-              ) : (
-                <ul className="space-y-1">
-                  {projects.slice(0, 6).map((project) => (
-                    <li key={project.id}>
-                      {/*
+                <div className="p-3">
+                  <ul className="space-y-1">
+                    {projects.slice(0, 6).map((project) => (
+                      <li key={project.id}>
+                        {/*
                         The whole row opens the project, but the quick actions are
                         separate destinations. Nesting anchors is invalid HTML, so
                         the row link is stretched behind the content instead.
                       */}
-                      <div className="group relative flex items-center gap-3 rounded-xl px-3 py-3 transition duration-[var(--duration-fast)] hover:bg-surface">
-                        <Link
-                          href={`/projects/${project.id}`}
-                          className="absolute inset-0 z-0 rounded-xl"
-                          aria-label={`Open ${project.name}`}
-                        />
-                        <span className="pointer-events-none flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-line bg-surface text-ink-3 transition group-hover:border-[color:var(--accent-soft)] group-hover:text-[color:var(--accent-muted)]">
-                          <Icon name="grid" size={16} />
-                        </span>
-                        <span className="pointer-events-none min-w-0 flex-1">
-                          <span className="block truncate text-[13px] font-medium text-ink">
-                            {project.name}
-                          </span>
-                          <span className="block truncate text-[11px] text-muted">
-                            {project.description || "No description"}
-                          </span>
-                        </span>
-                        <span className="relative z-10 hidden shrink-0 items-center gap-1.5 sm:flex">
-                          <QuickLink
-                            href={`/projects/${project.id}/studio`}
-                            icon="transform"
-                            label="Open Studio"
+                        <div className="group hover:bg-surface relative flex items-center gap-3 rounded-xl px-3 py-3 transition duration-[var(--duration-fast)]">
+                          <Link
+                            href={`/projects/${project.id}`}
+                            className="absolute inset-0 z-0 rounded-xl"
+                            aria-label={`Open ${project.name}`}
                           />
-                          <QuickLink
-                            href={`/projects/${project.id}/sources`}
-                            icon="database"
-                            label="Open sources"
+                          <span className="border-line bg-surface text-ink-3 pointer-events-none flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border transition group-hover:border-[color:var(--accent-soft)] group-hover:text-[color:var(--accent-muted)]">
+                            <Icon name="grid" size={16} />
+                          </span>
+                          <span className="pointer-events-none min-w-0 flex-1">
+                            <span className="text-ink block truncate text-[13px] font-medium">
+                              {project.name}
+                            </span>
+                            <span className="text-muted block truncate text-[11px]">
+                              {project.description || "No description"}
+                            </span>
+                          </span>
+                          <span className="relative z-10 hidden shrink-0 items-center gap-1.5 sm:flex">
+                            <QuickLink
+                              href={`/projects/${project.id}/studio`}
+                              icon="transform"
+                              label="Open Studio"
+                            />
+                            <QuickLink
+                              href={`/projects/${project.id}/sources`}
+                              icon="database"
+                              label="Open sources"
+                            />
+                          </span>
+                          <Icon
+                            name="chevronRight"
+                            size={14}
+                            className="text-muted group-hover:text-ink-3 pointer-events-none shrink-0 transition"
                           />
-                        </span>
-                        <Icon
-                          name="chevronRight"
-                          size={14}
-                          className="pointer-events-none shrink-0 text-muted transition group-hover:text-ink-3"
-                        />
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </section>
-
-          <div className="space-y-5">
-            <section className="rounded-2xl border border-line bg-[color:var(--panel)] p-5">
-              <h2 className="text-[14px] font-semibold text-ink">Background work</h2>
-              {runtimeSignals ? (
-                <>
-                  <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-                    {[
-                      { label: "Queued", value: runtimeSignals.queued },
-                      { label: "Running", value: runtimeSignals.running },
-                      { label: "Due now", value: runtimeSignals.dueNow },
-                    ].map((stat) => (
-                      <div key={stat.label} className="rounded-xl bg-surface-2 px-2 py-2.5">
-                        <div className="tabular text-[18px] font-semibold text-ink">{stat.value}</div>
-                        <div className="text-[12px] text-muted">{stat.label}</div>
-                      </div>
+                        </div>
+                      </li>
                     ))}
-                  </div>
-                  {(status?.runtime?.components?.length ?? 0) > 0 ? (
-                    <div className="mt-3 flex flex-wrap gap-1.5">
-                      {status?.runtime?.components.map((component) => (
-                        <span
-                          key={`${component.component}:${component.host ?? "-"}`}
-                          className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10.5px] ${
-                            component.healthy
-                              ? "border-success-line bg-success-soft text-success"
-                              : "border-danger-line bg-danger-soft text-danger"
-                          }`}
-                          title={
-                            component.healthy
-                              ? "Beating normally"
-                              : "No recent heartbeat — this component is not running"
-                          }
-                        >
-                          <span
-                            className={`h-1.5 w-1.5 rounded-full ${
-                              component.healthy ? "bg-success" : "bg-danger"
-                            }`}
-                          />
-                          {WORKER_LABELS[component.component] ?? component.component}
-                        </span>
-                      ))}
-                    </div>
-                  ) : null}
-                  {runtime?.level === "stalled" ? (
-                    <p className="mt-3 rounded-lg border border-danger-line bg-danger-soft px-3 py-2 text-[12px] leading-5 text-danger">
-                      Nothing is picking it up: the oldest has waited{" "}
-                      {humanDuration(runtime.oldestWaitMs)}. Whoever runs Pipewright needs to start
-                      its background worker.
-                    </p>
+                  </ul>
+                </div>
+              </section>
+
+              <div className="space-y-5">
+                <section className="border-line rounded-2xl border bg-[color:var(--panel)] p-5">
+                  <h2 className="text-ink text-[14px] font-semibold">
+                    Background work
+                  </h2>
+                  {runtimeSignals ? (
+                    <>
+                      <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                        {[
+                          { label: "Queued", value: runtimeSignals.queued },
+                          { label: "Running", value: runtimeSignals.running },
+                          { label: "Due now", value: runtimeSignals.dueNow },
+                        ].map((stat) => (
+                          <div
+                            key={stat.label}
+                            className="bg-surface-2 rounded-xl px-2 py-2.5"
+                          >
+                            <div className="tabular text-ink text-[18px] font-semibold">
+                              {stat.value}
+                            </div>
+                            <div className="text-muted text-[12px]">
+                              {stat.label}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {(status?.runtime?.components?.length ?? 0) > 0 ? (
+                        <div className="mt-3 flex flex-wrap gap-1.5">
+                          {status?.runtime?.components.map((component) => (
+                            <span
+                              key={`${component.component}:${component.host ?? "-"}`}
+                              className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10.5px] ${
+                                component.healthy
+                                  ? "border-success-line bg-success-soft text-success"
+                                  : "border-danger-line bg-danger-soft text-danger"
+                              }`}
+                              title={
+                                component.healthy
+                                  ? "Beating normally"
+                                  : "No recent heartbeat — this component is not running"
+                              }
+                            >
+                              <span
+                                className={`h-1.5 w-1.5 rounded-full ${
+                                  component.healthy ? "bg-success" : "bg-danger"
+                                }`}
+                              />
+                              {WORKER_LABELS[component.component] ??
+                                component.component}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
+                      {runtime?.level === "stalled" ? (
+                        <p className="border-danger-line bg-danger-soft text-danger mt-3 rounded-lg border px-3 py-2 text-[12px] leading-5">
+                          Nothing is picking it up: the oldest has waited{" "}
+                          {humanDuration(runtime.oldestWaitMs)}. Whoever runs
+                          Pipewright needs to start its background worker.
+                        </p>
+                      ) : (
+                        <p className="text-muted mt-3 text-[12px]">
+                          {runtimeSignals.queued +
+                            runtimeSignals.running +
+                            runtimeSignals.dueNow ===
+                          0
+                            ? "Nothing waiting. Scheduled work will appear here."
+                            : "Work is moving normally."}
+                        </p>
+                      )}
+                    </>
                   ) : (
-                    <p className="mt-3 text-[12px] text-muted">
-                      {runtimeSignals.queued + runtimeSignals.running + runtimeSignals.dueNow === 0
-                        ? "Nothing waiting. Scheduled work will appear here."
-                        : "Work is moving normally."}
+                    <p className="text-muted mt-3 text-[11.5px]">
+                      Status unavailable.
                     </p>
                   )}
-                </>
-              ) : (
-                <p className="mt-3 text-[11.5px] text-muted">Status unavailable.</p>
-              )}
-            </section>
+                </section>
 
-            <section className="rounded-2xl border border-line bg-[color:var(--panel)]">
-              <div className="border-b border-line px-5 py-3.5">
-                <h2 className="text-[14px] font-semibold text-ink">Platform health</h2>
-              </div>
-              <div className="space-y-1 p-3">
-                {orderedServices.slice(0, Math.max(8, degradedServices.length)).map((service) => (
-                  <div
-                    key={service.name}
-                    className="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5"
-                  >
-                    <span
-                      className={cx(
-                        "h-1.5 w-1.5 shrink-0 rounded-full",
-                        service.status === "healthy" ? "bg-success" : "bg-danger",
-                      )}
-                    />
-                    <span className="min-w-0 flex-1 truncate text-[13px] text-ink-2">
-                      {serviceLabel(service.name)}
-                    </span>
-                    <span
-                      className={cx(
-                        "shrink-0 text-[12px]",
-                        service.status === "healthy" ? "text-success" : "text-danger",
-                      )}
-                    >
-                      {service.status === "healthy"
-                        ? "Working"
-                        : degradedReason(service) ?? service.status}
-                    </span>
+                <section className="border-line rounded-2xl border bg-[color:var(--panel)]">
+                  <div className="border-line border-b px-5 py-3.5">
+                    <h2 className="text-ink text-[14px] font-semibold">
+                      Platform health
+                    </h2>
                   </div>
-                ))}
-                {!status ? (
-                  <p className="px-2.5 py-6 text-center text-[12px] text-muted">
-                    Status unavailable.
-                  </p>
-                ) : null}
-              </div>
-              <div className="border-t border-line px-5 py-2.5">
-                <Link
-                  href="/system-status"
-                  className="flex items-center gap-1 text-[12px] text-ink-3 transition hover:text-ink"
-                >
-                  Full system status
-                  <Icon name="chevronRight" size={12} />
-                </Link>
-              </div>
-            </section>
+                  <div className="space-y-1 p-3">
+                    {orderedServices
+                      .slice(0, Math.max(8, degradedServices.length))
+                      .map((service) => (
+                        <div
+                          key={service.name}
+                          className="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5"
+                        >
+                          <span
+                            className={cx(
+                              "h-1.5 w-1.5 shrink-0 rounded-full",
+                              service.status === "healthy"
+                                ? "bg-success"
+                                : "bg-danger",
+                            )}
+                          />
+                          <span className="text-ink-2 min-w-0 flex-1 truncate text-[13px]">
+                            {serviceLabel(service.name)}
+                          </span>
+                          <span
+                            className={cx(
+                              "shrink-0 text-[12px]",
+                              service.status === "healthy"
+                                ? "text-success"
+                                : "text-danger",
+                            )}
+                          >
+                            {service.status === "healthy"
+                              ? "Working"
+                              : (degradedReason(service) ?? service.status)}
+                          </span>
+                        </div>
+                      ))}
+                    {!status ? (
+                      <p className="text-muted px-2.5 py-6 text-center text-[12px]">
+                        Status unavailable.
+                      </p>
+                    ) : null}
+                  </div>
+                  <div className="border-line border-t px-5 py-2.5">
+                    <Link
+                      href="/system-status"
+                      className="text-ink-3 hover:text-ink flex items-center gap-1 text-[12px] transition"
+                    >
+                      Full system status
+                      <Icon name="chevronRight" size={12} />
+                    </Link>
+                  </div>
+                </section>
 
-            <section className="rounded-2xl border border-line bg-[color:var(--panel)] p-5">
-              <h2 className="text-[14px] font-semibold text-ink">Get started</h2>
-              <p className="mt-1 text-[12px] leading-5 text-muted">
-                The usual path through the platform.
-              </p>
-              <ol className="mt-4 space-y-2.5">
-                {[
-                  { step: "Upload a file or connect a database", done: firstProgress.data },
-                  { step: "Clean it in Studio", done: firstProgress.shape },
-                  { step: "Add a check so bad rows are caught", done: firstProgress.guard },
-                  { step: "Put it on a schedule", done: firstProgress.schedule },
-                ].map((item, index) => {
-                  const base = firstProject ? `/projects/${firstProject.id}` : "/projects";
-                  const hrefs = firstProject
-                    ? [base, `${base}/studio`, `${base}/checks`, `${base}/schedules`]
-                    : ["/projects", "/projects", "/projects", "/projects"];
-                  return (
-                    <li key={item.step}>
-                      <Link
-                        href={hrefs[index]}
-                        className="group flex items-start gap-2.5 rounded-lg px-1 py-0.5 transition hover:bg-surface-2"
-                      >
-                        <span
-                          className={cx(
-                            "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[10px] font-semibold",
-                            item.done
-                              ? "bg-success text-accent-ink"
-                              : "bg-surface-2 text-ink-3",
-                          )}
-                        >
-                          {item.done ? <Icon name="check" size={11} /> : index + 1}
-                        </span>
-                        <span
-                          className={cx(
-                            "text-[12px] leading-5 group-hover:text-ink",
-                            item.done ? "text-ink-3 line-through decoration-ink-4" : "text-ink-2",
-                          )}
-                        >
-                          {item.step}
-                        </span>
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ol>
-            </section>
-          </div>
-        </div>
+                <section className="border-line rounded-2xl border bg-[color:var(--panel)] p-5">
+                  <h2 className="text-ink text-[14px] font-semibold">
+                    Get started
+                  </h2>
+                  <p className="text-muted mt-1 text-[12px] leading-5">
+                    The usual path through the platform.
+                  </p>
+                  <ol className="mt-4 space-y-2.5">
+                    {[
+                      {
+                        step: "Upload a file or connect a database",
+                        done: firstProgress.data,
+                      },
+                      { step: "Clean it in Studio", done: firstProgress.shape },
+                      {
+                        step: "Add a check so bad rows are caught",
+                        done: firstProgress.guard,
+                      },
+                      {
+                        step: "Put it on a schedule",
+                        done: firstProgress.schedule,
+                      },
+                    ].map((item, index) => {
+                      const base = firstProject
+                        ? `/projects/${firstProject.id}`
+                        : "/projects";
+                      const hrefs = firstProject
+                        ? [
+                            base,
+                            `${base}/studio`,
+                            `${base}/checks`,
+                            `${base}/schedules`,
+                          ]
+                        : ["/projects", "/projects", "/projects", "/projects"];
+                      return (
+                        <li key={item.step}>
+                          <Link
+                            href={hrefs[index]}
+                            className="group hover:bg-surface-2 flex items-start gap-2.5 rounded-lg px-1 py-0.5 transition"
+                          >
+                            <span
+                              className={cx(
+                                "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[10px] font-semibold",
+                                item.done
+                                  ? "bg-success text-accent-ink"
+                                  : "bg-surface-2 text-ink-3",
+                              )}
+                            >
+                              {item.done ? (
+                                <Icon name="check" size={11} />
+                              ) : (
+                                index + 1
+                              )}
+                            </span>
+                            <span
+                              className={cx(
+                                "group-hover:text-ink text-[12px] leading-5",
+                                item.done
+                                  ? "text-ink-3 decoration-ink-4 line-through"
+                                  : "text-ink-2",
+                              )}
+                            >
+                              {item.step}
+                            </span>
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                </section>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </AppFrame>
   );
@@ -450,13 +544,21 @@ function timeOfDayGreeting(): string {
   return "Good evening";
 }
 
-function QuickLink({ href, icon, label }: { href: string; icon: IconName; label: string }) {
+function QuickLink({
+  href,
+  icon,
+  label,
+}: {
+  href: string;
+  icon: IconName;
+  label: string;
+}) {
   return (
     <Link
       href={href}
       title={label}
       aria-label={label}
-      className="flex h-7 w-7 items-center justify-center rounded-lg border border-line bg-[color:var(--panel)] text-muted transition hover:border-[color:var(--accent-soft)] hover:bg-[color:var(--accent-faint)] hover:text-ink"
+      className="border-line text-muted hover:text-ink flex h-7 w-7 items-center justify-center rounded-lg border bg-[color:var(--panel)] transition hover:border-[color:var(--accent-soft)] hover:bg-[color:var(--accent-faint)]"
     >
       <Icon name={icon} size={13} />
     </Link>
@@ -488,20 +590,99 @@ function Kpi({
   return (
     <Link
       href={href}
-      className="group rounded-2xl border border-line bg-[color:var(--panel)] p-4 transition duration-[var(--duration-base)] ease-[var(--ease-out)] hover:border-line-strong hover:bg-surface"
+      className="group border-line hover:border-line-strong hover:bg-surface rounded-2xl border bg-[color:var(--panel)] p-4 transition duration-[var(--duration-base)] ease-[var(--ease-out)]"
     >
       <div className="flex items-center justify-between">
-        <span className="text-[13px] font-medium text-ink-3">{label}</span>
+        <span className="text-ink-3 text-[13px] font-medium">{label}</span>
         <Icon
           name={icon}
           size={15}
           className="text-muted transition group-hover:text-[color:var(--accent-muted)]"
         />
       </div>
-      <div className="tabular mt-3 text-[30px] font-semibold leading-none tracking-tight text-ink">
+      <div className="tabular text-ink mt-3 text-[30px] leading-none font-semibold tracking-tight">
         {value.toLocaleString()}
       </div>
       <div className={cx("mt-2 text-[12px]", toneText)}>{caption}</div>
     </Link>
+  );
+}
+
+/**
+ * What a brand-new workspace sees instead of four zero tiles: the two ways to
+ * begin, side by side, and nothing else competing for attention.
+ */
+function WelcomeHero({
+  seeding,
+  onCreateDemo,
+}: {
+  seeding: boolean;
+  onCreateDemo: () => void;
+}) {
+  return (
+    <section className="border-line rounded-3xl border bg-[color:var(--panel)] p-6 lg:p-8">
+      <h2 className="text-ink text-[20px] font-semibold tracking-tight">
+        Start with a project
+      </h2>
+      <p className="text-ink-3 mt-1.5 max-w-2xl text-[14px] leading-6">
+        A project keeps one team&apos;s or one subject&apos;s data together,
+        with the recipes, checks and dashboards built from it. Most people start
+        with one of these.
+      </p>
+      <div className="mt-6 grid gap-4 md:grid-cols-2">
+        <Link
+          href="/projects?new=1"
+          className="group rounded-2xl border border-[color:var(--accent-soft)] bg-[color:var(--accent-faint)] p-5 transition hover:brightness-105"
+        >
+          <Icon
+            name="plus"
+            size={20}
+            className="text-[color:var(--accent-muted)]"
+          />
+          <h3 className="text-ink mt-3 text-[16px] font-semibold">
+            Start a new project
+          </h3>
+          <p className="text-ink-3 mt-1 text-[14px] leading-6">
+            Name it, then add your own file, connect a database, or use sample
+            data.
+          </p>
+          <span className="text-ink mt-4 inline-flex items-center gap-1 text-[14px] font-medium">
+            New project
+            <Icon
+              name="arrowRight"
+              size={14}
+              className="transition group-hover:translate-x-0.5"
+            />
+          </span>
+        </Link>
+        <button
+          type="button"
+          onClick={onCreateDemo}
+          disabled={seeding}
+          className="group border-line bg-surface hover:border-line-strong rounded-2xl border p-5 text-left transition disabled:opacity-60"
+        >
+          <Icon
+            name="sparkles"
+            size={20}
+            className="text-[color:var(--accent-muted)]"
+          />
+          <h3 className="text-ink mt-3 text-[16px] font-semibold">
+            Explore a finished example
+          </h3>
+          <p className="text-ink-3 mt-1 text-[14px] leading-6">
+            A shop&apos;s orders, already cleaned, checked, scheduled and on a
+            dashboard. Delete it whenever you like.
+          </p>
+          <span className="text-ink mt-4 inline-flex items-center gap-1 text-[14px] font-medium">
+            {seeding ? "Building the example…" : "Open the example"}
+            <Icon
+              name="arrowRight"
+              size={14}
+              className="transition group-hover:translate-x-0.5"
+            />
+          </span>
+        </button>
+      </div>
+    </section>
   );
 }

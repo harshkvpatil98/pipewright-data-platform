@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import type { AuthUser, SavedStatisticalTestListItem } from "@platform/shared-types";
-import { Button, SectionPanel } from "@platform/shared-ui";
+import { Button, SectionPanel, buttonClassName } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { DeleteRowButton } from "@/components/ui/delete-row-button";
@@ -60,7 +60,15 @@ export function SavedTestsListPageView({
           </div>
         ) : null}
         {items.length === 0 ? (
-          <OperationalEmpty description="No saved tests yet. Run a statistical test from a dataset comparison, then save the definition to list it here." />
+          <OperationalEmpty
+            title="No comparisons saved yet"
+            description="Open a dataset made by a recipe and choose Compare the two, then save the comparison to run it again later."
+            action={
+              <Link href={`/projects/${projectId}/datasets`} className={buttonClassName("secondary", "sm")}>
+                Choose a dataset
+              </Link>
+            }
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] border-collapse text-left text-sm text-ink">

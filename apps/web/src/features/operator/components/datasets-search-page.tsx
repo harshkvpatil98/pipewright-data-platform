@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { AuthUser, OperatorDatasetRow } from "@platform/shared-types";
-import { Input, SectionPanel } from "@platform/shared-ui";
+import { Button, Input, SectionPanel, buttonClassName } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { OperationalEmpty, OperationalError } from "@/components/operational/operational-messages";
@@ -80,6 +80,17 @@ export function DatasetsSearchPageView({ currentUser, initialDatasets }: Dataset
           <OperationalEmpty
             title="No datasets found"
             description={query.trim() ? "No dataset matches that name." : "Datasets appear here once you add data to a project."}
+            action={
+              query.trim() ? (
+                <Button variant="secondary" size="sm" onClick={() => setQuery("")}>
+                  Clear search
+                </Button>
+              ) : (
+                <Link href="/projects" className={buttonClassName("primary", "sm")}>
+                  Open a project
+                </Link>
+              )
+            }
           />
         ) : (
           <div className="overflow-hidden rounded-[24px] border border-line bg-sunken">

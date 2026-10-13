@@ -3,8 +3,11 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
+import { buttonClassName } from "@platform/shared-ui";
+
 import { Icon } from "@/components/ui/icon";
 import { apiFetch } from "@/lib/api/client";
+import { cx } from "@/lib/utils";
 
 type ProjectChecklistProps = {
   projectId: string;
@@ -153,7 +156,7 @@ export function ProjectChecklist({ projectId, datasetCount, onAddData }: Project
               ) : step.action.href ? (
                 <Link
                   href={step.action.href}
-                  className="mt-2 inline-flex w-fit items-center gap-1 rounded-lg bg-[color:var(--accent)] px-3 py-1.5 text-[13px] font-medium text-accent-ink transition hover:brightness-110"
+                  className={cx("mt-2 w-fit", buttonClassName(isActive ? "primary" : "secondary", "sm"))}
                 >
                   {step.action.label}
                 </Link>
@@ -161,7 +164,7 @@ export function ProjectChecklist({ projectId, datasetCount, onAddData }: Project
                 <button
                   type="button"
                   onClick={step.action.onClick}
-                  className="mt-2 inline-flex w-fit items-center gap-1 rounded-lg bg-[color:var(--accent)] px-3 py-1.5 text-[13px] font-medium text-accent-ink transition hover:brightness-110"
+                  className={cx("mt-2 w-fit", buttonClassName(isActive ? "primary" : "secondary", "sm"))}
                 >
                   {step.action.label}
                 </button>

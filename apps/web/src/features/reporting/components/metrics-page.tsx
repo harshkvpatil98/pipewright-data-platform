@@ -14,7 +14,7 @@ import type {
   MetricSqlResponse,
   MetricUsageResponse,
 } from "@platform/shared-types";
-import { Button, EmptyState, Modal, SectionPanel, StatCard } from "@platform/shared-ui";
+import { Button, EmptyState, Modal, SectionPanel, StatCard, buttonClassName } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { DeleteRowButton } from "@/components/ui/delete-row-button";
@@ -247,14 +247,22 @@ export function MetricsPageView({ currentUser, projectId, initial, datasets }: M
 
         <SectionPanel
           title="Definitions"
-          description="Each metric is an aggregation over a column or a row-level formula, with the filters that belong to it and the dimensions it may honestly be cut by. A definition change is a new version."
+          description="Each metric is defined once: what it adds up, its filters and how it may be split. Changing it makes a new version."
         >
           {datasets.length === 0 ? (
-            <EmptyState title="No datasets yet" description="A metric is defined on a dataset; add data first." />
+            <EmptyState
+              title="Add data first"
+              description="A metric adds up a column of a dataset, so this project needs some data."
+              action={
+                <Link href={`/projects/${projectId}/datasets`} className={buttonClassName("primary", "sm")}>
+                  Add data
+                </Link>
+              }
+            />
           ) : metrics.length === 0 ? (
             <EmptyState
               title="No metrics yet"
-              description="Start with the number people argue about most — active customers, net revenue — and give it one definition."
+              description="Start with the number people argue about most, such as active customers or net revenue, and give it one definition."
               action={<Button onClick={openNew}>Define a metric</Button>}
             />
           ) : (

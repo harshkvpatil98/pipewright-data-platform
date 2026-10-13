@@ -30,13 +30,18 @@ export function OperationalError({ title = "Something went wrong", message, hint
 type OperationalEmptyProps = {
   title?: string;
   description: string;
+  /** What to do next: an empty state should offer the button, not just say so. */
+  action?: React.ReactNode;
 };
 
-export function OperationalEmpty({ title, description }: OperationalEmptyProps) {
+export function OperationalEmpty({ title, description, action }: OperationalEmptyProps) {
   return (
-    <div className="rounded-2xl border border-dashed border-line bg-surface px-4 py-6 text-sm text-ink-3">
-      {title ? <p className="font-medium text-ink">{title}</p> : null}
-      <p className={title ? "mt-2 leading-6" : "leading-6"}>{description}</p>
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed border-line bg-surface px-4 py-6 text-sm text-ink-3">
+      <div className="min-w-0">
+        {title ? <p className="font-medium text-ink">{title}</p> : null}
+        <p className={title ? "mt-1 leading-6" : "leading-6"}>{description}</p>
+      </div>
+      {action ? <div className="shrink-0">{action}</div> : null}
     </div>
   );
 }

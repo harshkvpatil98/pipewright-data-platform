@@ -16,8 +16,8 @@ describe("validatePipelineName", () => {
   });
 
   it("rejects names shorter than two characters after trim", () => {
-    expect(validatePipelineName("a")).toBe("Pipeline name must be at least 2 characters.");
-    expect(validatePipelineName(" a ")).toBe("Pipeline name must be at least 2 characters.");
+    expect(validatePipelineName("a")).toBe("Give the recipe a name of at least two characters.");
+    expect(validatePipelineName(" a ")).toBe("Give the recipe a name of at least two characters.");
   });
 
   it("accepts valid trimmed names", () => {

@@ -159,7 +159,29 @@ export function AuditCenterPageView({ currentUser, initial, forbidden }: AuditCe
         }
       >
         {rows.length === 0 ? (
-          <OperationalEmpty title="No matching activity" description="Nothing matches these filters yet." />
+          <OperationalEmpty
+            title="No matching activity"
+            description={
+              outcome || actor || query
+                ? "Nothing matches these filters."
+                : "Nothing has been recorded yet. Every change anyone makes appears here."
+            }
+            action={
+              outcome || actor || query ? (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    setOutcome("");
+                    setActor("");
+                    setQuery("");
+                  }}
+                >
+                  Clear filters
+                </Button>
+              ) : undefined
+            }
+          />
         ) : (
           <div className="overflow-hidden rounded-[24px] border border-line bg-sunken">
             <div className="overflow-x-auto">

@@ -13,7 +13,7 @@ import type {
   SavedChart,
 } from "@platform/shared-types";
 import { DASHBOARD_REFRESH_CHOICES } from "@platform/shared-types";
-import { Button, Modal, SectionPanel } from "@platform/shared-ui";
+import { Button, EmptyState, Modal, buttonClassName } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { DiscussionPanel } from "@/features/team/components/discussion-panel";
@@ -492,15 +492,20 @@ export function DashboardViewPage({
         ) : data === null && !dataError ? (
           <p className="text-[12.5px] text-muted">Computing tiles…</p>
         ) : dashboard.tiles.length === 0 ? (
-          <SectionPanel title="Nothing here yet" description="Add charts or a note with Edit layout.">
-            <p className="text-[12.5px] text-muted">
-              Build charts in the{" "}
-              <Link href={`/projects/${projectId}/charts`} className="text-accent">
-                chart builder
-              </Link>
-              , then place them here.
-            </p>
-          </SectionPanel>
+          <EmptyState
+            title="This dashboard is empty"
+            description="Place saved charts or a short note on it. No charts yet? Make one first, then come back."
+            action={
+              <div className="flex flex-wrap justify-center gap-2">
+                <Button size="sm" onClick={startEditing}>
+                  Add a chart or note
+                </Button>
+                <Link href={`/projects/${projectId}/charts`} className={buttonClassName("secondary", "sm")}>
+                  Make a chart
+                </Link>
+              </div>
+            }
+          />
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
             {[...dashboard.tiles]

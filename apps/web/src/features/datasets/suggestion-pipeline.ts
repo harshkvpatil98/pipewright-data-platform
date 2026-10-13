@@ -34,7 +34,7 @@ export function buildSuggestionPipelinePayload(args: {
 }): TransformationPipelineCreatePayload {
   const name = args.pipelineName.trim();
   if (name.length < 2) {
-    throw new Error("Pipeline name must be at least 2 characters.");
+    throw new Error("Give the recipe a name of at least two characters.");
   }
 
   const selectedSuggestions = getSelectedSuggestionsInOrder(args.suggestions, args.selectedIds);

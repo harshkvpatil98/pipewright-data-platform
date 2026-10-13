@@ -3,10 +3,10 @@ import type { TransformationStep } from "@platform/shared-types";
 export function validatePipelineName(name: string): string | null {
   const normalized = name.trim();
   if (normalized.length < 2) {
-    return "Pipeline name must be at least 2 characters.";
+    return "Give the recipe a name of at least two characters.";
   }
   if (normalized.length > 160) {
-    return "Pipeline name must be at most 160 characters.";
+    return "Keep the recipe name under 160 characters.";
   }
   return null;
 }

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import type { AuthUser, OperatorRunRow } from "@platform/shared-types";
-import { SectionPanel, StatusBadge } from "@platform/shared-ui";
+import { Button, SectionPanel, StatusBadge, buttonClassName } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { OperationalEmpty, OperationalError } from "@/components/operational/operational-messages";
@@ -95,7 +95,22 @@ export function RunsPageView({ currentUser, initialRuns }: RunsPageProps) {
         {runs.length === 0 ? (
           <OperationalEmpty
             title="No runs to show"
-            description="Runs appear here as pipelines, publishes, and workflows execute."
+            description={
+              status
+                ? "Nothing with this status. Try another filter."
+                : "Uploads, imports, recipes and deliveries appear here once they run."
+            }
+            action={
+              status ? (
+                <Button variant="secondary" size="sm" onClick={() => setStatus("")}>
+                  Show all
+                </Button>
+              ) : (
+                <Link href="/projects" className={buttonClassName("primary", "sm")}>
+                  Open a project
+                </Link>
+              )
+            }
           />
         ) : (
           <div className="overflow-hidden rounded-[24px] border border-line bg-sunken">

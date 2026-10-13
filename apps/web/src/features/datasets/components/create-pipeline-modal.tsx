@@ -80,7 +80,7 @@ export function CreatePipelineModal({ open, onClose, projectId, datasetId }: Cre
     setError(null);
 
     if (!isNameValid) {
-      setError("Pipeline name must be at least 2 characters.");
+      setError("Give the recipe a name of at least two characters.");
       return;
     }
 

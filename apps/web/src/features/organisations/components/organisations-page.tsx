@@ -225,7 +225,8 @@ export function OrganisationsPageView({
               {organisations.length === 0 ? (
                 <EmptyState
                   title="No organisations"
-                  description="A single-tenant install needs none; projects and users simply belong to no organisation."
+                  description="You only need one to keep separate groups of people and projects apart. Until then, everyone shares one space."
+                  action={<Button onClick={() => setCreating(true)}>New organisation</Button>}
                 />
               ) : (
                 <ul className="space-y-3">

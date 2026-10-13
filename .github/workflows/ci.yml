@@ -102,3 +102,30 @@ jobs:
 
       - name: Verify (ruff, tests, lint, typecheck, web build)
         run: bash ./scripts/verify-release.sh
+
+  # The images a release publishes, built on every push so a broken Dockerfile
+  # fails here rather than on the release tag. Built, not pushed.
+  images:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        include:
+          - name: gateway
+            dockerfile: apps/api-gateway/Dockerfile
+          - name: web
+            dockerfile: apps/web/Dockerfile.prod
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build ${{ matrix.name }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: false
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+

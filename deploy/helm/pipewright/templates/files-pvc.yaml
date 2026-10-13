@@ -1,0 +1,21 @@
+{{- include "pipewright.storageChecks" . -}}
+{{- if and (eq .Values.storage.backend "local") (not .Values.storage.persistence.existingClaim) }}
+# The stored files every gateway, worker and ticker pod mounts (storage.backend
+# local). Kept on uninstall: it holds the customer's data.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "pipewright.filesClaim" . }}
+  labels:
+    {{- include "pipewright.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/resource-policy: keep
+spec:
+  accessModes: [{{ .Values.storage.persistence.accessMode }}]
+  {{- with .Values.storage.persistence.storageClassName }}
+  storageClassName: {{ . }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.storage.persistence.size }}
+{{- end }}

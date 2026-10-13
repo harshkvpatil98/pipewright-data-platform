@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
+import os
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -10,8 +11,11 @@ from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 from shared_python.config import parse_cors_origins
 
-# apps/api-gateway/.env — stable path whether cwd is repo root (make dev) or apps/api-gateway (Dockerfile WORKDIR).
-_GATEWAY_ENV_FILE = Path(__file__).resolve().parents[2] / ".env"
+# apps/api-gateway: the folder the gateway's .env and relative data paths are
+# anchored to, whether a process starts in the repository root (make dev, the
+# worker script) or in apps/api-gateway (the Docker images' WORKDIR).
+_GATEWAY_DIR = Path(__file__).resolve().parents[2]
+_GATEWAY_ENV_FILE = _GATEWAY_DIR / ".env"
 load_dotenv(_GATEWAY_ENV_FILE, override=False)
 
 
@@ -125,11 +129,27 @@ class Settings(BaseSettings):
     scheduler_runtime_id: str | None = None
     # Lease duration for automatic schedule claims (seconds). After expiry another worker may reclaim a stalled run.
     scheduler_claim_ttl_seconds: int = Field(default=300, ge=30, le=86400)
+    # Runs of one project the workflow workers start at once; the rest wait (A7).
+    workflow_max_runs_per_project: int = Field(default=3, ge=1, le=100)
 
     @field_validator("backend_cors_origins", mode="before")
     @classmethod
     def validate_cors_origins(cls, value):
         return parse_cors_origins(value)
+
+    @field_validator("upload_root_path", mode="after")
+    @classmethod
+    def anchor_upload_root(cls, value: str) -> str:
+        """A relative path is under apps/api-gateway, not wherever a process started.
+
+        The gateway, the worker and the ticker must find the same files; with
+        the path left relative to the working directory, `make dev` (started
+        in the repository root) and a gateway started in apps/api-gateway
+        stored files in two different folders, and scheduled runs reported
+        the files missing.
+        """
+        path = Path(value).expanduser()
+        return str(path if path.is_absolute() else _GATEWAY_DIR / path)
 
     @field_validator("allowed_upload_extensions", mode="before")
     @classmethod
@@ -147,3 +167,9 @@ def get_settings() -> Settings:
 
 
 settings = get_settings()
+
+# Server-folder sources and destinations read SERVER_FILES_ROOT themselves
+# (shared_python.server_files). Anchor a relative one the same way, so the
+# gateway and the worker confine to the same folder.
+_server_files = Path(os.environ.get("SERVER_FILES_ROOT") or "data/server-files").expanduser()
+os.environ["SERVER_FILES_ROOT"] = str(_server_files if _server_files.is_absolute() else _GATEWAY_DIR / _server_files)

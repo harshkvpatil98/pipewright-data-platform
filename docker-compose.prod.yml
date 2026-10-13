@@ -38,6 +38,9 @@ services:
     environment: *app-env
     # Migrate, then serve: the schema is current before traffic arrives.
     command: sh -c "alembic -c alembic.ini upgrade head && uvicorn api_gateway.main:app --host 0.0.0.0 --port 8000"
+    volumes:
+      # Stored files, shared: the worker and ticker read what the gateway saved.
+      - pipewright_files:/app/apps/api-gateway/data
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health/live')\""]
       interval: 15s
@@ -53,6 +56,9 @@ services:
     env_file: [./.env]
     environment: *app-env
     command: sh -c "until alembic -c alembic.ini current >/dev/null 2>&1; do sleep 2; done; platform-workflow-worker --interval ${WORKFLOW_WORKER_INTERVAL:-5}"
+    volumes:
+      # Stored files, shared: the worker and ticker read what the gateway saved.
+      - pipewright_files:/app/apps/api-gateway/data
 
   schedule-ticker:
     image: ${PIPEWRIGHT_REGISTRY:-ghcr.io/harshkvpatil98}/pipewright-gateway:${PIPEWRIGHT_TAG:?set PIPEWRIGHT_TAG}
@@ -63,6 +69,9 @@ services:
     env_file: [./.env]
     environment: *app-env
     command: sh -c "until alembic -c alembic.ini current >/dev/null 2>&1; do sleep 2; done; platform-schedule-ticker --loop --interval ${SCHEDULE_TICKER_INTERVAL:-30}"
+    volumes:
+      # Stored files, shared: the worker and ticker read what the gateway saved.
+      - pipewright_files:/app/apps/api-gateway/data
 
   web:
     image: ${PIPEWRIGHT_REGISTRY:-ghcr.io/harshkvpatil98}/pipewright-web:${PIPEWRIGHT_TAG:?set PIPEWRIGHT_TAG}
@@ -92,5 +101,6 @@ services:
 
 volumes:
   postgres_data:
+  pipewright_files:
   caddy_data:
   caddy_config:

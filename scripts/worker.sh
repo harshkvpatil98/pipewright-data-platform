@@ -55,4 +55,7 @@ supervise "schedule-ticker" \
   "$ROOT_DIR/.venv/bin/python" -m api_gateway.scripts.run_due_schedules --loop --interval "$TICKER_INTERVAL" &
 pids+=($!)
 
-wait -n
+# Both loops run until this script is stopped. Plain `wait`, not `wait -n`:
+# macOS ships bash 3.2, which has no `-n`, and the script then exited at once,
+# its EXIT trap stopping the workers it had just started.
+wait

@@ -10,21 +10,9 @@ from typing import Any
 import httpx
 import numpy as np
 import pandas as pd
-from tableauhyperapi import (
-    Connection,
-    CreateMode,
-    HyperProcess,
-    Inserter,
-    Nullability,
-    SqlType,
-    TableDefinition,
-    TableName,
-    Telemetry,
-)
-from tableauhyperapi.hyperexception import HyperException
 
 from service_destinations.connectors.tableau import tableau_sign_in
-from shared_python.errors import BadRequestError
+from shared_python.errors import BadRequestError, MisconfiguredEnvironmentError
 
 
 @dataclass(frozen=True)
@@ -79,7 +67,25 @@ def _unique_hyper_columns(columns: list[Any]) -> dict[str, str]:
     return mapping
 
 
+def _hyper() -> Any:
+    """Tableau's Hyper API, loaded when a dataset is sent to Tableau.
+
+    Loaded here rather than at import: it has no build for Linux on ARM, and
+    a gateway there must still start, with only sending to Tableau refused.
+    """
+    try:
+        import tableauhyperapi
+    except ImportError as exc:
+        raise MisconfiguredEnvironmentError(
+            "Sending to Tableau needs Tableau's Hyper API (the tableauhyperapi package), which is not "
+            "installed here. It has no build for Linux on ARM processors; run the gateway on x86-64 to "
+            "send datasets to Tableau."
+        ) from exc
+    return tableauhyperapi
+
+
 def _sql_type_for_series(series: pd.Series) -> Any:
+    SqlType = _hyper().SqlType  # noqa: N806 - the library's own name
     if pd.api.types.is_bool_dtype(series):
         return SqlType.bool()
     if pd.api.types.is_datetime64_any_dtype(series):
@@ -115,7 +121,13 @@ def dataframe_to_hyper_bytes(df: pd.DataFrame) -> bytes:
     col_map = _unique_hyper_columns(list(df2.columns))
     df2 = df2.rename(columns=col_map)
 
-    columns: list[TableDefinition.Column] = []
+    hyper_api = _hyper()
+    from tableauhyperapi.hyperexception import HyperException
+
+    TableDefinition, TableName, Nullability = (  # noqa: N806 - the library's own names
+        hyper_api.TableDefinition, hyper_api.TableName, hyper_api.Nullability,
+    )
+    columns: list[Any] = []
     for orig, hname in col_map.items():
         series = df[orig]
         st = _sql_type_for_series(series)
@@ -128,15 +140,15 @@ def dataframe_to_hyper_bytes(df: pd.DataFrame) -> bytes:
 
     path = tempfile.mktemp(suffix=".hyper")
     try:
-        with HyperProcess(telemetry=Telemetry.DO_NOT_SEND_USAGE_DATA_TO_TABLEAU) as hyper:
-            with Connection(
+        with hyper_api.HyperProcess(telemetry=hyper_api.Telemetry.DO_NOT_SEND_USAGE_DATA_TO_TABLEAU) as hyper:
+            with hyper_api.Connection(
                 endpoint=hyper.endpoint,
                 database=path,
-                create_mode=CreateMode.CREATE_AND_REPLACE,
+                create_mode=hyper_api.CreateMode.CREATE_AND_REPLACE,
             ) as connection:
                 connection.catalog.create_schema("Extract")
                 connection.catalog.create_table(table_def)
-                with Inserter(connection, table_def) as inserter:
+                with hyper_api.Inserter(connection, table_def) as inserter:
                     for i in range(len(df2)):
                         row_vals = tuple(
                             _cell_for_hyper(df2.at[i, h], df[str(orig)])

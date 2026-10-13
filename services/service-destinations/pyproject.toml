@@ -22,7 +22,9 @@ dependencies = [
   "service-projects>=0.1.0",
   "shared-python>=0.1.0",
   "sqlalchemy>=2.0,<3.0",
-  "tableauhyperapi>=0.0.21400,<1.0",
+  # No build exists for Linux on ARM; there, sending to Tableau is refused
+  # with that reason and everything else works.
+  "tableauhyperapi>=0.0.21400,<1.0; sys_platform != 'linux' or platform_machine != 'aarch64'",
 ]
 
 [tool.setuptools.packages.find]

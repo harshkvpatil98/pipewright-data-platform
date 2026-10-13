@@ -30,6 +30,8 @@ spec:
             {{- include "pipewright.envFrom" . | nindent 12 }}
           resources:
             {{- toYaml .Values.worker.resources | nindent 12 }}
+          {{- include "pipewright.filesMount" . | nindent 10 }}
+      {{- include "pipewright.filesVolume" . | nindent 6 }}
 ---
 # One ticker unless every replica has a distinct SCHEDULER_RUNTIME_ID: the lease
 # reduces, but does not eliminate, double-execution across concurrent pollers.
@@ -65,3 +67,5 @@ spec:
             {{- include "pipewright.envFrom" . | nindent 12 }}
           resources:
             {{- toYaml .Values.ticker.resources | nindent 12 }}
+          {{- include "pipewright.filesMount" . | nindent 10 }}
+      {{- include "pipewright.filesVolume" . | nindent 6 }}

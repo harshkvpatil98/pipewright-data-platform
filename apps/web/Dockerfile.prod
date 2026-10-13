@@ -5,7 +5,7 @@ FROM node:22-alpine
 
 WORKDIR /repo
 
-ARG NEXT_PUBLIC_APP_NAME=Intelligent Data Platform
+ARG NEXT_PUBLIC_APP_NAME=Pipewright
 ARG NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
 ARG NEXT_PUBLIC_MAX_UPLOAD_SIZE_BYTES=26214400
 
@@ -20,7 +20,10 @@ COPY packages/shared-types/package.json /repo/packages/shared-types/
 COPY packages/shared-ui/package.json /repo/packages/shared-ui/
 COPY packages/config/package.json /repo/packages/config/
 
-RUN npm ci
+# The build needs the dev dependencies (Tailwind, TypeScript); with
+# NODE_ENV=production set above, npm ci would leave them out and `next build`
+# fails to find @tailwindcss/postcss.
+RUN npm ci --include=dev
 
 COPY apps/web /repo/apps/web
 COPY packages /repo/packages

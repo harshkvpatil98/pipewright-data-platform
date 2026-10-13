@@ -1,0 +1,31 @@
+# What the image builds never need, and some they must never contain.
+# Without this file the build context was several GB (dependencies, build
+# output, virtual environments), and a local build copied apps/api-gateway's
+# .env (secrets) and data/ (stored customer files) into the gateway image.
+
+.git
+**/node_modules
+**/.next
+**/.turbo
+.venv
+**/__pycache__
+**/*.pyc
+**/*.egg-info
+**/.pytest_cache
+**/.ruff_cache
+*.tsbuildinfo
+**/*.tsbuildinfo
+
+# Secrets and per-machine settings; the examples are kept.
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.production.example
+
+# Stored files and local state.
+**/data
+backups
+tmp
+output
+.rush-global
+coverage

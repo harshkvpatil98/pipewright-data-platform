@@ -35,6 +35,35 @@ secrets:
   AUTH_JWT_SECRET: ""
   AUTH_BOOTSTRAP_USERNAME: ""
   AUTH_BOOTSTRAP_PASSWORD: ""
+  # Optional: encrypt stored files at rest (`openssl rand -base64 32`), and
+  # the bucket's keys when storage.backend is s3.
+  STORAGE_ENCRYPTION_KEY: ""
+  STORAGE_S3_ACCESS_KEY_ID: ""
+  STORAGE_S3_SECRET_ACCESS_KEY: ""
+
+# Where stored files (uploads, datasets, versions) live. Every gateway, worker
+# and ticker pod has to reach the same files, or a dataset uploaded through one
+# pod is missing on the others and on the worker that runs its recipes.
+#   local - a volume every pod mounts. Needs a ReadWriteMany storage class
+#           (NFS, EFS, Filestore, Azure Files) because the pods can land on
+#           different nodes.
+#   s3    - a bucket (AWS S3, MinIO, R2...): nothing to share between pods.
+#           Put STORAGE_S3_ACCESS_KEY_ID and STORAGE_S3_SECRET_ACCESS_KEY in the
+#           Secret, or leave them out to use the pods' cloud identity.
+storage:
+  backend: local
+  s3:
+    bucket: ""
+    prefix: ""
+    # Empty for AWS; the store's address otherwise (http://minio:9000).
+    endpointUrl: ""
+    region: ""
+  persistence:
+    # A claim you made yourself; otherwise the chart makes one.
+    existingClaim: ""
+    storageClassName: ""
+    accessMode: ReadWriteMany
+    size: 20Gi
 
 # Run `alembic upgrade head` as a pre-install/pre-upgrade hook so schema is
 # migrated before any new pod serves traffic.

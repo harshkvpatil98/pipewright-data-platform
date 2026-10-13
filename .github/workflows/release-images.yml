@@ -21,7 +21,9 @@ jobs:
             dockerfile: apps/api-gateway/Dockerfile
             image: pipewright-gateway
           - name: web
-            dockerfile: apps/web/Dockerfile
+            # The production image (next build, next start); apps/web/Dockerfile
+            # is the development one and runs `next dev`.
+            dockerfile: apps/web/Dockerfile.prod
             image: pipewright-web
     steps:
       - name: Checkout

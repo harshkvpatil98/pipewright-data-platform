@@ -13,6 +13,32 @@ the test counts at the time — is in the session log in
 
 ---
 
+## A0–A1 — product definition and navigation (2026-10-13)
+
+- **The product, defined** in
+  [the adoption-readiness plan](docs/plans/adoption-readiness-workflow.md):
+  personas, an 18-noun vocabulary with the words it retires, one navigation
+  tree, four page templates, five design principles and a voice guide.
+- **One navigation tree** (`apps/web/src/lib/navigation.ts`) read by the rail,
+  the tab strip, the breadcrumb, the project switcher and Search, with a test
+  that every page is placed in it. The rail went from 31 items to seven areas
+  with tabs; the Workspace menu and 46 eyebrow labels are gone.
+- **Pages people use, rebuilt in plain words**: a project Overview that is the
+  checklist plus recent data and runs; Data → Sources for files, databases and
+  live feeds, with dialogs instead of forms at the top; new Data → Datasets
+  and Automate → Runs lists; Overview → Settings; a dataset page that leads
+  with its rows and keeps three actions in its header; Schedules in words
+  ("Every weekday at 18:30") in five columns instead of thirteen; Home and
+  System status naming the platform's parts in words.
+- **Renamed addresses redirect**: `/extraction` → `/sources`,
+  `/data-quality` → `/checks`. `/demo` and `/case-study` are removed.
+- **Fixed** (adoption-review defects D1, D4–D8, D12, D14–D20, plus five found on
+  the way): the API reference at `/docs` loads; no page opens on an error;
+  dates are no longer called phone numbers or birth dates; previews no longer
+  fill the audit log; listing database imports no longer fails for a project
+  with a plain import; shared components get their styles; dialogs fit a
+  laptop screen; Enter no longer skips tour steps.
+
 ## Unreleased — repository documentation and hygiene (2026-10-12)
 
 - **What a public repository needs**: an MIT [LICENSE](LICENSE);

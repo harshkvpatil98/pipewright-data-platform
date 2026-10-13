@@ -39,8 +39,11 @@ streaming, the semantic layer and the optimizer). The next sequence is the
 adoption-readiness workflow A0–A9 in
 [docs/plans/adoption-readiness-workflow.md](docs/plans/adoption-readiness-workflow.md),
 written from a review of all 59 web pages: one navigation vocabulary, a guided
-first run, a canvas-first Studio, and docs for end users. The progress ledger
-lives in [docs/HANDOFF.md](docs/HANDOFF.md).
+first run, a canvas-first Studio, and docs for end users. A0 (the product
+definition and vocabulary) and A1 (navigation) shipped on 2026-10-13: the app
+is organised as seven areas (Overview, Data, Build, Automate, Trust, Share
+and, for administrators, Admin), each with its pages as tabs. The progress
+ledger lives in [docs/HANDOFF.md](docs/HANDOFF.md).
 
 At a glance, measured on `main`:
 
@@ -357,7 +360,9 @@ infra/             reserved; nothing deployed from here yet
 
 **Written for the first version (last revised April 2026)** — still useful for
 setup detail, but they describe the pre-Studio product, and where they disagree
-with the handoff, the handoff is right:
+with the handoff, the handoff is right. The `/demo` and `/case-study` pages
+they mention were removed in A0, and the app's pages are now organised as the
+navigation tree in `apps/web/src/lib/navigation.ts`:
 [architecture](docs/architecture.md),
 [features](docs/features-guide.md),
 [installation](docs/installation-guide.md),

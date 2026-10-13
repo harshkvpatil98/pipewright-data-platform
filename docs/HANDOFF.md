@@ -4,8 +4,8 @@
 last one stopped. Keep it current. If you change project state, update the **Progress ledger**
 and **Session log** at the bottom before you finish.
 
-**Last updated:** 2026-10-12 (repository documentation; the project state below is as of 2026-09-23)
-**Updated by:** session `9744ba1b` (P7 time travel, P8 BI & collaboration and P9 market-decider depth complete; the production-readiness sequence P0–P9 is finished)
+**Last updated:** 2026-10-13 (adoption-readiness A0 and A1 complete)
+**Updated by:** session `75332b59` (A0 product definition and quick wins, A1 navigation and shell)
 
 ---
 
@@ -66,8 +66,8 @@ session log).
 npm run verify     # ruff + pytest + ESLint + tsc + production build
 ```
 
-Everything must be green before moving on. Current baseline (2026-09-23, after P9): **6,297 Python tests
-(573 skipped), 692 web tests, all passing, zero warnings.**
+Everything must be green before moving on. Current baseline (2026-10-13, after A1): **6,307 Python tests
+passed (573 skipped), 735 web tests, all passing, zero warnings.**
 
 Other commands: `npm test` (tests only) · `npm run smoke` (end-to-end smoke) ·
 `npm run lint` · `npm run typecheck` · `scripts/backup.sh --verify` (real restore drill).
@@ -201,7 +201,8 @@ honesty; if you verify one, update its status here.
 | Semantic layer has metrics, not data contracts | Phase 19's contracts (producer-published schema/freshness/volume agreements enforced at the pipeline) are not started; metrics resolve everywhere charts, dashboards and the workbench read, with a version history |
 | Optimizer has rewrites, not statistics | `ir/rewrites.py` applies five provable identities before the planner splits a tree. No row/distinct counts are collected, so no join reordering, no cost model, no caching or federation (Phase 22) |
 | 9 engines are declared but undriveable | Cassandra, ScyllaDB, Couchbase, Redis, ArangoDB, HBase, Aerospike, Timestream, HDFS. Each declares only `test`, reports `available: false`, and names the interface this platform *can* read instead |
-| Extraction still creates a dataset per run | Versions are recorded for every producer's output, but repeated extraction does not append versions to one logical dataset — the watermark lives on the job, so head/watermark consistency does not depend on dataset identity. Collapsing runs onto one logical dataset is a deliberate later refinement (`phase-18-decisions.md` §1) |
+| Extraction still creates a dataset per run | Versions are recorded for every producer's output, but repeated extraction does not append versions to one logical dataset — the watermark lives on the job, so head/watermark consistency does not depend on dataset identity. Collapsing runs onto one logical dataset is a deliberate later refinement (`phase-18-decisions.md` §1; adoption-readiness A4). Since A1 the Datasets list folds records with the same name into one row ("12 loads"), which is presentation, not the model change |
+| The v1 source registry is hidden, not removed | `service-sources` (`/api/v1/projects/{id}/sources`, the "Register source" records) is no longer shown anywhere in the web app since A1; its API and tables stay for compatibility. Retiring it is a deliberate decision for A4 |
 | Temporal SQL runs in SQLite over a copy | `AS OF` queries load the version's artifact into an in-memory SQLite table named `dataset`; the dialect is SQLite's, not the source's, and results are capped at 1,000 rows. Customer SQL sent to customer databases is never rewritten (settled decision #8) |
 | No pagination on version history or diff samples | Listings return every version; diff samples are capped at a declared 20 while counts stay exact. A dataset with thousands of versions would want cursors, which do not exist yet |
 | `today()` is the UTC date of the frozen instant | Before P7 it was the host's local date. Recorded in the run's execution context (`timezone: UTC`); a deliberate semantic change, stated rather than hidden |
@@ -240,15 +241,27 @@ increments without declaring P2 complete; later development is outside that snap
 
 ### Recommended next action
 
-**The active sequence is now `docs/plans/adoption-readiness-workflow.md`
-(A0–A9)**, written from the 2026-09-23 adoption review: a browser walk of all
-59 routes plus two code audits. It scores the product per dimension, lists 20
-defects (D1–D20) and 30-odd usability findings with file evidence, and lays
-out the redesign: one navigation taxonomy and vocabulary (A0/A1), a golden
-path with real empty states (A2), a canvas-first Studio without the ribbon
-(A3), sources/destinations/migration that actually load (A4), copy and
-component consolidation with a language lint (A5), docs/API/security proof
-(A6), scale (A7), adoption pack (A8), launch gate (A9). **A0 is next.**
+**The active sequence is `docs/plans/adoption-readiness-workflow.md`
+(A0–A9)**, written from the 2026-09-23 adoption review. **A0 (product
+definition, vocabulary, navigation tree, templates, voice guide, plus the
+quick-win defect fixes) and A1 (navigation and shell) are done as of
+2026-10-13; A2 (golden path and onboarding) is next.** The plan's A1 section
+lists what shipped, the measured cold-user task results and what moved to
+later phases. Rules for anyone touching the web app now:
+
+- **`apps/web/src/lib/navigation.ts` is the navigation.** A new page goes into
+  an area's tabs (or an `also` pattern for something inside a tab) or into
+  `STANDALONE_PAGES`; `navigation.test.ts` fails otherwise. Do not add rail
+  items, menus or page-level "Back to …" links.
+- **Use the A0 vocabulary** (spec S2): recipe not pipeline, check not rule,
+  import not extraction job, schema change not drift, deliver not publish, in
+  sentence case. `/extraction` and `/data-quality` redirect to `/sources` and
+  `/checks` (`next.config.ts`).
+- **`AppShell` is the list/detail template**: title, one-line purpose, at most
+  three actions (use `ActionMenu` for the rest), content. `AppFrame` derives
+  the tabs and breadcrumb from the URL; pass `title` on object pages.
+- **Shared components are styled from `packages/shared-ui`** only because
+  `globals.css` has an `@source` line for it; keep it.
 
 **The production-readiness sequence (P0–P9) is complete** as of 2026-09-23 —
 see `docs/plans/production-readiness-workflow.md` for what each phase delivered
@@ -695,5 +708,7 @@ Report honestly. If something is unverified, say so and add it to §7.
 | 2026-09-23 | `9744ba1b` | **Adoption-readiness review** (no product code changed). Browser walk of every web route on the dev stack (59 pages, header menus, palette, new-project flow, Studio interactions, light/dark, logged-out sign-in) plus two read-only audits: information architecture/copy (31 rail items, 3 taxonomies, 24 eyebrow labels, 451 sub-12px text usages, 362 help strings at mean 13.9 words, duplicated Button/Modal/StatusBadge, 27 hand-rolled tables, no end-user docs) and feature coverage (329 API operations; 211 connectors of which 50 tested/161 never executed and none wired to ingestion beyond PostgreSQL/MySQL/SQLite; PostgreSQL the only real destination; no migration tooling). Defects found and recorded, not fixed: OpenAPI generation 500s so `/docs` is broken; Dashboards and the pipelines list absent from the rail; pipeline editor cannot open Studio-made recipes; `[object Object]` in dataset parser findings; PII detector flags dates as phone numbers; error banners before input on Charts/Notebooks/Workflows; v1 developer copy on Schedules; `/demo`, `/case-study`, `/testing` reachable; `docs/security.md` says SSO/MFA are planned. Written up as `docs/plans/adoption-readiness-workflow.md` (review + A0–A9 workflow with cold-user task gates). Temporary review project deleted; theme preference restored. **Next: A0.** |
 
 | 2026-10-12 | Repository docs | **Documentation and hygiene for the public repository; no product code changed.** `main` fast-forwarded to `pw-dev/orchestrator-maintenance`. Added LICENSE (MIT), SECURITY.md (private advisory reporting), CODE_OF_CONDUCT.md, CHANGELOG.md, issue and PR templates, `.editorconfig`, and `license = "MIT"` in the root and web `package.json` and the gateway and service `pyproject.toml` files (setuptools floor raised to 77, the first that reads an SPDX `license`). README and CONTRIBUTING rewritten against `main`; `docs/security.md` no longer calls TOTP/OIDC planned (D11). `AGENTS.md`, `CLAUDE.md` and `docs/agent-context.md` untracked and ignored, their rules folded into CONTRIBUTING.md. CI diagnosis: the 2026-09-16 failure is the Linux sandbox gap now in §7, and `test_login_returns_bearer_token` also failed on any database without `user_mfa` — fixed by patching the lookup. `npm run verify` green with the connector servers up: 6,302 Python passed / 568 skipped, 692 web; a Linux/Python 3.11 container run of the CI bootstrap and pytest bundle (sandbox file deselected) passed apart from that login test before its fix. |
+
+| 2026-10-13 | `75332b59` | **Adoption-readiness A0 + A1 complete.** A0: spec S1–S6 written into the plan (personas, 18-noun vocabulary, navigation tree, page templates, principles, voice guide) and the quick wins shipped — D1 OpenAPI 500 (function-local `Response` import under postponed annotations; `test_openapi.py`), D4 `[object Object]` parser findings, D5 dates as phones and every date as a birth date, D6/D7/D8 errors before input on Charts/Notebooks/Workflows, D19 21 read-only POSTs no longer audited (route list tested against the gateway), D20 designed not-found/error pages, D14–D17; `/demo`, `/case-study`, 23 dead or retired components and 9 placeholder feature stubs removed. A1: `lib/navigation.ts` read by rail, tabs, breadcrumb, switcher and Search, with a test that walks every `page.tsx`; rail of seven areas with tabs; eyebrows and the Workspace menu gone; new Datasets, Runs and project Settings pages; Overview, Sources, Schedules, Projects, Workflows, Dashboards and the dataset page rebuilt on the templates and vocabulary; renamed routes redirect. Found and fixed: Tailwind never scanned `packages/shared-ui`; the shared Modal could not scroll; tour Enter skipped steps; `humanDuration` "1 minutes"; listing extraction jobs 500'd for any project with a stepless import (P9 regression, `test_job_read.py`). Cold-user tasks in the browser: dashboards in 2 clicks, connect a database in 3. `npm run verify` green: 6,307 Python passed / 573 skipped, ESLint/tsc/build clean; 735 web tests after the last edits. Commits c2d9ce3 … d1ecc13 pushed to `main`. **Next: A2.** |
 
 <!-- Add a row above when you finish a session. Keep it to one line. -->

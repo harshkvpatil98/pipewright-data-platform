@@ -161,8 +161,6 @@ Open:
 Open:
 
 - `/login`
-- `/case-study`
-- `/demo`
 - `/projects`
 - `/system-status`
 

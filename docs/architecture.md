@@ -75,8 +75,6 @@ This keeps the gateway lean and makes future extraction into separate deployable
 - `/projects/[projectId]/datasets/[datasetId]/audit`
 - `/projects/[projectId]/runs/[runId]/audit`
 - `/system-status`
-- `/demo`
-- `/case-study`
 
 ### Backend
 

@@ -13,6 +13,28 @@ the test counts at the time — is in the session log in
 
 ---
 
+## A3 — the Studio (2026-10-14)
+
+- **Room for the data**: the ribbon, status bar and inspector are gone; a
+  one-line header and a steps timeline sit beside a preview that takes the
+  rest of the page. Details (columns, where it runs, the recipe as a file,
+  comments) opens when asked for.
+- **Settings where you click**: a step's settings open directly under it,
+  and each step says in a few words what it does ("signup_date, A to Z").
+- **One way to add a step**: a single search over the common steps and the
+  173 tools, opened with Add a step, `/`, or a right-click on a column,
+  where it suggests what fits that column ("Standardise an email").
+- **Safe to try things**: undo and redo, a header click that only sorts
+  what is on screen (and says so), and unsaved work kept in the browser and
+  offered back next time.
+- **One recipe editor**: saved recipes open and save in the Studio; the
+  form editor is retired and its addresses redirect.
+- **Sessions that last while you work**: a session renews itself while in
+  use (up to 12 hours by default); one that ends takes you to sign-in and
+  back to the same page, with a message saying why.
+- **Fixed**: sign-in followed a `next` address to any site; a right-click
+  on a column header also sorted it.
+
 ## A2 — golden path and onboarding (2026-10-14)
 
 - **Something to start from**: three small, deliberately untidy sample files

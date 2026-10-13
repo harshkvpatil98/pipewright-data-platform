@@ -45,7 +45,8 @@ is organised as seven areas (Overview, Data, Build, Automate, Trust, Share
 and, for administrators, Admin), each with its pages as tabs. A2 (the first
 run) shipped on 2026-10-14: sample data, recipe templates, a welcome, help on
 every page and notification preferences; a CSV reaches a dashboard in nine
-clicks. The progress
+clicks. A3 rebuilt the Studio around the data, with step settings where you
+click, one search for every step, undo, and one recipe editor. The progress
 ledger lives in [docs/HANDOFF.md](docs/HANDOFF.md).
 
 At a glance, measured on `main`:

@@ -4,8 +4,8 @@
 last one stopped. Keep it current. If you change project state, update the **Progress ledger**
 and **Session log** at the bottom before you finish.
 
-**Last updated:** 2026-10-14 (adoption-readiness A0, A1 and A2 complete)
-**Updated by:** session `75332b59` (A0 product definition and quick wins, A1 navigation and shell, A2 golden path)
+**Last updated:** 2026-10-14 (adoption-readiness A0–A3 complete)
+**Updated by:** session `75332b59` (A0 product definition and quick wins, A1 navigation and shell, A2 golden path, A3 Studio)
 
 ---
 
@@ -66,8 +66,8 @@ session log).
 npm run verify     # ruff + pytest + ESLint + tsc + production build
 ```
 
-Everything must be green before moving on. Current baseline (2026-10-14, after A2): **6,344 Python tests
-passed (573 skipped), 741 web tests, all passing, zero warnings.**
+Everything must be green before moving on. Current baseline (2026-10-14, after A3): **6,351 Python tests
+passed (573 skipped), 762 web tests, all passing, zero warnings.**
 
 Other commands: `npm test` (tests only) · `npm run smoke` (end-to-end smoke) ·
 `npm run lint` · `npm run typecheck` · `scripts/backup.sh --verify` (real restore drill).
@@ -245,8 +245,8 @@ increments without declaring P2 complete; later development is outside that snap
 (A0–A9)**, written from the 2026-09-23 adoption review. **A0 (product
 definition, vocabulary, navigation tree, templates, voice guide, plus the
 quick-win defect fixes) and A1 (navigation and shell) are done as of
-2026-10-13, and A2 (golden path and onboarding) as of 2026-10-14; A3 (Studio
-redesign) is next.** Each phase's section in the plan lists what shipped, the
+2026-10-13, and A2 (golden path and onboarding) and A3 (Studio redesign) as
+of 2026-10-14; A4 (sources, destinations and migration) is next.** Each phase's section in the plan lists what shipped, the
 measured cold-user task results and what moved to later phases. Rules for anyone touching the web app now:
 
 - **`apps/web/src/lib/navigation.ts` is the navigation.** A new page goes into
@@ -271,6 +271,20 @@ measured cold-user task results and what moved to later phases. Rules for anyone
   `preferences.py` files a new event type by its name and level (`_failed` or
   a warning is a failure, `_succeeded` a routine success, anything else a
   workflow message); check a new type lands where you mean.
+- **There is one recipe editor: the Studio.** Link to a recipe with
+  `recipeHref(projectId, recipeId)` (`/studio?recipe=`); the old
+  `/pipelines/{id}`, `/datasets/{d}/pipelines/{id}` and `/pipelines/new`
+  addresses only redirect. A new built-in step goes in `step-catalog.ts`
+  (label, keywords, `optionLabels` for coded options; `step-catalog.test.ts`
+  checks) and gets a summary in `step-summary.ts`. Nothing under 12px in
+  `features/studio` (`type-floor.test.ts`).
+- **Sessions renew while in use.** `POST /auth/session/renew`
+  (`service_auth/session.py`) up to `AUTH_SESSION_MAX_HOURS` (default 12)
+  after sign-in; the web app renews in its last 15 minutes
+  (`lib/auth/renewal.ts`). A 401 on a request that carried a session sends
+  the person to `/login?expired=1&next=…` (`lib/auth/session-end.ts`), and
+  `proxy.ts` does the same for a run-out cookie. Only same-site `next`
+  paths are followed (`safeNextPath`).
 
 **The production-readiness sequence (P0–P9) is complete** as of 2026-09-23 —
 see `docs/plans/production-readiness-workflow.md` for what each phase delivered
@@ -720,5 +734,6 @@ Report honestly. If something is unverified, say so and add it to §7.
 
 | 2026-10-13 | `75332b59` | **Adoption-readiness A0 + A1 complete.** A0: spec S1–S6 written into the plan (personas, 18-noun vocabulary, navigation tree, page templates, principles, voice guide) and the quick wins shipped — D1 OpenAPI 500 (function-local `Response` import under postponed annotations; `test_openapi.py`), D4 `[object Object]` parser findings, D5 dates as phones and every date as a birth date, D6/D7/D8 errors before input on Charts/Notebooks/Workflows, D19 21 read-only POSTs no longer audited (route list tested against the gateway), D20 designed not-found/error pages, D14–D17; `/demo`, `/case-study`, 23 dead or retired components and 9 placeholder feature stubs removed. A1: `lib/navigation.ts` read by rail, tabs, breadcrumb, switcher and Search, with a test that walks every `page.tsx`; rail of seven areas with tabs; eyebrows and the Workspace menu gone; new Datasets, Runs and project Settings pages; Overview, Sources, Schedules, Projects, Workflows, Dashboards and the dataset page rebuilt on the templates and vocabulary; renamed routes redirect. Found and fixed: Tailwind never scanned `packages/shared-ui`; the shared Modal could not scroll; tour Enter skipped steps; `humanDuration` "1 minutes"; listing extraction jobs 500'd for any project with a stepless import (P9 regression, `test_job_read.py`). Cold-user tasks in the browser: dashboards in 2 clicks, connect a database in 3. `npm run verify` green: 6,307 Python passed / 573 skipped, ESLint/tsc/build clean; 735 web tests after the last edits. Commits c2d9ce3 … d1ecc13 pushed to `main`. **Next: A2.** |
 | 2026-10-14 | `75332b59` | **Adoption-readiness A2 complete.** Sample data (three untidy shop files, `GET /samples`, `POST /projects/{id}/samples/{sample}` through ordinary ingestion) and three recipe templates (`service_transformations/templates.py`, role matching, ordinary steps; "date" hint matched "notes", short hints now whole-word) behind one "Add data" dialog and the Studio's "Start from a template". Welcome on an empty workspace; checklist lights only the next step; Checks, People and Reports are lists with create dialogs; empty states offer a next step. "About this page" on every tab (help text beside each tab in `navigation.ts`, length tested). Notifications: migration 0046 (`group_key`/`group_count`, `notification_preferences`), each/daily summary/off per category, repeats of an unread failure count up. Charts named in words with "Put it on a new dashboard". 48 em-dash sentences rewritten with `wording.test.ts` guarding; every page has a browser-tab title (tested). Fixed: spaced phone numbers read as integers. Cold-user task "CSV onto a dashboard": 9 clicks plus typing, 0 error banners; every tab crawled on a full and an empty project with no error. `npm run verify` green: 6,344 Python passed / 573 skipped, 741 web, ESLint/tsc/build clean. Commits 7d792af … pushed to `main`. **Next: A3 (Studio redesign).** |
+| 2026-10-14 | `75332b59` | **Adoption-readiness A3 complete.** Spec T1–T8 written first (measured: grid ~380×150px at the owner's laptop size, settings a grid-width from the step, 24 sub-12px sizes, header click silently adding a step, a second form editor). Studio rebuilt: header with name/source/saved state/undo/redo/Details/More/Save/Run; steps timeline with inline settings and one-line summaries (`step-summary.ts`); one Add-a-step palette over 20 built-ins and 173 tools (`/`, right-click a column, tools named for the column first); header click sorts the view only (`view-sort.ts`) with "Sort the whole table"; undo/redo (`recipe-history.ts`); browser drafts offered back (`recipe-draft.ts`); Details drawer (columns, where it runs, file, comments); 12px floor tested. One editor: `/studio?recipe=` opens and PATCHes; the form editor and helpers deleted, its three addresses redirect, links use `recipeHref`. Found during the run and fixed: 60-minute sessions with no renewal and raw "Invalid or expired access token" in panels; now `POST /auth/session/renew` (capped by `AUTH_SESSION_MAX_HOURS`), sign-in returns to the same page with a message, proxy keeps the query, sign-in `next` limited to same-site paths (was an open redirect); right-click also sorted a column; step defaults shared arrays with the catalogue. Cold-user task: 8 clicks, 58 s. `npm run verify` green: 6,351 Python passed / 573 skipped, 762 web, ESLint/tsc/build clean. Pushed to `main`. **Next: A4 (sources, destinations and migration).** |
 
 <!-- Add a row above when you finish a session. Keep it to one line. -->

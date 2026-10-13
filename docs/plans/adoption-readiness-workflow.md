@@ -766,7 +766,7 @@ template and sample set is three each; more is A8's adoption pack.
 
 ---
 
-## A3 — Studio redesign
+## A3 — Studio redesign *(done 2026-10-14)*
 
 **Why.** §3 in full; the owner's own words: "everything is so cramped up,
 nothing clear".
@@ -894,6 +894,67 @@ at least 28px tall.
 
 **T8. Tour.** Four stops matching the new layout: the source, Add a step,
 the timeline, the preview.
+
+**What shipped.**
+
+- **Layout (T1).** `studio-page.tsx` is a header (name, source, step count,
+  saved state, undo, redo, Details, More, Save, Run) over two columns: the
+  steps timeline (320px) and the preview. No ribbon, status bar or
+  inspector on this page. `DetailsDrawer` holds columns and types, where it
+  runs, the recipe as a file and comments; it sits beside the preview on a
+  2xl screen and over it otherwise.
+- **Timeline (T2).** `steps-timeline.tsx`: source, numbered steps with a
+  one-line summary from `step-summary.ts` ("amount is more than 0",
+  "signup_date, A to Z") and the rows each removed, Add a step, result.
+  Settings open under the step; the "finish setting up" note appears there.
+- **Palette (T3).** `step-palette.tsx` replaces the ribbon, the tool browser
+  and the column menu. Common steps are grouped and added at once with the
+  column pre-filled (`prefillConfig`); tools are set up with a preview and a
+  pinned Add step. From a column it leads with tools named for what the
+  column holds (`toolsNamedForColumn`). Recently used are kept per browser.
+  Built-in steps, options, operators and totals are named in words.
+- **Safe interactions (T4).** Header click sorts the rows on screen
+  (`view-sort.ts`) with a bar saying so and "Sort the whole table"; only the
+  main mouse button sorts. Undo and redo (`recipe-history.ts`, typing folds
+  into one step). Leaving uses the app's existing guard, now worded
+  truthfully because unsaved steps are kept as a browser draft
+  (`recipe-draft.ts`) and offered back on return.
+- **Preview and run (T5).** "All 20 rows" or "First 50 of 1,234 rows", the
+  change in rows, and the plan in one phrase. Save, then Run, which runs the
+  saved recipe and links to the result.
+- **One editor (T6).** `/studio?recipe=` opens and saves (PATCH) a recipe;
+  "Save as a new recipe" in More. The form editor and its helpers are
+  deleted and its three addresses redirect; links use `recipeHref`.
+  Comments on a recipe moved into Details.
+- **Type (T7).** Nothing under 12px in `features/studio`, including the
+  grid's canvas header (`type-floor.test.ts`).
+- **Tour (T8).** `studio-v2`, four stops.
+- **Sessions (found during the run).** The walkthrough hit an expired
+  session: sessions lasted 60 minutes with no renewal, and every panel then
+  showed "Invalid or expired access token". Sessions now renew while in use
+  (`POST /auth/session/renew`, capped at `AUTH_SESSION_MAX_HOURS`, default
+  12), an ended session goes to sign-in and back to the same page with a
+  message, and the sign-in form only follows same-site `next` addresses.
+
+**Measured (browser, admin account, dev stack).**
+
+| Task | Clicks | Time | Notes |
+|---|---|---|---|
+| Remove empty rows, standardise emails, sort by date, save the recipe (sample customers, from the dataset page) | 8 (Clean in Studio, Add a step, right-click email, Standardise an email, Add step, Add a step, signup_date, Save) plus typing two searches | 58 s of tool time | Target ≤ 12 clicks, ≤ 2 minutes. Each step's settings opened in the steps list directly under the step, within 200px of the click |
+
+Layout checked at 1024×498 (the owner's window at 125% zoom), 1280×800 and
+1440×900 (the last two rendered in a frame of that exact size, since the
+screen is smaller): at 1280×800 the grid shows about 16 rows beside the
+whole recipe. Same caveat as A1 and A2 about who did the run.
+
+**Exit gate.** No sub-12px text in `features/studio` (tested). The ribbon is
+gone from the Studio; Notebooks, SQL, Table editor and Workflows still use
+the shared ribbon (A5). One recipe editor. Task numbers above.
+
+**Moved to later phases.** The other editors' ribbons and type sizes (A5).
+Tool summaries from the server still say "null" in places (A5 copy). A
+keyboard path through the palette beyond Enter on the top result (arrow
+keys) is not there yet.
 
 ---
 

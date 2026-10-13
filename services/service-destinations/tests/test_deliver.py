@@ -211,3 +211,26 @@ def test_an_s3_compatible_store_receives_the_file(db, world) -> None:
     assert result.target == f"s3://{config['bucket']}/deliveries/{name}.csv"
     body = client.get_object(Bucket=config["bucket"], Key=f"deliveries/{name}.csv")["Body"].read()
     assert len(pd.read_csv(io.BytesIO(body))) == 3
+
+
+def test_a_workflow_deliver_task_writes_to_any_destination(db, world, server_files) -> None:
+    """A workflow's Deliver task used to write to PostgreSQL only, while its
+    settings offered every destination; a folder (or MySQL, or S3) failed
+    when the run reached it. It now delivers the way Send to does."""
+    from service_workflows.nodes import NodeContext, run_publish_node, table_name_for
+
+    folder = _destination(db, world, "local_export", {"path": "exports"})
+    context = NodeContext(
+        db=db, project_id=world["project"].id, current_user=world["user"],
+        storage_backend=world["storage"], settings=settings,
+    )
+    result = run_publish_node(
+        {"destination_id": str(folder.id), "dataset_id": str(world["dataset"].id),
+         "file_name": "nightly", "file_format": "csv"},
+        context,
+    )
+    assert result.success, result.message
+    assert len(pd.read_csv(server_files / "exports" / "nightly.csv")) == 3
+    assert result.output["target"].endswith("exports/nightly.csv")
+    assert table_name_for("Sample customers 2026") == "sample_customers_2026"
+    assert table_name_for("2026 orders") == "t_2026_orders"

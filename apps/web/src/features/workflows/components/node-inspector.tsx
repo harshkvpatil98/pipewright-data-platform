@@ -20,7 +20,8 @@ const inputClass =
 export type NodeOptions = {
   extractionJobs: { id: string; name: string }[];
   pipelines: { id: string; name: string }[];
-  destinations: { id: string; name: string }[];
+  /** `kind` is the destination type: a database takes a table, storage a file. */
+  destinations: { id: string; name: string; kind?: string }[];
   datasets: DatasetRecord[];
 };
 
@@ -44,6 +45,12 @@ export function NodeInspector({
   onChangeEdgeCondition,
 }: NodeInspectorProps) {
   const fieldId = useId();
+  const chosenDestination = options.destinations.find(
+    (destination) => destination.id === String(node.config.destination_id ?? ""),
+  );
+  const deliversToFile = chosenDestination?.kind === "s3" || chosenDestination?.kind === "local_export";
+  // Older saved tasks say "upsert"; deliveries call it "update".
+  const writeMode = String(node.config.write_mode ?? "replace") === "upsert" ? "update" : String(node.config.write_mode ?? "replace");
   const meta = NODE_META[node.node_type];
 
   const setConfig = (key: string, value: unknown) =>
@@ -157,26 +164,68 @@ export function NodeInspector({
               ))}
             </select>
           </Field>
-          <Field label="Table name" htmlFor={`${fieldId}-table`}>
-            <input
-              id={`${fieldId}-table`}
-              className={inputClass}
-              value={String(node.config.table_name ?? "")}
-              placeholder="public_orders"
-              onChange={(event) => setConfig("table_name", event.target.value)}
-            />
-          </Field>
-          <Field label="Write mode" htmlFor={`${fieldId}-mode`}>
+          {deliversToFile ? (
+            <>
+              <Field label="File name" htmlFor={`${fieldId}-file`}>
+                <input
+                  id={`${fieldId}-file`}
+                  className={inputClass}
+                  value={String(node.config.file_name ?? "")}
+                  placeholder="The dataset's name"
+                  onChange={(event) => setConfig("file_name", event.target.value)}
+                />
+              </Field>
+              <Field label="Format" htmlFor={`${fieldId}-format`}>
+                <select
+                  id={`${fieldId}-format`}
+                  className={inputClass}
+                  value={String(node.config.file_format ?? "csv")}
+                  onChange={(event) => setConfig("file_format", event.target.value)}
+                >
+                  <option value="csv">CSV</option>
+                  <option value="parquet">Parquet</option>
+                </select>
+              </Field>
+            </>
+          ) : (
+            <Field label="Table name" htmlFor={`${fieldId}-table`}>
+              <input
+                id={`${fieldId}-table`}
+                className={inputClass}
+                value={String(node.config.table_name ?? "")}
+                placeholder="The dataset's name"
+                onChange={(event) => setConfig("table_name", event.target.value)}
+              />
+            </Field>
+          )}
+          <Field label="What happens to what is there" htmlFor={`${fieldId}-mode`}>
             <select
               id={`${fieldId}-mode`}
               className={inputClass}
-              value={String(node.config.write_mode ?? "replace")}
+              value={writeMode}
               onChange={(event) => setConfig("write_mode", event.target.value)}
             >
-              <option value="replace">Replace the table</option>
-              <option value="append">Append rows</option>
+              <option value="replace">{deliversToFile ? "Replace the file" : "Replace the table"}</option>
+              <option value="append">Add the rows</option>
+              {deliversToFile ? null : <option value="update">Update matching rows</option>}
             </select>
           </Field>
+          {writeMode === "update" && !deliversToFile ? (
+            <Field label="Columns that identify a row" htmlFor={`${fieldId}-keys`}>
+              <input
+                id={`${fieldId}-keys`}
+                className={inputClass}
+                value={((node.config.key_columns as string[] | undefined) ?? []).join(", ")}
+                placeholder="order_id"
+                onChange={(event) =>
+                  setConfig(
+                    "key_columns",
+                    event.target.value.split(",").map((column) => column.trim()).filter(Boolean),
+                  )
+                }
+              />
+            </Field>
+          ) : null}
         </>
       ) : null}
 

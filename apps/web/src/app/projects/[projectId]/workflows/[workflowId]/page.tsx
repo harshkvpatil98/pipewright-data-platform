@@ -57,6 +57,7 @@ export default async function WorkflowEditorRoute({ params }: PageProps) {
           destinations: destinations.items.map((destination) => ({
             id: destination.id,
             name: destination.name,
+            kind: destination.destination_type,
           })),
           datasets: datasets.items.filter((dataset) => dataset.status === "ready"),
         }}

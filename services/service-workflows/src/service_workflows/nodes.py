@@ -8,6 +8,8 @@ normal outcome the executor routes on, not an exception.
 
 from __future__ import annotations
 
+import re
+
 import uuid
 from dataclasses import dataclass, field
 from typing import Any, Callable
@@ -348,30 +350,57 @@ def run_drift_gate_node(config: dict[str, Any], context: NodeContext) -> NodeRes
     return NodeResult(success=True, message=passed, output=output)
 
 
+#: Older saved Deliver tasks wrote "upsert"; deliveries call it "update".
+_DELIVERY_MODES = {"replace": "replace", "append": "append", "update": "update", "upsert": "update"}
+
+
+def table_name_for(dataset_name: str) -> str:
+    """A database-safe table name from a dataset name, as the Send to dialog suggests it."""
+    cleaned = re.sub(r"[^a-z0-9]+", "_", dataset_name.lower()).strip("_")[:60]
+    if not cleaned:
+        return "dataset"
+    return cleaned if re.match(r"^[a-z_]", cleaned) else f"t_{cleaned}"
+
+
 def run_publish_node(config: dict[str, Any], context: NodeContext) -> NodeResult:
-    from service_destinations.publish_schemas import DatasetPublishPostgresRequest
-    from service_destinations.publish_service import publish_dataset_to_postgres
+    """Deliver the dataset to any destination: a database table or a file.
+
+    The same delivery as a dataset's Send to menu, so a workflow writes to
+    MySQL, S3 or a server folder as well as PostgreSQL, with the project's
+    policies applied and a run recorded for it.
+    """
+    from service_datasets.service import get_dataset_model_for_project
+    from service_destinations.deliver import deliver_dataset
+    from service_destinations.publish_schemas import DeliveryRequest
 
     dataset_id = resolve_dataset(config, context)
-    request = DatasetPublishPostgresRequest(
+    mode = _DELIVERY_MODES.get(str(config.get("write_mode") or "replace"))
+    if mode is None:
+        raise BadRequestError("Choose whether this task replaces, adds to or updates what is there.")
+    table_name = str(config.get("table_name") or "").strip()
+    if not table_name:
+        table_name = table_name_for(get_dataset_model_for_project(context.db, context.project_id, dataset_id).name)
+    request = DeliveryRequest(
         destination_id=_require_uuid(config, "destination_id"),
-        table_name=str(config.get("table_name") or ""),
-        write_mode=config.get("write_mode", "replace"),
+        mode=mode,
+        table_name=table_name,
+        key_columns=[str(column) for column in config.get("key_columns") or []],
+        file_name=str(config.get("file_name") or "").strip() or None,
+        file_format="parquet" if config.get("file_format") == "parquet" else "csv",
     )
-
-    published = publish_dataset_to_postgres(
+    delivered = deliver_dataset(
         context.db,
-        project_id=context.project_id,
-        dataset_id=dataset_id,
-        payload=request,
-        current_user=context.current_user,
-        storage_backend=context.storage_backend,
+        context.project_id,
+        dataset_id,
+        request,
+        context.current_user,
+        context.storage_backend,
         notify_on_complete=False,
     )
     return NodeResult(
-        success=published.success,
-        message=published.message,
-        output={"dataset_id": str(dataset_id), "table_name": request.table_name},
+        success=delivered.status == "succeeded",
+        message=delivered.message,
+        output={"dataset_id": str(dataset_id), "target": delivered.target, "delivery_run_id": str(delivered.run_id)},
     )
 
 

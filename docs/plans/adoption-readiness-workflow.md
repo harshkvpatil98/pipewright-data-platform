@@ -810,6 +810,91 @@ session log.
 **Exit gate.** No sub-12px text in `features/studio`; ribbon removed; one
 recipe editor; task numbers recorded.
 
+### A3 specification (written 2026-10-14)
+
+Measured before the work, at the owner's laptop size (1176×525 CSS pixels,
+125% zoom): the top bar, tab strip, a 100px ribbon and a status bar leave the
+grid about 380×150px between a 260px steps panel and a 300px inspector. A
+step's settings open in the inspector, the full width of the grid away from
+the step that was clicked. 24 text sizes below 12px. A header click silently
+adds a sort step to the recipe. Recipes saved from the Studio reopen in a
+different, form-based editor that supports half the step types.
+
+**T1. Layout.** Under the area tabs, one header row and two columns:
+
+```
+┌ Recipe name ✎   from [orders ▾] · 3 steps · Unsaved      ↶ ↷  Details  ⋯  [Save] [Run] ┐
+├ Steps (320px) ───────────────┬ Preview ───────────────────────────────────────────────┤
+│ ● orders  49 rows · 9 cols   │ First 50 rows · 49 → 47 rows · 9 columns · Runs here     │
+│ 1 Trim  email          −0    │ ┌──────────────────────────────────────────────────────┐ │
+│ 2 Drop empty rows      −2    │ │ grid                                                  │ │
+│   ┌ settings, inline ──────┐ │ │                                                       │ │
+│   └────────────────────────┘ │ │                                                       │ │
+│ 3 Sort  signup_date ↓        │ │                                                       │ │
+│ [+ Add a step]   /           │ └──────────────────────────────────────────────────────┘ │
+│ ● Result  47 rows · 9 cols   │                                                          │
+└──────────────────────────────┴──────────────────────────────────────────────────────────┘
+```
+
+- No ribbon, no status bar, no inspector on this page. Facts the status bar
+  carried (source, steps, rows, columns) are in the header and the preview
+  line.
+- **Details** opens a drawer on the right, closed by default: the result's
+  columns and types, where the recipe runs (the plan, its SQL and rewrites),
+  and the recipe as a YAML file. It closes with Esc.
+- The purpose line ("Clean and reshape a dataset step by step. The original
+  is never changed.") shows under the name on screens at least 700px tall.
+
+**T2. The steps timeline.** Source at the top, then each step as one line
+(number, name, what it acts on, rows it removed or added), then "Add a
+step", then the result. Clicking a step opens its settings **directly under
+it**, inside the timeline; one step is open at a time. Move up, move down and
+remove are on the open step, not hidden behind hover. An empty recipe shows
+"Add a step" and "Start from a template" with one sentence each.
+
+**T3. One way to add a step.** "Add a step" (button, or `/` anywhere outside
+a text field) opens one palette: a search box; when empty, "Recently used"
+(last five, this browser), then **Common steps** (the 20 built-ins in their
+five groups), then **More tools** (the library, by category). Search ranks
+built-ins and tools together. Choosing a built-in adds it and opens its
+settings in the timeline; choosing a tool shows its settings and a preview of
+its effect in the palette, then "Add step". Right-clicking a column header
+opens the same palette with that column chosen and tools for its type first.
+
+**T4. Safe interactions.**
+- A header click sorts **the rows on screen** only. A bar above the grid says
+  so ("Sorted by amount, high to low, for viewing. Only the 50 rows shown are
+  sorted.") with "Sort the whole table" (adds a sort step) and a clear button.
+- Undo and redo (buttons and ⌘Z / ⇧⌘Z outside text fields) cover adding,
+  removing, moving and changing steps, templates and YAML. Typing in one
+  field is one undo step, not one per key.
+- Leaving with unsaved changes through any link in the app asks in the
+  product's dialog: Stay, or Leave without saving. Closing or reloading the
+  tab uses the browser's own prompt, the only one a browser allows.
+
+**T5. Preview and run.** The preview line names what it is ("First 50
+rows"). **Save** stores the recipe; on a saved recipe with no changes it reads
+"Saved". **Run** is enabled for a saved recipe with no unsaved changes; it
+runs the saved recipe on the whole dataset and reports the result with a
+link to it. The plan summary is one phrase in the preview line ("Runs here"
+or "3 of 4 steps run in PostgreSQL"); the detail is in Details.
+
+**T6. One editor.** The Studio opens an existing recipe at
+`/projects/{id}/studio?recipe={recipe}` and saves it in place (PATCH);
+"Save as a new recipe" is in the ⋯ menu. The form editor is retired: its
+addresses (`/projects/{id}/pipelines/{recipe}`,
+`/projects/{id}/datasets/{dataset}/pipelines/{recipe}`,
+`/projects/{id}/pipelines/new`) redirect to the Studio, and every link in the
+app goes straight there. A step type the Studio does not know is shown by
+name with its settings as text, never dropped.
+
+**T7. Type and touch.** Nothing below 12px in `features/studio`, the grid
+included (cells 13px, headers 12px). Step names 14px, settings 13px. Targets
+at least 28px tall.
+
+**T8. Tour.** Four stops matching the new layout: the source, Add a step,
+the timeline, the preview.
+
 ---
 
 ## A4 — Sources, destinations and migration

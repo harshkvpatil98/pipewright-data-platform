@@ -1439,6 +1439,64 @@ worker mid-run and see the retry; run two gateways against one bucket.
 **Exit gate.** Documented ceilings raised and stated on the System status
 page; E2E suite in CI.
 
+
+### A7 specification (written 2026-10-14)
+
+**Measured before starting.**
+
+| | Now |
+|---|---|
+| CI on `main` | Red on every push since 2026-09-16: 32 notebook sandbox tests time out on Linux. The dependency audit is red too (its Python leg installs in the wrong order; npm reports 4 critical and 22 high advisories) |
+| Where stored files can live | One backend, the local disk; a second gateway needs the same disk mounted |
+| Work done inside the request | Database copy (up to 2,000,000 rows a table), delivery, file upload parsing (capped at 25MB), check evaluation |
+| A workflow task that fails | Fails the run; no retry; the whole run is started again by hand; no limit on runs at once |
+| Addresses with a rate limit | 0 (sign-in, code redemption, public dashboards and webhooks take any number of requests) |
+| Tracing | A correlation id per request; no traces |
+| Performance budgets | `scripts/perf-baseline.py --budget-ms` exists; nothing runs it |
+| Browser tests in CI | 0 |
+| Limits stated in the product | 0; they live in code and in `docs/operations.md` |
+
+**X1. CI green.** Notebook cells run on Linux (a memory limit relative to
+the interpreter's own size), and the dependency audit passes, with any
+advisory that has no fixed release accepted by name with its reason.
+
+**X2. Files in object storage.** An S3-compatible backend (AWS S3, MinIO,
+R2 and the like) beside the local one, composing with encryption at rest; a
+test runs two gateways against one bucket and reads on one what the other
+wrote.
+
+**X3. Long work off the request.** A database copy and a delivery run as
+background jobs on the worker, with progress the page shows while they run
+and a run to look back at afterwards; the upload ceiling is raised and
+stated.
+
+**X4. Workflows that recover.** A task can be retried with a backoff, per
+task; a failed run can be re-run from the task that failed, reusing what
+succeeded; a project can cap how many of its runs go at once.
+
+**X5. Rate limits.** Sign-in, code redemption, public dashboards and inbound
+webhooks are limited per address (and per account for sign-in), shared
+between gateways through the database, with a 429 that says when to try
+again.
+
+**X6. Tracing behind a flag.** OpenTelemetry traces for requests and
+database calls when `OTEL_ENABLED` is set, exported over OTLP; off, nothing
+is loaded.
+
+**X7. Budgets in CI.** CI starts the gateway, seeds data and fails if a hot
+endpoint's p95 passes its budget.
+
+**X8. Browser tests in CI.** Playwright runs the golden path (sign in, add
+sample data, clean it in the Studio, add a check, chart it) and the help,
+with axe accessibility checks on each page template.
+
+**X9. Ceilings stated.** One module holds the limits the platform enforces
+(upload size, copy rows, preview rows, run concurrency, rate limits,
+sandbox limits); System status shows them, so a buyer reads them in the
+product rather than in the code.
+
+**X10. Defects.** Walk every page again; nothing found is left open.
+
 ---
 
 ## A8 — Adoption pack

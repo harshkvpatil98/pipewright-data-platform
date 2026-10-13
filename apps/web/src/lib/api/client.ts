@@ -1,5 +1,7 @@
 import { parseApiResponse } from "@/lib/api/errors";
 import { getAccessToken } from "@/lib/auth/session";
+import { renewIfDue } from "@/lib/auth/renewal";
+import { endSession } from "@/lib/auth/session-end";
 import { appConfig } from "@/lib/config";
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -14,6 +16,13 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     },
     cache: "no-store",
   });
+
+  // A request that carried a session and was refused for it means the session
+  // has ended. Signing in is the only fix, so go there instead of showing the
+  // refusal in whatever panel happened to ask.
+  if (response.status === 401 && accessToken && !path.startsWith("/auth/")) endSession();
+  // Using the app keeps the session going; see `renewIfDue`.
+  else if (response.ok && accessToken) renewIfDue();
 
   return parseApiResponse<T>(response);
 }
@@ -40,6 +49,7 @@ export async function apiDownload(
     cache: "no-store",
   });
 
+  if (response.status === 401 && accessToken) endSession();
   if (!response.ok) {
     // Errors still come back as JSON, so reuse the normal parser to get the
     // message the API meant to show.

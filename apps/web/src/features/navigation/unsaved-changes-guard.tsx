@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import { useRouter } from "next/navigation";
 
 import { UnsavedChangesModal } from "@/components/modals/unsaved-changes-modal";
+import { isSessionEnding } from "@/lib/auth/session-end";
 import {
   createUnsavedChangesGuardController,
   type UnsavedChangesGuardOptions,
@@ -38,6 +39,8 @@ export function NavigationGuardProvider({ children }: { children: React.ReactNod
     }
 
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      // Going to sign-in after the session ended is not a choice to ask about.
+      if (isSessionEnding()) return;
       event.preventDefault();
       event.returnValue = "";
     };

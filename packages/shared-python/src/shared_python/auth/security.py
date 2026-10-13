@@ -24,6 +24,10 @@ class TokenPayload(BaseModel):
     # A unique id per token, so an individual session can be named or revoked
     # later without invalidating the rest.
     jti: str | None = None
+    # When the person actually signed in (seconds since the epoch). A renewed
+    # token keeps the original, so renewal can be capped at a total length.
+    # Absent on tokens issued before it existed.
+    auth_time: int | None = None
 
 
 def hash_password(password: str) -> str:
@@ -54,8 +58,10 @@ def create_access_token(
     audience: str,
     expires_minutes: int,
     token_version: int = 0,
+    auth_time: int | None = None,
 ) -> tuple[str, int]:
-    expires_at = datetime.now(UTC) + timedelta(minutes=expires_minutes)
+    now = datetime.now(UTC)
+    expires_at = now + timedelta(minutes=expires_minutes)
     payload = {
         "sub": user_id,
         "username": username,
@@ -64,6 +70,7 @@ def create_access_token(
         "exp": int(expires_at.timestamp()),
         "ver": token_version,
         "jti": secrets.token_urlsafe(9),
+        "auth_time": auth_time if auth_time is not None else int(now.timestamp()),
     }
     token = jwt.encode(payload, secret_key, algorithm="HS256")
     return token, expires_minutes * 60

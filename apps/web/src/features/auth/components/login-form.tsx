@@ -10,6 +10,7 @@ import { extractErrorMessage } from "@/lib/api/errors";
 import { setAccessToken } from "@/lib/auth/session";
 import { appConfig } from "@/lib/config";
 import { brand } from "@/lib/brand";
+import { safeNextPath } from "@/lib/auth/session-end";
 
 export function LoginForm() {
   const router = useRouter();
@@ -25,7 +26,7 @@ export function LoginForm() {
   const [mfaCode, setMfaCode] = useState("");
   const [ssoConfigured, setSsoConfigured] = useState(false);
 
-  const nextPath = searchParams.get("next") || "/projects";
+  const nextPath = safeNextPath(searchParams.get("next"));
 
   // Show "Continue with SSO" only when a provider is actually configured, and
   // surface a message if the provider bounced us back with an error.
@@ -143,6 +144,15 @@ export function LoginForm() {
               : "Enter the one-time code you were given, and choose a password."
         }
       >
+        {searchParams.get("expired") && mode === "signin" ? (
+          <p
+            role="status"
+            className="mb-5 rounded-2xl border border-info-line bg-info-soft px-4 py-3 text-sm text-info"
+          >
+            You were signed out because your session ended. Sign in again and you will be taken
+            back to where you were.
+          </p>
+        ) : null}
         {mode === "mfa" ? (
           <form className="space-y-5" onSubmit={submitMfa}>
             <FormField label="Authentication code" htmlFor="mfa-code">

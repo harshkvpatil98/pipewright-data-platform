@@ -44,6 +44,8 @@ SKIPPED_PREFIXES = (
     "/api/v1/auth/me/password",
     "/api/v1/auth/redeem-code",
     "/api/v1/auth/tokens",
+    # Answers with a fresh session token; it is called every hour of use.
+    "/api/v1/auth/session/renew",
 )
 
 # POSTs that compute an answer and store nothing: previews, plans, parses and

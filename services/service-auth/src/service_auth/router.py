@@ -3,12 +3,13 @@ from __future__ import annotations
 import uuid
 from collections.abc import Callable
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Cookie, Depends, Request, status
 from sqlalchemy.orm import Session
 
 from service_auth.codes import DEFAULT_TTL_MINUTES, RESET, issue_code
 from service_auth.dependencies import build_current_user_dependency
 from service_auth import mfa as mfa_service
+from service_auth import session as session_service
 from service_auth.schemas import (
     ApiTokenCreate,
     ApiTokenCreatedResponse,
@@ -57,7 +58,7 @@ from service_auth.tokens import (
     revoke_api_token,
 )
 from shared_python.auth.security import create_access_token
-from shared_python.errors import ForbiddenError
+from shared_python.errors import ForbiddenError, UnauthorizedError
 
 
 def build_router(get_db: Callable[..., Session], settings, email_sender=None) -> APIRouter:
@@ -92,6 +93,25 @@ def build_router(get_db: Callable[..., Session], settings, email_sender=None) ->
             expires_in=issued.expires_in,
             user=issued.user,
         )
+
+    @router.post("/session/renew", response_model=TokenResponse, status_code=status.HTTP_200_OK)
+    def renew_session(
+        request: Request,
+        access_token: str | None = Cookie(default=None, alias="idp_access_token"),
+        db: Session = Depends(get_db),
+    ) -> TokenResponse:
+        """A fresh sign-in token for a session that is still valid and in use.
+
+        The web app calls this as its token nears expiry, so working in the app
+        does not end in a sign-out every hour. The rules (sign-in tokens only,
+        still valid, within the session limit) are in `service_auth.session`.
+        """
+        header = request.headers.get("authorization", "")
+        presented = header[7:].strip() if header.lower().startswith("bearer ") else access_token
+        if not presented:
+            raise UnauthorizedError("Authentication required.")
+        token, expires_in, user = session_service.renew(db, presented=presented, settings=settings)
+        return TokenResponse(access_token=token, expires_in=expires_in, user=UserRead.model_validate(user))
 
     @router.post("/login", response_model=LoginResult, status_code=status.HTTP_200_OK)
     def login(payload: LoginRequest, db: Session = Depends(get_db)) -> LoginResult:

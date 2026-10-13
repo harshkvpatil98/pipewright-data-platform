@@ -56,6 +56,9 @@ class Settings(BaseSettings):
     auth_jwt_issuer: str = "intelligent-data-platform"
     auth_jwt_audience: str = "intelligent-data-platform-web"
     auth_access_token_exp_minutes: int = 60
+    # A session renews itself while it is being used (POST /auth/session/renew),
+    # up to this long after signing in; then the person signs in again.
+    auth_session_max_hours: int = 12
     storage_backend: Literal["local"] = "local"
     upload_root_path: str = "data/uploads"
     max_upload_size_bytes: int = 25 * 1024 * 1024

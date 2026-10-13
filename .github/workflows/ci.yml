@@ -89,7 +89,7 @@ jobs:
         run: |
           docker run -d --name minio -p 9000:9000 \
             -e MINIO_ROOT_USER=platform -e MINIO_ROOT_PASSWORD=platform-secret \
-            minio/minio server /data
+            cgr.dev/chainguard/minio:latest server /data
           for attempt in $(seq 1 30); do
             curl -sf http://127.0.0.1:9000/minio/health/live && break
             sleep 1

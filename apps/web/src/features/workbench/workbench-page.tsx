@@ -401,7 +401,7 @@ export function WorkbenchPage({
           action={
             <a
               href={`/projects/${projectId}/sources`}
-              className="inline-flex items-center rounded-full border border-[color:var(--accent-soft)] bg-[color:var(--accent-faint)] px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:brightness-110"
+              className="inline-flex items-center rounded-full border border-[color:var(--accent-soft)] bg-[color:var(--accent-faint)] px-4 py-2 text-xs font-medium text-ink hover:brightness-110"
             >
               Add a connection
             </a>
@@ -438,7 +438,7 @@ export function WorkbenchPage({
                 aria-selected={side === panel}
                 onClick={() => setSide(panel)}
                 className={cx(
-                  "flex-1 px-2 py-2 text-[11px] uppercase tracking-[0.12em] transition",
+                  "flex-1 px-2 py-2 text-[12px] transition",
                   side === panel
                     ? "border-b-2 border-[color:var(--accent)] text-ink"
                     : "text-muted hover:text-ink",
@@ -480,7 +480,7 @@ export function WorkbenchPage({
                       className="min-w-0 flex-1 rounded-lg px-2 py-1.5 text-left text-xs text-ink transition hover:bg-sunken"
                     >
                       <span className="block truncate">{entry.name}</span>
-                      <span className="block text-[10px] text-muted">
+                      <span className="block text-[12px] text-muted">
                         run {entry.run_count} time{entry.run_count === 1 ? "" : "s"}
                       </span>
                     </button>
@@ -524,12 +524,12 @@ export function WorkbenchPage({
                       onClick={() => setSql(entry.sql)}
                       className="w-full rounded-lg px-2 py-1.5 text-left transition hover:bg-sunken"
                     >
-                      <span className="block truncate font-mono text-[11px] text-ink-2">
+                      <span className="block truncate font-mono text-[12px] text-ink-2">
                         {entry.sql.replace(/\s+/g, " ").slice(0, 60)}
                       </span>
                       <span
                         className={cx(
-                          "block text-[10px]",
+                          "block text-[12px]",
                           entry.succeeded ? "text-muted" : "text-[color:var(--danger)]",
                         )}
                       >
@@ -562,13 +562,13 @@ export function WorkbenchPage({
               ))}
             </Select>
             {isProduction ? (
-              <span className="flex items-center gap-1.5 rounded-full border border-[color:var(--danger-line)] bg-[color:var(--danger-soft)] px-2.5 py-1 text-[11px] text-ink">
+              <span className="flex items-center gap-1.5 rounded-full border border-[color:var(--danger-line)] bg-[color:var(--danger-soft)] px-2.5 py-1 text-[12px] text-ink">
                 <Icon name="warning" className="h-3 w-3" />
                 production
               </span>
             ) : null}
             {writeMode ? (
-              <span className="flex items-center gap-1.5 rounded-full border border-[color:var(--warning-line)] bg-[color:var(--warning-soft)] px-2.5 py-1 text-[11px] text-ink">
+              <span className="flex items-center gap-1.5 rounded-full border border-[color:var(--warning-line)] bg-[color:var(--warning-soft)] px-2.5 py-1 text-[12px] text-ink">
                 <Icon name="warning" className="h-3 w-3" />
                 {ddlMode ? "writes and structure changes" : "writes"}
               </span>
@@ -593,7 +593,7 @@ export function WorkbenchPage({
             <div className="flex flex-wrap items-end gap-2 border-t border-line px-3 py-2">
               {plan.parameters.map((name) => (
                 <label key={name} className="flex flex-col gap-1">
-                  <span className="text-[10px] uppercase tracking-[0.12em] text-muted">{name}</span>
+                  <span className="text-[12px] text-muted">{name}</span>
                   <Input
                     value={parameters[name] ?? ""}
                     onChange={(event) =>
@@ -625,7 +625,7 @@ export function WorkbenchPage({
             {explain ? (
               <div className="min-h-0 flex-1 overflow-auto p-3">
                 <div className="mb-2 flex items-baseline gap-3">
-                  <h2 className="text-xs uppercase tracking-[0.14em] text-muted">
+                  <h2 className="text-xs text-muted">
                     Query plan · {explain.dialect}
                   </h2>
                   {explain.estimated_rows !== null ? (
@@ -646,7 +646,7 @@ export function WorkbenchPage({
                     {note}
                   </p>
                 ))}
-                <pre className="overflow-x-auto font-mono text-[11px] leading-5 text-ink-2">
+                <pre className="overflow-x-auto font-mono text-[12px] leading-5 text-ink-2">
                   {explain.text}
                 </pre>
               </div>
@@ -661,7 +661,7 @@ export function WorkbenchPage({
                       aria-selected={index === activeTab}
                       onClick={() => setActiveTab(index)}
                       className={cx(
-                        "shrink-0 px-3 py-1.5 text-[11px] transition",
+                        "shrink-0 px-3 py-1.5 text-[12px] transition",
                         index === activeTab
                           ? "border-b-2 border-[color:var(--accent)] text-ink"
                           : "text-muted hover:text-ink",
@@ -672,7 +672,7 @@ export function WorkbenchPage({
                       {statement.index}. {statement.error ? "failed" : statement.columns.length ? `${statement.row_count} rows` : `${statement.rows_affected ?? 0} changed`}
                     </button>
                   ))}
-                  <span className="ml-auto shrink-0 px-3 text-[11px] tabular-nums text-muted">
+                  <span className="ml-auto shrink-0 px-3 text-[12px] tabular-nums text-muted">
                     {describeRun(result)}
                   </span>
                 </div>
@@ -691,7 +691,7 @@ export function WorkbenchPage({
                         emptyMessage="This query returned no rows."
                       />
                       {shown.truncated ? (
-                        <p className="border-t border-line px-3 py-1 text-[11px] text-muted">
+                        <p className="border-t border-line px-3 py-1 text-[12px] text-muted">
                           Showing the first {shown.rows.length.toLocaleString()} rows. Add a LIMIT
                           to see a specific part.
                         </p>
@@ -762,7 +762,7 @@ function ConfirmWrite({
         ))}
         {production ? (
           <label className="mt-4 flex flex-col gap-1">
-            <span className="text-xs uppercase tracking-[0.14em] text-muted">
+            <span className="text-xs text-muted">
               Type “production” to confirm
             </span>
             <Input ref={inputRef} value={typed} onChange={(event) => setTyped(event.target.value)} />
@@ -851,14 +851,14 @@ function MetricsPanel({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-2">
-      <p className="px-1 pb-2 text-[11px] leading-4 text-muted">
+      <p className="px-1 pb-2 text-[12px] leading-4 text-muted">
         Metric definitions as {dialect} SQL. Replace the placeholder table with the one that holds the data.
       </p>
-      {error ? <p className="px-1 text-[11px] text-danger">{error}</p> : null}
+      {error ? <p className="px-1 text-[12px] text-danger">{error}</p> : null}
       {items === null ? (
-        <p className="px-1 text-[11.5px] text-muted">Loading…</p>
+        <p className="px-1 text-[12px] text-muted">Loading…</p>
       ) : items.length === 0 ? (
-        <p className="px-1 text-[11.5px] text-muted">No metrics defined yet.</p>
+        <p className="px-1 text-[12px] text-muted">No metrics defined yet.</p>
       ) : (
         <ul className="space-y-1">
           {items.map((metric) => (
@@ -871,12 +871,12 @@ function MetricsPanel({
                   type="button"
                   onClick={() => void insert(metric)}
                   disabled={busy === metric.id}
-                  className="shrink-0 text-[11px] text-accent hover:underline disabled:opacity-50"
+                  className="shrink-0 text-[12px] text-accent hover:underline disabled:opacity-50"
                 >
                   {busy === metric.id ? "…" : "Insert SQL"}
                 </button>
               </div>
-              <div className="truncate text-[10.5px] text-muted">
+              <div className="truncate text-[12px] text-muted">
                 {metric.aggregation.replace("_", " ")} of {metric.formula ?? metric.column} · v{metric.version_number}
               </div>
             </li>

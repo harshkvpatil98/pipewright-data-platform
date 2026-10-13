@@ -63,7 +63,7 @@ export function RunDiffPanel({ projectId, leftRunId, rightRunId, onClose }: RunD
   return (
     <aside className="animate-fade-up absolute bottom-4 left-4 top-4 z-30 flex w-[340px] flex-col overflow-hidden rounded-xl border border-line bg-[color:var(--panel-strong)] shadow-[var(--shadow-lg)] backdrop-blur-xl">
       <div className="flex items-center justify-between border-b border-line px-3 py-2.5">
-        <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted">
+        <span className="text-[12px] font-medium text-muted">
           Run comparison
         </span>
         <button
@@ -96,7 +96,7 @@ export function RunDiffPanel({ projectId, leftRunId, rightRunId, onClose }: RunD
               {diff.summary}
             </p>
 
-            <div className="mt-2 flex items-center justify-between text-[10.5px] text-muted">
+            <div className="mt-2 flex items-center justify-between text-[12px] text-muted">
               <span>
                 older · {diff.left.logical_date?.slice(0, 10) ?? diff.left.queued_at.slice(0, 10)}
               </span>
@@ -116,7 +116,7 @@ export function RunDiffPanel({ projectId, leftRunId, rightRunId, onClose }: RunD
                       <span className="truncate text-[12px] text-ink">{node.node_name}</span>
                       <span
                         className={cx(
-                          "shrink-0 rounded-full border px-1.5 py-0.5 text-[10px]",
+                          "shrink-0 rounded-full border px-1.5 py-0.5 text-[12px]",
                           VERDICT_TONE[node.verdict],
                         )}
                       >
@@ -124,17 +124,17 @@ export function RunDiffPanel({ projectId, leftRunId, rightRunId, onClose }: RunD
                       </span>
                     </div>
                     {node.left_status !== node.right_status ? (
-                      <div className="mt-1 text-[11px] text-ink-3">
+                      <div className="mt-1 text-[12px] text-ink-3">
                         {node.left_status ?? "—"} → {node.right_status ?? "—"}
                       </div>
                     ) : null}
                     {node.changes.map((change) => (
-                      <div key={change} className="mt-1 text-[11px] text-ink-3">
+                      <div key={change} className="mt-1 text-[12px] text-ink-3">
                         {change}
                       </div>
                     ))}
                     {node.verdict === "slower" || node.verdict === "faster" ? (
-                      <div className="mt-1 text-[11px] text-muted">
+                      <div className="mt-1 text-[12px] text-muted">
                         {node.duration_change_percentage !== null
                           ? `${node.duration_change_percentage > 0 ? "+" : ""}${node.duration_change_percentage.toFixed(0)}% duration`
                           : null}
@@ -144,7 +144,7 @@ export function RunDiffPanel({ projectId, leftRunId, rightRunId, onClose }: RunD
                 ))}
               </ul>
             ) : (
-              <p className="mt-3 text-[11.5px] text-muted">
+              <p className="mt-3 text-[12px] text-muted">
                 Every step ran the same way and produced the same numbers.
               </p>
             )}

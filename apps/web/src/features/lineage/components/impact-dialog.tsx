@@ -7,6 +7,7 @@ import type { ImpactAnalysis, ImpactSeverity } from "@platform/shared-types";
 import { Icon } from "@/components/ui/icon";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
+import { sentenceLabel } from "@/lib/labels";
 import { cx } from "@/lib/utils";
 
 type ImpactDialogProps = {
@@ -134,15 +135,15 @@ export function ImpactDialog({ projectId, datasetId, columns, onClose }: ImpactD
                         </div>
                         <span
                           className={cx(
-                            "shrink-0 rounded-full border px-2 py-0.5 text-[10.5px]",
+                            "shrink-0 rounded-full border px-2 py-0.5 text-[12px]",
                             SEVERITY_TONE[finding.severity],
                           )}
                         >
                           {SEVERITY_LABEL[finding.severity]}
                         </span>
                       </div>
-                      <div className="mt-1.5 text-[10.5px] uppercase tracking-wide text-muted">
-                        {finding.kind.replace("_", " ")}
+                      <div className="mt-1.5 text-[12px] text-muted">
+                        {sentenceLabel(finding.kind)}
                       </div>
                     </li>
                   ))}

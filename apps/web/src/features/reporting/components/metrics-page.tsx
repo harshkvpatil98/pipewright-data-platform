@@ -274,17 +274,17 @@ export function MetricsPageView({ currentUser, projectId, initial, datasets }: M
                       <button type="button" onClick={() => void inspect(metric, "", dialect)} className="text-[13.5px] font-medium text-ink hover:text-accent">
                         {metric.name}
                       </button>
-                      <span className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-ink-3">v{metric.version_number}</span>
-                      <span className="rounded-full border border-line bg-sunken px-2 py-0.5 text-[10.5px] text-ink-3">
+                      <span className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[12px] text-ink-3">v{metric.version_number}</span>
+                      <span className="rounded-full border border-line bg-sunken px-2 py-0.5 text-[12px] text-ink-3">
                         {metric.aggregation.replace("_", " ")} of {metric.formula ? metric.formula : metric.column}
                       </span>
                       {metric.filters.map((filter, index) => (
-                        <span key={index} className="rounded-full border border-line px-2 py-0.5 text-[10.5px] text-muted">
+                        <span key={index} className="rounded-full border border-line px-2 py-0.5 text-[12px] text-muted">
                           {describeFilter(filter)}
                         </span>
                       ))}
                     </div>
-                    <div className="mt-0.5 text-[11.5px] text-muted">
+                    <div className="mt-0.5 text-[12px] text-muted">
                       on {metric.dataset_name ?? "a dataset"}
                       {metric.owner_username ? ` · owned by ${metric.owner_username}` : " · no owner"}
                       {metric.dimensions.length > 0 ? ` · by ${metric.dimensions.join(", ")}` : " · any dimension"}
@@ -340,20 +340,20 @@ export function MetricsPageView({ currentUser, projectId, initial, datasets }: M
           <div className="space-y-3">
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block space-y-1">
-                <span className="text-[11px] text-muted">Name</span>
+                <span className="text-[12px] text-muted">Name</span>
                 <input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="Net revenue" className={inputClass} />
               </label>
               <label className="block space-y-1">
-                <span className="text-[11px] text-muted">Owner (username)</span>
+                <span className="text-[12px] text-muted">Owner (username)</span>
                 <input value={draft.owner_username} onChange={(e) => setDraft({ ...draft, owner_username: e.target.value })} placeholder="who to ask" className={inputClass} />
               </label>
             </div>
             <label className="block space-y-1">
-              <span className="text-[11px] text-muted">Description</span>
+              <span className="text-[12px] text-muted">Description</span>
               <textarea value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} rows={2} placeholder="Gross less discount, paid orders only." className="w-full rounded-lg border border-line bg-sunken px-2.5 py-2 text-[13px] text-ink outline-none transition focus:border-[color:var(--accent)]" />
             </label>
             <label className="block space-y-1">
-              <span className="text-[11px] text-muted">Dataset</span>
+              <span className="text-[12px] text-muted">Dataset</span>
               <select value={draft.dataset_id} disabled={draft.id !== null} onChange={(e) => setDraft({ ...draft, dataset_id: e.target.value, column: "", filters: [] })} className={inputClass}>
                 {datasets.map((dataset) => (
                   <option key={dataset.id} value={dataset.id}>{dataset.name}</option>
@@ -362,7 +362,7 @@ export function MetricsPageView({ currentUser, projectId, initial, datasets }: M
             </label>
             <div className="grid gap-3 sm:grid-cols-[140px_1fr]">
               <label className="block space-y-1">
-                <span className="text-[11px] text-muted">Aggregation</span>
+                <span className="text-[12px] text-muted">Aggregation</span>
                 <select value={draft.aggregation} onChange={(e) => setDraft({ ...draft, aggregation: e.target.value as AggregationName })} className={inputClass}>
                   {AGGREGATIONS.map((item) => (
                     <option key={item} value={item}>{item.replace("_", " ")}</option>
@@ -370,11 +370,11 @@ export function MetricsPageView({ currentUser, projectId, initial, datasets }: M
                 </select>
               </label>
               <div className="space-y-1">
-                <div className="flex items-center gap-2 text-[11px] text-muted">
+                <div className="flex items-center gap-2 text-[12px] text-muted">
                   <span>of</span>
                   <div className="flex rounded-md border border-line p-0.5">
                     {(["column", "formula"] as const).map((mode) => (
-                      <button key={mode} type="button" onClick={() => setDraft({ ...draft, mode })} className={cx("rounded px-2 py-0.5 text-[11px]", draft.mode === mode ? "bg-[color:var(--accent)] text-accent-ink" : "text-ink-3")}>
+                      <button key={mode} type="button"onClick={() => setDraft({ ...draft, mode })} className={cx("rounded px-2 py-0.5 text-[12px]", draft.mode === mode ? "bg-[color:var(--accent)] text-accent-ink" : "text-ink-3")}>
                         {mode === "column" ? "a column" : "a formula"}
                       </button>
                     ))}
@@ -393,7 +393,7 @@ export function MetricsPageView({ currentUser, projectId, initial, datasets }: M
               </div>
             </div>
             <div className="space-y-1">
-              <span className="text-[11px] text-muted">Filters that are part of the definition</span>
+              <span className="text-[12px] text-muted">Filters that are part of the definition</span>
               {draft.filters.map((row, index) => (
                 <div key={index} className="grid grid-cols-[1fr_auto_1fr_auto] items-center gap-2">
                   <select value={row.column} onChange={(e) => setDraft({ ...draft, filters: draft.filters.map((f, i) => (i === index ? { ...f, column: e.target.value } : f)) })} className={inputClass}>
@@ -419,7 +419,7 @@ export function MetricsPageView({ currentUser, projectId, initial, datasets }: M
               </Button>
             </div>
             <label className="block space-y-1">
-              <span className="text-[11px] text-muted">Dimensions it may be cut by (comma-separated; empty = any)</span>
+              <span className="text-[12px] text-muted">Dimensions it may be cut by (comma-separated; empty = any)</span>
               <input value={draft.dimensions} onChange={(e) => setDraft({ ...draft, dimensions: e.target.value })} placeholder="region, plan_tier" className={inputClass} />
             </label>
             {error ? (
@@ -445,7 +445,7 @@ export function MetricsPageView({ currentUser, projectId, initial, datasets }: M
           <div className="space-y-4 text-sm">
             <div className="flex flex-wrap items-end gap-2">
               <label className="flex-1 space-y-1">
-                <span className="text-[11px] text-muted">Cut by</span>
+                <span className="text-[12px] text-muted">Cut by</span>
                 <select value={previewDimension} onChange={(e) => { setPreviewDimension(e.target.value); void inspect(inspecting, e.target.value, dialect); }} className={inputClass}>
                   <option value="">Total only</option>
                   {(inspecting.dimensions.length > 0 ? inspecting.dimensions : (columnsByDataset[inspecting.dataset_id] ?? [])).map((column) => (
@@ -454,7 +454,7 @@ export function MetricsPageView({ currentUser, projectId, initial, datasets }: M
                 </select>
               </label>
               <label className="space-y-1">
-                <span className="text-[11px] text-muted">SQL dialect</span>
+                <span className="text-[12px] text-muted">SQL dialect</span>
                 <select value={dialect} onChange={(e) => { setDialect(e.target.value); void inspect(inspecting, previewDimension, e.target.value); }} className={inputClass}>
                   {DIALECTS.map((item) => (
                     <option key={item} value={item}>{item}</option>
@@ -478,11 +478,11 @@ export function MetricsPageView({ currentUser, projectId, initial, datasets }: M
                     ))}
                   </tbody>
                 </table>
-                {preview.warnings.length > 0 ? <p className="px-3 py-2 text-[11px] text-muted">{preview.warnings.join(" ")}</p> : null}
+                {preview.warnings.length > 0 ? <p className="px-3 py-2 text-[12px] text-muted">{preview.warnings.join(" ")}</p> : null}
               </div>
             )}
             <div>
-              <div className="text-[11px] uppercase tracking-[0.14em] text-muted">Resolves through it</div>
+              <div className="text-[12px] text-muted">Resolves through it</div>
               {usage === null ? (
                 <p className="mt-1 text-[12px] text-muted">Loading…</p>
               ) : usage.charts.length === 0 ? (
@@ -499,16 +499,16 @@ export function MetricsPageView({ currentUser, projectId, initial, datasets }: M
               )}
             </div>
             <div>
-              <div className="text-[11px] uppercase tracking-[0.14em] text-muted">As SQL ({dialect})</div>
+              <div className="text-[12px] text-muted">As SQL ({dialect})</div>
               {sql === null ? (
                 <p className="mt-1 text-[12px] text-muted">Rendering…</p>
               ) : sql.sql ? (
-                <pre className="mt-1 overflow-x-auto rounded-xl border border-line bg-sunken p-3 font-mono text-[11.5px] text-ink-2">{sql.sql}</pre>
+                <pre className="mt-1 overflow-x-auto rounded-xl border border-line bg-sunken p-3 font-mono text-[12px] text-ink-2">{sql.sql}</pre>
               ) : (
                 <p className="mt-1 text-[12px] text-warning">{sql.reason}</p>
               )}
               {sql?.sql ? (
-                <p className="mt-1 text-[10.5px] text-muted">
+                <p className="mt-1 text-[12px] text-muted">
                   Reads from <code className="font-mono">{sql.source_placeholder}</code>; replace it with the table that holds this data in your warehouse.
                 </p>
               ) : null}

@@ -17,6 +17,7 @@ import { Icon } from "@/components/ui/icon";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { formatDate } from "@/lib/format";
+import { sentenceLabel } from "@/lib/labels";
 import { cx } from "@/lib/utils";
 
 type ChangesPageProps = {
@@ -121,7 +122,7 @@ export function ChangesPageView({ currentUser, projectId, initial }: ChangesPage
                       <span className="text-[13px] text-ink">{change.title}</span>
                       <span
                         className={cx(
-                          "shrink-0 rounded-full border px-2 py-0.5 text-[10.5px] capitalize",
+                          "shrink-0 rounded-full border px-2 py-0.5 text-[12px] capitalize",
                           STATUS_TONE[change.status],
                         )}
                       >
@@ -133,7 +134,7 @@ export function ChangesPageView({ currentUser, projectId, initial }: ChangesPage
                         {change.change_summary}
                       </p>
                     ) : null}
-                    <div className="mt-1.5 text-[11px] text-muted">
+                    <div className="mt-1.5 text-[12px] text-muted">
                       {change.requested_by_username ?? "unknown"} · {formatDate(change.created_at)}
                     </div>
                   </button>
@@ -200,15 +201,15 @@ export function ChangesPageView({ currentUser, projectId, initial }: ChangesPage
                     className="rounded-lg border border-line px-2.5 py-2"
                   >
                     <div className="flex items-baseline gap-2">
-                      <span className={cx("text-[10.5px] uppercase", KIND_TONE[change.kind])}>
-                        {change.kind}
+                      <span className={cx("text-[12px]", KIND_TONE[change.kind])}>
+                        {sentenceLabel(change.kind)}
                       </span>
-                      <span className="truncate font-mono text-[11.5px] text-ink-2">
+                      <span className="truncate font-mono text-[12px] text-ink-2">
                         {change.path}
                       </span>
                     </div>
                     {change.kind === "changed" ? (
-                      <div className="mt-1 font-mono text-[11px]">
+                      <div className="mt-1 font-mono text-[12px]">
                         <span className="text-danger">{JSON.stringify(change.before)}</span>
                         <span className="mx-1.5 text-muted">→</span>
                         <span className="text-success">{JSON.stringify(change.after)}</span>
@@ -219,13 +220,13 @@ export function ChangesPageView({ currentUser, projectId, initial }: ChangesPage
               </ul>
 
               {open.diff.truncated ? (
-                <p className="mt-2 text-[11px] text-muted">
+                <p className="mt-2 text-[12px] text-muted">
                   Only the first changes are listed.
                 </p>
               ) : null}
 
               <div className="mt-5 border-t border-line pt-4">
-                <h3 className="text-[12px] font-semibold uppercase tracking-[0.14em] text-muted">
+                <h3 className="text-[12px] font-semibold text-muted">
                   Review discussion
                 </h3>
                 <p className="mt-1 mb-3 text-[12px] text-muted">

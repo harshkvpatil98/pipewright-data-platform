@@ -228,7 +228,7 @@ export function NotificationTargetsPageView({
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[720px] border-collapse text-left text-sm text-ink">
-                <thead className="border-b border-line text-xs uppercase tracking-[0.14em] text-muted">
+                <thead className="border-b border-line text-xs text-muted">
                   <tr>
                     <th className="py-2 pr-4 font-medium">Name</th>
                     <th className="py-2 pr-4 font-medium">Type</th>
@@ -303,7 +303,7 @@ export function NotificationTargetsPageView({
           <FormField label="Name" htmlFor="nt-name">
             <Input id="nt-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Ops email" />
           </FormField>
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
+          <label className="flex flex-col gap-1 text-xs text-muted">
             Target type
             <Select
               value={targetType}
@@ -379,7 +379,7 @@ export function NotificationTargetsPageView({
           )}
 
           <div>
-            <div className="text-xs uppercase tracking-[0.16em] text-muted">Subscribed events</div>
+            <div className="text-xs text-muted">Subscribed events</div>
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
               {EXTERNAL_NOTIFICATION_EVENT_TYPES.map((ev) => (
                 <label key={ev} className="flex items-center gap-2 text-sm text-ink-2">

@@ -297,7 +297,7 @@ export function HomeDashboard({
                             <span className="text-ink block truncate text-[13px] font-medium">
                               {project.name}
                             </span>
-                            <span className="text-muted block truncate text-[11px]">
+                            <span className="text-muted block truncate text-[12px]">
                               {project.description || "No description"}
                             </span>
                           </span>
@@ -356,7 +356,7 @@ export function HomeDashboard({
                           {status?.runtime?.components.map((component) => (
                             <span
                               key={`${component.component}:${component.host ?? "-"}`}
-                              className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10.5px] ${
+                              className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[12px] ${
                                 component.healthy
                                   ? "border-success-line bg-success-soft text-success"
                                   : "border-danger-line bg-danger-soft text-danger"
@@ -396,7 +396,7 @@ export function HomeDashboard({
                       )}
                     </>
                   ) : (
-                    <p className="text-muted mt-3 text-[11.5px]">
+                    <p className="text-muted mt-3 text-[12px]">
                       Status unavailable.
                     </p>
                   )}
@@ -500,7 +500,7 @@ export function HomeDashboard({
                           >
                             <span
                               className={cx(
-                                "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[10px] font-semibold",
+                                "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[12px] font-semibold",
                                 item.done
                                   ? "bg-success text-accent-ink"
                                   : "bg-surface-2 text-ink-3",

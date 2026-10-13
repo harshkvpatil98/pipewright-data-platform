@@ -75,7 +75,7 @@ export function VersionHistoryPanel({
   return (
     <aside className="animate-fade-up absolute bottom-4 right-4 top-4 z-30 flex w-[320px] flex-col overflow-hidden rounded-xl border border-line bg-[color:var(--panel-strong)] shadow-[var(--shadow-lg)] backdrop-blur-xl">
       <div className="flex items-center justify-between border-b border-line px-3 py-2.5">
-        <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted">
+        <span className="text-[12px] font-medium text-muted">
           Version history
         </span>
         <button
@@ -116,19 +116,19 @@ export function VersionHistoryPanel({
               <div className="flex items-baseline justify-between gap-2">
                 <span className="text-[12px] text-ink">
                   v{version.version}
-                  {index === 0 ? <span className="ml-1.5 text-[10px] text-ink-3">current</span> : null}
+                  {index === 0 ? <span className="ml-1.5 text-[12px] text-ink-3">current</span> : null}
                 </span>
-                <span className="text-[10.5px] text-muted">
+                <span className="text-[12px] text-muted">
                   {formatDate(version.created_at)}
                 </span>
               </div>
               {version.change_summary ? (
-                <p className="mt-0.5 text-[11.5px] leading-4 text-ink-3">
+                <p className="mt-0.5 text-[12px] leading-4 text-ink-3">
                   {version.change_summary}
                 </p>
               ) : null}
               <div className="mt-1 flex items-center justify-between gap-2">
-                <span className="text-[10.5px] text-muted">
+                <span className="text-[12px] text-muted">
                   {version.created_by_username ?? "unknown"}
                   {version.restored_from_version
                     ? ` · restored v${version.restored_from_version}`
@@ -139,7 +139,7 @@ export function VersionHistoryPanel({
                     type="button"
                     disabled={busy !== null}
                     onClick={() => void restore(version.version)}
-                    className="rounded border border-line px-1.5 py-0.5 text-[10.5px] text-ink-3 transition hover:text-ink disabled:opacity-40"
+                    className="rounded border border-line px-1.5 py-0.5 text-[12px] text-ink-3 transition hover:text-ink disabled:opacity-40"
                   >
                     {busy === version.version ? "Restoring…" : "Restore"}
                   </button>

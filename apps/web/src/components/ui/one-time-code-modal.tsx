@@ -98,7 +98,7 @@ export function OneTimeCodeModal({
               </p>
             )}
             <div className="flex items-center gap-2">
-              <code className="flex-1 rounded-xl border border-line bg-sunken px-3 py-2 font-mono text-[15px] tracking-[0.2em] text-ink">
+              <code className="flex-1 rounded-xl border border-line bg-sunken px-3 py-2 font-mono text-[15px] text-ink">
                 {code.code}
               </code>
               <Button variant="secondary" size="sm" onClick={() => void copy()}>

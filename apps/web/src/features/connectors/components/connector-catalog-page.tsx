@@ -153,7 +153,7 @@ export function ConnectorCatalogPageView({
           <div className="overflow-x-auto">
             <table className="w-full min-w-[560px] text-left">
               <thead>
-                <tr className="text-[11px] uppercase tracking-[0.14em] text-muted">
+                <tr className="text-[12px] text-muted">
                   <th className="pb-2 pr-3 font-medium">Format</th>
                   <th className="pb-2 pr-3 font-medium">Extensions</th>
                   <th className="pb-2 pr-3 font-medium">Keeps types</th>
@@ -164,13 +164,13 @@ export function ConnectorCatalogPageView({
                 {formats.items.map((format) => (
                   <tr key={format.name}>
                     <td className="py-2 pr-3 text-[12.5px] text-ink">{format.label}</td>
-                    <td className="py-2 pr-3 font-mono text-[11px] text-muted">
+                    <td className="py-2 pr-3 font-mono text-[12px] text-muted">
                       {format.extensions.join(" ")}
                     </td>
                     <td className="py-2 pr-3">
                       <span
                         className={cx(
-                          "rounded-full border px-2 py-0.5 text-[10.5px]",
+                          "rounded-full border px-2 py-0.5 text-[12px]",
                           format.typed
                             ? "border-success-line bg-success-soft text-success"
                             : "border-line text-muted",
@@ -188,7 +188,7 @@ export function ConnectorCatalogPageView({
               </tbody>
             </table>
           </div>
-          <p className="mt-3 text-[11.5px] text-muted">
+          <p className="mt-3 text-[12px] text-muted">
             Compression is unwrapped automatically: {formats.compressions.join(", ")}.
           </p>
         </SectionPanel>
@@ -243,7 +243,7 @@ function ConnectorCard({ spec }: { spec: ConnectorSpec }) {
     >
       <div className="flex items-start justify-between gap-2">
         <h3 className="text-[13.5px] font-medium text-ink">{spec.label}</h3>
-        <span className="shrink-0 rounded bg-surface-2 px-1.5 py-0.5 text-[10px] text-ink-3">
+        <span className="shrink-0 rounded bg-surface-2 px-1.5 py-0.5 text-[12px] text-ink-3">
           {CATEGORY_LABEL[spec.category] ?? spec.category}
         </span>
       </div>
@@ -251,7 +251,7 @@ function ConnectorCard({ spec }: { spec: ConnectorSpec }) {
       <p
         title={spec.tier_explanation}
         className={cx(
-          "mt-1.5 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10.5px]",
+          "mt-1.5 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[12px]",
           TIER_STYLE[spec.tier] ?? TIER_STYLE[4],
         )}
       >
@@ -271,7 +271,7 @@ function ConnectorCard({ spec }: { spec: ConnectorSpec }) {
               key={capability}
               title={CAPABILITY_LABEL[capability]}
               className={cx(
-                "rounded px-1.5 py-0.5 text-[10px]",
+                "rounded px-1.5 py-0.5 text-[12px]",
                 capability === "write"
                   ? "bg-accent-soft text-accent"
                   : capability === "incremental"
@@ -285,17 +285,17 @@ function ConnectorCard({ spec }: { spec: ConnectorSpec }) {
       </div>
 
       {!spec.available && spec.unavailable_reason ? (
-        <p className="mt-2 flex items-start gap-1.5 text-[11px] leading-4 text-warning">
+        <p className="mt-2 flex items-start gap-1.5 text-[12px] leading-4 text-warning">
           <Icon name="info" size={11} className="mt-0.5 shrink-0" />
           {spec.unavailable_reason}
         </p>
       ) : null}
 
       {!spec.verified ? (
-        <p className="mt-2 text-[11px] leading-4 text-muted">{spec.tier_explanation}</p>
+        <p className="mt-2 text-[12px] leading-4 text-muted">{spec.tier_explanation}</p>
       ) : null}
 
-      <div className="mt-2 text-[10.5px] text-muted">
+      <div className="mt-2 text-[12px] text-muted">
         {spec.config_fields.length} setting{spec.config_fields.length === 1 ? "" : "s"}
         {spec.secret_fields.length > 0
           ? ` · ${spec.secret_fields.length} stored encrypted`
@@ -318,7 +318,7 @@ function VerificationPanel({ health }: { health: ConnectorHealth }) {
           <li key={tier.tier} className="flex items-center gap-3">
             <span
               className={cx(
-                "flex w-40 shrink-0 items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px]",
+                "flex w-40 shrink-0 items-center gap-1.5 rounded-full border px-2 py-0.5 text-[12px]",
                 TIER_STYLE[tier.tier] ?? TIER_STYLE[4],
               )}
             >
@@ -348,14 +348,14 @@ function VerificationPanel({ health }: { health: ConnectorHealth }) {
 
       {health.missing_packages.length > 0 ? (
         <div className="mt-4 border-t border-line pt-3">
-          <h4 className="text-[11px] uppercase tracking-[0.14em] text-muted">
+          <h4 className="text-[12px] text-muted">
             What installing one package would unlock
           </h4>
           <ul className="mt-2 flex flex-wrap gap-1.5">
             {health.missing_packages.slice(0, 8).map((entry) => (
               <li
                 key={entry.package}
-                className="rounded-lg border border-line px-2 py-1 text-[11.5px] text-ink-3"
+                className="rounded-lg border border-line px-2 py-1 text-[12px] text-ink-3"
               >
                 <code className="text-ink">{entry.package}</code> · {entry.unlocks} connector
                 {entry.unlocks === 1 ? "" : "s"}
@@ -365,7 +365,7 @@ function VerificationPanel({ health }: { health: ConnectorHealth }) {
         </div>
       ) : null}
 
-      <p className="mt-3 text-[11.5px] text-muted">
+      <p className="mt-3 text-[12px] text-muted">
         {health.origins.manifest ?? 0} declared in a manifest ·{" "}
         {health.origins.dialect ?? 0} from the dialect table ·{" "}
         {health.origins.matrix ?? 0} object stores across {health.formats} formats (

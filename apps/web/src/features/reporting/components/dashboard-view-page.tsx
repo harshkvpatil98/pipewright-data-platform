@@ -353,7 +353,7 @@ export function DashboardViewPage({
             ))
           )}
           {filtersDiffer ? (
-            <span className="rounded-full border border-warning-line bg-warning-soft px-2 py-0.5 text-[10.5px] text-warning">
+            <span className="rounded-full border border-warning-line bg-warning-soft px-2 py-0.5 text-[12px] text-warning">
               applied here only, not saved
             </span>
           ) : null}
@@ -420,7 +420,7 @@ export function DashboardViewPage({
                       ? draft.title || "Text"
                       : (chartById.get(draft.chart_id ?? "")?.name ?? "Chart")}
                   </span>
-                  <label className="flex items-center gap-1 text-[11px] text-muted">
+                  <label className="flex items-center gap-1 text-[12px] text-muted">
                     Width
                     <select
                       value={draft.width}
@@ -431,7 +431,7 @@ export function DashboardViewPage({
                           ),
                         )
                       }
-                      className="h-7 rounded-md border border-line bg-sunken px-1 text-[11px] text-ink"
+                      className="h-7 rounded-md border border-line bg-sunken px-1 text-[12px] text-ink"
                     >
                       {TILE_WIDTHS.map((width) => (
                         <option key={width} value={width}>
@@ -440,7 +440,7 @@ export function DashboardViewPage({
                       ))}
                     </select>
                   </label>
-                  <label className="flex items-center gap-1 text-[11px] text-muted">
+                  <label className="flex items-center gap-1 text-[12px] text-muted">
                     Height
                     <select
                       value={draft.height}
@@ -451,7 +451,7 @@ export function DashboardViewPage({
                           ),
                         )
                       }
-                      className="h-7 rounded-md border border-line bg-sunken px-1 text-[11px] text-ink"
+                      className="h-7 rounded-md border border-line bg-sunken px-1 text-[12px] text-ink"
                     >
                       {[1, 2, 3, 4].map((height) => (
                         <option key={height} value={height}>
@@ -463,7 +463,7 @@ export function DashboardViewPage({
                   {draft.kind === "text" ? (
                     <button
                       type="button"
-                      className="text-[11px] text-accent"
+                      className="text-[12px] text-accent"
                       onClick={() =>
                         setTextDraft({ key: draft.key, title: draft.title ?? "", body: draft.body ?? "" })
                       }
@@ -517,7 +517,7 @@ export function DashboardViewPage({
         )}
 
         {data ? (
-          <p className="text-[11px] text-muted">
+          <p className="text-[12px] text-muted">
             Computed {describeAge(data.computed_at, now)} · {describeRefresh(dashboard.refresh_seconds)}
             {data.tiles.some((tile) => tile.error) ? " · some tiles could not be computed (see the tile)" : ""}
           </p>
@@ -566,7 +566,7 @@ export function DashboardViewPage({
         {textDraft ? (
           <div className="space-y-3">
             <label className="block space-y-1">
-              <span className="text-[11px] text-muted">Heading</span>
+              <span className="text-[12px] text-muted">Heading</span>
               <input
                 value={textDraft.title}
                 onChange={(event) => setTextDraft({ ...textDraft, title: event.target.value })}
@@ -575,7 +575,7 @@ export function DashboardViewPage({
               />
             </label>
             <label className="block space-y-1">
-              <span className="text-[11px] text-muted">Text</span>
+              <span className="text-[12px] text-muted">Text</span>
               <textarea
                 value={textDraft.body}
                 onChange={(event) => setTextDraft({ ...textDraft, body: event.target.value })}
@@ -775,7 +775,7 @@ function TileCard({
         ) : null}
       </div>
       {tile.data?.warnings.length ? (
-        <p className="mt-2 text-[11px] text-muted">{tile.data.warnings.join(" ")}</p>
+        <p className="mt-2 text-[12px] text-muted">{tile.data.warnings.join(" ")}</p>
       ) : null}
     </section>
   );

@@ -48,7 +48,7 @@ export function SavedTestDetailPageView({ currentUser, projectId, detail }: Save
         <div className="flex flex-wrap gap-2">
           <Link
             href={`/projects/${projectId}/tests/saved`}
-            className="rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:border-line-strong"
+            className="rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium text-ink hover:border-line-strong"
           >
             All saved tests
           </Link>
@@ -58,7 +58,7 @@ export function SavedTestDetailPageView({ currentUser, projectId, detail }: Save
         </div>
       }
       meta={
-        <span className="rounded-full border border-line bg-surface px-3 py-1 text-xs uppercase tracking-[0.18em] text-ink-2">
+        <span className="rounded-full border border-line bg-surface px-3 py-1 text-xs text-ink-2">
           {titleCase(saved_test.test_type.replace(/_/g, " "))} · {saved_test.column_name}
         </span>
       }
@@ -72,19 +72,19 @@ export function SavedTestDetailPageView({ currentUser, projectId, detail }: Save
       <SectionPanel title="Configuration" description="Stored definition; datasets are referenced by id and rerun against current files.">
         <dl className="grid gap-3 text-sm md:grid-cols-2">
           <div>
-            <dt className="text-xs uppercase tracking-[0.16em] text-muted">Left dataset</dt>
+            <dt className="text-xs text-muted">Left dataset</dt>
             <dd className="mt-1 text-ink">{saved_test.left_dataset_name}</dd>
           </div>
           <div>
-            <dt className="text-xs uppercase tracking-[0.16em] text-muted">Right dataset</dt>
+            <dt className="text-xs text-muted">Right dataset</dt>
             <dd className="mt-1 text-ink">{saved_test.right_dataset_name}</dd>
           </div>
           <div>
-            <dt className="text-xs uppercase tracking-[0.16em] text-muted">Test type</dt>
+            <dt className="text-xs text-muted">Test type</dt>
             <dd className="mt-1 font-mono text-xs text-ink-2">{saved_test.test_type}</dd>
           </div>
           <div>
-            <dt className="text-xs uppercase tracking-[0.16em] text-muted">Column</dt>
+            <dt className="text-xs text-muted">Column</dt>
             <dd className="mt-1 font-mono text-xs text-ink-2">{saved_test.column_name}</dd>
           </div>
         </dl>
@@ -130,7 +130,7 @@ export function SavedTestDetailPageView({ currentUser, projectId, detail }: Save
                 key={run.id}
                 className="rounded-2xl border border-line bg-surface px-4 py-3 text-sm text-ink"
               >
-                <div className="flex flex-wrap items-center justify-between gap-2 text-xs uppercase tracking-[0.14em] text-muted">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
                   <span>{formatDate(run.created_at)}</span>
                   <span className={run.status === "succeeded" ? "text-success" : "text-danger"}>
                     {run.status}

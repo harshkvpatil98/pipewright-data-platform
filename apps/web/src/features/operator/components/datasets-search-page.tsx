@@ -96,7 +96,7 @@ export function DatasetsSearchPageView({ currentUser, initialDatasets }: Dataset
           <div className="overflow-hidden rounded-[24px] border border-line bg-sunken">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[720px] border-collapse text-left text-sm text-ink">
-                <thead className="border-b border-line text-xs uppercase tracking-[0.14em] text-muted">
+                <thead className="border-b border-line text-xs text-muted">
                   <tr>
                     <th className="py-2 pr-3 font-medium">Dataset</th>
                     <th className="py-2 pr-3 font-medium">Project</th>
@@ -116,7 +116,7 @@ export function DatasetsSearchPageView({ currentUser, initialDatasets }: Dataset
                           {dataset.name}
                         </Link>
                         {dataset.is_derived ? (
-                          <span className="ml-2 rounded bg-surface-2 px-1.5 py-0.5 text-[10px] uppercase text-ink-3">
+                          <span className="ml-2 rounded bg-surface-2 px-1.5 py-0.5 text-[12px] text-ink-3">
                             derived
                           </span>
                         ) : null}

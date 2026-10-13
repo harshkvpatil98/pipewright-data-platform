@@ -43,7 +43,7 @@ function parseStepsJson(rawValue: string): TransformationStep[] {
 function SchemaBlock({ title, schema }: { title: string; schema: TransformationPreviewResponse["schema_after"] }) {
   return (
     <div className="rounded-2xl border border-line bg-sunken p-4">
-      <div className="text-xs uppercase tracking-[0.18em] text-muted">{title}</div>
+      <div className="text-xs text-muted">{title}</div>
       <div className="mt-3 max-h-40 overflow-y-auto">
         <table className="min-w-full text-left text-xs text-ink-2">
           <thead className="text-muted">
@@ -166,19 +166,19 @@ export function PreviewTransformModal({ open, onClose, projectId, datasetId }: P
             <>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div className="rounded-2xl border border-line bg-sunken px-4 py-3">
-                  <div className="text-xs uppercase tracking-[0.18em] text-muted">Rows before</div>
+                  <div className="text-xs text-muted">Rows before</div>
                   <div className="mt-1 font-semibold text-ink">{result.row_count_before}</div>
                 </div>
                 <div className="rounded-2xl border border-line bg-sunken px-4 py-3">
-                  <div className="text-xs uppercase tracking-[0.18em] text-muted">Rows after</div>
+                  <div className="text-xs text-muted">Rows after</div>
                   <div className="mt-1 font-semibold text-ink">{result.row_count_after}</div>
                 </div>
                 <div className="rounded-2xl border border-line bg-sunken px-4 py-3">
-                  <div className="text-xs uppercase tracking-[0.18em] text-muted">Columns before</div>
+                  <div className="text-xs text-muted">Columns before</div>
                   <div className="mt-1 font-semibold text-ink">{result.column_count_before}</div>
                 </div>
                 <div className="rounded-2xl border border-line bg-sunken px-4 py-3">
-                  <div className="text-xs uppercase tracking-[0.18em] text-muted">Columns after</div>
+                  <div className="text-xs text-muted">Columns after</div>
                   <div className="mt-1 font-semibold text-ink">{result.column_count_after}</div>
                 </div>
               </div>
@@ -190,7 +190,7 @@ export function PreviewTransformModal({ open, onClose, projectId, datasetId }: P
 
               {result.warnings.length > 0 ? (
                 <div className="rounded-2xl border border-warning-line bg-warning-soft px-4 py-3 text-sm text-warning">
-                  <div className="text-xs uppercase tracking-[0.18em] text-warning">Warnings</div>
+                  <div className="text-xs text-warning">Warnings</div>
                   <ul className="mt-2 list-disc space-y-1 pl-5">
                     {result.warnings.map((warning, index) => (
                       <li key={`${index}-${warning.slice(0, 48)}`}>{warning}</li>
@@ -200,7 +200,7 @@ export function PreviewTransformModal({ open, onClose, projectId, datasetId }: P
               ) : null}
 
               <div className="overflow-hidden rounded-[20px] border border-line bg-sunken">
-                <div className="border-b border-line px-4 py-3 text-xs uppercase tracking-[0.18em] text-muted">
+                <div className="border-b border-line px-4 py-3 text-xs text-muted">
                   Preview rows
                 </div>
                 <div className="max-h-[320px] overflow-auto">

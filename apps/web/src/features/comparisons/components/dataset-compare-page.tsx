@@ -115,19 +115,19 @@ export function DatasetComparePageView({ currentUser, projectId, comparison }: D
         <div className="flex flex-wrap gap-2">
           <Link
             href={`/projects/${projectId}/tests/saved?left=${left_dataset.id}&right=${right_dataset.id}`}
-            className="rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:border-line-strong"
+            className="rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium text-ink hover:border-line-strong"
           >
             Saved tests
           </Link>
           <Link
             href={`/projects/${projectId}/datasets/${left_dataset.id}`}
-            className="rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:border-line-strong"
+            className="rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium text-ink hover:border-line-strong"
           >
             Left dataset
           </Link>
           <Link
             href={`/projects/${projectId}/datasets/${right_dataset.id}`}
-            className="rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:border-line-strong"
+            className="rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium text-ink hover:border-line-strong"
           >
             Right dataset
           </Link>
@@ -135,7 +135,7 @@ export function DatasetComparePageView({ currentUser, projectId, comparison }: D
       }
       meta={
         <>
-          <span className="rounded-full border border-line bg-surface px-3 py-1 text-xs uppercase tracking-[0.18em] text-ink-2">
+          <span className="rounded-full border border-line bg-surface px-3 py-1 text-xs text-ink-2">
             {left_dataset.name} → {right_dataset.name}
           </span>
         </>
@@ -169,7 +169,7 @@ export function DatasetComparePageView({ currentUser, projectId, comparison }: D
         description="Ad hoc Welch t-test, two-proportion z-test, or chi-square on this column pair. Save successful runs as reusable definitions; not causal inference."
       >
         <div className="flex flex-col gap-4 md:flex-row md:flex-wrap md:items-end">
-          <label className="flex min-w-[200px] flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
+          <label className="flex min-w-[200px] flex-col gap-1 text-xs text-muted">
             Test type
             <select
               className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
@@ -183,7 +183,7 @@ export function DatasetComparePageView({ currentUser, projectId, comparison }: D
               <option value="chi_square_distribution">Chi-square (categorical)</option>
             </select>
           </label>
-          <label className="flex min-w-[200px] flex-1 flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
+          <label className="flex min-w-[200px] flex-1 flex-col gap-1 text-xs text-muted">
             Column name
             <input
               className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
@@ -209,7 +209,7 @@ export function DatasetComparePageView({ currentUser, projectId, comparison }: D
         ) : null}
         {testResult ? (
           <div className="mt-5 space-y-3 rounded-2xl border border-line bg-surface px-4 py-4 text-sm text-ink">
-            <div className="flex flex-wrap gap-2 text-xs uppercase tracking-[0.16em] text-muted">
+            <div className="flex flex-wrap gap-2 text-xs text-muted">
               <span>{titleCase(testResult.test_type.replace(/_/g, " "))}</span>
               <span>·</span>
               <span className="font-mono text-ink-2">{testResult.column_name}</span>
@@ -279,7 +279,7 @@ export function DatasetComparePageView({ currentUser, projectId, comparison }: D
               {saveError}
             </p>
           ) : null}
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
+          <label className="flex flex-col gap-1 text-xs text-muted">
             Name
             <input
               className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
@@ -289,7 +289,7 @@ export function DatasetComparePageView({ currentUser, projectId, comparison }: D
               autoComplete="off"
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
+          <label className="flex flex-col gap-1 text-xs text-muted">
             Description (optional)
             <textarea
               className="min-h-[88px] rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
@@ -317,19 +317,19 @@ export function DatasetComparePageView({ currentUser, projectId, comparison }: D
         <SectionPanel title="Schema changes" description="Diff of schema_json column names and inferred types.">
           <dl className="space-y-3 text-sm">
             <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Added columns</dt>
+              <dt className="text-xs text-muted">Added columns</dt>
               <dd className="mt-1 text-ink">
                 {schema_delta.added_columns.length ? schema_delta.added_columns.join(", ") : "—"}
               </dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Removed columns</dt>
+              <dt className="text-xs text-muted">Removed columns</dt>
               <dd className="mt-1 text-ink">
                 {schema_delta.removed_columns.length ? schema_delta.removed_columns.join(", ") : "—"}
               </dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Inferred type changes</dt>
+              <dt className="text-xs text-muted">Inferred type changes</dt>
               <dd className="mt-1 space-y-1">
                 {schema_delta.changed_type_columns.length === 0 ? (
                   <span className="text-ink-3">—</span>
@@ -348,15 +348,15 @@ export function DatasetComparePageView({ currentUser, projectId, comparison }: D
         <SectionPanel title="Profile / quality delta" description="From profile_json when present.">
           <dl className="grid gap-3 text-sm md:grid-cols-2">
             <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Duplicate rows (left)</dt>
+              <dt className="text-xs text-muted">Duplicate rows (left)</dt>
               <dd className="mt-1 text-ink">{formatNumber(profile_delta.duplicate_row_count_before)}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Duplicate rows (right)</dt>
+              <dt className="text-xs text-muted">Duplicate rows (right)</dt>
               <dd className="mt-1 text-ink">{formatNumber(profile_delta.duplicate_row_count_after)}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Completeness (left)</dt>
+              <dt className="text-xs text-muted">Completeness (left)</dt>
               <dd className="mt-1 text-ink">
                 {profile_delta.completeness_score_before != null
                   ? `${profile_delta.completeness_score_before}%`
@@ -364,7 +364,7 @@ export function DatasetComparePageView({ currentUser, projectId, comparison }: D
               </dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Completeness (right)</dt>
+              <dt className="text-xs text-muted">Completeness (right)</dt>
               <dd className="mt-1 text-ink">
                 {profile_delta.completeness_score_after != null
                   ? `${profile_delta.completeness_score_after}%`
@@ -378,23 +378,23 @@ export function DatasetComparePageView({ currentUser, projectId, comparison }: D
       <SectionPanel title="Lineage context" description="Parent/child and pipeline links when detectable from dataset rows.">
         <dl className="grid gap-3 text-sm md:grid-cols-2">
           <div>
-            <dt className="text-xs uppercase tracking-[0.18em] text-muted">Parent/child relationship</dt>
+            <dt className="text-xs text-muted">Parent/child relationship</dt>
             <dd className="mt-1 text-ink">{lineage_context.related_by_parent_child ? "Yes" : "No"}</dd>
           </div>
           <div>
-            <dt className="text-xs uppercase tracking-[0.18em] text-muted">Parent dataset id</dt>
+            <dt className="text-xs text-muted">Parent dataset id</dt>
             <dd className="mt-1 font-mono text-xs text-ink-2">
               {lineage_context.parent_dataset_id ?? "—"}
             </dd>
           </div>
           <div>
-            <dt className="text-xs uppercase tracking-[0.18em] text-muted">Created from pipeline</dt>
+            <dt className="text-xs text-muted">Created from pipeline</dt>
             <dd className="mt-1 font-mono text-xs text-ink-2">
               {lineage_context.created_from_pipeline_id ?? "—"}
             </dd>
           </div>
           <div>
-            <dt className="text-xs uppercase tracking-[0.18em] text-muted">Related run id</dt>
+            <dt className="text-xs text-muted">Related run id</dt>
             <dd className="mt-1 font-mono text-xs text-ink-2">{lineage_context.related_run_id ?? "—"}</dd>
           </div>
         </dl>

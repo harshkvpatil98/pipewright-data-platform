@@ -152,13 +152,13 @@ export function MembersPageView({
                     {member.username}
                   </span>
                   {member.is_owner ? (
-                    <span className="bg-surface-2 text-ink-3 rounded px-1.5 py-0.5 text-[10px]">
+                    <span className="bg-surface-2 text-ink-3 rounded px-1.5 py-0.5 text-[12px]">
                       owner
                     </span>
                   ) : null}
                 </div>
                 {member.invited_by_username ? (
-                  <div className="text-muted text-[11px]">
+                  <div className="text-muted text-[12px]">
                     added by {member.invited_by_username}
                   </div>
                 ) : null}
@@ -194,7 +194,7 @@ export function MembersPageView({
               ) : (
                 <span
                   className={cx(
-                    "rounded-full border px-2 py-0.5 text-[11px] capitalize",
+                    "rounded-full border px-2 py-0.5 text-[12px] capitalize",
                     ROLE_TONE[member.role],
                   )}
                 >
@@ -215,7 +215,7 @@ export function MembersPageView({
             <li key={entry.role} className="flex items-start gap-3">
               <span
                 className={cx(
-                  "mt-0.5 w-20 shrink-0 rounded-full border px-2 py-0.5 text-center text-[11px] capitalize",
+                  "mt-0.5 w-20 shrink-0 rounded-full border px-2 py-0.5 text-center text-[12px] capitalize",
                   ROLE_TONE[entry.role],
                 )}
               >

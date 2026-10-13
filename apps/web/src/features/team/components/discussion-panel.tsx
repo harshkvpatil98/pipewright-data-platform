@@ -169,16 +169,16 @@ export function DiscussionPanel({
                     ? "you"
                     : (comment.author_username ?? "someone")}
                 </span>
-                <span className="text-[10.5px] text-muted">{formatDateTime(comment.created_at)}</span>
+                <span className="text-[12px] text-muted">{formatDateTime(comment.created_at)}</span>
                 {comment.resolved_at ? (
-                  <span className="rounded-full border border-line bg-sunken px-1.5 py-0.5 text-[10px] text-muted">
+                  <span className="rounded-full border border-line bg-sunken px-1.5 py-0.5 text-[12px] text-muted">
                     resolved
                   </span>
                 ) : (
                   <button
                     type="button"
                     onClick={() => void resolve(comment)}
-                    className="ml-auto text-[11px] text-accent hover:underline"
+                    className="ml-auto text-[12px] text-accent hover:underline"
                   >
                     Resolve
                   </button>
@@ -196,7 +196,7 @@ export function DiscussionPanel({
         <button
           type="button"
           onClick={() => setShowResolved((current) => !current)}
-          className="text-[11.5px] text-muted hover:text-ink"
+          className="text-[12px] text-muted hover:text-ink"
         >
           {showResolved ? "Hide" : "Show"} {resolvedCount} resolved
         </button>
@@ -242,7 +242,7 @@ export function DiscussionPanel({
           </ul>
         ) : null}
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[10.5px] text-muted">Ctrl/⌘ + Enter to post</span>
+          <span className="text-[12px] text-muted">Ctrl/⌘ + Enter to post</span>
           <Button variant="secondary" size="sm" disabled={busy || !draft.trim()} onClick={() => void post()}>
             {busy ? "Posting…" : composerLabel}
           </Button>

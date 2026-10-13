@@ -18,6 +18,8 @@ import { useToast } from "@/components/providers/toast-provider";
 import { AppFrame } from "@/components/shell/app-frame";
 import type { RibbonGroup } from "@/components/shell/ribbon";
 import { Icon } from "@/components/ui/icon";
+import { triggerLabel } from "@/lib/labels";
+import { formatRunStatusLabel } from "@/lib/run-labels";
 import { toNodeKey, tidyLayout } from "@/features/workflows/canvas-geometry";
 import { BackfillDialog } from "@/features/workflows/components/backfill-dialog";
 import { NodeInspector, type NodeOptions } from "@/features/workflows/components/node-inspector";
@@ -569,16 +571,16 @@ function WorkflowSummaryPanel({
 
       {activeRun ? (
         <div className="rounded-lg border border-line bg-surface p-3">
-          <div className="mb-2 text-[11px] uppercase tracking-[0.16em] text-muted">
+          <div className="mb-2 text-[12px] text-muted">
             Current run
           </div>
           <div className="text-[13px] text-ink">{activeRun.status}</div>
-          <div className="mt-1 text-[11px] text-muted">
+          <div className="mt-1 text-[12px] text-muted">
             {activeRun.nodes_succeeded} succeeded · {activeRun.nodes_failed} failed ·{" "}
             {activeRun.nodes_skipped} skipped
           </div>
           {activeRun.error_message ? (
-            <p className="mt-2 text-[11px] text-danger">{activeRun.error_message}</p>
+            <p className="mt-2 text-[12px] text-danger">{activeRun.error_message}</p>
           ) : null}
           {activeRun.timeline && activeRun.timeline.entries.length > 0 ? (
             <div className="mt-3 border-t border-line pt-3">
@@ -590,17 +592,17 @@ function WorkflowSummaryPanel({
 
       {executionOrder.length > 0 ? (
         <div>
-          <div className="mb-1.5 text-[11px] uppercase tracking-[0.16em] text-muted">
+          <div className="mb-1.5 text-[12px] text-muted">
             Execution order
           </div>
           <ol className="space-y-1">
             {executionOrder.map((level, index) => (
               <li key={index} className="flex gap-2 rounded-md bg-surface px-2 py-1.5">
-                <span className="shrink-0 font-mono text-[10px] text-muted">{index + 1}</span>
+                <span className="shrink-0 font-mono text-[12px] text-muted">{index + 1}</span>
                 <span className="min-w-0 flex-1 text-[12px] text-ink-2">
                   {level.join(", ")}
                   {level.length > 1 ? (
-                    <span className="ml-1 text-[10px] text-muted">(in parallel)</span>
+                    <span className="ml-1 text-[12px] text-muted">(in parallel)</span>
                   ) : null}
                 </span>
               </li>
@@ -612,14 +614,14 @@ function WorkflowSummaryPanel({
       {validation.warnings.length > 0 ? (
         <div className="rounded-lg border border-warning-line bg-warning-soft p-2.5">
           {validation.warnings.map((issue) => (
-            <div key={issue.code + (issue.node_key ?? "")} className="text-[11px] text-warning">
+            <div key={issue.code + (issue.node_key ?? "")} className="text-[12px] text-warning">
               {issue.message}
             </div>
           ))}
         </div>
       ) : null}
 
-      <p className="text-[11px] leading-5 text-muted">
+      <p className="text-[12px] leading-5 text-muted">
         Drag a step to move it. Drag from the dot on its right edge onto another step to make that
         step run after it. Click a link to remove it.
       </p>
@@ -654,7 +656,7 @@ function RunHistory({
   return (
     <aside className="animate-fade-up absolute bottom-4 right-4 top-4 z-20 flex w-[300px] flex-col overflow-hidden rounded-xl border border-line bg-[color:var(--panel-strong)] shadow-[var(--shadow-lg)] backdrop-blur-xl">
       <div className="flex items-center justify-between border-b border-line px-3 py-2.5">
-        <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted">
+        <span className="text-[12px] font-medium text-muted">
           Run history
         </span>
         <button
@@ -685,18 +687,18 @@ function RunHistory({
               >
                 <span className="flex items-center justify-between gap-2">
                   <span className={cx("text-[12px] font-medium", tone(run.status))}>
-                    {run.status}
+                    {formatRunStatusLabel(run.status)}
                   </span>
-                  <span className="text-[10px] uppercase tracking-[0.14em] text-muted">
-                    {run.trigger}
+                  <span className="text-[12px] text-muted">
+                    {triggerLabel(run.trigger)}
                   </span>
                 </span>
-                <span className="text-[11px] text-muted">
+                <span className="text-[12px] text-muted">
                   {run.logical_date
                     ? `slot ${run.logical_date.slice(0, 10)}`
                     : formatDate(run.queued_at)}
                 </span>
-                <span className="tabular text-[10px] text-muted">
+                <span className="tabular text-[12px] text-muted">
                   {run.nodes_succeeded}✓ {run.nodes_failed}✗ {run.nodes_skipped}⤳
                 </span>
               </button>
@@ -705,7 +707,7 @@ function RunHistory({
                   type="button"
                   onClick={() => onCompare(run.id)}
                   title="Compare this run against the one open now"
-                  className="absolute bottom-1.5 right-2 rounded border border-line px-1.5 py-0.5 text-[10px] text-muted opacity-0 transition group-hover:opacity-100 hover:text-ink"
+                  className="absolute bottom-1.5 right-2 rounded border border-line px-1.5 py-0.5 text-[12px] text-muted opacity-0 transition group-hover:opacity-100 hover:text-ink"
                 >
                   compare
                 </button>

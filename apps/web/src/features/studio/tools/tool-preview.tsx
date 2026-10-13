@@ -98,7 +98,7 @@ export function ToolPreview({
 
   return (
     <section className="mt-5" aria-live="polite">
-      <h3 className="mb-2 text-xs uppercase tracking-[0.14em] text-muted">
+      <h3 className="mb-2 text-xs text-muted">
         On your data {pending ? "· working…" : ""}
       </h3>
       {problem ? (

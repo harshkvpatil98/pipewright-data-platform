@@ -283,7 +283,7 @@ export function ChartBuilderPageView({
                     title={item.description}
                     onClick={() => setChartType(item.name)}
                     className={cx(
-                      "rounded-md border px-1 py-1.5 text-[10.5px] capitalize transition",
+                      "rounded-md border px-1 py-1.5 text-[12px] capitalize transition",
                       chartType === item.name
                         ? "border-[color:var(--accent)] bg-[color:var(--accent-faint)] text-ink"
                         : "border-line text-ink-3 hover:text-ink",
@@ -294,7 +294,7 @@ export function ChartBuilderPageView({
                 ))}
               </div>
               {spec ? (
-                <p className="mt-1.5 text-[11px] leading-4 text-muted">{spec.description}</p>
+                <p className="mt-1.5 text-[12px] leading-4 text-muted">{spec.description}</p>
               ) : null}
             </Field>
 
@@ -337,7 +337,7 @@ export function ChartBuilderPageView({
                     </option>
                   ))}
                 </select>
-                <p className="mt-1.5 text-[11px] leading-4 text-muted">
+                <p className="mt-1.5 text-[12px] leading-4 text-muted">
                   {metric
                     ? `${metric.aggregation.replace("_", " ")} of ${metric.formula ?? metric.column}${metric.filters.length ? `, ${metric.filters.length} filter(s) built in` : ""}. The chart follows the definition when it changes.`
                     : "Name a metric instead of restating a measure, so every chart agrees on the number."}
@@ -402,7 +402,7 @@ export function ChartBuilderPageView({
                     ))}
                   </select>
                 </div>
-                <p className="mt-1.5 text-[11px] leading-4 text-muted">
+                <p className="mt-1.5 text-[12px] leading-4 text-muted">
                   {compareColumn
                     ? `The headline becomes the latest ${comparePeriod} in ${compareColumn}, with the change against the ${comparePeriod} before.`
                     : "Pick a date column to show the latest period against the one before it."}
@@ -478,7 +478,7 @@ export function ChartBuilderPageView({
           {data?.warnings.length ? (
             <ul className="mt-2 space-y-1">
               {data.warnings.map((warning) => (
-                <li key={warning} className="flex items-start gap-1.5 text-[11.5px] text-warning">
+                <li key={warning} className="flex items-start gap-1.5 text-[12px] text-warning">
                   <Icon name="info" size={11} className="mt-0.5 shrink-0" />
                   {warning}
                 </li>
@@ -511,7 +511,7 @@ export function ChartBuilderPageView({
                 <div className="flex items-start justify-between gap-2">
                   <span className="text-[13px] text-ink">{chart.name}</span>
                   <div className="flex shrink-0 items-center gap-1.5">
-                    <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[10px] capitalize text-ink-3">
+                    <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[12px] capitalize text-ink-3">
                       {chart.chart_type}
                       {chart.metric_name ? ` · ${chart.metric_name}` : ""}
                     </span>
@@ -529,7 +529,7 @@ export function ChartBuilderPageView({
                     />
                   </div>
                 </div>
-                <div className="mt-1 text-[11.5px] text-muted">
+                <div className="mt-1 text-[12px] text-muted">
                   {chart.dataset_name} · {chart.query.measures[0]?.aggregation} of{" "}
                   {chart.query.measures[0]?.column}
                 </div>

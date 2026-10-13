@@ -186,7 +186,7 @@ export function SqlEditor({
         )}
       />
 
-      <div className="flex items-center justify-between border-t border-line px-3 py-1 text-[11px] tabular-nums text-muted">
+      <div className="flex items-center justify-between border-t border-line px-3 py-1 text-[12px] tabular-nums text-muted">
         <span>
           Line {caret.line}, column {caret.column}
         </span>
@@ -227,7 +227,7 @@ export function SqlEditor({
                     suggestion.label
                   )}
                 </span>
-                <span className="ml-auto truncate text-[10px] text-muted">{suggestion.detail || suggestion.kind}</span>
+                <span className="ml-auto truncate text-[12px] text-muted">{suggestion.detail || suggestion.kind}</span>
               </button>
             </li>
           ))}

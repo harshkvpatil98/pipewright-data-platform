@@ -149,7 +149,7 @@ export function GovernancePageView({
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-[13px] text-ink">{policy.name}</span>
                   <div className="flex items-center gap-2">
-                    <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[10.5px] capitalize text-ink-3">
+                    <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[12px] capitalize text-ink-3">
                       applies to {policy.role}
                     </span>
                     <DeleteRowButton
@@ -170,7 +170,7 @@ export function GovernancePageView({
                   </div>
                 </div>
                 {policy.row_rules.length > 0 ? (
-                  <div className="mt-1.5 text-[11.5px] text-ink-3">
+                  <div className="mt-1.5 text-[12px] text-ink-3">
                     Rows where{" "}
                     {policy.row_rules
                       .map(
@@ -186,7 +186,7 @@ export function GovernancePageView({
                       <span
                         key={rule.column}
                         className={cx(
-                          "rounded border px-1.5 py-0.5 font-mono text-[10.5px]",
+                          "rounded border px-1.5 py-0.5 font-mono text-[12px]",
                           ACTION_TONE[rule.action] ?? ACTION_TONE.allow,
                         )}
                       >
@@ -196,7 +196,7 @@ export function GovernancePageView({
                   </div>
                 ) : null}
                 {!policy.enabled ? (
-                  <div className="mt-1 text-[11px] text-muted">Disabled.</div>
+                  <div className="mt-1 text-[12px] text-muted">Disabled.</div>
                 ) : null}
               </li>
             ))}
@@ -238,7 +238,7 @@ export function GovernancePageView({
                 >
                   <div className="min-w-0 flex-1">
                     <div className="text-[12.5px] text-ink">{policy.resource_label}</div>
-                    <div className="text-[11px] text-muted">
+                    <div className="text-[12px] text-muted">
                       kept {policy.retain_days} day{policy.retain_days === 1 ? "" : "s"}
                       {policy.last_run_at ? ` · last run ${formatDate(policy.last_run_at)}` : ""}
                       {policy.last_deleted_count
@@ -248,7 +248,7 @@ export function GovernancePageView({
                   </div>
                   <span
                     className={cx(
-                      "shrink-0 rounded-full border px-2 py-0.5 text-[10.5px]",
+                      "shrink-0 rounded-full border px-2 py-0.5 text-[12px]",
                       policy.dry_run
                         ? "border-warning-line bg-warning-soft text-warning"
                         : "border-danger-line bg-danger-soft text-danger",
@@ -278,17 +278,17 @@ export function GovernancePageView({
                   <span className="min-w-0 flex-1 truncate text-[12.5px] text-ink">
                     {total.subject_name}
                   </span>
-                  <span className="shrink-0 tabular text-[11.5px] text-ink-3">
+                  <span className="shrink-0 tabular text-[12px] text-ink-3">
                     {total.rows_processed.toLocaleString()} rows
                   </span>
-                  <span className="shrink-0 tabular text-[11px] text-muted">
+                  <span className="shrink-0 tabular text-[12px] text-muted">
                     {total.compute_seconds}s
                   </span>
                 </li>
               ))}
             </ul>
           )}
-          <p className="mt-2 text-[11px] leading-4 text-muted">
+          <p className="mt-2 text-[12px] leading-4 text-muted">
             Rows and seconds, not currency. A price would need per-deployment compute and
             storage rates this platform has no way to know, and an invented one gets quoted in
             a meeting.
@@ -327,7 +327,7 @@ export function GovernancePageView({
             {busy === "erase" ? "Erasing…" : "Find and erase"}
           </Button>
         </div>
-        <p className="mt-2 text-[11.5px] text-muted">
+        <p className="mt-2 text-[12px] text-muted">
           Correction clears the live data and keeps history readable. Destructive also removes the
           person from historical artifacts; anything it cannot yet purge (a derived dataset, an
           unreadable file) is reported as blocked, not silently skipped.
@@ -369,10 +369,10 @@ function ErasureRow({ request }: { request: ErasureRequest }) {
           {report?.subject_value ?? "***"}
         </span>
         <div className="flex items-center gap-1.5">
-          <span className="rounded-full border border-line px-2 py-0.5 text-[10.5px] text-ink-3">
+          <span className="rounded-full border border-line px-2 py-0.5 text-[12px] text-ink-3">
             {request.mode}
           </span>
-          <span className={cx("rounded-full border px-2 py-0.5 text-[10.5px]", statusTone)}>
+          <span className={cx("rounded-full border px-2 py-0.5 text-[12px]", statusTone)}>
             {request.status}
           </span>
         </div>
@@ -381,12 +381,12 @@ function ErasureRow({ request }: { request: ErasureRequest }) {
         <p className="mt-1 text-[12px] leading-4 text-ink-3">{report.summary}</p>
       ) : null}
       {blocked.length > 0 ? (
-        <div className="mt-2 rounded-lg border border-warning-line bg-warning-soft px-2.5 py-2 text-[11.5px] text-warning">
+        <div className="mt-2 rounded-lg border border-warning-line bg-warning-soft px-2.5 py-2 text-[12px] text-warning">
           Not erased ({blocked.length}):{" "}
           {blocked.map((entry) => `${entry.dataset}: ${entry.reason}`).join("; ")}
         </div>
       ) : null}
-      <div className="mt-1 text-[11px] text-muted">
+      <div className="mt-1 text-[12px] text-muted">
         {request.datasets_searched} dataset(s) searched · {request.rows_affected} row(s) ·{" "}
         {formatDate(request.created_at)}
       </div>

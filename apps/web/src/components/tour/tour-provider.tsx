@@ -229,7 +229,7 @@ function TourOverlay({ step, rect, index, total, onBack, onNext, onSkip }: Overl
         style={card}
       >
         <div className="flex items-center gap-2">
-          <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[color:var(--accent)] text-[11px] font-semibold text-accent-ink">
+          <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[color:var(--accent)] text-[12px] font-semibold text-accent-ink">
             {index + 1}
           </span>
           <h3 className="text-sm font-semibold text-ink">{step.title}</h3>

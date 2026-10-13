@@ -108,17 +108,17 @@ export function SchemaTree({
                   />
                   <span className="truncate">{table.name}</span>
                   {table.table_schema && table.table_schema !== schema?.default_schema ? (
-                    <span className="shrink-0 text-[10px] text-muted">{table.table_schema}</span>
+                    <span className="shrink-0 text-[12px] text-muted">{table.table_schema}</span>
                   ) : null}
                 </button>
 
                 {expanded ? (
                   <ul className="ml-6 border-l border-line">
                     {table.loaded && table.columns.length === 0 ? (
-                      <li className="px-2 py-1 text-[11px] text-muted">No columns.</li>
+                      <li className="px-2 py-1 text-[12px] text-muted">No columns.</li>
                     ) : null}
                     {!table.loaded ? (
-                      <li className="px-2 py-1 text-[11px] text-muted">Reading columns…</li>
+                      <li className="px-2 py-1 text-[12px] text-muted">Reading columns…</li>
                     ) : null}
                     {table.columns.map((column) => (
                       <li key={column.name}>
@@ -127,16 +127,16 @@ export function SchemaTree({
                           onClick={() => onInsert(column.name)}
                           title={`${column.type}${column.nullable ? "" : " · required"}`}
                           className={cx(
-                            "flex w-full items-baseline gap-2 rounded px-2 py-0.5 text-left text-[11px] transition hover:bg-sunken",
+                            "flex w-full items-baseline gap-2 rounded px-2 py-0.5 text-left text-[12px] transition hover:bg-sunken",
                           )}
                         >
                           <span className="truncate text-ink-2">{column.name}</span>
                           {column.primary_key ? (
-                            <span className="shrink-0 text-[9px] uppercase tracking-wide text-[color:var(--accent)]">
+                            <span className="shrink-0 text-[12px] text-[color:var(--accent)]">
                               key
                             </span>
                           ) : null}
-                          <span className="ml-auto shrink-0 truncate text-[10px] text-muted">
+                          <span className="ml-auto shrink-0 truncate text-[12px] text-muted">
                             {column.type}
                           </span>
                         </button>
@@ -150,7 +150,7 @@ export function SchemaTree({
         </ul>
 
         {schema?.truncated ? (
-          <p className="px-2 py-2 text-[11px] text-muted">
+          <p className="px-2 py-2 text-[12px] text-muted">
             Only the first tables are shown; use the filter to find others.
           </p>
         ) : null}

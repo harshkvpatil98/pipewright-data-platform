@@ -153,3 +153,41 @@ function prettify(key: string): string {
   const words = key.replace(/[_-]+/g, " ").trim();
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
+
+/** "partially_failed" reads as "Partially failed": any stored code, in sentence case. */
+export function sentenceLabel(raw: string | null | undefined): string {
+  if (!raw) return "";
+  const spaced = raw.replace(/[_-]+/g, " ").trim().toLowerCase();
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
+const FILE_FORMAT_LABELS: Record<string, string> = {
+  csv: "CSV",
+  excel: "Excel",
+  xlsx: "Excel",
+  html: "HTML",
+  pdf: "PDF",
+  parquet: "Parquet",
+  json: "JSON",
+};
+
+/** A file format as people name it: CSV, Excel, PDF. */
+export function fileFormatLabel(raw: string | null | undefined): string {
+  if (!raw) return "";
+  return FILE_FORMAT_LABELS[raw.toLowerCase()] ?? raw.toUpperCase();
+}
+
+const TRIGGER_LABELS: Record<string, string> = {
+  manual: "By hand",
+  schedule: "On schedule",
+  scheduled: "On schedule",
+  backfill: "Backfill",
+  api: "From the API",
+  retry: "Retry",
+};
+
+/** How a run started, in words. */
+export function triggerLabel(raw: string | null | undefined): string {
+  if (!raw) return "";
+  return TRIGGER_LABELS[raw] ?? sentenceLabel(raw);
+}

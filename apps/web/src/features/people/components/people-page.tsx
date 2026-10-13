@@ -196,7 +196,7 @@ export function PeoplePageView({ currentUser, users: initialUsers }: PeoplePageV
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[720px] text-left text-sm">
-                <thead className="text-[11px] uppercase tracking-[0.16em] text-muted">
+                <thead className="text-[12px] text-muted">
                   <tr className="border-b border-line">
                     <th className="py-2 pr-4">Username</th>
                     <th className="py-2 pr-4">Platform role</th>
@@ -214,9 +214,9 @@ export function PeoplePageView({ currentUser, users: initialUsers }: PeoplePageV
                         <td className="py-3 pr-4 font-medium text-ink">
                           {user.display_name || user.username}
                           {user.display_name ? (
-                            <span className="ml-2 text-[11px] text-muted">{user.username}</span>
+                            <span className="ml-2 text-[12px] text-muted">{user.username}</span>
                           ) : null}
-                          {isSelf ? <span className="ml-2 text-[11px] text-muted">(you)</span> : null}
+                          {isSelf ? <span className="ml-2 text-[12px] text-muted">(you)</span> : null}
                         </td>
                         <td className="py-3 pr-4">
                           <select
@@ -241,7 +241,7 @@ export function PeoplePageView({ currentUser, users: initialUsers }: PeoplePageV
                         </td>
                         <td className="py-3 pr-4">
                           <span
-                            className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${
+                            className={`rounded-full border px-2.5 py-1 text-[12px] font-semibold ${
                               user.is_active
                                 ? "border-success-line bg-success-soft text-success"
                                 : "border-line bg-surface-2 text-ink-2"

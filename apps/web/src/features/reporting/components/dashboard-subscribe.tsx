@@ -140,7 +140,7 @@ export function DashboardSubscribe({
       >
         <div className="space-y-4">
           <label className="block space-y-1">
-            <span className="text-[11px] text-muted">Send to</span>
+            <span className="text-[12px] text-muted">Send to</span>
             <input
               type="email"
               value={email}
@@ -150,7 +150,7 @@ export function DashboardSubscribe({
             />
           </label>
           <div className="space-y-1">
-            <span className="text-[11px] text-muted">How often</span>
+            <span className="text-[12px] text-muted">How often</span>
             <div className="flex flex-wrap gap-1">
               {CADENCES.map((item) => (
                 <button
@@ -158,7 +158,7 @@ export function DashboardSubscribe({
                   type="button"
                   onClick={() => setCadence(item.id)}
                   className={cx(
-                    "rounded-md border px-2 py-1 text-[11.5px] transition",
+                    "rounded-md border px-2 py-1 text-[12px] transition",
                     cadence === item.id
                       ? "border-[color:var(--accent)] bg-[color:var(--accent-faint)] text-ink"
                       : "border-line text-ink-3 hover:text-ink",
@@ -168,10 +168,10 @@ export function DashboardSubscribe({
                 </button>
               ))}
             </div>
-            <p className="text-[10.5px] text-muted">In your timezone ({Intl.DateTimeFormat().resolvedOptions().timeZone}).</p>
+            <p className="text-[12px] text-muted">In your timezone ({Intl.DateTimeFormat().resolvedOptions().timeZone}).</p>
           </div>
           <div className="space-y-1">
-            <span className="text-[11px] text-muted">As</span>
+            <span className="text-[12px] text-muted">As</span>
             <div className="flex rounded-lg border border-line p-0.5">
               {FORMATS.map((item) => (
                 <button
@@ -196,7 +196,7 @@ export function DashboardSubscribe({
             </p>
           ) : null}
           <div className="border-t border-line pt-3">
-            <span className="text-[11px] uppercase tracking-[0.14em] text-muted">
+            <span className="text-[12px] text-muted">
               Your subscriptions to this dashboard
             </span>
             {reports === null ? (
@@ -220,7 +220,7 @@ export function DashboardSubscribe({
                       type="button"
                       onClick={() => void unsubscribe(report)}
                       disabled={busy}
-                      className="shrink-0 text-[11.5px] text-danger hover:underline"
+                      className="shrink-0 text-[12px] text-danger hover:underline"
                     >
                       Unsubscribe
                     </button>

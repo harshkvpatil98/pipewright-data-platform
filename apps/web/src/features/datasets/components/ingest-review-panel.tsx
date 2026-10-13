@@ -72,7 +72,7 @@ export function IngestReviewPanel({ analysis, spec, onSpecChange }: Props) {
                     {question.evidence.slice(0, 5).map((value) => (
                       <code
                         key={value}
-                        className="rounded border border-line bg-sunken px-1.5 py-0.5 text-[11px] text-ink-2"
+                        className="rounded border border-line bg-sunken px-1.5 py-0.5 text-[12px] text-ink-2"
                       >
                         {value}
                       </code>
@@ -96,7 +96,7 @@ export function IngestReviewPanel({ analysis, spec, onSpecChange }: Props) {
                   </div>
                 ) : null}
                 {columnOf(question) ? (
-                  <p className="mt-1.5 text-[11px] text-muted">
+                  <p className="mt-1.5 text-[12px] text-muted">
                     Answering sets the type of <code>{columnOf(question)}</code> below.
                   </p>
                 ) : null}
@@ -139,7 +139,7 @@ export function IngestReviewPanel({ analysis, spec, onSpecChange }: Props) {
         </p>
         <div className="overflow-x-auto rounded-2xl border border-line">
           <table className="w-full text-left text-[12.5px]">
-            <thead className="bg-surface-2 text-[11px] uppercase tracking-[0.14em] text-muted">
+            <thead className="bg-surface-2 text-[12px] text-muted">
               <tr>
                 <th className="cell-pad">Include</th>
                 <th className="cell-pad">Column</th>
@@ -198,7 +198,7 @@ export function IngestReviewPanel({ analysis, spec, onSpecChange }: Props) {
                         <>
                           <Badge finding={detail.finding} /> {detail.finding.reason}
                           {detail.rejected.length > 0 ? (
-                            <div className="mt-1 text-[11.5px] text-warning">
+                            <div className="mt-1 text-[12px] text-warning">
                               Did not fit:{" "}
                               {detail.rejected
                                 .slice(0, 3)
@@ -247,7 +247,7 @@ export function IngestReviewPanel({ analysis, spec, onSpecChange }: Props) {
         </h4>
         <div className="max-h-64 overflow-auto rounded-2xl border border-line">
           <table className="w-full text-left text-[12px]">
-            <thead className="sticky top-0 bg-surface-2 text-[11px] uppercase tracking-[0.14em] text-muted">
+            <thead className="sticky top-0 bg-surface-2 text-[12px] text-muted">
               <tr>
                 {analysis.preview.columns.map((name) => (
                   <th key={name} className="cell-pad whitespace-nowrap">
@@ -286,7 +286,7 @@ function Badge({ finding }: { finding: IngestFinding }) {
     <span
       title={confidenceLabel(finding)}
       className={cx(
-        "mr-1.5 inline-flex rounded-full border px-1.5 py-0.5 text-[10.5px]",
+        "mr-1.5 inline-flex rounded-full border px-1.5 py-0.5 text-[12px]",
         CERTAINTY_TONE[finding.certainty],
       )}
     >

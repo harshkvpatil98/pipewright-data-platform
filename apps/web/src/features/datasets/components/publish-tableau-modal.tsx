@@ -177,7 +177,7 @@ export function PublishTableauModal({ open, onClose, projectId, datasetId }: Pub
             first.
           </p>
         ) : (
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
+          <label className="flex flex-col gap-1 text-xs text-muted">
             Tableau connection
             <select
               className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
@@ -202,7 +202,7 @@ export function PublishTableauModal({ open, onClose, projectId, datasetId }: Pub
           </Button>
         </div>
         {projects.length > 0 ? (
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
+          <label className="flex flex-col gap-1 text-xs text-muted">
             Project (from discovery)
             <select
               className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
@@ -217,7 +217,7 @@ export function PublishTableauModal({ open, onClose, projectId, datasetId }: Pub
             </select>
           </label>
         ) : null}
-        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
+        <label className="flex flex-col gap-1 text-xs text-muted">
           Tableau project ID (UUID)
           <input
             className="rounded-xl border border-line bg-surface px-3 py-2 font-mono text-sm text-ink"
@@ -227,7 +227,7 @@ export function PublishTableauModal({ open, onClose, projectId, datasetId }: Pub
             autoComplete="off"
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
+        <label className="flex flex-col gap-1 text-xs text-muted">
           Datasource name
           <input
             className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
@@ -237,7 +237,7 @@ export function PublishTableauModal({ open, onClose, projectId, datasetId }: Pub
             autoComplete="off"
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
+        <label className="flex flex-col gap-1 text-xs text-muted">
           Write mode
           <select
             className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"

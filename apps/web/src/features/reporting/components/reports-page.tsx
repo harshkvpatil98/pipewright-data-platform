@@ -23,6 +23,7 @@ import { Icon } from "@/components/ui/icon";
 import { apiDownload, apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { formatDate } from "@/lib/format";
+import { fileFormatLabel } from "@/lib/labels";
 import { cx } from "@/lib/utils";
 
 type ReportsPageProps = {
@@ -189,10 +190,10 @@ export function ReportsPageView({
             ))}
           </ul>
         )}
-        <p className="text-muted mt-3 flex items-start gap-1.5 text-[11.5px]">
+        <p className="text-muted mt-3 flex items-start gap-1.5 text-[12px]">
           <Icon name="info" size={11} className="mt-0.5 shrink-0" />
           Scheduled reports fire on the worker tick, so they need
-          <code className="bg-surface-2 mx-1 rounded px-1 font-mono text-[10.5px]">
+          <code className="bg-surface-2 mx-1 rounded px-1 font-mono text-[12px]">
             platform-workflow-worker
           </code>
           running.
@@ -417,16 +418,16 @@ function ReportRow({
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className="text-ink text-[13.5px]">{report.name}</span>
-          <span className="bg-surface-2 text-ink-3 rounded px-1.5 py-0.5 text-[10px] uppercase">
-            {report.file_format}
+          <span className="bg-surface-2 text-ink-3 rounded px-1.5 py-0.5 text-[12px]">
+            {fileFormatLabel(report.file_format)}
           </span>
           {!report.enabled ? (
-            <span className="bg-surface-2 text-muted rounded px-1.5 py-0.5 text-[10px]">
+            <span className="bg-surface-2 text-muted rounded px-1.5 py-0.5 text-[12px]">
               paused
             </span>
           ) : null}
         </div>
-        <div className="text-muted mt-0.5 text-[11.5px]">
+        <div className="text-muted mt-0.5 text-[12px]">
           from a {report.source_kind}
           {report.cron_expression
             ? ` · ${report.cron_expression}`
@@ -442,7 +443,7 @@ function ReportRow({
         {report.last_status ? (
           <div
             className={cx(
-              "mt-0.5 text-[11px]",
+              "mt-0.5 text-[12px]",
               report.last_status === "failed" ? "text-danger" : "text-muted",
             )}
           >
@@ -482,7 +483,7 @@ function ReportRow({
       />
 
       {deliveryError ? (
-        <p role="alert" className="text-danger w-full text-[11.5px]">
+        <p role="alert"className="text-danger w-full text-[12px]">
           {deliveryError}
         </p>
       ) : null}
@@ -490,7 +491,7 @@ function ReportRow({
       {deliveries !== null ? (
         <div className="border-line w-full border-t pt-2">
           {deliveries.length === 0 ? (
-            <p className="text-muted text-[11.5px]">
+            <p className="text-muted text-[12px]">
               This report has not been generated yet.
             </p>
           ) : (
@@ -498,7 +499,7 @@ function ReportRow({
               {deliveries.map((delivery) => (
                 <li
                   key={delivery.id}
-                  className="text-ink-3 flex flex-wrap items-center gap-2 text-[11.5px]"
+                  className="text-ink-3 flex flex-wrap items-center gap-2 text-[12px]"
                 >
                   <span
                     className={
@@ -540,7 +541,7 @@ function ReportRow({
                             key={index}
                             title={channel.detail}
                             className={cx(
-                              "rounded-full border px-2 py-0.5 text-[10.5px]",
+                              "rounded-full border px-2 py-0.5 text-[12px]",
                               channel.ok
                                 ? "border-success-line bg-success-soft text-success"
                                 : "border-danger-line bg-danger-soft text-danger",

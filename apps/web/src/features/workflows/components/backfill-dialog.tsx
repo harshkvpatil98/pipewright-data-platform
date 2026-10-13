@@ -220,7 +220,7 @@ export function BackfillDialog({
               <div className="text-[13px] text-ink">
                 {preview.slot_count} run{preview.slot_count === 1 ? "" : "s"} will be queued
               </div>
-              <div className="mt-1 text-[11.5px] text-muted">
+              <div className="mt-1 text-[12px] text-muted">
                 {preview.first_slot?.slice(0, 10)} through {preview.last_slot?.slice(0, 10)}
               </div>
               {preview.sample_slots.length > 0 ? (
@@ -228,13 +228,13 @@ export function BackfillDialog({
                   {preview.sample_slots.map((slot) => (
                     <span
                       key={slot}
-                      className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-ink-3"
+                      className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[12px] text-ink-3"
                     >
                       {slot.slice(0, 10)}
                     </span>
                   ))}
                   {preview.slot_count > preview.sample_slots.length ? (
-                    <span className="px-1 py-0.5 text-[10px] text-muted">
+                    <span className="px-1 py-0.5 text-[12px] text-muted">
                       +{preview.slot_count - preview.sample_slots.length} more
                     </span>
                   ) : null}
@@ -247,9 +247,9 @@ export function BackfillDialog({
             </div>
           )}
 
-          <p className="text-[11px] leading-5 text-muted">
+          <p className="text-[12px] leading-5 text-muted">
             Each run resolves date macros to its own slot, so{" "}
-            <code className="rounded bg-surface-2 px-1 font-mono text-[10px]">
+            <code className="rounded bg-surface-2 px-1 font-mono text-[12px]">
               {"{{ ds }}"}
             </code>{" "}
             is the date being reprocessed, not today.

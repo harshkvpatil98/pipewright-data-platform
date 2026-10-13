@@ -99,7 +99,7 @@ export function LineageGraph({ lineage }: { lineage: DatasetLineage }) {
                   </span>
                 </div>
                 {node.subtitle ? (
-                  <div className="truncate pl-[18px] text-[10.5px] text-muted">
+                  <div className="truncate pl-[18px] text-[12px] text-muted">
                     {node.subtitle}
                   </div>
                 ) : null}

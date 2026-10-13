@@ -202,7 +202,7 @@ export function DatasetVersionHistoryPanel({
               openQuery({ as_of: new Date(asOfInput).toISOString() });
             }}
           >
-            <label className="text-[11px] text-muted" htmlFor="version-as-of">
+            <label className="text-[12px] text-muted"htmlFor="version-as-of">
               Query as of
             </label>
             <input
@@ -263,7 +263,7 @@ export function DatasetVersionHistoryPanel({
                             <span
                               className={cx(
                                 "rounded-full border border-success-line bg-success-soft",
-                                "px-1.5 py-0.5 text-[10px] text-success",
+                                "px-1.5 py-0.5 text-[12px] text-success",
                               )}
                             >
                               current
@@ -271,7 +271,7 @@ export function DatasetVersionHistoryPanel({
                           ) : null}
                           {pruned ? (
                             <span
-                              className="rounded-full border border-line bg-sunken px-1.5 py-0.5 text-[10px] text-muted"
+                              className="rounded-full border border-line bg-sunken px-1.5 py-0.5 text-[12px] text-muted"
                               title={
                                 version.pruned_at
                                   ? `Data removed by retention on ${formatDateTime(version.pruned_at)}; the record is kept.`
@@ -283,7 +283,7 @@ export function DatasetVersionHistoryPanel({
                           ) : null}
                           {scheduled ? (
                             <span
-                              className="rounded-full border border-warning-line bg-warning-soft px-1.5 py-0.5 text-[10px] text-warning"
+                              className="rounded-full border border-warning-line bg-warning-soft px-1.5 py-0.5 text-[12px] text-warning"
                               title={
                                 version.delete_after
                                   ? `Marked by a retention sweep; removable after ${formatDateTime(version.delete_after)} unless restored or replayed first.`
@@ -295,7 +295,7 @@ export function DatasetVersionHistoryPanel({
                           ) : null}
                           {version.active_pins > 0 ? (
                             <span
-                              className="rounded-full border border-line bg-sunken px-1.5 py-0.5 text-[10px] text-ink-3"
+                              className="rounded-full border border-line bg-sunken px-1.5 py-0.5 text-[12px] text-ink-3"
                               title="A rollback or replay is reading this version right now; it cannot be pruned while held."
                             >
                               held open
@@ -314,25 +314,25 @@ export function DatasetVersionHistoryPanel({
                           ? "--"
                           : formatNumber(version.column_count)}
                       </td>
-                      <td className="cell-pad align-top font-mono text-[11px] text-muted">
+                      <td className="cell-pad align-top font-mono text-[12px] text-muted">
                         {shortDigest(version.content_hash)}
                       </td>
                       <td className="cell-pad align-top text-right">
                         {pruned ? (
-                          <span className="text-[11px] text-muted">data removed</span>
+                          <span className="text-[12px] text-muted">data removed</span>
                         ) : (
                         <div className="flex flex-wrap justify-end gap-1">
                           <button
                             type="button"
                             onClick={() => void openVersion(version)}
-                            className="rounded-lg border border-line px-2 py-1 text-[11.5px] text-ink-3 transition hover:text-ink"
+                            className="rounded-lg border border-line px-2 py-1 text-[12px] text-ink-3 transition hover:text-ink"
                           >
                             View data
                           </button>
                           <button
                             type="button"
                             onClick={() => openQuery({ version_number: version.version_number })}
-                            className="rounded-lg border border-line px-2 py-1 text-[11.5px] text-ink-3 transition hover:text-ink"
+                            className="rounded-lg border border-line px-2 py-1 text-[12px] text-ink-3 transition hover:text-ink"
                           >
                             Query
                           </button>
@@ -344,7 +344,7 @@ export function DatasetVersionHistoryPanel({
                                 `version-${version.version_number}.csv`,
                               ).catch((caught) => setDownloadError(extractErrorMessage(caught)))
                             }
-                            className="rounded-lg border border-line px-2 py-1 text-[11.5px] text-ink-3 transition hover:text-ink"
+                            className="rounded-lg border border-line px-2 py-1 text-[12px] text-ink-3 transition hover:text-ink"
                           >
                             Download
                           </button>
@@ -353,7 +353,7 @@ export function DatasetVersionHistoryPanel({
                               <button
                                 type="button"
                                 onClick={() => openDiff(version)}
-                                className="rounded-lg border border-line px-2 py-1 text-[11.5px] text-ink-3 transition hover:text-ink"
+                                className="rounded-lg border border-line px-2 py-1 text-[12px] text-ink-3 transition hover:text-ink"
                               >
                                 Diff vs current
                               </button>
@@ -363,7 +363,7 @@ export function DatasetVersionHistoryPanel({
                                   setRestoreError(null);
                                   setRestoring(version);
                                 }}
-                                className="rounded-lg border border-line px-2 py-1 text-[11.5px] text-ink-3 transition hover:text-ink"
+                                className="rounded-lg border border-line px-2 py-1 text-[12px] text-ink-3 transition hover:text-ink"
                               >
                                 Restore
                               </button>
@@ -449,7 +449,7 @@ export function DatasetVersionHistoryPanel({
       >
         <div className="mb-3 flex flex-wrap items-end gap-2">
           <label className="flex-1 space-y-1">
-            <span className="text-[11px] text-muted">
+            <span className="text-[12px] text-muted">
               Identity columns (comma-separated, optional)
             </span>
             <input
@@ -496,7 +496,7 @@ export function DatasetVersionHistoryPanel({
               </p>
             ) : null}
             {diff.reason ? (
-              <p className="text-[11.5px] text-muted">{diff.reason}</p>
+              <p className="text-[12px] text-muted">{diff.reason}</p>
             ) : null}
             {Object.keys(diff.cells_changed_by_column).length > 0 ? (
               <p className="text-[12px] text-ink-3">
@@ -506,7 +506,7 @@ export function DatasetVersionHistoryPanel({
                   .join(", ")}
               </p>
             ) : null}
-            <p className="text-[10.5px] text-muted">
+            <p className="text-[12px] text-muted">
               {diff.method}. Samples capped at {diff.sample_limit}; counts are exact.
             </p>
           </div>
@@ -540,7 +540,7 @@ export function DatasetVersionHistoryPanel({
         }
       >
         <label className="block space-y-1">
-          <span className="text-[11px] text-muted">SQL (Ctrl/⌘ + Enter to run)</span>
+          <span className="text-[12px] text-muted">SQL (Ctrl/⌘ + Enter to run)</span>
           <textarea
             value={sql}
             onChange={(event) => setSql(event.target.value)}
@@ -659,11 +659,11 @@ function DiffStat({
 }) {
   return (
     <div className="rounded-xl border border-line bg-sunken px-3 py-2.5">
-      <div className="text-[11px] uppercase tracking-[0.14em] text-muted">{label}</div>
+      <div className="text-[12px] text-muted">{label}</div>
       <div className="mt-0.5 text-xl font-semibold text-ink">
         {value === null ? "—" : value.toLocaleString()}
       </div>
-      {note ? <div className="text-[10.5px] text-muted">{note}</div> : null}
+      {note ? <div className="text-[12px] text-muted">{note}</div> : null}
     </div>
   );
 }

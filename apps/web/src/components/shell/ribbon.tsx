@@ -49,7 +49,7 @@ export function Ribbon({ groups, className }: RibbonProps) {
                   <RibbonButton key={action.id} action={action} />
                 ))}
               </div>
-              <span className="whitespace-nowrap text-[10px] uppercase tracking-[0.16em] text-muted">
+              <span className="whitespace-nowrap text-[12px] text-muted">
                 {group.label}
               </span>
             </div>
@@ -89,7 +89,7 @@ function RibbonButton({ action }: { action: RibbonAction }) {
       )}
     >
       <Icon name={action.icon} size={action.prominent ? 19 : 17} />
-      <span className="text-[10.5px] leading-none">{action.label}</span>
+      <span className="text-[12px] leading-none">{action.label}</span>
     </Component>
   );
 

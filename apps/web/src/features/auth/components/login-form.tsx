@@ -192,7 +192,7 @@ export function LoginForm() {
             </Button>
             {ssoConfigured ? (
               <>
-                <div className="flex items-center gap-3 text-[11px] uppercase tracking-[0.16em] text-muted">
+                <div className="flex items-center gap-3 text-[12px] text-muted">
                   <span className="h-px flex-1 bg-line" />
                   or
                   <span className="h-px flex-1 bg-line" />

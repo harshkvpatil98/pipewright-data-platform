@@ -256,14 +256,14 @@ export function DatasetCatalogPanel({ projectId, datasetId, columns }: DatasetCa
 
             <div className="rounded-xl border border-line bg-sunken px-3 py-2.5">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-[11px] uppercase tracking-[0.14em] text-muted">
+                <span className="text-[12px] text-muted">
                   Data classification
                 </span>
                 <button
                   type="button"
                   onClick={() => void scan()}
                   disabled={scanning}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-line px-2.5 py-1 text-[11.5px] text-ink-3 transition hover:text-ink disabled:opacity-60"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-line px-2.5 py-1 text-[12px] text-ink-3 transition hover:text-ink disabled:opacity-60"
                 >
                   <Icon name="search" size={11} />
                   {scanning ? "Scanning…" : pii ? "Rescan" : "Scan for PII"}
@@ -282,7 +282,7 @@ export function DatasetCatalogPanel({ projectId, datasetId, columns }: DatasetCa
                           key={`${finding.column}-${finding.kind}`}
                           className="flex items-center justify-between gap-2 text-[12px]"
                         >
-                          <span className="font-mono text-[11px] text-ink-2">
+                          <span className="font-mono text-[12px] text-ink-2">
                             {finding.column}
                           </span>
                           <span className="text-ink-3">
@@ -292,13 +292,13 @@ export function DatasetCatalogPanel({ projectId, datasetId, columns }: DatasetCa
                         </li>
                       ))}
                     </ul>
-                    <p className="text-[10.5px] text-muted">{pii.method}.</p>
+                    <p className="text-[12px] text-muted">{pii.method}.</p>
                     {newSuggestedTags.length > 0 ? (
                       <div className="flex flex-wrap items-center gap-1.5">
                         {newSuggestedTags.map((tag) => (
                           <span
                             key={tag}
-                            className="rounded bg-surface-2 px-1.5 py-0.5 text-[10.5px] text-ink-3"
+                            className="rounded bg-surface-2 px-1.5 py-0.5 text-[12px] text-ink-3"
                           >
                             {tag}
                           </span>
@@ -306,13 +306,13 @@ export function DatasetCatalogPanel({ projectId, datasetId, columns }: DatasetCa
                         <button
                           type="button"
                           onClick={addSuggestedTags}
-                          className="rounded-lg bg-[color:var(--accent)] px-2 py-0.5 text-[11px] text-accent-ink transition"
+                          className="rounded-lg bg-[color:var(--accent)] px-2 py-0.5 text-[12px] text-accent-ink transition"
                         >
                           Add as tags
                         </button>
                       </div>
                     ) : (
-                      <p className="text-[11px] text-success">
+                      <p className="text-[12px] text-success">
                         Classification tags already applied.
                       </p>
                     )}
@@ -324,7 +324,7 @@ export function DatasetCatalogPanel({ projectId, datasetId, columns }: DatasetCa
                 </p>
               )}
               {scanError ? (
-                <p className="mt-1.5 text-[11.5px] text-danger">{scanError}</p>
+                <p className="mt-1.5 text-[12px] text-danger">{scanError}</p>
               ) : null}
             </div>
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -343,7 +343,7 @@ export function DatasetCatalogPanel({ projectId, datasetId, columns }: DatasetCa
               </button>
               <div className="flex items-center gap-2">
                 {saved && !dirty ? (
-                  <span className="text-[11.5px] text-success">Saved</span>
+                  <span className="text-[12px] text-success">Saved</span>
                 ) : null}
                 <Button
                   variant="primary"
@@ -356,7 +356,7 @@ export function DatasetCatalogPanel({ projectId, datasetId, columns }: DatasetCa
               </div>
             </div>
             {annotation.certified && annotation.certified_by_username ? (
-              <p className="text-[11px] text-muted">
+              <p className="text-[12px] text-muted">
                 Certified by {annotation.certified_by_username}
                 {annotation.certified_at
                   ? ` on ${new Date(annotation.certified_at).toLocaleDateString()}`
@@ -365,12 +365,12 @@ export function DatasetCatalogPanel({ projectId, datasetId, columns }: DatasetCa
               </p>
             ) : null}
             {saveError ? (
-              <p className="text-[11.5px] text-danger">{saveError}</p>
+              <p className="text-[12px] text-danger">{saveError}</p>
             ) : null}
           </div>
 
           <div className="space-y-3">
-            <div className="text-xs uppercase tracking-[0.18em] text-muted">Glossary terms</div>
+            <div className="text-xs text-muted">Glossary terms</div>
             {linked.length === 0 ? (
               <p className="text-[12.5px] text-muted">
                 No terms bound here yet. Binding a term to a column is how a name in this table
@@ -393,7 +393,7 @@ export function DatasetCatalogPanel({ projectId, datasetId, columns }: DatasetCa
                         .map((binding) => (
                           <span
                             key={binding.column}
-                            className="inline-flex items-center gap-1 rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[10.5px] text-ink-3"
+                            className="inline-flex items-center gap-1 rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[12px] text-ink-3"
                           >
                             {binding.column}
                             <button
@@ -416,7 +416,7 @@ export function DatasetCatalogPanel({ projectId, datasetId, columns }: DatasetCa
               <div className="rounded-xl border border-line bg-sunken px-3 py-3">
                 <div className="flex flex-wrap items-end gap-2">
                   <label className="flex-1 space-y-1">
-                    <span className="text-[11px] text-muted">Term</span>
+                    <span className="text-[12px] text-muted">Term</span>
                     <select
                       value={termId}
                       onChange={(event) => setTermId(event.target.value)}
@@ -431,7 +431,7 @@ export function DatasetCatalogPanel({ projectId, datasetId, columns }: DatasetCa
                     </select>
                   </label>
                   <label className="flex-1 space-y-1">
-                    <span className="text-[11px] text-muted">Column</span>
+                    <span className="text-[12px] text-muted">Column</span>
                     <select
                       value={column}
                       onChange={(event) => setColumn(event.target.value)}
@@ -455,7 +455,7 @@ export function DatasetCatalogPanel({ projectId, datasetId, columns }: DatasetCa
                 </div>
               </div>
             ) : null}
-            {linkError ? <p className="text-[11.5px] text-danger">{linkError}</p> : null}
+            {linkError ? <p className="text-[12px] text-danger">{linkError}</p> : null}
           </div>
         </div>
       ) : loadError ? null : (
@@ -468,7 +468,7 @@ export function DatasetCatalogPanel({ projectId, datasetId, columns }: DatasetCa
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block space-y-1">
-      <span className="text-[11px] uppercase tracking-[0.14em] text-muted">{label}</span>
+      <span className="text-[12px] text-muted">{label}</span>
       {children}
     </label>
   );

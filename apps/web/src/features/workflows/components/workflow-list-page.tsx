@@ -214,7 +214,7 @@ export function WorkflowListPage({
                         setForm((f) => ({ ...f, cron: preset.value }))
                       }
                       className={cx(
-                        "rounded-md px-2 py-1 text-[11px] transition",
+                        "rounded-md px-2 py-1 text-[12px] transition",
                         form.cron === preset.value
                           ? "text-accent-ink bg-[color:var(--accent)]"
                           : "bg-surface-2 text-ink-2 hover:bg-surface-2",
@@ -240,7 +240,7 @@ export function WorkflowListPage({
                     setForm((f) => ({ ...f, timezone: event.target.value }))
                   }
                 />
-                <p className="text-muted mt-1.5 text-[11px]">
+                <p className="text-muted mt-1.5 text-[12px]">
                   The schedule follows this zone, including daylight saving.
                 </p>
               </div>

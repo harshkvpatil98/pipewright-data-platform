@@ -47,7 +47,7 @@ function ModuleDetails({ details }: { details: Record<string, unknown> }) {
         {chips.map((chip) => (
           <span
             key={chip}
-            className="rounded-md border border-line bg-surface px-1.5 py-0.5 font-sans text-[11px] text-ink-2"
+            className="rounded-md border border-line bg-surface px-1.5 py-0.5 font-sans text-[12px] text-ink-2"
           >
             {chip}
           </span>
@@ -55,13 +55,13 @@ function ModuleDetails({ details }: { details: Record<string, unknown> }) {
         <button
           type="button"
           onClick={() => setShowRaw((v) => !v)}
-          className="rounded-md px-1.5 py-0.5 font-sans text-[11px] text-muted underline-offset-2 hover:underline"
+          className="rounded-md px-1.5 py-0.5 font-sans text-[12px] text-muted underline-offset-2 hover:underline"
         >
           {showRaw ? "hide raw" : "raw"}
         </button>
       </div>
       {showRaw ? (
-        <pre className="max-w-full overflow-x-auto whitespace-pre-wrap break-all rounded-lg bg-surface-2 p-2 text-[10.5px] leading-4">
+        <pre className="max-w-full overflow-x-auto whitespace-pre-wrap break-all rounded-lg bg-surface-2 p-2 text-[12px] leading-4">
           {JSON.stringify(details, null, 1)}
         </pre>
       ) : null}
@@ -110,15 +110,15 @@ function RuntimePanel({ platform }: { platform: PlatformStatusResponse }) {
     >
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
         <div className="rounded-xl border border-line bg-surface px-3 py-2.5 text-sm">
-          <div className="text-[11px] uppercase tracking-[0.16em] text-muted">Runs queued</div>
+          <div className="text-[12px] text-muted">Runs queued</div>
           <div className="mt-1 font-mono text-lg text-ink">{queued}</div>
         </div>
         <div className="rounded-xl border border-line bg-surface px-3 py-2.5 text-sm">
-          <div className="text-[11px] uppercase tracking-[0.16em] text-muted">Runs running</div>
+          <div className="text-[12px] text-muted">Runs running</div>
           <div className="mt-1 font-mono text-lg text-ink">{running}</div>
         </div>
         <div className="rounded-xl border border-line bg-surface px-3 py-2.5 text-sm">
-          <div className="text-[11px] uppercase tracking-[0.16em] text-muted">Schedules due</div>
+          <div className="text-[12px] text-muted">Schedules due</div>
           <div className="mt-1 font-mono text-lg text-ink">{dueNow}</div>
         </div>
       </div>
@@ -126,7 +126,7 @@ function RuntimePanel({ platform }: { platform: PlatformStatusResponse }) {
       <div className="overflow-hidden rounded-[24px] border border-line bg-sunken">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[560px] border-collapse text-left text-sm text-ink">
-            <thead className="border-b border-line text-xs uppercase tracking-[0.14em] text-muted">
+            <thead className="border-b border-line text-xs text-muted">
               <tr>
                 <th className="py-2 pr-3 font-medium">Component</th>
                 <th className="py-2 pr-3 font-medium">State</th>
@@ -152,7 +152,7 @@ function RuntimePanel({ platform }: { platform: PlatformStatusResponse }) {
                     </td>
                     <td className="py-2 pr-3">
                       <span
-                        className={`inline-flex items-center gap-1.5 rounded-lg border px-2 py-0.5 text-[11px] font-semibold uppercase ${toneClasses(
+                        className={`inline-flex items-center gap-1.5 rounded-lg border px-2 py-0.5 text-[12px] font-semibold ${toneClasses(
                           component.healthy ? "success" : "danger",
                         )}`}
                       >
@@ -240,26 +240,26 @@ export function SystemStatusPage({ currentUser }: { currentUser?: AuthUser | nul
       {platform ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <div className={`h-full rounded-2xl border px-4 py-4 ${toneClasses(overallTone)}`}>
-            <div className="text-[11px] uppercase tracking-[0.2em] opacity-80">Overall</div>
+            <div className="text-[12px] opacity-80">Overall</div>
             <div className="mt-2 text-lg font-semibold capitalize">{platform.status}</div>
             <div className="mt-1 text-xs opacity-90">{platform.service}</div>
           </div>
           <div className="h-full rounded-2xl border border-line bg-surface px-4 py-4 text-sm text-ink">
-            <div className="text-[11px] uppercase tracking-[0.2em] text-muted">Environment</div>
+            <div className="text-[12px] text-muted">Environment</div>
             <div className="mt-2 font-medium text-ink">{platform.environment}</div>
             <div className="mt-1 text-xs text-ink-3">
               API bundle <span className="font-mono text-ink-2">v{platform.version}</span>
             </div>
           </div>
           <div className="h-full rounded-2xl border border-line bg-surface px-4 py-4 text-sm text-ink">
-            <div className="text-[11px] uppercase tracking-[0.2em] text-muted">Snapshot time</div>
+            <div className="text-[12px] text-muted">Snapshot time</div>
             <div className="mt-2 font-mono text-xs text-ink-2">{platform.checked_at}</div>
             {live ? (
               <div className="mt-2 text-xs text-muted">Liveness probe: {live.timestamp}</div>
             ) : null}
           </div>
           <div className="h-full rounded-2xl border border-line bg-surface px-4 py-4 text-sm text-ink">
-            <div className="text-[11px] uppercase tracking-[0.2em] text-muted">Scheduler</div>
+            <div className="text-[12px] text-muted">Scheduler</div>
             <div className="mt-2 text-ink">
               Due now: <span className="font-mono">{platform.scheduler.due_now_count}</span>
             </div>
@@ -291,7 +291,7 @@ export function SystemStatusPage({ currentUser }: { currentUser?: AuthUser | nul
           <div className="overflow-hidden rounded-[24px] border border-line bg-sunken">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[640px] border-collapse text-left text-sm text-ink">
-                <thead className="border-b border-line text-xs uppercase tracking-[0.14em] text-muted">
+                <thead className="border-b border-line text-xs text-muted">
                   <tr>
                     <th className="py-2 pr-3 font-medium">Module</th>
                     <th className="py-2 pr-3 font-medium">Status</th>
@@ -307,7 +307,7 @@ export function SystemStatusPage({ currentUser }: { currentUser?: AuthUser | nul
                       </td>
                       <td className="py-2 pr-3">
                         <span
-                          className={`rounded-lg border px-2 py-0.5 text-[11px] font-semibold uppercase ${toneClasses(serviceHealthTone(s.status))}`}
+                          className={`rounded-lg border px-2 py-0.5 text-[12px] font-semibold ${toneClasses(serviceHealthTone(s.status))}`}
                         >
                           {s.status}
                         </span>

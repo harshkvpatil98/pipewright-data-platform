@@ -73,7 +73,7 @@ export function SavedTestsListPageView({
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] border-collapse text-left text-sm text-ink">
               <thead>
-                <tr className="border-b border-line text-xs uppercase tracking-[0.14em] text-muted">
+                <tr className="border-b border-line text-xs text-muted">
                   <th className="py-2 pr-4 font-medium">Name</th>
                   <th className="py-2 pr-4 font-medium">Type</th>
                   <th className="py-2 pr-4 font-medium">Column</th>
@@ -100,7 +100,7 @@ export function SavedTestsListPageView({
                       <div className="flex flex-wrap gap-2">
                         <Link
                           href={`/projects/${projectId}/tests/saved/${row.id}`}
-                          className="rounded-lg border border-line-strong px-3 py-1.5 text-xs font-medium uppercase tracking-[0.12em] text-ink hover:border-line-strong"
+                          className="rounded-lg border border-line-strong px-3 py-1.5 text-xs font-medium text-ink hover:border-line-strong"
                         >
                           View
                         </Link>

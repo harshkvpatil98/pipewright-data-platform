@@ -35,11 +35,11 @@ export function NotificationsNavLink() {
   const isActive = pathname === "/notifications" || pathname.startsWith("/notifications/");
   const badge =
     unread !== null && unread > 0 ? (
-      <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-semibold text-accent">
+      <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[12px] font-semibold text-accent">
         {unread > 99 ? "99+" : unread}
       </span>
     ) : (
-      <span className="text-[11px] uppercase tracking-[0.18em] text-muted">In-app</span>
+      <span className="text-[12px] text-muted">In-app</span>
     );
 
   return (

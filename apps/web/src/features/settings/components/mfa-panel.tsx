@@ -152,7 +152,7 @@ export function MfaPanel() {
           />
           <div className="space-y-3">
             <div>
-              <div className="text-[11px] uppercase tracking-[0.16em] text-muted">Secret</div>
+              <div className="text-[12px] text-muted">Secret</div>
               <code className="mt-1 block break-all rounded-lg bg-sunken px-2 py-1 font-mono text-[13px] text-ink-2">
                 {enroll.secret}
               </code>
@@ -187,7 +187,7 @@ export function MfaPanel() {
     return (
       <div className="space-y-4">
         <div className="flex items-center gap-2 text-[13px] text-ink-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-success-line bg-success-soft px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-[0.14em] text-success">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-success-line bg-success-soft px-2.5 py-0.5 text-[12px] font-medium text-success">
             On
           </span>
           <span>{status.recovery_codes_remaining} recovery code(s) left.</span>

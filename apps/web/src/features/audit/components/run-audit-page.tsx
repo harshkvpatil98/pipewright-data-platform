@@ -101,13 +101,13 @@ export function RunAuditPageView({ currentUser, projectId, audit }: RunAuditPage
           </Button>
           <Link
             href={`/projects/${projectId}/runs/${audit.id}/comparison`}
-            className="rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:border-line-strong"
+            className="rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium text-ink hover:border-line-strong"
           >
             View comparison
           </Link>
           <Link
             href={`/projects/${projectId}`}
-            className="rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:border-line-strong"
+            className="rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium text-ink hover:border-line-strong"
           >
             Project
           </Link>
@@ -116,7 +116,7 @@ export function RunAuditPageView({ currentUser, projectId, audit }: RunAuditPage
       meta={
         <>
           <StatusBadge value={audit.status} />
-          <span className="rounded-full border border-line bg-surface px-3 py-1 text-xs uppercase tracking-[0.18em] text-ink-2">
+          <span className="rounded-full border border-line bg-surface px-3 py-1 text-xs text-ink-2">
             {formatRunTypeLabel(audit.run_type)}
           </span>
         </>
@@ -134,18 +134,18 @@ export function RunAuditPageView({ currentUser, projectId, audit }: RunAuditPage
         <SectionPanel title="Run identity" description="Core fields from pipeline_runs.">
           <dl className="grid gap-3 text-sm">
             <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Run id</dt>
+              <dt className="text-xs text-muted">Run id</dt>
               <dd className="mt-1 font-mono text-xs text-ink-2 break-all">{audit.id}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Triggered by</dt>
+              <dt className="text-xs text-muted">Triggered by</dt>
               <dd className="mt-1 font-mono text-xs text-ink-2">
                 {audit.triggered_by_user_id}
                 {audit.triggered_by_user_id === currentUser.id ? " (you)" : ""}
               </dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Pipeline id</dt>
+              <dt className="text-xs text-muted">Pipeline id</dt>
               <dd className="mt-1 text-ink">
                 {audit.pipeline_id ? (
                   <Link
@@ -160,11 +160,11 @@ export function RunAuditPageView({ currentUser, projectId, audit }: RunAuditPage
               </dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Created</dt>
+              <dt className="text-xs text-muted">Created</dt>
               <dd className="mt-1 text-ink">{formatDate(audit.created_at)}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Started / completed</dt>
+              <dt className="text-xs text-muted">Started / completed</dt>
               <dd className="mt-1 text-ink">
                 {audit.started_at ? formatDate(audit.started_at) : "—"} →{" "}
                 {audit.completed_at ? formatDate(audit.completed_at) : "—"}
@@ -176,19 +176,19 @@ export function RunAuditPageView({ currentUser, projectId, audit }: RunAuditPage
         <SectionPanel title="Audit highlights" description="Inferred from summary_json and logs.">
           <dl className="grid gap-3 text-sm">
             <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Logged stages</dt>
+              <dt className="text-xs text-muted">Logged stages</dt>
               <dd className="mt-1 text-ink">{h.stage_count}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Failed stage</dt>
+              <dt className="text-xs text-muted">Failed stage</dt>
               <dd className="mt-1 text-ink">{h.failed_stage ?? "—"}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Derived dataset created</dt>
+              <dt className="text-xs text-muted">Derived dataset created</dt>
               <dd className="mt-1 text-ink">{h.derived_dataset_created ? "Yes" : "No"}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Ingestion / transformation</dt>
+              <dt className="text-xs text-muted">Ingestion / transformation</dt>
               <dd className="mt-1 text-ink">
                 {[h.ingestion_type, h.transformation_type].filter(Boolean).join(" · ") || "—"}
               </dd>
@@ -216,9 +216,9 @@ export function RunAuditPageView({ currentUser, projectId, audit }: RunAuditPage
                   {version.dataset_name ?? `Dataset ${version.dataset_id.slice(0, 8)}…`}
                 </Link>
                 <span className="text-ink-2">version {version.version_number}</span>
-                <span className="font-mono text-[11px] text-muted">{shortDigest(version.content_hash)}</span>
+                <span className="font-mono text-[12px] text-muted">{shortDigest(version.content_hash)}</span>
                 {version.retention_state === "pruned" ? (
-                  <span className="rounded-full border border-line bg-sunken px-1.5 py-0.5 text-[10px] text-muted">
+                  <span className="rounded-full border border-line bg-sunken px-1.5 py-0.5 text-[12px] text-muted">
                     pruned
                   </span>
                 ) : null}
@@ -235,27 +235,27 @@ export function RunAuditPageView({ currentUser, projectId, audit }: RunAuditPage
         >
           <dl className="grid gap-3 text-sm sm:grid-cols-2">
             <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Evaluated at</dt>
+              <dt className="text-xs text-muted">Evaluated at</dt>
               <dd className="mt-1 text-ink">{formatDateTime(context.evaluated_at)}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Engine semantics</dt>
+              <dt className="text-xs text-muted">Engine semantics</dt>
               <dd className="mt-1 font-mono text-xs text-ink-2">{context.semantic_version}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Steps</dt>
+              <dt className="text-xs text-muted">Steps</dt>
               <dd className="mt-1 text-ink">
                 {context.steps.length} step{context.steps.length === 1 ? "" : "s"}{" "}
-                <span className="font-mono text-[11px] text-muted">{shortDigest(context.steps_digest)}</span>
+                <span className="font-mono text-[12px] text-muted">{shortDigest(context.steps_digest)}</span>
               </dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Clock-dependent functions</dt>
+              <dt className="text-xs text-muted">Clock-dependent functions</dt>
               <dd className="mt-1 text-ink-2">{context.clock_functions.join(", ")}</dd>
             </div>
             {context.replay_of ? (
               <div className="sm:col-span-2">
-                <dt className="text-xs uppercase tracking-[0.18em] text-muted">Replay of</dt>
+                <dt className="text-xs text-muted">Replay of</dt>
                 <dd className="mt-1">
                   <Link
                     href={`/projects/${projectId}/runs/${context.replay_of}/audit`}
@@ -268,7 +268,7 @@ export function RunAuditPageView({ currentUser, projectId, audit }: RunAuditPage
             ) : null}
           </dl>
           <div className="mt-4">
-            <div className="text-xs uppercase tracking-[0.18em] text-muted">Input pins</div>
+            <div className="text-xs text-muted">Input pins</div>
             {context.inputs.length === 0 ? (
               <p className="mt-1 text-sm text-ink-3">No inputs were recorded.</p>
             ) : (
@@ -310,7 +310,7 @@ export function RunAuditPageView({ currentUser, projectId, audit }: RunAuditPage
           <ol className="space-y-2 text-sm">
             {events.map((ev, idx) => (
               <li key={`${ev.stage}-${idx}`} className="rounded-xl border border-line bg-surface px-3 py-2">
-                <span className="text-xs uppercase tracking-[0.16em] text-muted">{ev.stage ?? "event"}</span>
+                <span className="text-xs text-muted">{ev.stage ?? "event"}</span>
                 <p className="mt-1 text-ink">{ev.message ?? "—"}</p>
               </li>
             ))}
@@ -329,13 +329,13 @@ export function RunAuditPageView({ currentUser, projectId, audit }: RunAuditPage
         {rawOpen ? (
           <div className="mt-4 space-y-4">
             <div>
-              <h4 className="text-xs uppercase tracking-[0.18em] text-muted">summary_json</h4>
+              <h4 className="text-xs text-muted">summary_json</h4>
               <pre className="mt-2 max-h-64 overflow-auto rounded-xl border border-line bg-sunken p-3 text-xs text-ink-2">
                 {audit.summary_json ? JSON.stringify(audit.summary_json, null, 2) : "null"}
               </pre>
             </div>
             <div>
-              <h4 className="text-xs uppercase tracking-[0.18em] text-muted">logs_json</h4>
+              <h4 className="text-xs text-muted">logs_json</h4>
               <pre className="mt-2 max-h-64 overflow-auto rounded-xl border border-line bg-sunken p-3 text-xs text-ink-2">
                 {audit.logs_json ? JSON.stringify(audit.logs_json, null, 2) : "null"}
               </pre>
@@ -440,17 +440,17 @@ function ReplayOutcome({ projectId, result }: { projectId: string; result: Repla
               ))}
             </ul>
           ) : null}
-          <p className="mt-2 text-[10.5px] text-muted">{result.comparison.method}.</p>
+          <p className="mt-2 text-[12px] text-muted">{result.comparison.method}.</p>
         </div>
       ) : null}
       {result.original_output || result.replay_output ? (
         <div className="grid gap-2 text-[12px] sm:grid-cols-2">
           <div>
-            <div className="text-[10.5px] uppercase tracking-[0.14em] text-muted">Original output</div>
+            <div className="text-[12px] text-muted">Original output</div>
             {result.original_output ? <PinLine projectId={projectId} pin={result.original_output} /> : "—"}
           </div>
           <div>
-            <div className="text-[10.5px] uppercase tracking-[0.14em] text-muted">Replay output</div>
+            <div className="text-[12px] text-muted">Replay output</div>
             {result.replay_output ? <PinLine projectId={projectId} pin={result.replay_output} /> : "—"}
           </div>
         </div>
@@ -462,7 +462,7 @@ function ReplayOutcome({ projectId, result }: { projectId: string; result: Repla
 function Check({ label, ok, note }: { label: string; ok: boolean; note?: string }) {
   return (
     <div>
-      <div className="text-[10.5px] uppercase tracking-[0.14em] text-muted">{label}</div>
+      <div className="text-[12px] text-muted">{label}</div>
       <div className={ok ? "text-success" : "text-danger"}>
         {ok ? "same" : "differ"}
         {note ? <span className="ml-1 text-muted">({note})</span> : null}
@@ -475,7 +475,7 @@ function PinLine({ projectId, pin }: { projectId: string; pin: ExecutionVersionP
   return (
     <span className="inline-flex flex-wrap items-center gap-1.5">
       {pin.role && pin.role !== "output" ? (
-        <span className="rounded-full border border-line bg-sunken px-1.5 py-0.5 text-[10px] text-muted">
+        <span className="rounded-full border border-line bg-sunken px-1.5 py-0.5 text-[12px] text-muted">
           {pin.role}
         </span>
       ) : null}
@@ -488,7 +488,7 @@ function PinLine({ projectId, pin }: { projectId: string; pin: ExecutionVersionP
       <span className="text-ink-2">
         {pin.version_number === null ? "no recorded version" : `version ${pin.version_number}`}
       </span>
-      <span className="font-mono text-[11px] text-muted">{shortDigest(pin.content_hash)}</span>
+      <span className="font-mono text-[12px] text-muted">{shortDigest(pin.content_hash)}</span>
     </span>
   );
 }

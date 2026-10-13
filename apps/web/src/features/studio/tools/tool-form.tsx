@@ -16,7 +16,7 @@ export function Field({
 }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-xs uppercase tracking-[0.14em] text-muted">{label}</span>
+      <span className="text-xs text-muted">{label}</span>
       {children}
       {help ? <span className="text-xs text-muted">{help}</span> : null}
     </label>

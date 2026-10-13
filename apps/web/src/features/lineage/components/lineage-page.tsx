@@ -94,7 +94,7 @@ export function LineagePageView({
         {initial.notes.length > 0 ? (
           <ul className="mt-3 space-y-1">
             {initial.notes.map((note) => (
-              <li key={note} className="flex items-start gap-1.5 text-[11.5px] text-muted">
+              <li key={note} className="flex items-start gap-1.5 text-[12px] text-muted">
                 <Icon name="info" size={11} className="mt-0.5 shrink-0" />
                 {note}
               </li>
@@ -135,7 +135,7 @@ export function LineagePageView({
                     <span className="font-mono text-[12.5px] text-ink">{column.column}</span>
                     <span
                       className={cx(
-                        "rounded px-1.5 py-0.5 text-[10px]",
+                        "rounded px-1.5 py-0.5 text-[12px]",
                         column.derived
                           ? "bg-accent-soft text-accent"
                           : "bg-surface-2 text-ink-3",
@@ -145,7 +145,7 @@ export function LineagePageView({
                     </span>
                   </div>
                   {column.origins.length > 0 ? (
-                    <div className="mt-0.5 truncate text-[11px] text-muted">
+                    <div className="mt-0.5 truncate text-[12px] text-muted">
                       from{" "}
                       {column.origins
                         .map((origin) =>
@@ -160,7 +160,7 @@ export function LineagePageView({
                 <button
                   type="button"
                   onClick={() => void loadTrace(column.column)}
-                  className="shrink-0 rounded-lg border border-line px-2 py-1 text-[11px] text-ink-3 transition hover:text-ink"
+                  className="shrink-0 rounded-lg border border-line px-2 py-1 text-[12px] text-ink-3 transition hover:text-ink"
                 >
                   Trace
                 </button>
@@ -188,12 +188,12 @@ export function LineagePageView({
                     .map((edge, index) => (
                       <li
                         key={`${edge.step_index}-${edge.to_column}-${index}`}
-                        className="rounded-lg border border-line px-2.5 py-2 text-[11.5px]"
+                        className="rounded-lg border border-line px-2.5 py-2 text-[12px]"
                       >
                         <div className="text-ink-2">
                           Step {edge.step_index + 1} · {edge.step_type.replace(/_/g, " ")}
                         </div>
-                        <div className="mt-0.5 font-mono text-[11px] text-muted">
+                        <div className="mt-0.5 font-mono text-[12px] text-muted">
                           {edge.from_column ?? "(literal)"} → {edge.to_column}
                           <span className="ml-1.5 text-muted">{edge.kind}</span>
                         </div>
@@ -201,7 +201,7 @@ export function LineagePageView({
                     ))}
                 </ol>
               ) : (
-                <p className="mt-3 text-[11.5px] text-muted">
+                <p className="mt-3 text-[12px] text-muted">
                   No step touched this column; it is carried straight through.
                 </p>
               )}

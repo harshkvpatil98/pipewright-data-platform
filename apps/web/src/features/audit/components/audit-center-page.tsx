@@ -186,7 +186,7 @@ export function AuditCenterPageView({ currentUser, initial, forbidden }: AuditCe
           <div className="overflow-hidden rounded-[24px] border border-line bg-sunken">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[820px] border-collapse text-left text-sm text-ink">
-                <thead className="border-b border-line text-xs uppercase tracking-[0.14em] text-muted">
+                <thead className="border-b border-line text-xs text-muted">
                   <tr>
                     <th className="py-2 pr-3 font-medium">When</th>
                     <th className="py-2 pr-3 font-medium">Actor</th>
@@ -203,12 +203,12 @@ export function AuditCenterPageView({ currentUser, initial, forbidden }: AuditCe
                       <td className="py-2 pr-3 text-ink-3">{row.project_name ?? "—"}</td>
                       <td className="py-2 pr-3 text-ink-2">
                         {row.action}
-                        <span className="ml-2 font-mono text-[11px] text-muted">{row.method} {row.path}</span>
+                        <span className="ml-2 font-mono text-[12px] text-muted">{row.method} {row.path}</span>
                       </td>
                       <td className="py-2">
                         <span
                           className={cx(
-                            "rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em]",
+                            "rounded-full border px-2 py-0.5 text-[12px] font-semibold ",
                             row.outcome === "success"
                               ? "border-success-line bg-success-soft text-success"
                               : "border-danger-line bg-danger-soft text-danger",

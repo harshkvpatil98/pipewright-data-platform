@@ -65,7 +65,7 @@ export function Tooltip({ label, shortcut, side = "top", children, className }: 
         >
           {label}
           {shortcut ? (
-            <kbd className="ml-2 rounded border border-line-strong bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-ink-2">
+            <kbd className="ml-2 rounded border border-line-strong bg-surface-2 px-1.5 py-0.5 font-mono text-[12px] text-ink-2">
               {shortcut}
             </kbd>
           ) : null}

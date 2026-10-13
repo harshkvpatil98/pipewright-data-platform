@@ -114,7 +114,7 @@ export function CatalogPageView({
                 type="button"
                 onClick={() => setTag((current) => (current === item ? null : item))}
                 className={cx(
-                  "rounded px-2 py-0.5 text-[11px] transition",
+                  "rounded px-2 py-0.5 text-[12px] transition",
                   tag === item
                     ? "bg-[color:var(--accent)] text-accent-ink"
                     : "bg-surface-2 text-ink-3 hover:text-ink",
@@ -150,7 +150,7 @@ export function CatalogPageView({
                         {hit.description}
                       </p>
                     ) : null}
-                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted">
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[12px] text-muted">
                       {hit.reasons.slice(0, 3).map((reason) => (
                         <span key={reason} className="rounded bg-surface px-1.5 py-0.5">
                           {reason}
@@ -161,20 +161,20 @@ export function CatalogPageView({
                       ) : null}
                     </div>
                     {hit.matched_columns.length > 0 ? (
-                      <div className="mt-1 font-mono text-[10.5px] text-muted">
+                      <div className="mt-1 font-mono text-[12px] text-muted">
                         {hit.matched_columns.join(", ")}
                       </div>
                     ) : null}
                   </div>
                   <div className="flex shrink-0 items-center gap-1.5">
                     {hit.certified ? (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-success-line bg-success-soft px-2 py-0.5 text-[10.5px] text-success">
+                      <span className="inline-flex items-center gap-1 rounded-full border border-success-line bg-success-soft px-2 py-0.5 text-[12px] text-success">
                         <Icon name="check" size={10} />
                         certified
                       </span>
                     ) : null}
                     {hit.owner ? (
-                      <span className="text-[11px] text-muted">{hit.owner}</span>
+                      <span className="text-[12px] text-muted">{hit.owner}</span>
                     ) : null}
                   </div>
                 </div>
@@ -230,7 +230,7 @@ function TermRow({
         <span className="text-[13.5px] font-medium text-ink">{term.term}</span>
         <div className="flex items-center gap-2">
           {term.owner_username ? (
-            <span className="text-[11px] text-muted">{term.owner_username}</span>
+            <span className="text-[12px] text-muted">{term.owner_username}</span>
           ) : null}
           <DeleteRowButton
             path={`/projects/${projectId}/glossary/${term.id}`}
@@ -248,7 +248,7 @@ function TermRow({
           {term.bindings.map((binding) => (
             <span
               key={`${binding.dataset_id}-${binding.column}`}
-              className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[10.5px] text-ink-3"
+              className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[12px] text-ink-3"
             >
               {binding.column}
             </span>
@@ -256,7 +256,7 @@ function TermRow({
         </div>
       ) : null}
       {term.synonyms.length > 0 ? (
-        <div className="mt-1 text-[11px] text-muted">
+        <div className="mt-1 text-[12px] text-muted">
           also called {term.synonyms.join(", ")}
         </div>
       ) : null}

@@ -91,7 +91,7 @@ export function Logo({ name, tagline, size = 36, className, variant = "badge" }:
       <span className="flex flex-col leading-none">
         <span className="text-[17px] font-semibold tracking-tight text-ink">{name}</span>
         {tagline ? (
-          <span className="mt-1.5 whitespace-nowrap text-[10px] uppercase tracking-[0.2em] text-muted">
+          <span className="mt-1.5 whitespace-nowrap text-[12px] text-muted">
             {tagline}
           </span>
         ) : null}

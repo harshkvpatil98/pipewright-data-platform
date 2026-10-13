@@ -116,7 +116,7 @@ export function RunsPageView({ currentUser, initialRuns }: RunsPageProps) {
           <div className="overflow-hidden rounded-[24px] border border-line bg-sunken">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[720px] border-collapse text-left text-sm text-ink">
-                <thead className="border-b border-line text-xs uppercase tracking-[0.14em] text-muted">
+                <thead className="border-b border-line text-xs text-muted">
                   <tr>
                     <th className="py-2 pr-3 font-medium">Project</th>
                     <th className="py-2 pr-3 font-medium">Type</th>

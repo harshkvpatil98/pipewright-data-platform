@@ -106,7 +106,7 @@ export function AccountSecurity() {
                 />
               ))}
             </div>
-            <span className="w-16 text-right text-[11px] text-muted">{strength.label}</span>
+            <span className="w-16 text-right text-[12px] text-muted">{strength.label}</span>
           </div>
         ) : null}
         <FormField label="Confirm new password" htmlFor="pw-confirm">
@@ -136,7 +136,7 @@ export function AccountSecurity() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="text-[13px] text-ink">Sign out everywhere</div>
-            <div className="mt-0.5 text-[11px] text-muted">
+            <div className="mt-0.5 text-[12px] text-muted">
               End every session on every device, including this one. Use it if you think a
               session was left open somewhere.
             </div>

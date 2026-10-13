@@ -214,7 +214,7 @@ export function NotebookPage({
           action={
             <a
               href={`/projects/${projectId}/sources`}
-              className="inline-flex items-center rounded-full border border-[color:var(--accent-soft)] bg-[color:var(--accent-faint)] px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:brightness-110"
+              className="inline-flex items-center rounded-full border border-[color:var(--accent-soft)] bg-[color:var(--accent-faint)] px-4 py-2 text-xs font-medium text-ink hover:brightness-110"
             >
               Add a connection
             </a>
@@ -281,11 +281,11 @@ export function NotebookPage({
       <div className="mx-auto flex h-full w-full max-w-4xl flex-col gap-4 overflow-y-auto p-4">
         <div className="flex flex-wrap items-end gap-3">
           <label className="flex flex-1 flex-col gap-1">
-            <span className="text-xs uppercase tracking-[0.14em] text-muted">Notebook name</span>
+            <span className="text-xs text-muted">Notebook name</span>
             <Input value={name} onChange={(event) => setName(event.target.value)} placeholder="Monthly revenue" />
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-xs uppercase tracking-[0.14em] text-muted">Connection</span>
+            <span className="text-xs text-muted">Connection</span>
             <Select
               value={connectionId ?? ""}
               onChange={(event) => setConnectionId(event.target.value || null)}
@@ -471,7 +471,7 @@ function CellOutput({ result }: { result: CellResult }) {
         </p>
       ) : null}
       {result.stdout ? (
-        <pre className="m-3 overflow-x-auto rounded-lg bg-sunken px-3 py-2 font-mono text-[11px] leading-5 text-ink-2">
+        <pre className="m-3 overflow-x-auto rounded-lg bg-sunken px-3 py-2 font-mono text-[12px] leading-5 text-ink-2">
           {result.stdout}
         </pre>
       ) : null}
@@ -486,7 +486,7 @@ function CellOutput({ result }: { result: CellResult }) {
         </div>
       ) : null}
       {result.truncated ? (
-        <p className="px-3 py-1 text-[11px] text-muted">
+        <p className="px-3 py-1 text-[12px] text-muted">
           Showing the first {result.rows.length.toLocaleString()} of{" "}
           {result.row_count.toLocaleString()} rows.
         </p>

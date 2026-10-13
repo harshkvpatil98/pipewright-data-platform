@@ -279,7 +279,7 @@ export function BiConnectionsPageView({ currentUser, projectId, initialItems }: 
     const set = (patch: Partial<BiFields>) => onChange({ ...fields, ...patch });
     return (
       <div className="flex flex-col gap-3">
-        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
+        <label className="flex flex-col gap-1 text-xs text-muted">
           Tenant ID
           <input
             className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
@@ -288,7 +288,7 @@ export function BiConnectionsPageView({ currentUser, projectId, initialItems }: 
             autoComplete="off"
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
+        <label className="flex flex-col gap-1 text-xs text-muted">
           Client ID
           <input
             className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
@@ -297,7 +297,7 @@ export function BiConnectionsPageView({ currentUser, projectId, initialItems }: 
             autoComplete="off"
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
+        <label className="flex flex-col gap-1 text-xs text-muted">
           Client secret
           <input
             type="password"
@@ -308,7 +308,7 @@ export function BiConnectionsPageView({ currentUser, projectId, initialItems }: 
             autoComplete="new-password"
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
+        <label className="flex flex-col gap-1 text-xs text-muted">
           Workspace ID (optional)
           <input
             className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
@@ -317,7 +317,7 @@ export function BiConnectionsPageView({ currentUser, projectId, initialItems }: 
             autoComplete="off"
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
+        <label className="flex flex-col gap-1 text-xs text-muted">
           Authority URL (optional)
           <input
             className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
@@ -339,7 +339,7 @@ export function BiConnectionsPageView({ currentUser, projectId, initialItems }: 
     const set = (patch: Partial<BiFields>) => onChange({ ...fields, ...patch });
     return (
       <div className="flex flex-col gap-3">
-        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
+        <label className="flex flex-col gap-1 text-xs text-muted">
           Server URL (https)
           <input
             className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
@@ -348,7 +348,7 @@ export function BiConnectionsPageView({ currentUser, projectId, initialItems }: 
             autoComplete="off"
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
+        <label className="flex flex-col gap-1 text-xs text-muted">
           Site / content URL (optional)
           <input
             className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
@@ -357,7 +357,7 @@ export function BiConnectionsPageView({ currentUser, projectId, initialItems }: 
             autoComplete="off"
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
+        <label className="flex flex-col gap-1 text-xs text-muted">
           REST API version
           <input
             className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
@@ -366,7 +366,7 @@ export function BiConnectionsPageView({ currentUser, projectId, initialItems }: 
             autoComplete="off"
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
+        <label className="flex flex-col gap-1 text-xs text-muted">
           Auth mode
           <select
             className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
@@ -381,7 +381,7 @@ export function BiConnectionsPageView({ currentUser, projectId, initialItems }: 
         </label>
         {fields.auth_mode === "password" ? (
           <>
-            <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
+            <label className="flex flex-col gap-1 text-xs text-muted">
               Username
               <input
                 className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
@@ -390,7 +390,7 @@ export function BiConnectionsPageView({ currentUser, projectId, initialItems }: 
                 autoComplete="off"
               />
             </label>
-            <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
+            <label className="flex flex-col gap-1 text-xs text-muted">
               Password
               <input
                 type="password"
@@ -404,7 +404,7 @@ export function BiConnectionsPageView({ currentUser, projectId, initialItems }: 
           </>
         ) : (
           <>
-            <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
+            <label className="flex flex-col gap-1 text-xs text-muted">
               Token name
               <input
                 className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
@@ -413,7 +413,7 @@ export function BiConnectionsPageView({ currentUser, projectId, initialItems }: 
                 autoComplete="off"
               />
             </label>
-            <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
+            <label className="flex flex-col gap-1 text-xs text-muted">
               Token secret
               <input
                 type="password"
@@ -480,7 +480,7 @@ export function BiConnectionsPageView({ currentUser, projectId, initialItems }: 
           ) : null}
           <div className="overflow-x-auto rounded-2xl border border-line">
             <table className="min-w-full divide-y divide-line text-left text-sm text-ink">
-              <thead className="bg-surface text-xs uppercase tracking-[0.14em] text-ink-3">
+              <thead className="bg-surface text-xs text-ink-3">
                 <tr>
                   <th className="cell-pad">Name</th>
                   <th className="cell-pad">Type</th>
@@ -561,7 +561,7 @@ export function BiConnectionsPageView({ currentUser, projectId, initialItems }: 
         }
       >
         <div className="flex flex-col gap-4">
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
+          <label className="flex flex-col gap-1 text-xs text-muted">
             Name
             <input
               className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
@@ -606,7 +606,7 @@ export function BiConnectionsPageView({ currentUser, projectId, initialItems }: 
             <p className="text-xs text-muted">
               Type: <span className="text-ink-2">{integrationLabel(editing.integration_type)}</span>
             </p>
-            <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
+            <label className="flex flex-col gap-1 text-xs text-muted">
               Name
               <input
                 className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"

@@ -124,7 +124,7 @@ function TableView({ data, className }: { data: ChartData; className?: string })
     <div className={cx("max-h-[260px] overflow-auto rounded-xl border border-line", className)}>
       <table className="w-full text-left">
         <thead className="sticky top-0 bg-[color:var(--panel-strong)]">
-          <tr className="text-[11px] uppercase tracking-[0.14em] text-muted">
+          <tr className="text-[12px] text-muted">
             {data.labels.map((label) => (
               <th key={String(label)} className="cell-pad font-medium">
                 {String(label).replace(/_/g, " ")}
@@ -192,7 +192,7 @@ function PieView({
             >
               {total.toLocaleString()}
             </text>
-            <text x={100} y={116} textAnchor="middle" fontSize={10} fill="var(--muted)">
+            <text x={100} y={116} textAnchor="middle" fontSize={12} fill="var(--muted)">
               total
             </text>
           </>
@@ -213,7 +213,7 @@ function PieView({
             </span>
           </li>
         ))}
-        <li className="border-t border-line pt-1.5 text-[11.5px] text-muted">
+        <li className="border-t border-line pt-1.5 text-[12px] text-muted">
           Total {total.toLocaleString()}
         </li>
       </ul>
@@ -262,7 +262,7 @@ function AxisChart({
               x={PADDING.left - 8}
               y={yPosition(tick, scale) + 3.5}
               textAnchor="end"
-              className="fill-muted text-[9px]"
+              className="fill-muted text-[12px]"
             >
               {formatTick(tick)}
             </text>
@@ -330,7 +330,7 @@ function AxisChart({
               x={bands[index].centre}
               y={CHART_HEIGHT - PADDING.bottom + 16}
               textAnchor="middle"
-              className="fill-muted text-[9.5px]"
+              className="fill-muted text-[12px]"
             >
               {truncate(String(label ?? ""))}
             </text>
@@ -341,7 +341,7 @@ function AxisChart({
       {data.series.length > 1 ? (
         <ul className="mt-1 flex flex-wrap gap-3 px-2 pb-1">
           {data.series.map((series, index) => (
-            <li key={series.name} className="flex items-center gap-1.5 text-[11px] text-ink-3">
+            <li key={series.name} className="flex items-center gap-1.5 text-[12px] text-ink-3">
               <span
                 className="h-2 w-2 rounded-sm"
                 style={{ background: PALETTE[index % PALETTE.length] }}

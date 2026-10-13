@@ -92,7 +92,7 @@ export function PolicySimulationPanel({
       description="See exactly what a role, or one person, would see on a dataset before you grant it."
     >
       <div className="flex flex-wrap items-end gap-3">
-        <label className="flex flex-col gap-1 text-[11px] uppercase tracking-[0.14em] text-muted">
+        <label className="flex flex-col gap-1 text-[12px] text-muted">
           Dataset
           <select className={selectClass} value={datasetId} onChange={(e) => setDatasetId(e.target.value)}>
             {datasets.length === 0 ? <option value="">No datasets</option> : null}
@@ -124,7 +124,7 @@ export function PolicySimulationPanel({
         </div>
 
         {mode === "role" ? (
-          <label className="flex flex-col gap-1 text-[11px] uppercase tracking-[0.14em] text-muted">
+          <label className="flex flex-col gap-1 text-[12px] text-muted">
             Role
             <select className={selectClass} value={role} onChange={(e) => setRole(e.target.value)}>
               {ROLES.map((r) => (
@@ -133,7 +133,7 @@ export function PolicySimulationPanel({
             </select>
           </label>
         ) : (
-          <label className="flex flex-col gap-1 text-[11px] uppercase tracking-[0.14em] text-muted">
+          <label className="flex flex-col gap-1 text-[12px] text-muted">
             User
             <select className={selectClass} value={userId} onChange={(e) => setUserId(e.target.value)}>
               {members.length === 0 ? <option value="">No members</option> : null}
@@ -171,12 +171,12 @@ export function PolicySimulationPanel({
           {result.columns_removed.length > 0 || result.columns_masked.length > 0 ? (
             <div className="flex flex-wrap gap-1.5">
               {result.columns_removed.map((c) => (
-                <span key={`r-${c}`} className="rounded-md border border-danger-line bg-danger-soft px-2 py-0.5 text-[11px] text-danger">
+                <span key={`r-${c}`} className="rounded-md border border-danger-line bg-danger-soft px-2 py-0.5 text-[12px] text-danger">
                   {c} removed
                 </span>
               ))}
               {result.columns_masked.map((c) => (
-                <span key={`m-${c}`} className="rounded-md border border-warning-line bg-warning-soft px-2 py-0.5 text-[11px] text-warning">
+                <span key={`m-${c}`} className="rounded-md border border-warning-line bg-warning-soft px-2 py-0.5 text-[12px] text-warning">
                   {c} masked
                 </span>
               ))}
@@ -189,7 +189,7 @@ export function PolicySimulationPanel({
             <div className="overflow-hidden rounded-xl border border-line bg-sunken">
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse text-left text-[12px] text-ink">
-                  <thead className="border-b border-line text-[10px] uppercase tracking-[0.12em] text-muted">
+                  <thead className="border-b border-line text-[12px] text-muted">
                     <tr>
                       {Object.keys(result.sample_rows[0]).map((key) => (
                         <th key={key} className="px-2 py-1.5 font-medium">{key}</th>

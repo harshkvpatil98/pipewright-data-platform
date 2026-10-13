@@ -49,7 +49,7 @@ export default async function SharedDashboardPage({ params }: PageProps) {
   return (
     <main className="mx-auto min-h-screen max-w-6xl px-6 py-10">
       <header className="mb-8 border-b border-line pb-6">
-        <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+        <div className="flex items-center gap-2 text-[12px] font-medium text-muted">
           <span className="inline-block h-1.5 w-1.5 rounded-full bg-[color:var(--accent)]" />
           Shared dashboard
         </div>
@@ -83,7 +83,7 @@ export default async function SharedDashboardPage({ params }: PageProps) {
                 <>
                   <h2 className="text-[13.5px] font-semibold text-ink">{tile.name}</h2>
                   {tile.description ? (
-                    <p className="mt-0.5 text-[11.5px] leading-4 text-muted">{tile.description}</p>
+                    <p className="mt-0.5 text-[12px] leading-4 text-muted">{tile.description}</p>
                   ) : null}
                   <div className="mt-3">{tile.data ? <ChartView data={tile.data} /> : null}</div>
                 </>
@@ -93,7 +93,7 @@ export default async function SharedDashboardPage({ params }: PageProps) {
         </div>
       )}
 
-      <footer className="mt-10 border-t border-line pt-4 text-[11px] text-muted">
+      <footer className="mt-10 border-t border-line pt-4 text-[12px] text-muted">
         Read-only view · Shared via {appConfig.appName}
       </footer>
     </main>

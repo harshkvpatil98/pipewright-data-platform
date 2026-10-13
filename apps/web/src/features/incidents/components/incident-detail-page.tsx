@@ -79,11 +79,11 @@ export function IncidentDetailPageView({
           <Icon name="chevronLeft" size={12} />
           All incidents
         </Link>
-        <span className={cx("rounded-full border px-2 py-0.5 text-[11px] capitalize", SEVERITY_TONE[incident.severity])}>
+        <span className={cx("rounded-full border px-2 py-0.5 text-[12px] capitalize", SEVERITY_TONE[incident.severity])}>
           {incident.severity}
         </span>
         <StatusPill status={incident.status} />
-        <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[11px] text-ink-3">
+        <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[12px] text-ink-3">
           {SOURCE_LABEL[incident.source_kind] ?? incident.source_kind}
         </span>
       </div>
@@ -114,7 +114,7 @@ export function IncidentDetailPageView({
                   </div>
                   <div className="min-w-0 flex-1 border-b border-line pb-3">
                     <div className="text-[12.5px] text-ink">{event.message}</div>
-                    <div className="mt-0.5 text-[11px] text-muted">
+                    <div className="mt-0.5 text-[12px] text-muted">
                       {event.kind.replace("_", " ")}
                       {event.actor_name ? ` · ${event.actor_name}` : ""} ·{" "}
                       {formatDate(event.created_at)}

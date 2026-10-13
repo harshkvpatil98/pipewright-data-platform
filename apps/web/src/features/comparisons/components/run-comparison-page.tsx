@@ -26,13 +26,13 @@ export function RunComparisonPageView({ currentUser, projectId, comparison }: Ru
         <div className="flex flex-wrap gap-2">
           <Link
             href={`/projects/${projectId}/runs/${comparison.run_id}/audit`}
-            className="rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:border-line-strong"
+            className="rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium text-ink hover:border-line-strong"
           >
             Run audit
           </Link>
           <Link
             href={`/projects/${projectId}`}
-            className="rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:border-line-strong"
+            className="rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium text-ink hover:border-line-strong"
           >
             Project
           </Link>
@@ -41,11 +41,11 @@ export function RunComparisonPageView({ currentUser, projectId, comparison }: Ru
       meta={
         <>
           <StatusBadge value={comparison.status} />
-          <span className="rounded-full border border-line bg-surface px-3 py-1 text-xs uppercase tracking-[0.18em] text-ink-2">
+          <span className="rounded-full border border-line bg-surface px-3 py-1 text-xs text-ink-2">
             {formatRunTypeLabel(comparison.run_type)}
           </span>
           {!comparison.summary_available ? (
-            <span className="rounded-full border border-warning-line bg-warning-soft px-3 py-1 text-xs uppercase tracking-[0.18em] text-warning">
+            <span className="rounded-full border border-warning-line bg-warning-soft px-3 py-1 text-xs text-warning">
               Partial summary
             </span>
           ) : null}
@@ -94,7 +94,7 @@ export function RunComparisonPageView({ currentUser, projectId, comparison }: Ru
         <SectionPanel title="Linked datasets" description="IDs from transformation summary when present.">
           <dl className="space-y-3 text-sm">
             <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Base dataset</dt>
+              <dt className="text-xs text-muted">Base dataset</dt>
               <dd className="mt-1">
                 {comparison.base_dataset ? (
                   <Link
@@ -109,7 +109,7 @@ export function RunComparisonPageView({ currentUser, projectId, comparison }: Ru
               </dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Derived dataset</dt>
+              <dt className="text-xs text-muted">Derived dataset</dt>
               <dd className="mt-1">
                 {comparison.derived_dataset ? (
                   <Link
@@ -124,7 +124,7 @@ export function RunComparisonPageView({ currentUser, projectId, comparison }: Ru
               </dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Pipeline id</dt>
+              <dt className="text-xs text-muted">Pipeline id</dt>
               <dd className="mt-1 font-mono text-xs text-ink-2">
                 {comparison.pipeline_id ? (
                   <Link
@@ -139,7 +139,7 @@ export function RunComparisonPageView({ currentUser, projectId, comparison }: Ru
               </dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Steps (summary)</dt>
+              <dt className="text-xs text-muted">Steps (summary)</dt>
               <dd className="mt-1 text-ink">{formatNumber(comparison.step_count)}</dd>
             </div>
           </dl>

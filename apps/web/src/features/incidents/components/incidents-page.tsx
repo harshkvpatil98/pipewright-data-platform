@@ -192,7 +192,7 @@ function IncidentRow({ projectId, incident }: { projectId: string; incident: Inc
           {incident.summary ? (
             <p className="mt-1 line-clamp-2 text-[12.5px] text-ink-3">{incident.summary}</p>
           ) : null}
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-[11.5px] text-muted">
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-[12px] text-muted">
             <span className="rounded bg-surface-2 px-1.5 py-0.5">
               {SOURCE_LABEL[incident.source_kind] ?? incident.source_kind}
             </span>
@@ -207,7 +207,7 @@ function IncidentRow({ projectId, incident }: { projectId: string; incident: Inc
         <div className="flex shrink-0 items-center gap-2">
           <span
             className={cx(
-              "rounded-full border px-2 py-0.5 text-[11px] capitalize",
+              "rounded-full border px-2 py-0.5 text-[12px] capitalize",
               SEVERITY_TONE[incident.severity],
             )}
           >
@@ -228,7 +228,7 @@ export function StatusPill({ status }: { status: IncidentStatus }) {
         ? "border-info-line bg-info-soft text-info"
         : "border-danger-line bg-danger-soft text-danger";
   return (
-    <span className={cx("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] capitalize", tone)}>
+    <span className={cx("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[12px] capitalize", tone)}>
       <Icon name={status === "resolved" ? "check" : "warning"} size={10} />
       {status}
     </span>

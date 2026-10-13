@@ -10,6 +10,7 @@ import { Icon } from "@/components/ui/icon";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { formatDate } from "@/lib/format";
+import { sentenceLabel } from "@/lib/labels";
 import type { AuthUser } from "@platform/shared-types";
 
 export type Organisation = {
@@ -249,11 +250,11 @@ export function OrganisationsPageView({
                             <span className="truncate text-[13.5px] font-medium text-ink">
                               {org.name}
                             </span>
-                            <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[10px] uppercase text-ink-3">
-                              {org.plan}
+                            <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[12px] text-ink-3">
+                              {sentenceLabel(org.plan)}
                             </span>
                           </button>
-                          <span className="text-[11.5px] text-muted">
+                          <span className="text-[12px] text-muted">
                             {org.member_count} member(s) · {org.project_count} project(s) ·
                             created {formatDate(org.created_at)}
                           </span>
@@ -308,7 +309,7 @@ export function OrganisationsPageView({
 
                             {unassigned.length > 0 ? (
                               <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-3">
-                                <span className="text-[11.5px] text-muted">Add somebody:</span>
+                                <span className="text-[12px] text-muted">Add somebody:</span>
                                 <Select
                                   value={assigning}
                                   aria-label={`Add a user to ${org.name}`}

@@ -154,22 +154,22 @@ export function AssistantPageView({
                     className="rounded-lg border border-line px-2.5 py-2"
                   >
                     <div className="flex items-baseline gap-2">
-                      <span className="text-[10.5px] uppercase tracking-wide text-muted">
+                      <span className="text-[12px] text-muted">
                         {index + 1}
                       </span>
                       <span className="text-[12.5px] text-ink">{intent.explanation}</span>
                     </div>
-                    <div className="mt-0.5 pl-5 font-mono text-[10.5px] text-muted">
+                    <div className="mt-0.5 pl-5 font-mono text-[12px] text-muted">
                       {intent.action}
                     </div>
                   </li>
                 ))}
               </ol>
             ) : null}
-            <p className="mt-2 text-[11px] text-muted">{parsed.method}</p>
+            <p className="mt-2 text-[12px] text-muted">{parsed.method}</p>
           </div>
         ) : (
-          <p className="mt-2 text-[11.5px] text-muted">
+          <p className="mt-2 text-[12px] text-muted">
             Try “keep only rows where channel is web”, “remove duplicates and drop notes”, or
             “average amount by region”.
           </p>
@@ -200,22 +200,22 @@ export function AssistantPageView({
                     </div>
                     <span
                       className={cx(
-                        "shrink-0 rounded-full border px-2 py-0.5 text-[10.5px]",
+                        "shrink-0 rounded-full border px-2 py-0.5 text-[12px]",
                         CONFIDENCE_TONE[finding.confidence],
                       )}
                     >
                       {finding.confidence}
                     </span>
                   </div>
-                  <p className="mt-1 text-[11.5px] text-ink-3">{finding.reason}</p>
-                  <p className="mt-1 text-[11px] text-muted">
+                  <p className="mt-1 text-[12px] text-ink-3">{finding.reason}</p>
+                  <p className="mt-1 text-[12px] text-muted">
                     Suggested: {finding.suggested_strategy}. {finding.guidance}
                   </p>
                 </li>
               ))}
             </ul>
           )}
-          {pii ? <p className="mt-2 text-[11px] text-muted">{pii.method}</p> : null}
+          {pii ? <p className="mt-2 text-[12px] text-muted">{pii.method}</p> : null}
         </SectionPanel>
 
         <SectionPanel
@@ -237,14 +237,14 @@ export function AssistantPageView({
                     <span className="text-[12.5px] text-ink">{rule.name}</span>
                     <span
                       className={cx(
-                        "shrink-0 rounded-full border px-2 py-0.5 text-[10.5px]",
+                        "shrink-0 rounded-full border px-2 py-0.5 text-[12px]",
                         CONFIDENCE_TONE[rule.confidence],
                       )}
                     >
                       {rule.confidence}
                     </span>
                   </div>
-                  <p className="mt-1 text-[11.5px] leading-4 text-ink-3">{rule.rationale}</p>
+                  <p className="mt-1 text-[12px] leading-4 text-ink-3">{rule.rationale}</p>
                 </li>
               ))}
             </ul>
@@ -293,14 +293,14 @@ export function AssistantPageView({
                     <span className="text-ink">{candidate.left_value}</span>
                     <span className="text-muted">≈</span>
                     <span className="text-ink">{candidate.right_value}</span>
-                    <span className="ml-auto text-[10.5px] text-muted">
+                    <span className="ml-auto text-[12px] text-muted">
                       {candidate.reason}
                     </span>
                   </li>
                 ))}
               </ul>
             ) : null}
-            <p className="mt-2 text-[11px] text-muted">
+            <p className="mt-2 text-[12px] text-muted">
               {duplicates.comparisons} comparison(s) after blocking.
             </p>
           </>
@@ -317,7 +317,7 @@ export function AssistantPageView({
           </p>
           <div className="mt-1.5 flex flex-wrap gap-1">
             {documentation.dataset.facts_used.map((fact) => (
-              <span key={fact} className="rounded bg-surface-2 px-1.5 py-0.5 text-[10px] text-muted">
+              <span key={fact} className="rounded bg-surface-2 px-1.5 py-0.5 text-[12px] text-muted">
                 from {fact}
               </span>
             ))}
@@ -328,7 +328,7 @@ export function AssistantPageView({
               {documentation.columns.slice(0, 12).map((column) => (
                 <li key={column.subject} className="rounded-lg border border-line px-2.5 py-2">
                   <span className="font-mono text-[12px] text-ink">{column.subject}</span>
-                  <p className="mt-0.5 text-[11.5px] leading-4 text-ink-3">{column.text}</p>
+                  <p className="mt-0.5 text-[12px] leading-4 text-ink-3">{column.text}</p>
                 </li>
               ))}
             </ul>

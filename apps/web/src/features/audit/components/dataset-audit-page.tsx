@@ -46,7 +46,7 @@ export function DatasetAuditPageView({ currentUser, projectId, audit }: DatasetA
           </Button>
           <Link
             href={`/projects/${projectId}/datasets/${audit.id}`}
-            className="rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:border-line-strong"
+            className="rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium text-ink hover:border-line-strong"
           >
             Dataset detail
           </Link>
@@ -56,11 +56,11 @@ export function DatasetAuditPageView({ currentUser, projectId, audit }: DatasetA
         <>
           <StatusBadge value={audit.metrics.ingestion_status} />
           {audit.is_derived ? (
-            <span className="rounded-full border border-accent-line bg-accent-soft px-3 py-1 text-xs uppercase tracking-[0.18em] text-accent">
+            <span className="rounded-full border border-accent-line bg-accent-soft px-3 py-1 text-xs text-accent">
               Derived
             </span>
           ) : null}
-          <span className="rounded-full border border-line bg-surface px-3 py-1 text-xs uppercase tracking-[0.18em] text-ink-2">
+          <span className="rounded-full border border-line bg-surface px-3 py-1 text-xs text-ink-2">
             Project: {audit.project.name}
           </span>
         </>
@@ -95,15 +95,15 @@ export function DatasetAuditPageView({ currentUser, projectId, audit }: DatasetA
         <SectionPanel title="Artifact" description="File names and storage hints safe to display.">
           <dl className="grid gap-3 text-sm">
             <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Original filename</dt>
+              <dt className="text-xs text-muted">Original filename</dt>
               <dd className="mt-1 text-ink">{audit.artifact.original_filename ?? "—"}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Stored file name</dt>
+              <dt className="text-xs text-muted">Stored file name</dt>
               <dd className="mt-1 text-ink">{audit.artifact.file_name ?? "—"}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Type / size</dt>
+              <dt className="text-xs text-muted">Type / size</dt>
               <dd className="mt-1 text-ink">
                 {audit.artifact.file_type ? titleCase(audit.artifact.file_type) : "—"}
                 {audit.artifact.file_size_bytes != null
@@ -112,7 +112,7 @@ export function DatasetAuditPageView({ currentUser, projectId, audit }: DatasetA
               </dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Storage path</dt>
+              <dt className="text-xs text-muted">Storage path</dt>
               <dd className="mt-1 font-mono text-xs text-ink-2 break-all">
                 {audit.artifact.file_path ?? "Not shown (absolute or unsafe paths are hidden)."}
               </dd>
@@ -123,22 +123,22 @@ export function DatasetAuditPageView({ currentUser, projectId, audit }: DatasetA
         <SectionPanel title="Ownership & lifecycle" description="Project context and timestamps.">
           <dl className="grid gap-3 text-sm">
             <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Uploaded by (user id)</dt>
+              <dt className="text-xs text-muted">Uploaded by (user id)</dt>
               <dd className="mt-1 font-mono text-xs text-ink-2">
                 {audit.ownership.uploaded_by_user_id ?? "—"}
                 {audit.ownership.uploaded_by_user_id === currentUser.id ? " (you)" : ""}
               </dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Created</dt>
+              <dt className="text-xs text-muted">Created</dt>
               <dd className="mt-1 text-ink">{formatDate(audit.metrics.created_at)}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Updated</dt>
+              <dt className="text-xs text-muted">Updated</dt>
               <dd className="mt-1 text-ink">{formatDate(audit.metrics.updated_at)}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Last profiled</dt>
+              <dt className="text-xs text-muted">Last profiled</dt>
               <dd className="mt-1 text-ink">
                 {audit.metrics.last_profiled_at ? formatDate(audit.metrics.last_profiled_at) : "Not yet"}
               </dd>
@@ -159,19 +159,19 @@ export function DatasetAuditPageView({ currentUser, projectId, audit }: DatasetA
         ) : (
           <dl className="grid gap-4 md:grid-cols-2 text-sm">
             <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">High-null columns</dt>
+              <dt className="text-xs text-muted">High-null columns</dt>
               <dd className="mt-1 text-ink">
                 {ph.high_null_columns.length ? ph.high_null_columns.join(", ") : "—"}
               </dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Constant columns</dt>
+              <dt className="text-xs text-muted">Constant columns</dt>
               <dd className="mt-1 text-ink">
                 {ph.constant_value_columns.length ? ph.constant_value_columns.join(", ") : "—"}
               </dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Potential identifier columns</dt>
+              <dt className="text-xs text-muted">Potential identifier columns</dt>
               <dd className="mt-1 text-ink">
                 {ph.potential_id_columns.length ? ph.potential_id_columns.join(", ") : "—"}
               </dd>
@@ -196,7 +196,7 @@ export function DatasetAuditPageView({ currentUser, projectId, audit }: DatasetA
         <SectionPanel title="Lineage & related runs" description="Foreign keys stored on the dataset row.">
           <dl className="grid gap-3 text-sm">
             <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Parent dataset</dt>
+              <dt className="text-xs text-muted">Parent dataset</dt>
               <dd className="mt-1 text-ink">
                 {audit.lineage.parent_dataset_id ? (
                   <Link
@@ -211,13 +211,13 @@ export function DatasetAuditPageView({ currentUser, projectId, audit }: DatasetA
               </dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Created from pipeline</dt>
+              <dt className="text-xs text-muted">Created from pipeline</dt>
               <dd className="mt-1 font-mono text-xs text-ink-2">
                 {audit.lineage.created_from_pipeline_id ?? "—"}
               </dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Ingestion / materialization run</dt>
+              <dt className="text-xs text-muted">Ingestion / materialization run</dt>
               <dd className="mt-1 text-ink">
                 {audit.lineage.pipeline_run_id ? (
                   <Link

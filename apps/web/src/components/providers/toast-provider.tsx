@@ -104,7 +104,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                           dismiss(toast.id);
                           action.onClick();
                         }}
-                        className="rounded-lg border border-current px-2.5 py-1 text-[11.5px] font-medium opacity-90 transition hover:opacity-100"
+                        className="rounded-lg border border-current px-2.5 py-1 text-[12px] font-medium opacity-90 transition hover:opacity-100"
                       >
                         {action.label}
                       </button>

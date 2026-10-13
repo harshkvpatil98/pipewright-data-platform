@@ -275,7 +275,7 @@ export function DashboardsPageView({
                         </span>
                       ) : null}
                     </div>
-                    <div className="mt-0.5 truncate text-[11.5px] text-muted">
+                    <div className="mt-0.5 truncate text-[12px] text-muted">
                       {dashboard.description ?? "No description."} · updated{" "}
                       {formatDate(dashboard.updated_at)}
                     </div>
@@ -375,7 +375,7 @@ export function DashboardsPageView({
                       onChange={() => toggleTile(chart.id)}
                     />
                     <span className="truncate">{chart.name}</span>
-                    <span className="ml-auto shrink-0 text-[10.5px] capitalize text-muted">
+                    <span className="ml-auto shrink-0 text-[12px] capitalize text-muted">
                       {chart.chart_type}
                     </span>
                   </label>

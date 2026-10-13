@@ -27,14 +27,14 @@ function humanise(ms: number): string {
  */
 export function RunTimelineView({ timeline }: { timeline: RunTimeline }) {
   if (timeline.entries.length === 0) {
-    return <p className="text-[11px] text-muted">{timeline.summary}</p>;
+    return <p className="text-[12px] text-muted">{timeline.summary}</p>;
   }
 
   const total = Math.max(timeline.total_ms, 1);
 
   return (
     <div>
-      <div className="mb-1.5 text-[11px] uppercase tracking-[0.16em] text-muted">Timeline</div>
+      <div className="mb-1.5 text-[12px] text-muted">Timeline</div>
       <ul className="space-y-1.5">
         {timeline.entries.map((entry) => {
           const left = (entry.offset_ms / total) * 100;
@@ -46,14 +46,14 @@ export function RunTimelineView({ timeline }: { timeline: RunTimeline }) {
               <div className="flex items-baseline justify-between gap-2">
                 <span
                   className={cx(
-                    "truncate text-[11.5px]",
+                    "truncate text-[12px]",
                     entry.node_key === timeline.slowest_node_key ? "text-ink" : "text-ink-3",
                   )}
                   title={entry.node_name}
                 >
                   {entry.node_name}
                 </span>
-                <span className="shrink-0 tabular text-[10px] text-muted">
+                <span className="shrink-0 tabular text-[12px] text-muted">
                   {entry.duration_ms > 0 ? humanise(entry.duration_ms) : entry.status}
                 </span>
               </div>
@@ -74,7 +74,7 @@ export function RunTimelineView({ timeline }: { timeline: RunTimeline }) {
           );
         })}
       </ul>
-      <p className="mt-2 text-[11px] leading-5 text-muted">{timeline.summary}</p>
+      <p className="mt-2 text-[12px] leading-5 text-muted">{timeline.summary}</p>
     </div>
   );
 }

@@ -132,7 +132,7 @@ export function SettingsPageView({ currentUser }: SettingsPageProps) {
               <div className="text-[13px] text-ink">
                 {toursSeen} of {TOUR_KEYS.length} tours completed
               </div>
-              <div className="mt-0.5 text-[11px] text-muted">
+              <div className="mt-0.5 text-[12px] text-muted">
                 Progress is stored in this browser only.
               </div>
             </div>
@@ -161,7 +161,7 @@ export function SettingsPageView({ currentUser }: SettingsPageProps) {
           <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5">
             <div className="text-[13px] text-ink">
               Navigation and inspector state
-              <div className="mt-0.5 text-[11px] text-muted">
+              <div className="mt-0.5 text-[12px] text-muted">
                 Put the navigation and side panels back where they start.
               </div>
             </div>
@@ -245,7 +245,7 @@ function Shortcut({ keys, action }: { keys: string; action: string }) {
   return (
     <div className="flex items-center justify-between gap-4 px-4 py-2.5">
       <span className="text-[13px] text-ink-2">{action}</span>
-      <kbd className="shrink-0 rounded border border-line bg-surface px-2 py-1 font-mono text-[11px] text-ink-2">
+      <kbd className="shrink-0 rounded border border-line bg-surface px-2 py-1 font-mono text-[12px] text-ink-2">
         {keys}
       </kbd>
     </div>

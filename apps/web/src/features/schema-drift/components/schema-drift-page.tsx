@@ -90,7 +90,7 @@ export function SchemaDriftPageView({
           ] as const
         ).map(([label, value]) => (
           <div key={label} className="rounded-2xl border border-line bg-[color:var(--panel)] px-5 py-4">
-            <div className="text-[11px] uppercase tracking-[0.2em] text-muted">{label}</div>
+            <div className="text-[12px] text-muted">{label}</div>
             <div className="mt-2 text-3xl font-semibold tabular tracking-tight text-ink">{value}</div>
           </div>
         ))}
@@ -122,7 +122,7 @@ export function SchemaDriftPageView({
                     <div className="flex flex-wrap items-center gap-2">
                       <span
                         className={cx(
-                          "rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.18em]",
+                          "rounded-full border px-2.5 py-1 text-[12px] font-medium ",
                           SEVERITY_TONE[event.severity],
                         )}
                       >
@@ -139,7 +139,7 @@ export function SchemaDriftPageView({
                     <div className="mt-3 flex flex-wrap gap-4 text-xs">
                       {event.added_columns && event.added_columns.length > 0 ? (
                         <div>
-                          <div className="text-[10px] uppercase tracking-[0.16em] text-success">
+                          <div className="text-[12px] text-success">
                             Added
                           </div>
                           <div className="mt-1 font-mono text-ink-2">
@@ -149,7 +149,7 @@ export function SchemaDriftPageView({
                       ) : null}
                       {event.removed_columns && event.removed_columns.length > 0 ? (
                         <div>
-                          <div className="text-[10px] uppercase tracking-[0.16em] text-danger">
+                          <div className="text-[12px] text-danger">
                             Removed
                           </div>
                           <div className="mt-1 font-mono text-ink-2">
@@ -159,7 +159,7 @@ export function SchemaDriftPageView({
                       ) : null}
                       {event.type_changes && event.type_changes.length > 0 ? (
                         <div>
-                          <div className="text-[10px] uppercase tracking-[0.16em] text-warning">
+                          <div className="text-[12px] text-warning">
                             Type changes
                           </div>
                           <div className="mt-1 space-y-0.5 font-mono text-ink-2">
@@ -266,7 +266,7 @@ function ConnectorWatchPanel({ projectId }: { projectId: string }) {
         <Button type="button" onClick={() => void sweep(true)} disabled={busy !== null}>
           {busy === "run" ? "Running…" : "Run the watch now"}
         </Button>
-        <span className="text-[11.5px] text-muted">
+        <span className="text-[12px] text-muted">
           Checking records nothing and opens no incidents. Useful the first time, when
           everything looks like a change.
         </span>
@@ -289,7 +289,7 @@ function ConnectorWatchPanel({ projectId }: { projectId: string }) {
               <p key={`${row.connection_id}:${row.stream}`} className="mt-1.5">
                 <span
                   className={cx(
-                    "mr-2 rounded-full border px-2 py-0.5 text-[10.5px]",
+                    "mr-2 rounded-full border px-2 py-0.5 text-[12px]",
                     SEVERITY_TONE[(row.severity as DriftSeverity) ?? "none"] ?? SEVERITY_TONE.none,
                   )}
                 >
@@ -310,7 +310,7 @@ function ConnectorWatchPanel({ projectId }: { projectId: string }) {
       {status && status.items.length > 0 ? (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-[12.5px]">
-            <thead className="text-[11px] uppercase tracking-[0.14em] text-muted">
+            <thead className="text-[12px] text-muted">
               <tr>
                 <th className="cell-pad">Stream</th>
                 <th className="cell-pad">Connector</th>
@@ -342,7 +342,7 @@ function ConnectorWatchPanel({ projectId }: { projectId: string }) {
           Nothing is being watched yet. Run the watch once to record what each connection&rsquo;s
           streams look like today; from then on a change is something it can tell you about.
           {status && status.describable.length > 0 ? (
-            <span className="mt-1 block text-[11.5px]">
+            <span className="mt-1 block text-[12px]">
               {status.describable.length} connector
               {status.describable.length === 1 ? "" : "s"} in the catalogue can describe their
               columns without a live credential.

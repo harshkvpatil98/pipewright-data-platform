@@ -504,7 +504,7 @@ export function TableEditorPage({
             action={
               <a
                 href={`/projects/${projectId}/sources`}
-                className="inline-flex items-center rounded-full border border-[color:var(--accent-soft)] bg-[color:var(--accent-faint)] px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:brightness-110"
+                className="inline-flex items-center rounded-full border border-[color:var(--accent-soft)] bg-[color:var(--accent-faint)] px-4 py-2 text-xs font-medium text-ink hover:brightness-110"
               >
                 Add a connection
               </a>
@@ -513,7 +513,7 @@ export function TableEditorPage({
         ) : null}
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.14em] text-muted">
+          <label className="flex flex-col gap-1 text-xs text-muted">
             Connection
             <Select value={connectionId} onChange={(event) => setConnectionId(event.target.value)}>
               {connections.length === 0 ? <option value="">No connections</option> : null}
@@ -524,7 +524,7 @@ export function TableEditorPage({
               ))}
             </Select>
           </label>
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.14em] text-muted">
+          <label className="flex flex-col gap-1 text-xs text-muted">
             Table
             <Select value={tableName} onChange={(event) => setTableName(event.target.value)}>
               <option value="">Choose a table…</option>
@@ -562,7 +562,7 @@ export function TableEditorPage({
               setColumnFormOpen(false);
             }}
           >
-            <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.14em] text-muted">
+            <label className="flex flex-col gap-1 text-xs text-muted">
               Column name
               <Input
                 value={newColumn.name}
@@ -570,7 +570,7 @@ export function TableEditorPage({
                 autoFocus
               />
             </label>
-            <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.14em] text-muted">
+            <label className="flex flex-col gap-1 text-xs text-muted">
               Type
               <Select
                 value={newColumn.type}
@@ -767,7 +767,7 @@ function ReviewDialog({
         </ol>
 
         {plan.needs_confirmation ? (
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.14em] text-muted">
+          <label className="flex flex-col gap-1 text-xs text-muted">
             Type {tableName} to confirm
             <Input
               value={confirmation}

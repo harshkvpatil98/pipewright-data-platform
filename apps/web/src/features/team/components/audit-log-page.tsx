@@ -88,7 +88,7 @@ export function AuditLogPageView({ currentUser, projectId, initial }: AuditLogPa
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] text-left">
               <thead>
-                <tr className="text-[11px] uppercase tracking-[0.14em] text-muted">
+                <tr className="text-[12px] text-muted">
                   <th className="pb-2 pr-3 font-medium">When</th>
                   <th className="pb-2 pr-3 font-medium">Who</th>
                   <th className="pb-2 pr-3 font-medium">Did what</th>
@@ -112,28 +112,28 @@ export function AuditLogPageView({ currentUser, projectId, initial }: AuditLogPa
 function AuditRow({ entry }: { entry: AuditEntry }) {
   return (
     <tr className="align-top">
-      <td className="py-2.5 pr-3 text-[11.5px] text-muted">{formatDate(entry.created_at)}</td>
+      <td className="py-2.5 pr-3 text-[12px] text-muted">{formatDate(entry.created_at)}</td>
       <td className="py-2.5 pr-3 text-[12.5px] text-ink">
         {entry.actor_username ?? "unknown"}
       </td>
       <td className="py-2.5 pr-3">
         <div className="text-[12.5px] capitalize text-ink">{entry.action}</div>
-        <div className="truncate font-mono text-[10.5px] text-muted">
+        <div className="truncate font-mono text-[12px] text-muted">
           {entry.method} {entry.path}
         </div>
       </td>
       <td className="py-2.5 pr-3">
         <span
           className={cx(
-            "rounded-full border px-2 py-0.5 text-[11px] capitalize",
+            "rounded-full border px-2 py-0.5 text-[12px] capitalize",
             OUTCOME_TONE[entry.outcome],
           )}
         >
           {entry.outcome === "denied" ? "refused" : entry.outcome}
         </span>
-        <span className="ml-1.5 text-[10.5px] text-muted">{entry.status_code}</span>
+        <span className="ml-1.5 text-[12px] text-muted">{entry.status_code}</span>
       </td>
-      <td className="py-2.5 tabular text-[11.5px] text-muted">
+      <td className="py-2.5 tabular text-[12px] text-muted">
         {entry.duration_ms !== null ? `${entry.duration_ms} ms` : "—"}
       </td>
     </tr>

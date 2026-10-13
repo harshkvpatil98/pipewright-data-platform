@@ -87,7 +87,8 @@ export function TopBar({
     .split(/\s+/)
     .map((part) => part[0])
     .join("")
-    .slice(0, 2);
+    .slice(0, 2)
+    .toUpperCase();
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-3 border-b border-line bg-[color:var(--panel-strong)] px-3">
@@ -237,7 +238,7 @@ export function TopBar({
           aria-expanded={menuOpen}
           className="flex h-9 items-center gap-2 rounded-xl border border-line bg-surface pl-1 pr-2.5 transition hover:border-line-strong hover:bg-surface-2"
         >
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-[color:var(--brand-gradient-from)] to-[color:var(--brand-gradient-to)] text-[12px] font-semibold uppercase text-accent-ink">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-[color:var(--brand-gradient-from)] to-[color:var(--brand-gradient-to)] text-[12px] font-semibold text-accent-ink">
             {initials}
           </span>
           <Icon name="chevronDown" size={12} className="text-muted" />

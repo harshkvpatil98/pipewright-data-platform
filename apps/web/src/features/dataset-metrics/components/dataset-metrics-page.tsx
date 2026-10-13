@@ -191,7 +191,7 @@ export function DatasetMetricsPageView({
                     void refresh(value);
                   }}
                   className={cx(
-                    "rounded-md px-2 py-1 text-[11.5px] capitalize transition",
+                    "rounded-md px-2 py-1 text-[12px] capitalize transition",
                     sensitivity === value
                       ? "bg-[color:var(--accent)] text-accent-ink"
                       : "text-ink-3 hover:text-ink",
@@ -289,7 +289,7 @@ function AnomalyRow({ anomaly }: { anomaly: Anomaly }) {
       </div>
       <span
         className={cx(
-          "shrink-0 rounded-full border px-2 py-0.5 text-[10.5px] capitalize",
+          "shrink-0 rounded-full border px-2 py-0.5 text-[12px] capitalize",
           SEVERITY_TONE[anomaly.severity],
         )}
       >
@@ -306,11 +306,11 @@ function MetricCard({ series }: { series: MetricSeries }) {
   return (
     <div className="rounded-xl border border-line bg-surface px-3 py-3">
       <div className="flex items-baseline justify-between gap-2">
-        <span className="truncate text-[11.5px] capitalize text-ink-3">{series.label}</span>
+        <span className="truncate text-[12px] capitalize text-ink-3">{series.label}</span>
         {series.change_percentage !== null ? (
           <span
             className={cx(
-              "shrink-0 text-[11px]",
+              "shrink-0 text-[12px]",
               rising ? "text-success" : "text-danger",
             )}
           >
@@ -350,7 +350,7 @@ function MetricCard({ series }: { series: MetricSeries }) {
           />
         ) : null}
       </svg>
-      <div className="mt-1 text-[10.5px] text-muted">
+      <div className="mt-1 text-[12px] text-muted">
         {series.points.length} run{series.points.length === 1 ? "" : "s"}
       </div>
     </div>

@@ -17,7 +17,7 @@ export function PageHeader({
     <header className="border-b border-line px-6 py-7 lg:px-10 lg:py-8">
       <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
         <div className="max-w-4xl">
-          <div className="text-[11px] uppercase tracking-[0.28em] text-[color:var(--accent-muted)]">
+          <div className="text-[12px] text-[color:var(--accent-muted)]">
             {eyebrow}
           </div>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight text-ink lg:text-[2rem]">

@@ -390,7 +390,7 @@ export function StepPalette({
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="mb-3">
-      <h3 className="px-3 pb-1 pt-2 text-[12px] font-semibold uppercase tracking-[0.08em] text-muted">{title}</h3>
+      <h3 className="px-3 pb-1 pt-2 text-[12px] font-semibold text-muted">{title}</h3>
       {children}
     </section>
   );

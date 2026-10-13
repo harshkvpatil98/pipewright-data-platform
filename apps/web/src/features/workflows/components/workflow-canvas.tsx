@@ -254,7 +254,7 @@ export function WorkflowCanvas({
                     y={mid.y - 8}
                     textAnchor="middle"
                     className="select-none"
-                    style={{ fontSize: 10, fill: style.stroke }}
+                    style={{ fontSize: 12, fill: style.stroke }}
                   >
                     {active ? "click to remove" : style.label}
                   </text>
@@ -317,7 +317,7 @@ export function WorkflowCanvas({
                     {node.name}
                   </span>
                   <span
-                    className="block truncate text-[10px] uppercase tracking-[0.14em] text-muted"
+                    className="block truncate text-[12px] text-muted"
                     data-node-key={node.node_key}
                   >
                     {meta.label}

@@ -186,7 +186,7 @@ export function PublishPowerBiModal({ open, onClose, projectId, datasetId }: Pub
             first.
           </p>
         ) : (
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
+          <label className="flex flex-col gap-1 text-xs text-muted">
             Power BI connection
             <select
               className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
@@ -211,7 +211,7 @@ export function PublishPowerBiModal({ open, onClose, projectId, datasetId }: Pub
           </Button>
         </div>
         {workspaces.length > 0 ? (
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
+          <label className="flex flex-col gap-1 text-xs text-muted">
             Workspace (from discovery)
             <select
               className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
@@ -226,7 +226,7 @@ export function PublishPowerBiModal({ open, onClose, projectId, datasetId }: Pub
             </select>
           </label>
         ) : null}
-        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
+        <label className="flex flex-col gap-1 text-xs text-muted">
           Workspace ID (paste UUID if not using discovery)
           <input
             className="rounded-xl border border-line bg-surface px-3 py-2 font-mono text-sm text-ink"
@@ -236,7 +236,7 @@ export function PublishPowerBiModal({ open, onClose, projectId, datasetId }: Pub
             autoComplete="off"
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
+        <label className="flex flex-col gap-1 text-xs text-muted">
           Target dataset name
           <input
             className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
@@ -246,7 +246,7 @@ export function PublishPowerBiModal({ open, onClose, projectId, datasetId }: Pub
             autoComplete="off"
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
+        <label className="flex flex-col gap-1 text-xs text-muted">
           Target table name
           <input
             className="rounded-xl border border-line bg-surface px-3 py-2 font-mono text-sm text-ink"
@@ -256,7 +256,7 @@ export function PublishPowerBiModal({ open, onClose, projectId, datasetId }: Pub
             autoComplete="off"
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
+        <label className="flex flex-col gap-1 text-xs text-muted">
           Write mode
           <select
             className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"

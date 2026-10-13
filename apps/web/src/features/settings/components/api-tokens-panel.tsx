@@ -11,6 +11,12 @@ import { extractErrorMessage } from "@/lib/api/errors";
 import { formatDate } from "@/lib/format";
 import type { ApiToken, ApiTokenCreatedResponse, ApiTokenListResponse } from "@platform/shared-types";
 
+const SCOPE_LABEL: Record<ApiToken["scope"], string> = {
+  read: "Read only",
+  write: "Read and write",
+  admin: "Full access",
+};
+
 const SCOPE_HELP: Record<ApiToken["scope"], string> = {
   read: "Read only. Can fetch data but cannot change anything.",
   write: "Read and write. Can create and edit, but cannot manage accounts.",
@@ -143,14 +149,14 @@ export function ApiTokensPanel() {
                     <span className={`text-[13px] ${revoked ? "text-muted line-through" : "text-ink"}`}>
                       {token.name}
                     </span>
-                    <code className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[10.5px] text-ink-3">
+                    <code className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[12px] text-ink-3">
                       {token.prefix}…
                     </code>
-                    <span className="rounded-full border border-line px-1.5 py-0.5 text-[10px] uppercase tracking-[0.1em] text-ink-3">
-                      {token.scope}
+                    <span className="rounded-full border border-line px-1.5 py-0.5 text-[12px] text-ink-3">
+                      {SCOPE_LABEL[token.scope] ?? token.scope}
                     </span>
                   </div>
-                  <div className="mt-0.5 text-[11px] text-muted">
+                  <div className="mt-0.5 text-[12px] text-muted">
                     {revoked
                       ? `Revoked ${formatDate(token.revoked_at as string)}`
                       : token.last_used_at

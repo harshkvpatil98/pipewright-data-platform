@@ -63,7 +63,7 @@ export function NodeInspector({
         </span>
         <div className="min-w-0">
           <div className="truncate text-[13px] font-medium text-ink">{meta.label}</div>
-          <div className="truncate font-mono text-[10px] text-muted">{node.node_key}</div>
+          <div className="truncate font-mono text-[12px] text-muted">{node.node_key}</div>
         </div>
       </div>
 
@@ -133,7 +133,7 @@ export function NodeInspector({
           />
           <span>
             Quarantine failing rows
-            <span className="mt-0.5 block text-[11px] text-muted">
+            <span className="mt-0.5 block text-[12px] text-muted">
               Passes the clean rows downstream instead of the original dataset.
             </span>
           </span>
@@ -223,7 +223,7 @@ export function NodeInspector({
         />
         <span>
           Keep going if this step fails
-          <span className="mt-0.5 block text-[11px] text-muted">
+          <span className="mt-0.5 block text-[12px] text-muted">
             The run is marked partial rather than failed.
           </span>
         </span>
@@ -231,7 +231,7 @@ export function NodeInspector({
 
       {incoming.length > 0 ? (
         <div>
-          <div className="mb-1.5 text-[11px] uppercase tracking-[0.16em] text-muted">
+          <div className="mb-1.5 text-[12px] text-muted">
             Runs after
           </div>
           <div className="space-y-1.5">
@@ -246,7 +246,7 @@ export function NodeInspector({
                 </span>
                 <select
                   aria-label={`Condition from ${edge.from_node_key}`}
-                  className="h-7 rounded-md border border-line bg-sunken px-1.5 text-[11px] text-ink outline-none"
+                  className="h-7 rounded-md border border-line bg-sunken px-1.5 text-[12px] text-ink outline-none"
                   value={edge.condition}
                   onChange={(event) =>
                     onChangeEdgeCondition(
@@ -307,7 +307,7 @@ function DatasetSource({
           }}
           disabled={upstreamKeys.length === 0}
           className={cx(
-            "flex-1 rounded-md px-2 py-1 text-[11px] transition disabled:opacity-40",
+            "flex-1 rounded-md px-2 py-1 text-[12px] transition disabled:opacity-40",
             usingUpstream ? "bg-[color:var(--accent)] text-accent-ink" : "text-ink-3",
           )}
         >
@@ -320,7 +320,7 @@ function DatasetSource({
             setConfig("dataset_id", "");
           }}
           className={cx(
-            "flex-1 rounded-md px-2 py-1 text-[11px] transition",
+            "flex-1 rounded-md px-2 py-1 text-[12px] transition",
             usingUpstream ? "text-ink-3" : "bg-[color:var(--accent)] text-accent-ink",
           )}
         >
@@ -360,11 +360,11 @@ function DatasetSource({
       )}
 
       {upstreamKeys.length === 0 && usingUpstream ? (
-        <p className="mt-1.5 text-[11px] text-warning">
+        <p className="mt-1.5 text-[12px] text-warning">
           Connect a step into this one first.
         </p>
       ) : (
-        <p className="mt-1.5 text-[11px] text-muted">
+        <p className="mt-1.5 text-[12px] text-muted">
           {usingUpstream
             ? "Uses whatever that step produced on this run."
             : "Always reads the same dataset."}

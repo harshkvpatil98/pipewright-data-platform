@@ -35,7 +35,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
-import { formatDate } from "@/lib/format";
+import { countOf, formatDate } from "@/lib/format";
 import { cx } from "@/lib/utils";
 import { sentenceLabel } from "@/lib/labels";
 
@@ -321,7 +321,7 @@ export function MetricsPageView({ currentUser, projectId, initial, datasets }: M
                       kind="metric"
                       consequences={[
                         metric.used_by_charts > 0
-                          ? `${metric.used_by_charts} chart(s) resolve through it; the API will refuse until they are re-pointed.`
+                          ? `${countOf(metric.used_by_charts, "chart")} ${metric.used_by_charts === 1 ? "uses" : "use"} it, so it cannot be deleted until ${metric.used_by_charts === 1 ? "that chart uses" : "they use"} something else.`
                           : "No chart resolves through it.",
                       ]}
                       onDeleted={() => setMetrics((current) => current.filter((item) => item.id !== metric.id))}

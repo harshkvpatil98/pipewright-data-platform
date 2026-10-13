@@ -7,6 +7,8 @@ import pandas as pd
 from pandas.api.types import is_datetime64_any_dtype, is_numeric_dtype
 
 from shared_python.errors import BadRequestError
+from shared_python.words import listing
+from shared_python.words import noun
 
 ALLOWED_CAST_TARGET_TYPES = frozenset({"string", "int", "float", "datetime", "boolean"})
 ALLOWED_FILL_NULL_STRATEGIES = frozenset({"constant", "mean", "median", "mode"})
@@ -36,11 +38,11 @@ def ensure_config_keys(
     optional = optional or set()
     missing_keys = sorted(required - set(config.keys()))
     if missing_keys:
-        raise BadRequestError(f"config is missing required field(s): {', '.join(missing_keys)}.")
+        raise BadRequestError(f"This step needs {listing(missing_keys)}.")
 
     extra_keys = sorted(set(config.keys()) - required - optional)
     if extra_keys:
-        raise BadRequestError(f"config contains unsupported field(s): {', '.join(extra_keys)}.")
+        raise BadRequestError(f"This step has settings it does not use: {listing(extra_keys)}.")
 
     return config
 
@@ -48,7 +50,7 @@ def ensure_config_keys(
 def ensure_columns_exist(dataframe: pd.DataFrame, columns: list[str], *, field_name: str) -> None:
     missing = [column for column in columns if column not in dataframe.columns]
     if missing:
-        raise BadRequestError(f"{field_name} contains unknown column(s): {', '.join(missing)}.")
+        raise BadRequestError(f"{field_name} names {noun(len(missing), 'a column', 'columns')} this data does not have: {listing(missing)}.")
 
 
 def require_string_list(value: Any, *, field_name: str, allow_empty: bool = False) -> list[str]:

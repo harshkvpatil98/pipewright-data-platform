@@ -103,7 +103,7 @@ def test_aggregate_rejects_duplicate_alias(sales: pd.DataFrame) -> None:
 
 
 def test_aggregate_rejects_alias_colliding_with_group_by(sales: pd.DataFrame) -> None:
-    with pytest.raises(BadRequestError, match="collide"):
+    with pytest.raises(BadRequestError, match="same as the group_by"):
         apply_aggregate(
             sales,
             {"group_by": ["region"], "aggregations": [{"column": "amount", "function": "sum", "alias": "region"}]},
@@ -177,7 +177,7 @@ def test_join_rejects_mismatched_key_counts(sales: pd.DataFrame, customers: pd.D
 
 
 def test_join_rejects_unknown_right_column(sales: pd.DataFrame, customers: pd.DataFrame) -> None:
-    with pytest.raises(BadRequestError, match="unknown column"):
+    with pytest.raises(BadRequestError, match="does not have"):
         apply_join_datasets(
             sales,
             {"right_dataset_id": RIGHT_ID, "left_on": ["customer_id"], "right_on": ["nope"]},

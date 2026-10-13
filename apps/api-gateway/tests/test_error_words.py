@@ -57,3 +57,9 @@ def test_refusals_people_see_use_the_products_words() -> None:
         if name in shown and RETIRED.search(text)
     ]
     assert offenders == []
+
+
+def test_counts_are_written_out_not_marked_with_s() -> None:
+    """"3 columns", never "column(s)": `shared_python.words` does the counting."""
+    offenders = [f"{where}: {text}" for where, _name, text in _raised_messages() if "(s)" in text]
+    assert offenders == []

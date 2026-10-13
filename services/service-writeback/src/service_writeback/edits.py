@@ -14,6 +14,7 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from shared_python.errors import BadRequestError
+from shared_python.words import listing, noun
 
 #: Beyond this, a change is asked to be confirmed by typing the table name.
 DEFAULT_BLAST_RADIUS = 1_000
@@ -187,7 +188,7 @@ def validate(edit: Edit, *, columns: tuple[str, ...], key_columns: tuple[str, ..
         unknown = [name for name in edit.values if name not in columns]
         if unknown:
             raise BadRequestError(
-                f"Column(s) {', '.join(unknown)} are not in this table."
+                f"This table has no {noun(len(unknown), 'column')} called {listing(unknown)}."
             )
 
     elif edit.kind is EditKind.ADD_COLUMN:
@@ -225,7 +226,7 @@ def _require_key(edit: Edit, key_columns: tuple[str, ...]) -> None:
     missing = [name for name in key_columns if name not in edit.key]
     if missing:
         raise BadRequestError(
-            f"This edit is missing key value(s): {', '.join(missing)}."
+            f"This edit is missing a value for {listing(missing)}, which identifies the row."
         )
 
 

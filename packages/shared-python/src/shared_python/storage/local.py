@@ -41,3 +41,9 @@ class LocalStorageBackend:
 
     def exists(self, relative_path: str) -> bool:
         return self._resolve(relative_path).exists()
+
+    def list_paths(self):
+        """Every stored file's relative path, for maintenance commands."""
+        for path in sorted(self.root_path.rglob("*")):
+            if path.is_file():
+                yield path.relative_to(self.root_path).as_posix()

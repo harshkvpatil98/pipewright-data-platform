@@ -11,6 +11,7 @@ import type {
 
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
+import { countOf } from "@/lib/format";
 
 /**
  * Turn a second factor on and off.
@@ -189,7 +190,7 @@ export function MfaPanel() {
           <Badge tone="success">
             On
           </Badge>
-          <span>{status.recovery_codes_remaining} recovery code(s) left.</span>
+          <span>{countOf(status.recovery_codes_remaining, "recovery code")} left.</span>
         </div>
         <p className="text-[13px] leading-6 text-ink-3">
           Enter a current code (or a recovery code) to change or turn off two-factor.

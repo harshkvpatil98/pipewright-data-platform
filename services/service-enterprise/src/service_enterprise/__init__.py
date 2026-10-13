@@ -15,6 +15,17 @@ from service_enterprise.usage import record as record_usage
 
 tenancy.register()
 
+
+def _register_network_gate() -> None:
+    """Organisations' network lists refuse requests from elsewhere (A6, W5)."""
+    from service_auth.network_gate import register_network_gate
+    from service_enterprise.service import network_gate
+
+    register_network_gate(network_gate)
+
+
+_register_network_gate()
+
 __all__ = [
     "Policy",
     "apply_policies",

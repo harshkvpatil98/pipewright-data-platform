@@ -58,7 +58,7 @@ class TestProjectValidation:
 
     def test_rejects_duplicate_output_names(self) -> None:
         # Two columns with one name means one of them is unreachable.
-        with pytest.raises(IRError, match="Duplicate output"):
+        with pytest.raises(IRError, match="share a name"):
             Project(SCAN, (("a", Column("id")), ("a", Column("name"))))
 
     def test_rejects_a_missing_input_column(self) -> None:
@@ -110,7 +110,7 @@ class TestAggregateValidation:
             )
 
     def test_rejects_a_name_used_twice(self) -> None:
-        with pytest.raises(IRError, match="Duplicate output"):
+        with pytest.raises(IRError, match="share a name"):
             Aggregate(
                 SCAN,
                 group_by=(("x", Column("name")),),

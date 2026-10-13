@@ -23,6 +23,7 @@ from shared_python.errors import (
     NotFoundError,
     UnauthorizedError,
 )
+from shared_python.words import count_of
 
 
 def get_user_by_username(db: Session, username: str) -> User | None:
@@ -270,7 +271,7 @@ def delete_user(db: Session, user_id: uuid.UUID, actor: UserRead) -> None:
     owned = owned_project_count(db, user.id)
     if owned:
         raise ConflictError(
-            f"{user.username} still owns {owned} project(s). Deleting the account "
+            f"{user.username} still owns {count_of(owned, 'project')}. Deleting the account "
             f"would leave them with no owner, which hides them from everyone "
             f"while their data stays in the database. Deactivate the account "
             f"instead, or move the projects to another owner first."

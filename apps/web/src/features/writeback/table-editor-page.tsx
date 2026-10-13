@@ -31,6 +31,7 @@ import {
   type CellValue,
   type Tray,
 } from "./change-tray";
+import { countOf } from "@/lib/format";
 
 type Connection = { id: string; name: string; connector_type: string; status: string };
 type DiscoveredTable = { schema_name: string | null; name: string; qualified_name: string };
@@ -340,7 +341,7 @@ export function TableEditorPage({
       );
       toast.success(
         "Applied",
-        `${result.rows_affected} row(s) changed by ${result.statements_run} statement(s).`,
+        `${countOf(result.rows_affected, "row")} changed by ${countOf(result.statements_run, "statement")}.`,
       );
       setTray(emptyTray());
       setReviewing(false);
@@ -751,7 +752,7 @@ function ReviewDialog({
                 <span className="shrink-0 text-xs tabular-nums text-muted">
                   {statement.actual_rows === null
                     ? "not rehearsed"
-                    : `${statement.actual_rows} row(s)`}
+                    : countOf(statement.actual_rows, "row")}
                 </span>
               </div>
               <pre className="mt-2 overflow-x-auto text-xs text-muted">{statement.sql}</pre>
@@ -783,7 +784,7 @@ function ReviewDialog({
             Cancel
           </Button>
           <Button variant={plan.has_irreversible ? "danger" : "primary"} onClick={onCommit} disabled={busy || blocked}>
-            {busy ? "Applying…" : `Apply ${plan.rows_affected} row change(s)`}
+            {busy ? "Applying…" : `Apply ${countOf(plan.rows_affected, "change")}`}
           </Button>
         </footer>
       </div>

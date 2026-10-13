@@ -21,7 +21,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { apiDownload, apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
-import { formatDate } from "@/lib/format";
+import { countOf, formatDate } from "@/lib/format";
 import { fileFormatLabel } from "@/lib/labels";
 import { cx } from "@/lib/utils";
 
@@ -448,7 +448,7 @@ function ReportRow({
           >
             last run {report.last_status}
             {report.last_error ? ` — ${report.last_error}` : ""}
-            {report.run_count > 0 ? ` · ${report.run_count} run(s)` : ""}
+            {report.run_count > 0 ? ` · ${countOf(report.run_count, "run")}` : ""}
           </div>
         ) : null}
       </div>
@@ -513,7 +513,7 @@ function ReportRow({
                     {formatDate(delivery.created_at)}
                   </span>
                   {delivery.row_count !== null ? (
-                    <span>{delivery.row_count} row(s)</span>
+                    <span>{countOf(delivery.row_count, "row")}</span>
                   ) : null}
                   {delivery.generated_ms !== null ? (
                     <span>{Math.round(delivery.generated_ms)} ms</span>

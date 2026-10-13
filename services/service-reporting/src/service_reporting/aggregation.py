@@ -18,6 +18,7 @@ from typing import Any
 import pandas as pd
 
 from shared_python.errors import BadRequestError
+from shared_python.words import listing, noun
 
 AGGREGATIONS: dict[str, str] = {
     "sum": "sum",
@@ -107,7 +108,7 @@ def _require_columns(frame: pd.DataFrame, columns: list[str], *, what: str) -> N
     missing = [column for column in columns if column not in frame.columns]
     if missing:
         raise BadRequestError(
-            f"{what} refers to column(s) this dataset does not have: {', '.join(missing)}."
+            f"{what} uses {noun(len(missing), 'a column', 'columns')} this dataset does not have: {listing(missing)}."
         )
 
 

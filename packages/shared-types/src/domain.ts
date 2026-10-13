@@ -1282,6 +1282,24 @@ export type PlatformStatusResponse = {
   checked_at: string;
   scheduler: SchedulerOperationalSnapshot;
   runtime: RuntimeSnapshot;
+  security?: SecuritySnapshot;
+};
+
+/** The controls a security review asks about, as configured (A6). */
+export type SecuritySnapshot = {
+  files_encrypted_at_rest: boolean;
+  idle_timeout_minutes: number;
+  session_limit_hours: number;
+  organisations_with_network_lists: number;
+  sso_configured: boolean;
+  trusted_proxy_hops: number;
+};
+
+/** The session rules in force, and the address the platform sees. */
+export type SessionPolicy = {
+  idle_timeout_minutes: number;
+  session_limit_hours: number;
+  address: string | null;
 };
 
 export type HealthLiveResponse = {

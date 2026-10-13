@@ -28,6 +28,7 @@ from typing import Any
 from sqlalchemy import Engine, inspect, text
 
 from shared_python.errors import BadRequestError
+from shared_python.words import count_of, listing, noun
 
 
 class IdentityKind(str, Enum):
@@ -138,8 +139,8 @@ def resolve_identity(
         missing = [name for name in designated if name not in known]
         if missing:
             raise BadRequestError(
-                f"Column(s) {', '.join(missing)} are not in {table}, so they cannot "
-                "identify a row."
+                f"{table} has no {noun(len(missing), 'column')} called {listing(missing)}, "
+                "so it cannot identify a row."
             )
         verify_designated_key(engine, table=table, schema=schema, columns=designated)
         return RowIdentity(
@@ -204,7 +205,7 @@ def verify_designated_key(
         ).scalar_one()
         if nulls:
             raise BadRequestError(
-                f"{', '.join(columns)} cannot identify a row: {nulls:,} row(s) have "
+                f"{listing(columns)} cannot identify a row: {count_of(nulls, 'row')} {'has' if nulls == 1 else 'have'} "
                 "no value there, and SQL treats every NULL as distinct."
             )
 
@@ -216,7 +217,7 @@ def verify_designated_key(
         ).scalar_one()
         if duplicates:
             raise BadRequestError(
-                f"{', '.join(columns)} cannot identify a row: {duplicates:,} value(s) "
+                f"{listing(columns)} cannot identify a row: {count_of(duplicates, 'value')} "
                 "appear more than once. An edit would change every copy."
             )
 
@@ -246,7 +247,7 @@ class TableShape:
         unknown = [name for name in names if name not in self.columns]
         if unknown:
             raise BadRequestError(
-                f"Column(s) {', '.join(unknown)} are not in {self.table}. "
+                f"{self.table} has no {noun(len(unknown), 'column')} called {listing(unknown)}. "
                 f"Available: {', '.join(self.columns)}"
             )
 

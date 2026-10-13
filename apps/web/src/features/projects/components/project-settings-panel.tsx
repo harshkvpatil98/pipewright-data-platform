@@ -8,6 +8,7 @@ import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import type { ProjectDetail } from "@platform/shared-types";
+import { countOf } from "@/lib/format";
 
 type ProjectSettingsPanelProps = {
   project: ProjectDetail;
@@ -70,7 +71,7 @@ export function ProjectSettingsPanel({ project }: ProjectSettingsPanelProps) {
   };
 
   const holdings = [
-    project.dataset_count ? `${project.dataset_count} dataset(s)` : null,
+    project.dataset_count ? countOf(project.dataset_count, "dataset") : null,
   ].filter(Boolean) as string[];
 
   return (

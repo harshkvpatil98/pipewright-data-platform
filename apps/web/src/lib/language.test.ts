@@ -212,6 +212,10 @@ describe("on-screen language", () => {
     expect(offenders((item) => item.leading && LABEL_PLACES.test(item.context) && /^[a-z]/.test(item.text))).toEqual([]);
   });
 
+  it("counts in words, never with (s)", () => {
+    expect(offenders((item) => /\w\(s\)/.test(item.text))).toEqual([]);
+  });
+
   it("spells the UK way", () => {
     expect(
       offenders((item) =>

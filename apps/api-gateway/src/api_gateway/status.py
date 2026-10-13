@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from service_access.status import get_service_status as get_access_status
@@ -41,6 +42,7 @@ from shared_python.status import (
     RuntimeComponentHeartbeat,
     RuntimeSnapshot,
     SchedulerOperationalSnapshot,
+    SecuritySnapshot,
     ServiceStatus,
 )
 from shared_python.status_redaction import redact_details
@@ -148,6 +150,7 @@ def platform_status(
     version: str,
     scheduler_internal_api_configured: bool,
     scheduler_runtime_id_configured: bool,
+    security: SecuritySnapshot | None = None,
 ) -> PlatformStatus:
     services_raw = collect_service_statuses(db)
     database_status = "healthy" if is_database_ready(db) else "unhealthy"
@@ -171,4 +174,24 @@ def platform_status(
         checked_at=checked_at,
         scheduler=scheduler,
         runtime=_runtime_snapshot(db),
+        security=security or SecuritySnapshot(),
+    )
+
+
+def security_snapshot(db: Session, settings) -> SecuritySnapshot:
+    """What is switched on, read from the settings and the organisations table."""
+    from service_enterprise.models import Organisation
+
+    try:
+        organisations = db.scalars(select(Organisation.allowed_networks_json)).all()
+        restricted = sum(1 for networks in organisations if networks)
+    except Exception:  # noqa: BLE001 - status must answer even when a table is missing
+        restricted = 0
+    return SecuritySnapshot(
+        files_encrypted_at_rest=bool(getattr(settings, "storage_encryption_key", None)),
+        idle_timeout_minutes=int(settings.auth_access_token_exp_minutes),
+        session_limit_hours=int(settings.auth_session_max_hours),
+        organisations_with_network_lists=restricted,
+        sso_configured=bool(getattr(settings, "oidc_issuer", None) and getattr(settings, "oidc_client_id", None)),
+        trusted_proxy_hops=int(getattr(settings, "trusted_proxy_hops", 0) or 0),
     )

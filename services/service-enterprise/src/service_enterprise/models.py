@@ -43,6 +43,9 @@ class Organisation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     # is a different thing and should be `is_active`.
     max_projects: Mapped[int | None] = mapped_column(Integer, nullable=True)
     max_datasets: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    #: Addresses and ranges people in this organisation may connect from
+    #: ("203.0.113.0/24"). Empty or NULL means anywhere (A6, W5).
+    allowed_networks_json: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     max_rows_per_month: Mapped[int | None] = mapped_column(Integer, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     settings_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)

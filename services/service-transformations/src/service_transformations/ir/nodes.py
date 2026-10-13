@@ -22,6 +22,7 @@ from service_transformations.ir.expressions import (
     is_aggregate,
     supported_in,
 )
+from shared_python.words import listing, noun
 
 Schema = dict[str, PWType]
 
@@ -82,7 +83,7 @@ class Project(Node):
         names = [name for name, _ in self.projections]
         duplicates = {n for n in names if names.count(n) > 1}
         if duplicates:
-            raise IRError(f"Duplicate output column(s): {', '.join(sorted(duplicates))}.")
+            raise IRError(f"Two columns would share a name: {listing(sorted(duplicates))}.")
         incoming = self.input.schema()
         for name, expr in self.projections:
             if is_aggregate(expr):
@@ -93,8 +94,8 @@ class Project(Node):
             missing = expr.columns_used() - incoming.keys()
             if missing:
                 raise IRError(
-                    f"{name!r} references column(s) that do not exist here: "
-                    f"{', '.join(sorted(missing))}."
+                    f"{name!r} uses {noun(len(missing), 'a column', 'columns')} that do not exist here: "
+                    f"{listing(sorted(missing))}."
                 )
 
     def schema(self) -> Schema:
@@ -128,8 +129,8 @@ class Filter(Node):
         missing = self.predicate.columns_used() - incoming.keys()
         if missing:
             raise IRError(
-                f"Filter references column(s) that do not exist here: "
-                f"{', '.join(sorted(missing))}."
+                f"The filter uses {noun(len(missing), 'a column', 'columns')} that do not exist here: "
+                f"{listing(sorted(missing))}."
             )
         result = self.predicate.type_of(incoming)
         if result.kind not in (Kind.BOOLEAN, Kind.UNKNOWN):
@@ -169,13 +170,13 @@ class Aggregate(Node):
         names = [n for n, _ in self.group_by] + [n for n, _ in self.aggregates]
         duplicates = {n for n in names if names.count(n) > 1}
         if duplicates:
-            raise IRError(f"Duplicate output column(s): {', '.join(sorted(duplicates))}.")
+            raise IRError(f"Two columns would share a name: {listing(sorted(duplicates))}.")
         for name, expr in list(self.group_by) + list(self.aggregates):
             missing = expr.columns_used() - incoming.keys()
             if missing:
                 raise IRError(
-                    f"{name!r} references column(s) that do not exist here: "
-                    f"{', '.join(sorted(missing))}."
+                    f"{name!r} uses {noun(len(missing), 'a column', 'columns')} that do not exist here: "
+                    f"{listing(sorted(missing))}."
                 )
 
     def schema(self) -> Schema:
@@ -315,8 +316,8 @@ class Distinct(Node):
         missing = set(self.subset) - available
         if missing:
             raise IRError(
-                f"Distinct references column(s) that do not exist here: "
-                f"{', '.join(sorted(missing))}."
+                f"Removing duplicates uses {noun(len(missing), 'a column', 'columns')} that do not exist here: "
+                f"{listing(sorted(missing))}."
             )
 
     def schema(self) -> Schema:

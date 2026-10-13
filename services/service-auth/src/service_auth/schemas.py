@@ -226,3 +226,14 @@ class ApiTokenCreatedResponse(BaseModel):
 
     token: ApiTokenRead
     secret: str
+
+
+class SessionPolicyRead(BaseModel):
+    """The session rules in force, for the person reading them (A6, W5)."""
+
+    #: A session that sees no activity for this long ends.
+    idle_timeout_minutes: int
+    #: However active, a session ends this long after sign-in.
+    session_limit_hours: int
+    #: The address this request came from, as the platform sees it.
+    address: str | None = None

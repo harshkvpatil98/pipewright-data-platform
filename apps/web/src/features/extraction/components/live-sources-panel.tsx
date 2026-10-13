@@ -17,7 +17,7 @@ import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { appConfig } from "@/lib/config";
-import { formatDateTime } from "@/lib/format";
+import { countOf, formatDateTime } from "@/lib/format";
 import { cx } from "@/lib/utils";
 
 type LiveSourcesPanelProps = {
@@ -99,7 +99,7 @@ export function LiveSourcesPanel({ projectId, connections, initial }: LiveSource
     if (!result) return;
     await reload();
     setFeedback(
-      `${source.name}: read ${result.changes_read} change(s), stored ${result.events_stored} new event(s)` +
+      `${source.name}: read ${countOf(result.changes_read, "change")}, stored ${countOf(result.events_stored, "new event")}` +
         (result.slot_created ? " (replication slot created)" : "") +
         `. ${result.note}.`,
     );
@@ -111,7 +111,7 @@ export function LiveSourcesPanel({ projectId, connections, initial }: LiveSource
     );
     if (!result) return;
     await reload();
-    setFeedback(`${source.name}: ${result.rows} event(s) saved as version ${result.version_number} of its dataset.`);
+    setFeedback(`${source.name}: ${countOf(result.rows, "event")} saved as version ${result.version_number} of its dataset.`);
   };
 
   const showEvents = async (source: StreamSource) => {

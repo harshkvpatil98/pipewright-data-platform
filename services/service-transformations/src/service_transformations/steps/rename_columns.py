@@ -5,6 +5,7 @@ from typing import Any
 import pandas as pd
 
 from shared_python.errors import BadRequestError
+from shared_python.words import listing
 
 from service_transformations.steps.common import ensure_columns_exist, ensure_config_keys, require_mapping
 
@@ -27,7 +28,7 @@ def validate_rename_columns(dataframe: pd.DataFrame, config: dict[str, Any]) -> 
     duplicates = sorted({column for column in resulting_columns if resulting_columns.count(column) > 1})
     if duplicates:
         raise BadRequestError(
-            f"rename_columns would create duplicate column name(s): {', '.join(duplicates)}."
+            f"Renaming would give two columns the same name: {listing(duplicates)}."
         )
 
     return normalized_mappings

@@ -23,6 +23,7 @@ from service_writeback.edits import (
     DEFAULT_BLAST_SHARE,
 )
 from service_writeback.identity import TableShape
+from shared_python.words import count_of
 
 logger = get_logger(__name__)
 
@@ -194,7 +195,7 @@ def commit(
                     transaction.rollback()
                     connection.close()
                     raise ConflictError(
-                        f"{outcome.describes} affected {outcome.rows_affected} row(s) "
+                        f"{outcome.describes} affected {count_of(outcome.rows_affected, 'row')} "
                         f"instead of {outcome.expected_rows}. Somebody else has "
                         "changed this data since it was read; nothing was written."
                     )

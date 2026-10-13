@@ -295,7 +295,7 @@ export function DatasetDetailPageView({
                 <TableRow key={index}>
                   {preview.columns.map((column) => (
                     <TableCell
-                      key={`${index}-${column}`} className="text-ink"
+                      key={`${index}-${column}`} className="whitespace-nowrap text-ink"
                     >
                       {row[column] === null ||
                       row[column] === undefined ||

@@ -22,6 +22,7 @@ from typing import Any
 import pandas as pd
 
 from shared_python.errors import BadRequestError
+from shared_python.words import listing, noun
 
 #: Sample rows returned per bucket. Counts are always exact; samples are a
 #: window, and the cap is declared in the response rather than silently applied.
@@ -77,7 +78,7 @@ def diff_frames(
         missing = [c for c in identity if c not in before_cols or c not in after_cols]
         if missing:
             raise BadRequestError(
-                f"Identity column(s) {', '.join(missing)} are not present in both versions."
+                f"The {noun(len(missing), 'column')} {listing(missing)} {'is' if len(missing) == 1 else 'are'} not in both versions, so {'it' if len(missing) == 1 else 'they'} cannot match rows."
             )
         before_keys = before[identity].astype(str)
         after_keys = after[identity].astype(str)

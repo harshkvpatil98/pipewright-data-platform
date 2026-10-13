@@ -29,6 +29,8 @@ class OrganisationUpdate(BaseModel):
     plan: str | None = Field(default=None, max_length=32)
     max_projects: int | None = Field(default=None, ge=1)
     max_datasets: int | None = Field(default=None, ge=1)
+    #: Addresses and ranges its people may connect from; an empty list allows anywhere.
+    allowed_networks: list[str] | None = Field(default=None, max_length=50)
 
 
 class OrganisationRead(BaseModel):
@@ -41,6 +43,7 @@ class OrganisationRead(BaseModel):
     is_active: bool
     project_count: int = 0
     member_count: int = 0
+    allowed_networks: list[str] = Field(default_factory=list)
     created_at: datetime
 
 

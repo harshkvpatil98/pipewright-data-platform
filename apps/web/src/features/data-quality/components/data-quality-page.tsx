@@ -24,6 +24,7 @@ import {
 import { DATA_QUALITY_TOUR_ID, dataQualityTour } from "@/components/tour/tours";
 import { useTour } from "@/components/tour/tour-provider";
 import { cx } from "@/lib/utils";
+import { countOf } from "@/lib/format";
 
 type DataQualityPageProps = {
   currentUser: AuthUser;
@@ -243,7 +244,7 @@ export function DataQualityPageView({
     if (result) {
       setEvaluation(result);
       setFeedback(
-        `${result.rules_evaluated} check(s) run · ${result.rules_failed} failed · ${result.rows_quarantined} row(s) set aside.`,
+        `${countOf(result.rules_evaluated, "check")} run · ${result.rules_failed} failed · ${countOf(result.rows_quarantined, "row")} set aside.`,
       );
     }
   };
@@ -388,7 +389,7 @@ export function DataQualityPageView({
                       ? "Passed with warnings"
                       : "Failed"}
                 </strong>{" "}
-                · {evaluation.rows_passing} of {evaluation.rows_in} row(s) passed
+                · {evaluation.rows_passing} of {countOf(evaluation.rows_in, "row")} passed
                 {evaluation.rows_quarantined > 0
                   ? ` · ${evaluation.rows_quarantined} set aside`
                   : ""}

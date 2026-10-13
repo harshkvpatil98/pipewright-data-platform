@@ -36,6 +36,7 @@ from shared_python.errors import (
     MisconfiguredEnvironmentError,
     NotFoundError,
 )
+from shared_python.words import count_of
 
 
 def _to_read(row: ExternalNotificationTarget) -> ExternalNotificationTargetRead:
@@ -141,7 +142,7 @@ def delete_target(
     reports = db.execute(_COUNT_REPORTS_FOR_TARGET, {"target_id": target_id}).scalar_one() or 0
     if reports:
         raise ConflictError(
-            f"{row.name} still receives {reports} scheduled report(s). Point them "
+            f"{row.name} still receives {count_of(reports, 'scheduled report')}. Point them "
             f"at another target or remove them first, or disable this target "
             f"instead -- deleting it now would leave those reports delivering "
             f"nowhere."

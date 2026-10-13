@@ -7,10 +7,12 @@ from fastapi import APIRouter, Cookie, Depends, Request, status
 from sqlalchemy.orm import Session
 
 from service_auth.codes import DEFAULT_TTL_MINUTES, RESET, issue_code
-from service_auth.dependencies import build_current_user_dependency
+from service_auth.dependencies import build_current_user_dependency, request_address
+from service_auth.network_gate import check_network
 from service_auth import mfa as mfa_service
 from service_auth import session as session_service
 from service_auth.schemas import (
+    SessionPolicyRead,
     ApiTokenCreate,
     ApiTokenCreatedResponse,
     ApiTokenListResponse,
@@ -94,6 +96,10 @@ def build_router(get_db: Callable[..., Session], settings, email_sender=None) ->
             user=issued.user,
         )
 
+    def _from_allowed_network(db: Session, user, request: Request) -> None:
+        """Refuse at sign-in, with the reason, rather than on the first page after it."""
+        check_network(db, user, request_address(request, settings))
+
     @router.post("/session/renew", response_model=TokenResponse, status_code=status.HTTP_200_OK)
     def renew_session(
         request: Request,
@@ -111,11 +117,13 @@ def build_router(get_db: Callable[..., Session], settings, email_sender=None) ->
         if not presented:
             raise UnauthorizedError("Authentication required.")
         token, expires_in, user = session_service.renew(db, presented=presented, settings=settings)
+        _from_allowed_network(db, user, request)
         return TokenResponse(access_token=token, expires_in=expires_in, user=UserRead.model_validate(user))
 
     @router.post("/login", response_model=LoginResult, status_code=status.HTTP_200_OK)
-    def login(payload: LoginRequest, db: Session = Depends(get_db)) -> LoginResult:
+    def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)) -> LoginResult:
         user = authenticate_user(db, payload.username, payload.password)
+        _from_allowed_network(db, user, request)
         # A password alone is not enough once a second factor is on: hand back a
         # short-lived ticket instead of a session, and demand the code next.
         if mfa_service.is_active(db, user.id):
@@ -126,7 +134,7 @@ def build_router(get_db: Callable[..., Session], settings, email_sender=None) ->
         return _ok_result(user)
 
     @router.post("/login/mfa", response_model=LoginResult, status_code=status.HTTP_200_OK)
-    def login_mfa(payload: MfaLoginRequest, db: Session = Depends(get_db)) -> LoginResult:
+    def login_mfa(payload: MfaLoginRequest, request: Request, db: Session = Depends(get_db)) -> LoginResult:
         """Second step: exchange the ticket plus a TOTP or recovery code for a
         session. The ticket proves the password already passed."""
         user_id = mfa_service.verify_mfa_ticket(payload.mfa_ticket, settings=settings)
@@ -135,7 +143,17 @@ def build_router(get_db: Callable[..., Session], settings, email_sender=None) ->
             raise ForbiddenError("This account cannot sign in.")
         if not mfa_service.verify_second_factor(db, user_id=user_id, code=payload.code):
             raise ForbiddenError("That code is not right.")
+        _from_allowed_network(db, user, request)
         return _ok_result(user)
+
+    @router.get("/session-policy", response_model=SessionPolicyRead)
+    def session_policy(request: Request, user: UserRead = Depends(current_user)) -> SessionPolicyRead:
+        """How long a session lasts here, and the address this request came from (A6, W5)."""
+        return SessionPolicyRead(
+            idle_timeout_minutes=int(settings.auth_access_token_exp_minutes),
+            session_limit_hours=int(settings.auth_session_max_hours),
+            address=request_address(request, settings) or None,
+        )
 
     @router.get("/me", response_model=UserRead)
     def me(db: Session = Depends(get_db), user: UserRead = Depends(current_user)) -> UserRead:
@@ -224,12 +242,13 @@ def build_router(get_db: Callable[..., Session], settings, email_sender=None) ->
         mfa_service.disable(db, user_id=user.id)
 
     @router.post("/redeem-code", response_model=TokenResponse)
-    def redeem_code_route(payload: RedeemCodeRequest, db: Session = Depends(get_db)) -> TokenResponse:
+    def redeem_code_route(payload: RedeemCodeRequest, request: Request, db: Session = Depends(get_db)) -> TokenResponse:
         """Set a password from a one-time activation or reset code, then sign in.
 
         Public by design: the whole point is that the person cannot sign in yet.
         """
         user = set_password_with_code(db, code=payload.code, new=payload.new_password)
+        _from_allowed_network(db, user, request)
         return _issue_token(user)
 
     @router.get("/me/preferences", response_model=PreferencesRead)

@@ -378,8 +378,8 @@ export const STEP_CATALOG: StepDefinition[] = [
     keywords: "lookup merge combine vlookup match",
     fields: [
       { key: "right_dataset_id", label: "Dataset to join", kind: "dataset" },
-      { key: "left_on", label: "This dataset's key(s)", kind: "columns" },
-      { key: "right_on", label: "Other dataset's key(s)", kind: "columns", help: "Type the column names from the other dataset." },
+      { key: "left_on", label: "This dataset's key columns", kind: "columns" },
+      { key: "right_on", label: "Other dataset's key columns", kind: "columns", help: "Type the column names from the other dataset." },
       {
         key: "how",
         label: "Rows to keep",

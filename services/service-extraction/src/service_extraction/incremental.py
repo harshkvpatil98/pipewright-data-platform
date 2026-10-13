@@ -22,6 +22,7 @@ import pandas as pd
 
 from service_extraction.connectors.sql_database import quote_identifier
 from shared_python.errors import BadRequestError
+from shared_python.words import listing, noun
 
 WATERMARK_PARAM = "pw_watermark"
 
@@ -158,12 +159,12 @@ def merge_frames(
     missing_keys = sorted({key for key in keys if key not in incoming.columns})
     if missing_keys:
         raise BadRequestError(
-            f"Primary key column(s) not present in the extracted data: {', '.join(missing_keys)}."
+            f"The key {noun(len(missing_keys), 'column')} {listing(missing_keys)} {'is' if len(missing_keys) == 1 else 'are'} not in the imported data."
         )
     missing_existing_keys = sorted({key for key in keys if key not in existing.columns})
     if missing_existing_keys:
         raise BadRequestError(
-            f"Primary key column(s) not present in the stored dataset: {', '.join(missing_existing_keys)}."
+            f"The key {noun(len(missing_existing_keys), 'column')} {listing(missing_existing_keys)} {'is' if len(missing_existing_keys) == 1 else 'are'} not in the dataset already imported."
         )
 
     # Rows whose key already exists are replacements, not additions.

@@ -27,6 +27,7 @@ from shared_python.logging import get_logger
 
 from service_workbench.safety import SessionPolicy, enforce
 from service_workbench.sql_text import Script, Statement, StatementKind, parse
+from shared_python.words import listing
 
 logger = get_logger(__name__)
 
@@ -228,7 +229,7 @@ def _require_parameters(script: Script, supplied: dict[str, Any]) -> None:
     missing = [name for name in script.parameters if name not in supplied]
     if missing:
         raise BadRequestError(
-            f"This script needs value(s) for: {', '.join(missing)}."
+            f"This script needs a value for {listing(missing)}."
         )
 
 

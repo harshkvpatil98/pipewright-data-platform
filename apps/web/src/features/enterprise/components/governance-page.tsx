@@ -18,7 +18,7 @@ import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { apiFetch } from "@/lib/api/client";
 import { sentenceLabel } from "@/lib/labels";
 import { extractErrorMessage } from "@/lib/api/errors";
-import { formatDate } from "@/lib/format";
+import { countOf, formatDate } from "@/lib/format";
 import { cx } from "@/lib/utils";
 
 type GovernancePageProps = {
@@ -375,7 +375,7 @@ function ErasureRow({ request }: { request: ErasureRequest }) {
         </div>
       ) : null}
       <div className="mt-1 text-[12px] text-muted">
-        {request.datasets_searched} dataset(s) searched · {request.rows_affected} row(s) ·{" "}
+        {countOf(request.datasets_searched, "dataset")} searched · {countOf(request.rows_affected, "row")} ·{" "}
         {formatDate(request.created_at)}
       </div>
     </li>

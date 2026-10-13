@@ -59,8 +59,16 @@ class Settings(BaseSettings):
     # A session renews itself while it is being used (POST /auth/session/renew),
     # up to this long after signing in; then the person signs in again.
     auth_session_max_hours: int = 12
+    #: How many proxies sit in front of the gateway. Above zero, a request's
+    #: address is read from X-Forwarded-For that many hops back; at zero it is
+    #: the connecting address and the header is ignored (anyone can forge it).
+    trusted_proxy_hops: int = 0
     storage_backend: Literal["local"] = "local"
     upload_root_path: str = "data/uploads"
+    #: 32 random bytes, base64. When set, every stored file is AES-256-GCM
+    #: encrypted at rest; files stored before keep reading until
+    #: `platform-encrypt-storage` encrypts them.
+    storage_encryption_key: str | None = None
     max_upload_size_bytes: int = 25 * 1024 * 1024
     # Every format the ingestion readers handle. The extension is a gate, not a
     # decision: the sniffer reads the bytes and overrules the name, so a

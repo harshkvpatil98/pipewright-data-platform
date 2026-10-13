@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import uuid
 from collections.abc import Callable
 
@@ -7,13 +8,30 @@ from fastapi import Cookie, Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
+from service_auth.network_gate import check_network
 from service_auth.schemas import UserRead
 from service_auth.service import get_user_by_id
 from service_auth.tokens import authenticate_api_token, looks_like_api_token, scope_allows
 from shared_python.auth.security import decode_access_token
 from shared_python.errors import ForbiddenError, UnauthorizedError
+from shared_python.network import client_address
 
 bearer_scheme = HTTPBearer(auto_error=False)
+
+
+def request_address(request: Request, settings=None) -> str:
+    """The address this request came from, as far as the deployment can trust.
+
+    Without a settings object (a service router that is not handed one), the
+    same TRUSTED_PROXY_HOPS environment variable the settings read is used."""
+    hops = getattr(settings, "trusted_proxy_hops", None)
+    if hops is None:
+        hops = os.environ.get("TRUSTED_PROXY_HOPS", "0")
+    return client_address(
+        request.client.host if request.client else None,
+        request.headers.get("x-forwarded-for"),
+        int(hops or 0),
+    )
 
 
 def build_current_user_dependency(get_db: Callable[..., Session], settings) -> Callable[..., UserRead]:
@@ -36,6 +54,8 @@ def build_current_user_dependency(get_db: Callable[..., Session], settings) -> C
                     f"This API token is {scope}-scoped and cannot make a "
                     f"{request.method} request."
                 )
+            # An organisation's network list covers scripts as well as people.
+            check_network(db, user, request_address(request, settings))
             return UserRead.model_validate(user)
 
         token = decode_access_token(
@@ -52,6 +72,7 @@ def build_current_user_dependency(get_db: Callable[..., Session], settings) -> C
         # though its signature is still valid and unexpired.
         if token.ver != user.token_version:
             raise UnauthorizedError("This session has ended. Sign in again.")
+        check_network(db, user, request_address(request, settings))
         return UserRead.model_validate(user)
 
     return get_current_user

@@ -20,7 +20,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
-import { formatDate } from "@/lib/format";
+import { countOf, formatDate } from "@/lib/format";
 import type { AuthUser, Dashboard, SavedChart } from "@platform/shared-types";
 
 type DashboardsPageViewProps = {
@@ -448,7 +448,7 @@ export function DashboardsPageView({
         name={deleting?.name ?? ""}
         kind="dashboard"
         consequences={[
-          `Its ${deleting?.tile_count ?? 0} tile(s) go with it. The charts themselves stay in the chart builder.`,
+          `Its ${countOf(deleting?.tile_count ?? 0, "tile")} go with it. The charts themselves stay in the chart builder.`,
           ...(deleting?.share_token
             ? ["It is currently shared, so the share token stops working too."]
             : []),

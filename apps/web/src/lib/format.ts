@@ -36,3 +36,9 @@ export function formatNumber(value: number | null | undefined) {
   }
   return numberFormatter.format(value);
 }
+
+/** "1 row", "3 rows", "1,200 rows": a count with its noun, never "row(s)". */
+export function countOf(count: number | null | undefined, noun: string, pluralNoun = `${noun}s`): string {
+  const value = Number(count ?? 0);
+  return `${value.toLocaleString()} ${value === 1 ? noun : pluralNoun}`;
+}

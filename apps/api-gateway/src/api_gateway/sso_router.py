@@ -13,11 +13,13 @@ from __future__ import annotations
 from collections.abc import Callable
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 from api_gateway import sso_flow
+from service_auth.dependencies import request_address
+from service_auth.network_gate import check_network
 from service_enterprise.sso import saml_status
 from shared_python.auth.security import create_access_token
 from shared_python.errors import ApplicationError
@@ -71,6 +73,7 @@ def build_router(get_db: Callable[..., Session], settings) -> APIRouter:
 
     @router.get("/callback")
     def sso_callback(
+        request: Request,
         db: Session = Depends(get_db),
         code: str | None = Query(default=None),
         state: str | None = Query(default=None),
@@ -89,6 +92,13 @@ def build_router(get_db: Callable[..., Session], settings) -> APIRouter:
         except Exception:  # noqa: BLE001 - any failure here is a failed sign-in
             logger.exception("sso_callback_failed")
             return _login_redirect("That sign-in could not be completed.")
+
+        try:
+            # SSO proves who someone is, not where they are: an organisation's
+            # network list applies to this sign-in like any other.
+            check_network(db, user, request_address(request, settings))
+        except ApplicationError as exc:
+            return _login_redirect(str(exc))
 
         token, expires_in = create_access_token(
             user_id=str(user.id),

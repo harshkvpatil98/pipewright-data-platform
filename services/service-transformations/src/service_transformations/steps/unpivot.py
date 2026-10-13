@@ -6,6 +6,7 @@ import pandas as pd
 
 from service_transformations.steps.common import ensure_columns_exist, ensure_config_keys, require_string_list
 from shared_python.errors import BadRequestError
+from shared_python.words import listing
 
 
 def validate_unpivot(dataframe: pd.DataFrame, config: dict[str, Any]) -> tuple[list[str], list[str], str, str]:
@@ -25,7 +26,7 @@ def validate_unpivot(dataframe: pd.DataFrame, config: dict[str, Any]) -> tuple[l
         ensure_columns_exist(dataframe, value_columns, field_name="config.value_columns")
         overlap = sorted(set(value_columns) & set(id_columns))
         if overlap:
-            raise BadRequestError(f"Column(s) appear in both id_columns and value_columns: {', '.join(overlap)}.")
+            raise BadRequestError(f"{listing(overlap)} cannot be in both id_columns and value_columns.")
     else:
         # Default to "everything that is not an identifier".
         value_columns = [str(column) for column in dataframe.columns if str(column) not in id_columns]
@@ -43,7 +44,7 @@ def validate_unpivot(dataframe: pd.DataFrame, config: dict[str, Any]) -> tuple[l
         raise BadRequestError("variable_column_name and value_column_name must differ.")
     collisions = sorted({variable_name, value_name} & set(id_columns))
     if collisions:
-        raise BadRequestError(f"Output name(s) collide with id_columns: {', '.join(collisions)}.")
+        raise BadRequestError(f"The new column names {listing(collisions)} are already used by id_columns. Pick other names.")
 
     return id_columns, value_columns, variable_name, value_name
 

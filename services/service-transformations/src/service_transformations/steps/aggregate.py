@@ -6,6 +6,7 @@ import pandas as pd
 
 from service_transformations.steps.common import ensure_columns_exist, ensure_config_keys, require_string_list
 from shared_python.errors import BadRequestError
+from shared_python.words import listing
 
 # Aggregations that map to a pandas groupby function and are meaningful in a UI.
 SUPPORTED_AGGREGATIONS: dict[str, str] = {
@@ -75,7 +76,7 @@ def validate_aggregate(dataframe: pd.DataFrame, config: dict[str, Any]) -> tuple
 
     collisions = sorted(set(group_by) & seen_aliases)
     if collisions:
-        raise BadRequestError(f"Aggregation output name(s) collide with group_by columns: {', '.join(collisions)}.")
+        raise BadRequestError(f"Some result names are the same as the group_by columns: {listing(collisions)}. Rename them.")
 
     return group_by, aggregations
 

@@ -122,7 +122,7 @@ class TestDesignatedKeys:
             resolve_identity(engine, table="nullable_values", designated=["k"])
 
     def test_an_unknown_column_is_refused(self, engine) -> None:
-        with pytest.raises(BadRequestError, match="not in"):
+        with pytest.raises(BadRequestError, match="has no column"):
             resolve_identity(engine, table="unique_values", designated=["ghost"])
 
     def test_it_is_re_checked_and_not_trusted(self, engine) -> None:
@@ -149,7 +149,7 @@ class TestTableShape:
 
     def test_it_rejects_an_unknown_column(self, engine) -> None:
         shape = read_shape(engine, table="with_pk")
-        with pytest.raises(BadRequestError, match="not in"):
+        with pytest.raises(BadRequestError, match="has no column"):
             shape.require_columns(["ghost"])
 
     def test_a_missing_table_is_reported_clearly(self, engine) -> None:

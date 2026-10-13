@@ -29,6 +29,7 @@ import pandas as pd
 from shared_python.errors import BadRequestError
 from shared_python.types import JSON as JSON_TYPE
 from shared_python.types import PWType, STRING
+from shared_python.words import listing, noun
 
 from service_transformations.ir.nodes import Extension, Node, freeze_config
 from service_transformations.ir.pandas_backend import register_extension
@@ -347,7 +348,7 @@ def _collect_handler(frame_in: pd.DataFrame, config: dict[str, Any]) -> pd.DataF
     into = str(config["into"])
     missing = [name for name in keys + [column] if name not in frame_in.columns]
     if missing:
-        raise BadRequestError(f"No column(s) called: {', '.join(missing)}.")
+        raise BadRequestError(f"There is no {noun(len(missing), 'column')} called {listing(missing)}.")
 
     def _gather(values: pd.Series) -> Any:
         kept = [_dump(value) for value in values if not pd.isna(value)]

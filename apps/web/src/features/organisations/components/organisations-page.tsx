@@ -19,8 +19,10 @@ import { AppShell } from "@/components/layout/app-shell";
 import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
-import { formatDate } from "@/lib/format";
+import { countOf, formatDate } from "@/lib/format";
 import { sentenceLabel } from "@/lib/labels";
+
+import { NetworkAccess } from "./network-access";
 import type { AuthUser } from "@platform/shared-types";
 
 export type Organisation = {
@@ -33,6 +35,8 @@ export type Organisation = {
   is_active: boolean;
   project_count: number;
   member_count: number;
+  /** Addresses and ranges its people may connect from; empty means anywhere. */
+  allowed_networks?: string[];
   created_at: string;
 };
 
@@ -265,7 +269,7 @@ export function OrganisationsPageView({
                             </Badge>
                           </button>
                           <span className="text-[12px] text-muted">
-                            {org.member_count} member(s) · {org.project_count} project(s) ·
+                            {countOf(org.member_count, "member")} · {countOf(org.project_count, "project")} ·
                             created {formatDate(org.created_at)}
                           </span>
                           <button
@@ -342,6 +346,14 @@ export function OrganisationsPageView({
                                 </Button>
                               </div>
                             ) : null}
+                            <NetworkAccess
+                              organisation={org}
+                              onSaved={(updated) =>
+                                setOrganisations((current) =>
+                                  current.map((item) => (item.id === updated.id ? { ...item, ...updated } : item)),
+                                )
+                              }
+                            />
                           </div>
                         ) : null}
                       </li>

@@ -211,14 +211,14 @@ def test_usage_says_what_moves_and_deletion_under_a_chart_is_refused(db, project
     create_dashboard(db, project.id, DashboardCreate(name="Revenue", tiles=[TileInput(chart_id=chart.id)]), user)
     usage = metric_usage(db, project.id, metric.id, user)
     assert [(c.chart_name, c.dashboards) for c in usage.charts] == [("Net", ["Revenue"])]
-    with pytest.raises(ConflictError, match="resolve through"):
+    with pytest.raises(ConflictError, match="uses 'Net revenue'"):
         delete_metric(db, project.id, metric.id, user)
 
 
 def test_definitions_are_checked_at_save_time(db, project, dataset, user):
     with pytest.raises(ValidationError):
         MetricCreate(dataset_id=dataset.id, name="x", column="gross", formula="[gross]")
-    with pytest.raises(BadRequestError, match="not in 'orders'"):
+    with pytest.raises(BadRequestError, match="'orders' has no column"):
         create_metric(db, project.id, MetricCreate(dataset_id=dataset.id, name="x", column="nope"), user)
     with pytest.raises(BadRequestError, match="does not parse"):
         create_metric(db, project.id, MetricCreate(dataset_id=dataset.id, name="x", formula="[gross] +"), user)

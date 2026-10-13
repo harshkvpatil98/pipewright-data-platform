@@ -198,7 +198,7 @@ def test_impact_rejects_a_column_the_dataset_does_not_have(db: Session, world: d
         analyse_impact(
             db, world["project"].id, world["raw"].id, ImpactRequest(columns=["ghost"]), _user()
         )
-    assert "no column(s) named" in str(caught.value.detail)
+    assert "no column named" in str(caught.value.detail)
 
 
 def test_findings_are_ordered_worst_first(db: Session, world: dict):

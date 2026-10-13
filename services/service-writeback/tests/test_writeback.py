@@ -72,7 +72,7 @@ class TestRefusals:
 
     def test_an_edit_without_key_values_is_refused(self, engine) -> None:
         edit = Edit(EditKind.SET_CELL, key={}, column="region", value="x")
-        with pytest.raises(BadRequestError, match="missing key value"):
+        with pytest.raises(BadRequestError, match="identifies the row"):
             compile_change_set(engine, shape_of(engine), [edit])
 
     def test_an_unknown_column_is_refused(self, engine) -> None:

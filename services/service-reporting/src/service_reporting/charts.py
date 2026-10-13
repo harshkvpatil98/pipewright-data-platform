@@ -15,6 +15,7 @@ from typing import Any
 import pandas as pd
 
 from shared_python.errors import BadRequestError
+from shared_python.words import count_of
 
 from service_reporting.aggregation import Query, QueryResult, apply_filters
 
@@ -72,21 +73,21 @@ def validate_chart(chart_type: str, query: Query) -> list[str]:
     if dimensions < spec.min_dimensions:
         raise BadRequestError(
             f"A {spec.label.lower()} chart needs at least "
-            f"{spec.min_dimensions} grouping column(s); this has {dimensions}."
+            f"{count_of(spec.min_dimensions, 'grouping column')}; this has {dimensions}."
         )
     if dimensions > spec.max_dimensions:
         raise BadRequestError(
             f"A {spec.label.lower()} chart takes at most "
-            f"{spec.max_dimensions} grouping column(s); this has {dimensions}."
+            f"{count_of(spec.max_dimensions, 'grouping column')}; this has {dimensions}."
         )
     if measures < spec.min_measures:
         raise BadRequestError(
-            f"A {spec.label.lower()} chart needs at least {spec.min_measures} measure(s); "
+            f"A {spec.label.lower()} chart needs at least {count_of(spec.min_measures, 'measure')}; "
             f"this has {measures}."
         )
     if measures > spec.max_measures:
         raise BadRequestError(
-            f"A {spec.label.lower()} chart takes at most {spec.max_measures} measure(s); "
+            f"A {spec.label.lower()} chart takes at most {count_of(spec.max_measures, 'measure')}; "
             f"this has {measures}."
         )
 

@@ -16,6 +16,7 @@ from service_sources.models import Source
 from service_transformations.models import TransformationPipeline
 from service_workflows.models import Workflow, WorkflowNode
 from shared_python.errors import BadRequestError, NotFoundError
+from shared_python.words import listing, noun
 
 from service_lineage import graph as graph_module
 from service_lineage.columns import PipelineLineage, build_pipeline_lineage
@@ -359,7 +360,7 @@ def analyse_impact(
         unknown = [column for column in targeted if column not in available]
         if unknown:
             raise BadRequestError(
-                f"This dataset has no column(s) named: {', '.join(sorted(unknown))}."
+                f"This dataset has no {noun(len(unknown), 'column')} named {listing(sorted(unknown))}."
             )
 
     datasets = _project_datasets(db, project_id)

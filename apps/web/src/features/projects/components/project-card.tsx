@@ -6,7 +6,7 @@ import { useState } from "react";
 import { Icon, StatusBadge } from "@platform/shared-ui";
 import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
 import { apiFetch } from "@/lib/api/client";
-import { formatDate } from "@/lib/format";
+import { countOf, formatDate } from "@/lib/format";
 import type { ProjectSummary } from "@platform/shared-types";
 
 type ProjectCardProps = {
@@ -18,7 +18,7 @@ export function ProjectCard({ project, onDeleted }: ProjectCardProps) {
   const [confirming, setConfirming] = useState(false);
 
   const holdings = [
-    project.dataset_count ? `${project.dataset_count} dataset(s)` : null,
+    project.dataset_count ? countOf(project.dataset_count, "dataset") : null,
   ].filter(Boolean) as string[];
 
   return (

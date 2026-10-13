@@ -32,6 +32,7 @@ from service_transformations.ir.nodes import (
     SetOp,
     Sort,
 )
+from shared_python.words import count_of
 
 #: Handlers for `Extension`, registered by the steps that need them. Keeping
 #: them out here means the IR never learns what a bespoke step does.
@@ -566,7 +567,7 @@ def _call(expr: Call, frame: pd.DataFrame) -> pd.Series:
         if group < 1 or group > extracted.shape[1]:
             raise IRError(
                 f"regex_extract asked for group {group}, but the pattern has "
-                f"{extracted.shape[1]} capture group(s)."
+                f"{count_of(extracted.shape[1], 'capture group')}."
             )
         return extracted.iloc[:, group - 1]
     if name == "regex_replace":

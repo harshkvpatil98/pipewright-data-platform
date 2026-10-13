@@ -37,6 +37,7 @@ from sqlalchemy.orm import Session
 
 from service_ingestion.models import UploadSessionRecord
 from shared_python.errors import BadRequestError, NotFoundError
+from shared_python.words import count_of, listing, noun
 
 #: Chunk size the client is told to use. Small enough that re-sending one after
 #: a failure is cheap, large enough that a 2GB file is ~250 requests and not
@@ -228,7 +229,7 @@ def receive_chunk(
     if index < 0 or index >= session.expected_chunks:
         raise BadRequestError(
             f"Chunk {index} is outside this upload, which has "
-            f"{session.expected_chunks} chunk(s)."
+            f"{count_of(session.expected_chunks, 'part')}."
         )
     if not payload:
         raise BadRequestError("A chunk cannot be empty.")
@@ -253,7 +254,7 @@ def assemble(session: UploadSession, *, storage_backend: Any) -> bytes:
     """Join the chunks, check the whole thing, and clean up the parts."""
     if session.missing:
         raise BadRequestError(
-            f"This upload is incomplete: chunk(s) {session.missing[:10]} never arrived."
+            f"This upload is incomplete: {noun(len(session.missing), 'part')} {listing(session.missing)} never arrived. Upload the file again to finish."
         )
 
     digest = hashlib.sha256()

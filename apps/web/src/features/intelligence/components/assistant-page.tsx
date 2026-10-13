@@ -18,6 +18,7 @@ import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { cx } from "@/lib/utils";
 import { sentenceLabel } from "@/lib/labels";
+import { countOf } from "@/lib/format";
 
 type AssistantPageProps = {
   currentUser: AuthUser;
@@ -284,7 +285,7 @@ export function AssistantPageView({
               </ul>
             ) : null}
             <p className="mt-2 text-[12px] text-muted">
-              {duplicates.comparisons} comparison(s) after blocking.
+              {countOf(duplicates.comparisons, "pair")} compared.
             </p>
           </>
         )}

@@ -32,6 +32,7 @@ import type {
   StatementResult,
   TableInfo,
 } from "./types";
+import { countOf } from "@/lib/format";
 
 type Props = {
   currentUser: AuthUser;
@@ -689,7 +690,7 @@ export function WorkbenchPage({
                   ) : (
                     <p className="p-3 text-xs text-muted">
                       {shown
-                        ? `${shown.rows_affected ?? 0} row(s) changed in ${formatDuration(shown.duration_ms)}.`
+                        ? `${countOf(shown.rows_affected ?? 0, "row")} changed in ${formatDuration(shown.duration_ms)}.`
                         : "No results."}
                     </p>
                   )}

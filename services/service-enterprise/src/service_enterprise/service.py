@@ -23,6 +23,7 @@ from shared_python.errors import (
     InternalServerError,
     NotFoundError,
 )
+from shared_python.words import count_of
 
 from service_enterprise import retention as retention_ops
 from service_enterprise import security, tenancy, usage
@@ -108,6 +109,7 @@ def _organisation_read(db: Session, organisation: Organisation) -> OrganisationR
         max_projects=organisation.max_projects,
         max_datasets=organisation.max_datasets,
         is_active=organisation.is_active,
+        allowed_networks=list(organisation.allowed_networks_json or []),
         project_count=db.scalar(
             select(func.count(Project.id)).where(Project.organisation_id == organisation.id)
         )
@@ -235,7 +237,12 @@ def unassign_project(
 
 
 def update_organisation(
-    db: Session, organisation_id: uuid.UUID, payload: "OrganisationUpdate", current_user: UserRead
+    db: Session,
+    organisation_id: uuid.UUID,
+    payload: "OrganisationUpdate",
+    current_user: UserRead,
+    *,
+    address: str | None = None,
 ) -> OrganisationRead:
     """Rename a tenant or adjust its limits. The slug is left alone, because it
     is what other records refer to it by."""
@@ -252,9 +259,52 @@ def update_organisation(
         organisation.max_projects = fields["max_projects"]
     if "max_datasets" in fields:
         organisation.max_datasets = fields["max_datasets"]
+    if "allowed_networks" in fields:
+        organisation.allowed_networks_json = _checked_networks(
+            db, organisation, fields["allowed_networks"] or [], current_user, address
+        )
     db.commit()
     db.refresh(organisation)
     return _organisation_read(db, organisation)
+
+
+def _checked_networks(
+    db: Session, organisation: Organisation, entries: list[str], current_user: UserRead, address: str | None
+) -> list[str] | None:
+    """A network list that parses, and that does not lock out the person saving it."""
+    from shared_python.network import NetworkListError, address_allowed, parse_networks
+
+    try:
+        networks = parse_networks(entries)
+    except NetworkListError as exc:
+        raise BadRequestError(str(exc)) from exc
+    if not networks:
+        return None
+    member = db.get(User, current_user.id)
+    if member is not None and member.organisation_id == organisation.id and not address_allowed(address or "", networks):
+        raise BadRequestError(
+            f"This list does not include your own address ({address or 'unknown'}), "
+            "so saving it would sign you out for good. Add it, then save."
+        )
+    return [str(network) for network in networks]
+
+
+def network_gate(db: Session, user, address: str) -> None:
+    """Refuse a request from outside the user's organisation's network list (A6, W5)."""
+    from shared_python.network import address_allowed, parse_networks
+
+    organisation_id = getattr(user, "organisation_id", None)
+    if organisation_id is None:
+        return
+    organisation = db.get(Organisation, organisation_id)
+    if organisation is None or not organisation.allowed_networks_json:
+        return
+    if not address_allowed(address, parse_networks(organisation.allowed_networks_json)):
+        raise ForbiddenError(
+            f"{organisation.name} only allows access from its own network, and this "
+            f"connection ({address or 'unknown address'}) is not on its list. "
+            "Ask an administrator to add it."
+        )
 
 
 def delete_organisation(
@@ -285,8 +335,8 @@ def delete_organisation(
     ) or 0
     if projects or members:
         raise ConflictError(
-            f"{organisation.name} still holds {projects} project(s) and "
-            f"{members} member(s). Move them to another organisation first; "
+            f"{organisation.name} still holds {count_of(projects, 'project')} and "
+            f"{count_of(members, 'member')}. Move them to another organisation first; "
             f"deleting it now would leave them in an organisation that no "
             f"longer exists, reachable by nobody."
         )

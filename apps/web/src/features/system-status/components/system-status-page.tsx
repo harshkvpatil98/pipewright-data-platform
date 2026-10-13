@@ -23,7 +23,7 @@ import { OperationalError, OperationalLoading } from "@/components/operational/o
 import { appConfig } from "@/lib/config";
 import { parseApiResponse } from "@/lib/api/errors";
 import { serviceHealthTone, toneClasses } from "@/features/system-status/system-status-helpers";
-import { formatDateTime } from "@/lib/format";
+import { countOf, formatDateTime } from "@/lib/format";
 import { sentenceLabel } from "@/lib/labels";
 
 /**
@@ -249,6 +249,58 @@ function RuntimePanel({ platform }: { platform: PlatformStatusResponse }) {
   );
 }
 
+/** The controls a security review asks about, as this server is set up (A6, W5). */
+function SecurityPanel({ security }: { security: NonNullable<PlatformStatusResponse["security"]> }) {
+  const rows: { label: string; value: string; ok: boolean; how?: string }[] = [
+    {
+      label: "Stored files encrypted at rest",
+      value: security.files_encrypted_at_rest ? "Yes" : "No",
+      ok: security.files_encrypted_at_rest,
+      how: security.files_encrypted_at_rest
+        ? undefined
+        : "Set STORAGE_ENCRYPTION_KEY, restart, then run platform-encrypt-storage for files stored before.",
+    },
+    {
+      label: "Sessions",
+      value: `End after ${security.idle_timeout_minutes} minutes idle, ${security.session_limit_hours} hours at most`,
+      ok: true,
+    },
+    {
+      label: "Organisations limited to their own network",
+      value: String(security.organisations_with_network_lists),
+      ok: true,
+      how: "Set on the Organisations page.",
+    },
+    {
+      label: "Single sign-on",
+      value: security.sso_configured ? "Configured" : "Not configured",
+      ok: security.sso_configured,
+      how: security.sso_configured ? undefined : "See the admin guide for connecting an identity provider.",
+    },
+    {
+      label: "Addresses read from a proxy",
+      value: security.trusted_proxy_hops > 0 ? `Yes, ${countOf(security.trusted_proxy_hops, "proxy", "proxies")} in front` : "No, the connecting address",
+      ok: true,
+      how: security.trusted_proxy_hops > 0 ? undefined : "Set TRUSTED_PROXY_HOPS when a load balancer sits in front.",
+    },
+  ];
+  return (
+    <SectionPanel title="Security" description="How this server protects data and sessions, as it is set up now.">
+      <dl className="divide-y divide-line">
+        {rows.map((row) => (
+          <div key={row.label} className="flex flex-wrap items-start justify-between gap-3 py-2.5">
+            <dt className="text-[14px] text-ink-2">{row.label}</dt>
+            <dd className="text-right">
+              <Badge tone={row.ok ? "success" : "warning"}>{row.value}</Badge>
+              {row.how ? <div className="mt-1 max-w-sm text-[13px] text-ink-3">{row.how}</div> : null}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </SectionPanel>
+  );
+}
+
 export function SystemStatusPage({ currentUser }: { currentUser?: AuthUser | null }) {
   const [platform, setPlatform] = useState<PlatformStatusResponse | null>(null);
   const [live, setLive] = useState<HealthLiveResponse | null>(null);
@@ -336,6 +388,8 @@ export function SystemStatusPage({ currentUser }: { currentUser?: AuthUser | nul
           </div>
         </div>
       ) : null}
+
+      {platform?.security ? <SecurityPanel security={platform.security} /> : null}
 
       {platform ? <RuntimePanel platform={platform} /> : null}
 

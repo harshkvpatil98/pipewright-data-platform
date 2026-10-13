@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from collections.abc import Callable
 
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, Query, Request, Response, status
 from sqlalchemy.orm import Session
 
 from service_auth.schemas import UserRead
@@ -88,10 +88,13 @@ def build_router(
     def edit_organisation(
         organisation_id: uuid.UUID,
         payload: OrganisationUpdate,
+        request: Request,
         db: Session = Depends(get_db),
         current_user: UserRead = Depends(get_current_user),
     ) -> OrganisationRead:
-        return update_organisation(db, organisation_id, payload, current_user)
+        from service_auth.dependencies import request_address
+
+        return update_organisation(db, organisation_id, payload, current_user, address=request_address(request))
 
     @router.post(
         "/organisations/{organisation_id}/users/{user_id}", response_model=OrganisationRead

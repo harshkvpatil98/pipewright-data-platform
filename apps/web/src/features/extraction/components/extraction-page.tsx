@@ -35,7 +35,7 @@ import { groupDatasets, originHints } from "@/lib/dataset-origin";
 import { apiFetch } from "@/lib/api/client";
 import { tierTone } from "@/lib/labels";
 import { extractErrorMessage } from "@/lib/api/errors";
-import { formatDate, formatNumber } from "@/lib/format";
+import { countOf, formatDate, formatNumber } from "@/lib/format";
 import { cx } from "@/lib/utils";
 
 type ExtractionPageProps = {
@@ -57,8 +57,6 @@ const CONNECTOR_LABELS: Record<SqlConnectorType, string> = {
   sqlite: "SQLite",
 };
 
-/** "1 row", "3 rows", "1,200 rows". */
-const countOf = (count: number, noun: string) => `${count.toLocaleString()} ${noun}${count === 1 ? "" : "s"}`;
 
 const isSqlType = (type: ConnectorType): type is SqlConnectorType =>
   (SQL_CONNECTOR_TYPES as readonly string[]).includes(type);

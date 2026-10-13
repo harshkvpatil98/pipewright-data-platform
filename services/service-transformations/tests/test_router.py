@@ -160,7 +160,7 @@ def test_create_pipeline_rejects_invalid_structure(
     )
 
     assert response.status_code == 400
-    assert "missing required field" in response.json()["detail"]
+    assert "needs config" in response.json()["detail"]
 
 
 @patch(

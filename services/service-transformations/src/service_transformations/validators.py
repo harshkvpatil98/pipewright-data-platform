@@ -5,6 +5,7 @@ from typing import Any
 from service_transformations.contracts import SUPPORTED_TRANSFORMATION_STEP_TYPES
 from service_transformations.schemas import TransformationStep
 from shared_python.errors import BadRequestError
+from shared_python.words import listing
 
 _STEP_REQUIRED_KEYS = {"step_type", "config"}
 
@@ -25,13 +26,13 @@ def validate_steps_json(steps_payload: Any) -> list[TransformationStep]:
         missing_keys = sorted(_STEP_REQUIRED_KEYS - set(raw_step.keys()))
         if missing_keys:
             raise BadRequestError(
-                f"Step {step_number} is missing required field(s): {', '.join(missing_keys)}."
+                f"Step {step_number} needs {listing(missing_keys)}."
             )
 
         extra_keys = sorted(set(raw_step.keys()) - _STEP_REQUIRED_KEYS)
         if extra_keys:
             raise BadRequestError(
-                f"Step {step_number} contains unsupported field(s): {', '.join(extra_keys)}."
+                f"Step {step_number} has settings it does not use: {listing(extra_keys)}."
             )
 
         step_type = raw_step["step_type"]

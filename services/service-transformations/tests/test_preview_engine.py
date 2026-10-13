@@ -37,7 +37,7 @@ def test_rename_columns_step() -> None:
 
 def test_rename_columns_rejects_collision() -> None:
     df = pd.DataFrame({"a": [1], "b": [2]})
-    with pytest.raises(BadRequestError, match="duplicate"):
+    with pytest.raises(BadRequestError, match="same name"):
         apply_rename_columns(df, {"mappings": {"a": "b"}})
 
 

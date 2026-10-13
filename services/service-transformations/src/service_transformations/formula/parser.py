@@ -24,6 +24,7 @@ from service_transformations.ir.expressions import (
     Expr,
     Literal,
 )
+from shared_python.words import count_of
 
 #: Binding power per binary operator. Higher binds tighter.
 _PRECEDENCE = {
@@ -214,7 +215,7 @@ class _Parser:
             if len(arguments) not in (2, 3):
                 raise FormulaError(
                     f"IF takes a condition, a value if true, and optionally a "
-                    f"value if false. Got {len(arguments)} argument(s)."
+                    f"value if false. Got {count_of(len(arguments), 'argument')}."
                 )
             default = arguments[2] if len(arguments) == 3 else None
             return Case(((arguments[0], arguments[1]),), default=default)

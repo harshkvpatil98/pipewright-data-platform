@@ -5,6 +5,7 @@ from typing import Any
 import pandas as pd
 
 from shared_python.errors import BadRequestError
+from shared_python.words import listing
 
 from service_transformations.steps.common import (
     ALLOWED_FILTER_OPERATORS,
@@ -33,7 +34,7 @@ def validate_filter_rows(dataframe: pd.DataFrame, config: dict[str, Any]) -> lis
                 raise BadRequestError(f"{prefix} is missing required field '{key}'.")
         extra = set(raw.keys()) - {"column", "operator", "value"}
         if extra:
-            raise BadRequestError(f"{prefix} contains unsupported field(s): {', '.join(sorted(extra))}.")
+            raise BadRequestError(f"{prefix} has settings a filter does not use: {listing(sorted(extra))}.")
 
         column = raw["column"]
         operator = raw["operator"]

@@ -11,6 +11,7 @@ from __future__ import annotations
 from typing import Any
 
 from shared_python.errors import BadRequestError, NotFoundError
+from shared_python.words import listing, noun
 
 from service_connectors.protocol import Connector, ConnectorSpec
 
@@ -67,7 +68,7 @@ def validate_config(connector_type: str, config: dict[str, Any]) -> dict[str, An
     unknown = sorted(set(config) - set(known))
     if unknown:
         raise BadRequestError(
-            f"{spec.label} has no setting(s) named: {', '.join(unknown)}. "
+            f"{spec.label} has no {noun(len(unknown), 'setting')} named {listing(unknown)}. "
             f"Expected: {', '.join(sorted(known))}."
         )
 

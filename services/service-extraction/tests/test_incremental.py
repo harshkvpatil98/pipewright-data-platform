@@ -124,7 +124,7 @@ def test_merge_requires_primary_key() -> None:
 
 
 def test_merge_rejects_key_missing_from_batch() -> None:
-    with pytest.raises(BadRequestError, match="not present in the extracted data"):
+    with pytest.raises(BadRequestError, match="not in the imported data"):
         merge_frames(
             pd.DataFrame({"id": [1], "v": ["a"]}),
             pd.DataFrame({"other": [2]}),

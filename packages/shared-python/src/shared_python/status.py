@@ -65,6 +65,21 @@ class RuntimeSnapshot(BaseModel):
     )
 
 
+class SecuritySnapshot(BaseModel):
+    """The controls a security review asks about, as configured here (A6, W5).
+
+    Facts only, no secrets: whether stored files are encrypted, the session
+    policy, how many organisations restrict where people connect from, and
+    whether single sign-on is configured."""
+
+    files_encrypted_at_rest: bool = False
+    idle_timeout_minutes: int = 60
+    session_limit_hours: int = 12
+    organisations_with_network_lists: int = 0
+    sso_configured: bool = False
+    trusted_proxy_hops: int = 0
+
+
 class PlatformStatus(BaseModel):
     status: Literal["healthy", "degraded", "unhealthy"]
     service: str
@@ -74,3 +89,4 @@ class PlatformStatus(BaseModel):
     checked_at: str = Field(description="ISO 8601 UTC timestamp when this snapshot was assembled.")
     scheduler: SchedulerOperationalSnapshot
     runtime: RuntimeSnapshot = Field(default_factory=RuntimeSnapshot)
+    security: SecuritySnapshot = Field(default_factory=SecuritySnapshot)

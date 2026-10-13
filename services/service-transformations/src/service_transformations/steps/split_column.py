@@ -6,6 +6,7 @@ import pandas as pd
 
 from service_transformations.steps.common import ensure_columns_exist, ensure_config_keys, require_string_list
 from shared_python.errors import BadRequestError
+from shared_python.words import listing
 
 
 def validate_split_column(dataframe: pd.DataFrame, config: dict[str, Any]) -> tuple[str, str, list[str], bool]:
@@ -26,7 +27,7 @@ def validate_split_column(dataframe: pd.DataFrame, config: dict[str, Any]) -> tu
     into = require_string_list(config["into"], field_name="config.into")
     duplicates = sorted({name for name in into if into.count(name) > 1})
     if duplicates:
-        raise BadRequestError(f"config.into contains duplicate name(s): {', '.join(duplicates)}.")
+        raise BadRequestError(f"The new column names repeat: {listing(duplicates)}. Give each part its own name.")
 
     drop_original = config.get("drop_original", False)
     if not isinstance(drop_original, bool):
@@ -34,7 +35,7 @@ def validate_split_column(dataframe: pd.DataFrame, config: dict[str, Any]) -> tu
 
     existing = sorted(set(into) & set(str(c) for c in dataframe.columns) - ({column} if drop_original else set()))
     if existing:
-        raise BadRequestError(f"config.into would overwrite existing column(s): {', '.join(existing)}.")
+        raise BadRequestError(f"The new column names would replace columns that already exist: {listing(existing)}. Pick other names.")
 
     return column, delimiter, into, drop_original
 

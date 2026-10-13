@@ -33,6 +33,8 @@ import { cx } from "@/lib/utils";
 import { AGGREGATION_LABELS, chartTitle, chooseChartDefaults } from "@/features/reporting/chart-defaults";
 
 import { ChartView } from "./chart-view";
+import { countOf } from "@/lib/format";
+import { sentenceLabel } from "@/lib/labels";
 
 type ChartBuilderPageProps = {
   currentUser: AuthUser;
@@ -345,7 +347,7 @@ export function ChartBuilderPageView({
                 </select>
                 <p className="mt-1.5 text-[12px] leading-4 text-muted">
                   {metric
-                    ? `${metric.aggregation.replace("_", " ")} of ${metric.formula ?? metric.column}${metric.filters.length ? `, ${metric.filters.length} filter(s) built in` : ""}. The chart follows the definition when it changes.`
+                    ? `${sentenceLabel(metric.aggregation)} of ${metric.formula ?? metric.column}${metric.filters.length ? `, ${countOf(metric.filters.length, "filter")} built in` : ""}. The chart follows the definition when it changes.`
                     : "Name a metric instead of restating a measure, so every chart agrees on the number."}
                 </p>
               </Field>

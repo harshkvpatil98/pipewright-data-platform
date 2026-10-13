@@ -10,6 +10,7 @@ import { WELCOME_TOUR_ID, welcomeTour } from "@/components/tour/tours";
 import { AppearanceControls } from "@/features/preferences/components/appearance-controls";
 import { NotificationPreferences } from "@/features/notifications/components/notification-preferences";
 import { AccountSecurity } from "@/features/settings/components/account-security";
+import { SessionPolicyNote } from "@/features/settings/components/session-policy-note";
 import { ApiTokensPanel } from "@/features/settings/components/api-tokens-panel";
 import { MfaPanel } from "@/features/settings/components/mfa-panel";
 import { appConfig } from "@/lib/config";
@@ -105,6 +106,7 @@ export function SettingsPageView({ currentUser }: SettingsPageProps) {
           title="Security"
           description="Change your password, and end sessions if one was left open."
         >
+          <SessionPolicyNote />
           <AccountSecurity />
         </Section>
 

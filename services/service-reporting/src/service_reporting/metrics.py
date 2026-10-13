@@ -43,6 +43,7 @@ from service_reporting.schemas import (
 )
 from shared_python.errors import BadRequestError, ConflictError, NotFoundError
 from shared_python.logging import get_logger
+from shared_python.words import count_of, listing, noun
 
 logger = get_logger(__name__)
 
@@ -164,7 +165,7 @@ def _check_definition(db: Session, project_id: uuid.UUID, dataset_id: uuid.UUID,
         missing = [name for name in [column, *(f.column for f in filters), *dimensions] if name and name not in known]
         if missing:
             raise BadRequestError(
-                f"Column(s) not in '{dataset.name}': {', '.join(sorted(set(missing)))}. "
+                f"'{dataset.name}' has no {noun(len(set(missing)), 'column')} named {listing(sorted(set(missing)))}. "
                 f"Known columns: {', '.join(known[:12])}{'…' if len(known) > 12 else ''}."
             )
     if formula:
@@ -308,9 +309,9 @@ def delete_metric(db: Session, project_id: uuid.UUID, metric_id: uuid.UUID, curr
     using = _usage_counts(db, [metric.id]).get(metric.id, 0)
     if using:
         raise ConflictError(
-            f"{using} chart(s) resolve through '{metric.name}'. Point them at another metric or "
-            "delete them first; removing the definition underneath them would silently change "
-            "what they show."
+            f"{count_of(using, 'chart')} {'uses' if using == 1 else 'use'} '{metric.name}'. "
+            f"Point {'it' if using == 1 else 'them'} at another metric or delete {'it' if using == 1 else 'them'} first; "
+            "removing the definition would silently change what they show."
         )
     db.delete(metric)
     db.commit()

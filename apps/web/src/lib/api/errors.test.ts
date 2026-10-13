@@ -1,4 +1,4 @@
-import { ApiError, extractErrorMessage, parseApiResponse } from "@/lib/api/errors";
+import { ApiError, UNREACHABLE_MESSAGE, extractErrorMessage, parseApiResponse } from "@/lib/api/errors";
 
 describe("api error handling", () => {
   it("extracts detail messages from ApiError payloads", () => {
@@ -71,3 +71,25 @@ describe("parseApiResponse", () => {
     await expect(parseApiResponse(badBody)).rejects.toMatchObject({ status: 422 });
   });
 });
+
+describe("messages a person can act on", () => {
+  it("says the server could not be reached, in any browser's words", () => {
+    for (const raw of ["Failed to fetch", "NetworkError when attempting to fetch resource.", "Load failed"]) {
+      expect(extractErrorMessage(new TypeError(raw))).toBe(UNREACHABLE_MESSAGE);
+    }
+  });
+
+  it("names the fields a refused form got wrong", () => {
+    const refused = new ApiError(422, {
+      detail: [{ loc: ["body", "name"], msg: "Field required", type: "missing" }],
+    });
+    expect(extractErrorMessage(refused)).toBe("Some details need changing. name: Field required.");
+  });
+
+  it("does not show a status code for a server failure", () => {
+    expect(extractErrorMessage(new ApiError(502, undefined))).toMatch(
+      /^Something went wrong on Pipewright's server/,
+    );
+  });
+});
+

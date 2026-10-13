@@ -10,24 +10,47 @@ export class ApiError extends Error {
   }
 }
 
+/** What the browser says when a request never reached the server, by engine. */
+const UNREACHABLE = /failed to fetch|networkerror|load failed|network request failed/i;
+
+export const UNREACHABLE_MESSAGE =
+  "Pipewright's server could not be reached. Check your connection and try again; if it keeps happening, System status shows what is running.";
+
+/** A field-by-field refusal (FastAPI's 422 list), as one sentence. */
+function describeInvalidFields(detail: unknown): string | null {
+  if (!Array.isArray(detail) || detail.length === 0) return null;
+  const parts = detail.slice(0, 3).map((item) => {
+    const entry = item as { loc?: unknown[]; msg?: string };
+    const field = Array.isArray(entry.loc) ? entry.loc.filter((part) => part !== "body").join(" › ") : "";
+    return field ? `${field}: ${entry.msg ?? "not valid"}` : (entry.msg ?? "not valid");
+  });
+  return `Some details need changing. ${parts.join("; ")}.`;
+}
+
 export function extractErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
     if (typeof error.detail === "string") {
       return error.detail;
     }
-    if (
-      typeof error.detail === "object" &&
-      error.detail !== null &&
-      "detail" in error.detail &&
-      typeof (error.detail as { detail?: unknown }).detail === "string"
-    ) {
-      return (error.detail as { detail: string }).detail;
+    const inner =
+      typeof error.detail === "object" && error.detail !== null && "detail" in error.detail
+        ? (error.detail as { detail?: unknown }).detail
+        : undefined;
+    if (typeof inner === "string") {
+      return inner;
+    }
+    const fields = describeInvalidFields(inner);
+    if (fields) {
+      return fields;
+    }
+    if (error.status >= 500) {
+      return "Something went wrong on Pipewright's server. Try again; if it keeps happening, tell whoever runs Pipewright for you.";
     }
     return error.message;
   }
 
   if (error instanceof Error) {
-    return error.message;
+    return UNREACHABLE.test(error.message) ? UNREACHABLE_MESSAGE : error.message;
   }
 
   return "Something went wrong. Please try again.";

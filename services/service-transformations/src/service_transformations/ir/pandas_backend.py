@@ -395,12 +395,33 @@ def evaluate(expr: Expr, frame: pd.DataFrame) -> pd.Series:
     raise IRError(f"Cannot evaluate {type(expr).__name__}.")
 
 
+def _cannot_compare(expr: Call) -> str:
+    """Why an ordering comparison failed, in words: a column mixes kinds of value.
+
+    pandas raises "'>' not supported between instances of 'float' and 'str'"
+    when a column holds text and numbers together and is compared with a
+    number; that message reached a scheduled run's log unexplained.
+    """
+    names = [arg.name for arg in expr.args if isinstance(arg, Column)]
+    values = [arg.value for arg in expr.args if isinstance(arg, Literal)]
+    subject = f"The column '{names[0]}'" if names else "A value here"
+    against = f" with {values[0]!r}" if values else ""
+    return (
+        f"{subject} holds text and numbers together, so it cannot be compared{against}. "
+        "Change its type to a number first, or compare it with text."
+    )
+
+
 def _call(expr: Call, frame: pd.DataFrame) -> pd.Series:
     name = expr.name
     args = [evaluate(arg, frame) for arg in expr.args]
 
     if name in _COMPARISONS:
-        return _three_valued(_COMPARISONS[name](args[0], args[1]), args[0], args[1])
+        try:
+            compared = _COMPARISONS[name](args[0], args[1])
+        except TypeError as exc:
+            raise IRError(_cannot_compare(expr)) from exc
+        return _three_valued(compared, args[0], args[1])
     if name in _ARITHMETIC:
         return _ARITHMETIC[name](args[0], args[1])
     if name == "and":

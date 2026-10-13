@@ -190,3 +190,24 @@ def test_an_existing_table_is_left_alone_unless_replacing(db, world, mysql_engin
             assert conn.execute(text("SELECT COUNT(*) FROM orders")).scalar() == 3
     finally:
         _cleanup(mysql_engine, "orders", "customers")
+
+
+def test_a_copy_started_from_the_page_runs_on_the_worker_with_progress(db, world, mysql_engine) -> None:
+    """The request queues it and answers at once; the worker copies table by
+    table, writing progress to the run the page watches (A7, X3)."""
+    from service_destinations.copy_database import start_copy
+    from service_pipeline_runs import background
+
+    _cleanup(mysql_engine, "customers", "orders")
+    try:
+        started = start_copy(db, world["project"].id, _request(world), world["user"])
+        queued = db.get(PipelineRun, started.run_id)
+        assert queued.status == "queued" and started.tables == 2
+        finished = background.run_next(db, storage_backend=None, settings=None, owner="test-worker")
+        assert finished.id == started.run_id and finished.status == "succeeded"
+        messages = [event["message"] for event in finished.logs_json["events"]]
+        assert any(message.startswith("Copying customers (1 of 2)") for message in messages)
+        assert finished.summary_json["rows_copied"] == 5
+        assert finished.claim_owner_id is None
+    finally:
+        _cleanup(mysql_engine, "orders", "customers")

@@ -52,7 +52,35 @@ def _beat(interval: float, status: str = "running") -> None:
         db.close()
 
 
+def tick_background(max_runs: int) -> int:
+    """Do queued background runs (large uploads, database copies; A7, X3).
+
+    The modules that register them are imported here so a worker knows every
+    kind the gateway can queue.
+    """
+    import service_destinations.copy_database  # noqa: F401 - registers database copies
+    import service_ingestion.service  # noqa: F401 - registers large uploads
+    from service_pipeline_runs import background
+
+    db = SessionLocal()
+    try:
+        background.release_stalled(db)
+        done = 0
+        while done < max_runs and not _stopping:
+            run = background.run_next(
+                db, storage_backend=storage_backend, settings=settings, owner=worker_identity(settings)
+            )
+            if run is None:
+                break
+            done += 1
+            logger.info("background_run_finished run_id=%s run_type=%s status=%s", run.id, run.run_type, run.status)
+        return done
+    finally:
+        db.close()
+
+
 def tick(max_runs: int) -> int:
+    processed = tick_background(max_runs)
     db = SessionLocal()
     try:
         completed = drain_queue(
@@ -67,7 +95,7 @@ def tick(max_runs: int) -> int:
                 run.nodes_failed,
                 run.nodes_skipped,
             )
-        return len(completed)
+        return processed + len(completed)
     finally:
         db.close()
 

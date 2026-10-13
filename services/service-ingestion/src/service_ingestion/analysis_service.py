@@ -34,6 +34,23 @@ logger = get_logger(__name__)
 #: committed, which is the point: the decisions are visible against real rows.
 PREVIEW_ROWS = 200
 
+#: A delimited text file larger than this is worked out from its first part
+#: (A7, X3): how to read it shows in the first megabytes, and reading all of
+#: a 100MB file here would hold the request for half a minute. The import
+#: still reads every row.
+ANALYSIS_SAMPLE_BYTES = 5 * 1024 * 1024
+_DELIMITED = (".csv", ".tsv", ".txt", ".psv", ".dat")
+
+
+def _sample(payload: bytes, file_name: str) -> tuple[bytes, int | None]:
+    """The part of the file analysed, and the full size when that is only a part."""
+    if len(payload) <= ANALYSIS_SAMPLE_BYTES or not file_name.lower().endswith(_DELIMITED):
+        return payload, None
+    cut = payload.rfind(b"\n", 0, ANALYSIS_SAMPLE_BYTES)
+    if cut <= 0:
+        return payload, None
+    return payload[: cut + 1], len(payload)
+
 
 def analyse_upload(
     db: Session,
@@ -50,6 +67,7 @@ def analyse_upload(
     ensure_owned_project(db, project_id, current_user.id)
     if not payload:
         raise BadRequestError("The uploaded file is empty.")
+    payload, full_size = _sample(payload, file_name)
 
     saved: IngestSpecRecord | None = None
     applied: spec_module.IngestSpec | None = None
@@ -100,9 +118,16 @@ def analyse_upload(
         except BadRequestError:
             converted, notes = preview_frame, []
 
+    if full_size is not None:
+        notes = [
+            f"Worked out from the first {len(payload) // (1024 * 1024)} MB of this "
+            f"{full_size // (1024 * 1024)} MB file. Importing reads every row.",
+            *notes,
+        ]
+
     return {
         "file_name": file_name,
-        "file_size_bytes": len(payload),
+        "file_size_bytes": full_size or len(payload),
         "analysis": result.to_dict(),
         "spec": derived.to_dict(),
         "preview": _preview(converted),

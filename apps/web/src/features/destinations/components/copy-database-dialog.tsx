@@ -67,7 +67,13 @@ type CopyDatabaseDialogProps = {
   connectionId?: string;
 };
 
-type Step = "choose" | "tables" | "review" | "report";
+type Step = "choose" | "tables" | "review" | "copying" | "report";
+
+type RunProgress = {
+  status: string;
+  logs_json: { events?: { message?: string }[] } | null;
+  summary_json: Partial<CopyReport> & { error?: string; tables_failed?: number } | null;
+};
 
 /**
  * Copy tables from a connected database into a PostgreSQL or MySQL
@@ -86,6 +92,8 @@ export function CopyDatabaseDialog({ open, onClose, projectId, connectionId }: C
   const [plan, setPlan] = useState<CopyPlan | null>(null);
   const [replace, setReplace] = useState(false);
   const [report, setReport] = useState<CopyReport | null>(null);
+  const [runId, setRunId] = useState<string | null>(null);
+  const [progress, setProgress] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -94,6 +102,8 @@ export function CopyDatabaseDialog({ open, onClose, projectId, connectionId }: C
     setStep("choose");
     setPlan(null);
     setReport(null);
+    setRunId(null);
+    setProgress([]);
     setError(null);
     Promise.all([
       apiFetch<ExtractionConnectionListResponse>(`/projects/${projectId}/extraction/connections`),
@@ -143,11 +153,56 @@ export function CopyDatabaseDialog({ open, onClose, projectId, connectionId }: C
       setStep("review");
     });
 
+  // The copy runs on the background worker (A7): the request only queues it,
+  // and the dialog follows its run, table by table, until it finishes.
   const copy = () =>
     act(async () => {
-      setReport(await apiFetch<CopyReport>(`/projects/${projectId}/database-copies`, { method: "POST", body: body() }));
-      setStep("report");
+      const started = await apiFetch<{ run_id: string }>(`/projects/${projectId}/database-copies`, {
+        method: "POST",
+        body: body(),
+      });
+      setRunId(started.run_id);
+      setProgress(["Waiting for the background worker."]);
+      setStep("copying");
     });
+
+  useEffect(() => {
+    if (step !== "copying" || !runId) return;
+    let cancelled = false;
+    let timer: number | undefined;
+    const poll = async () => {
+      try {
+        const run = await apiFetch<RunProgress>(`/projects/${projectId}/runs/${runId}`);
+        if (cancelled) return;
+        const messages = (run.logs_json?.events ?? []).map((event) => event.message ?? "").filter(Boolean);
+        if (messages.length) setProgress(messages);
+        if (run.status === "succeeded" || run.status === "failed") {
+          const summary = run.summary_json ?? {};
+          if (summary.tables) {
+            setReport({
+              run_id: runId,
+              status: run.status === "succeeded" ? "succeeded" : "failed",
+              tables: summary.tables,
+              rows_copied: summary.rows_copied ?? 0,
+              never_copied: summary.never_copied ?? [],
+            });
+            setStep("report");
+          } else {
+            setError(summary.error ?? messages.at(-1) ?? "The copy stopped before it began.");
+          }
+          return;
+        }
+      } catch {
+        // A missed poll is not news; the next one tries again.
+      }
+      if (!cancelled) timer = window.setTimeout(poll, 2000);
+    };
+    timer = window.setTimeout(poll, 500);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [step, runId, projectId]);
 
   const lossy = plan ? plan.tables.reduce((sum, table) => sum + table.columns.filter((column) => column.lossy).length, 0) : 0;
 
@@ -189,6 +244,13 @@ export function CopyDatabaseDialog({ open, onClose, projectId, connectionId }: C
                 {busy ? "Copying…" : `Copy ${plan?.tables.length ?? 0} table${plan?.tables.length === 1 ? "" : "s"}`}
               </Button>
             </div>
+          </div>
+        ) : step === "copying" ? (
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-[13px] text-ink-3">It carries on if you close this; Runs shows it.</span>
+            <Button size="sm" variant="secondary" onClick={onClose}>
+              Close
+            </Button>
           </div>
         ) : (
           <div className="flex justify-end gap-2">
@@ -364,6 +426,20 @@ export function CopyDatabaseDialog({ open, onClose, projectId, connectionId }: C
         </div>
       ) : null}
 
+      {step === "copying" ? (
+        <div role="status" className="space-y-2">
+          <div className="flex items-center gap-2 text-[15px] font-medium text-ink">
+            <Icon name="refresh" size={15} className="animate-spin text-[color:var(--accent-muted)]" />
+            Copying
+          </div>
+          <ul className="max-h-64 space-y-1 overflow-y-auto rounded-xl border border-line bg-surface px-3 py-2 text-[13px] text-ink-2">
+            {progress.map((line, index) => (
+              <li key={`${index}-${line}`}>{line}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       {step === "report" && report ? (
         <div className="space-y-3">
           <p
@@ -391,7 +467,11 @@ export function CopyDatabaseDialog({ open, onClose, projectId, connectionId }: C
                           : "bg-danger-soft text-danger",
                     )}
                   >
-                    {table.status === "succeeded" ? `${table.rows_copied.toLocaleString()} rows` : table.status}
+                    {table.status === "succeeded"
+                      ? `${table.rows_copied.toLocaleString()} rows`
+                      : table.status === "skipped"
+                        ? "Left alone"
+                        : "Did not copy"}
                   </span>
                 </div>
                 {table.message ? <p className="mt-1 text-ink-3">{table.message}</p> : null}

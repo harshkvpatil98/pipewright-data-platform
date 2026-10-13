@@ -9,8 +9,8 @@ from sqlalchemy.orm import Session
 
 from service_auth.schemas import UserRead
 from service_destinations.bi_publish_service import publish_dataset_to_power_bi
-from service_destinations.copy_database import plan_copy, run_copy
-from service_destinations.copy_schemas import CopyPlan, CopyReport, CopyRequest
+from service_destinations.copy_database import plan_copy, start_copy
+from service_destinations.copy_schemas import CopyPlan, CopyRequest, CopyStarted
 from service_destinations.deliver import deliver_dataset, preview_delivery
 from service_destinations.publish_schemas import (
     DeliveryPreview,
@@ -143,14 +143,19 @@ def build_router(
     ) -> CopyPlan:
         return plan_copy(db, project_id, payload, current_user)
 
-    @router.post("/projects/{project_id}/database-copies", response_model=CopyReport)
+    @router.post(
+        "/projects/{project_id}/database-copies",
+        response_model=CopyStarted,
+        status_code=status.HTTP_202_ACCEPTED,
+    )
     def post_database_copy(
         project_id: uuid.UUID,
         payload: CopyRequest,
         db: Session = Depends(get_db),
         current_user: UserRead = Depends(get_current_user),
-    ) -> CopyReport:
-        return run_copy(db, project_id, payload, current_user)
+    ) -> CopyStarted:
+        """Queue a copy for the background worker; its run shows the progress and the report."""
+        return start_copy(db, project_id, payload, current_user)
 
     @router.post(
         "/projects/{project_id}/datasets/{dataset_id}/deliver/preview",

@@ -62,3 +62,11 @@ class CopyReport(BaseModel):
     tables: list[CopyTableReport]
     rows_copied: int
     never_copied: list[str]
+
+
+class CopyStarted(BaseModel):
+    """A copy handed to the background worker: watch its run for progress."""
+
+    run_id: uuid.UUID
+    status: Literal["queued"] = "queued"
+    tables: int

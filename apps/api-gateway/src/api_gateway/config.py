@@ -87,7 +87,9 @@ class Settings(BaseSettings):
     #: encrypted at rest; files stored before keep reading until
     #: `platform-encrypt-storage` encrypts them.
     storage_encryption_key: str | None = None
-    max_upload_size_bytes: int = 25 * 1024 * 1024
+    # Files over 25MB are read by the background worker (A7); it needs about
+    # fifteen times a file's size in memory while it reads one.
+    max_upload_size_bytes: int = 100 * 1024 * 1024
     # Every format the ingestion readers handle. The extension is a gate, not a
     # decision: the sniffer reads the bytes and overrules the name, so a
     # workbook renamed `.csv` still loads correctly -- but an extension nobody

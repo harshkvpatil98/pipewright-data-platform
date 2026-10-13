@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 
 from service_auth.schemas import UserRead
 from service_datasets.service import (
+    _to_detail,
     create_uploaded_dataset_placeholder,
     finalize_dataset_ingestion_failure,
     finalize_dataset_ingestion_success,
@@ -14,7 +15,9 @@ from service_ingestion.contracts import build_upload_path, validate_upload_file
 from service_ingestion.parsers import parse_tabular_file
 from service_ingestion.profiling import build_preview, build_profile, infer_schema
 from service_ingestion.schemas import DatasetUploadResponse, IngestionUpload
+from service_pipeline_runs import background
 from service_pipeline_runs.service import (
+    _serialize_run,
     create_pipeline_run,
     mark_pipeline_run_failed,
     mark_pipeline_run_running,
@@ -24,8 +27,14 @@ from service_projects.contracts import ensure_owned_project
 from shared_python.errors import ApplicationError, BadRequestError, InternalServerError
 from shared_python.logging import get_logger
 from shared_python.storage import content_digest
+from shared_python.storage.interface import StoredArtifact
 
 logger = get_logger(__name__)
+
+
+#: Files larger than this are read by the background worker rather than in
+#: the request: past it, reading takes long enough to risk a proxy's timeout.
+IN_REQUEST_BYTES = 25 * 1024 * 1024
 
 
 def _stage_words(stage: str) -> str:
@@ -113,7 +122,6 @@ def ingest_project_file(
             },
         )
     ]
-    current_stage = 'queued'
 
     if not file_bytes:
         raise BadRequestError('Uploaded file is empty.')
@@ -150,21 +158,157 @@ def ingest_project_file(
         original_filename=upload_file.file_name,
     )
 
+    if len(file_bytes) > IN_REQUEST_BYTES:
+        return _queue_for_worker(
+            db,
+            dataset=dataset,
+            pipeline_run=pipeline_run,
+            upload_file=upload_file,
+            file_type=file_type,
+            relative_path=relative_path,
+            storage_backend=storage_backend,
+            log_events=log_events,
+            ingest_spec=ingest_spec,
+        )
+    return _read_upload(
+        db,
+        project=project,
+        dataset=dataset,
+        pipeline_run=pipeline_run,
+        upload_file=upload_file,
+        file_type=file_type,
+        file_bytes=file_bytes,
+        relative_path=relative_path,
+        storage_backend=storage_backend,
+        settings=settings,
+        current_user=current_user,
+        ingest_spec=ingest_spec,
+        log_events=log_events,
+        already_stored=False,
+    )
+
+
+def _queue_for_worker(
+    db,
+    *,
+    dataset,
+    pipeline_run,
+    upload_file: IngestionUpload,
+    file_type: str,
+    relative_path: str,
+    storage_backend,
+    log_events: list,
+    ingest_spec: dict | None,
+) -> DatasetUploadResponse:
+    """Save a large file and leave the reading to the background worker (A7, X3).
+
+    Reading a large file takes long enough to outlast a proxy's timeout, and
+    about fifteen times the file's size in memory; the worker does it, and the
+    dataset page shows it being read.
+    """
+    storage_backend.save_upload(relative_path=relative_path, file_bytes=upload_file.file_bytes)
+    log_events.append(
+        _log_event(
+            'upload',
+            'The file is saved. It is large, so the background worker reads it next.',
+            details={'file_size_bytes': len(upload_file.file_bytes)},
+        )
+    )
+    pipeline_run.logs_json = _build_log_events(log_events)
+    background.queue(
+        db,
+        run=pipeline_run,
+        request={
+            'dataset_id': str(dataset.id),
+            'relative_path': relative_path,
+            'file_name': upload_file.file_name,
+            'content_type': upload_file.content_type,
+            'file_type': file_type,
+            'ingest_spec': ingest_spec,
+        },
+        message='Waiting for the background worker.',
+    )
+    db.refresh(dataset)
+    return DatasetUploadResponse(dataset=_to_detail(dataset), run=_serialize_run(pipeline_run))
+
+
+def read_queued_upload(db, run, storage_backend, settings) -> None:
+    """The worker's half of a large upload: read the saved file, as the request would have."""
+    from service_auth.models import User
+    from service_datasets.models import Dataset
+    from service_projects.models import Project
+
+    request = run.request_json or {}
+    dataset = db.get(Dataset, uuid.UUID(request['dataset_id']))
+    project = db.get(Project, run.project_id)
+    owner = db.get(User, run.triggered_by_user_id)
+    if dataset is None or project is None or owner is None:
+        raise BadRequestError('The dataset or project this file was for no longer exists.')
+    file_bytes = storage_backend.read_bytes(request['relative_path'])
+    _read_upload(
+        db,
+        project=project,
+        dataset=dataset,
+        pipeline_run=run,
+        upload_file=IngestionUpload(
+            file_name=request['file_name'], content_type=request.get('content_type') or '', file_bytes=file_bytes,
+        ),
+        file_type=request['file_type'],
+        file_bytes=file_bytes,
+        relative_path=request['relative_path'],
+        storage_backend=storage_backend,
+        settings=settings,
+        current_user=UserRead.model_validate(owner, from_attributes=True),
+        ingest_spec=request.get('ingest_spec'),
+        log_events=list((run.logs_json or {}).get('events', [])),
+        already_stored=True,
+    )
+
+
+def _read_upload(
+    db,
+    *,
+    project,
+    dataset,
+    pipeline_run,
+    upload_file: IngestionUpload,
+    file_type: str,
+    file_bytes: bytes,
+    relative_path: str,
+    storage_backend,
+    settings,
+    current_user: UserRead,
+    ingest_spec: dict | None,
+    log_events: list,
+    already_stored: bool,
+) -> DatasetUploadResponse:
+    """Parse, profile and keep a stored file: in the request, or on the worker."""
+    current_stage = 'queued'
     try:
-        # The request performs ingestion synchronously today, but this lifecycle mirrors a future
-        # background worker so runs and datasets already expose durable queued/running terminal states.
         current_stage = 'running'
         log_events.append(_log_event('running', 'Getting ready to read the file.'))
-        mark_pipeline_run_running(
-            db,
-            run=pipeline_run,
-            logs_json=_build_log_events(log_events),
-        )
+        if already_stored:
+            # The worker claimed the run, which marked it running.
+            pipeline_run.logs_json = _build_log_events(log_events)
+            db.flush()
+        else:
+            mark_pipeline_run_running(
+                db,
+                run=pipeline_run,
+                logs_json=_build_log_events(log_events),
+            )
         mark_dataset_ingestion_running(db, dataset=dataset)
 
         current_stage = 'upload'
-        log_events.append(_log_event('upload', 'Saving the file.'))
-        stored_artifact = storage_backend.save_upload(relative_path=relative_path, file_bytes=file_bytes)
+        if already_stored:
+            stored_artifact = StoredArtifact(
+                relative_path=relative_path,
+                file_name=relative_path.rsplit('/', 1)[-1],
+                size_bytes=len(file_bytes),
+            )
+        else:
+            log_events.append(_log_event('upload', 'Saving the file.'))
+            stored_artifact = storage_backend.save_upload(relative_path=relative_path, file_bytes=file_bytes)
 
         log_events.append(
             _log_event(
@@ -353,3 +497,6 @@ def ingest_project_file(
         if storage_backend.exists(relative_path):
             storage_backend.delete(relative_path)
         raise InternalServerError(safe_error) from exc
+
+
+background.register('dataset_ingestion', read_queued_upload)

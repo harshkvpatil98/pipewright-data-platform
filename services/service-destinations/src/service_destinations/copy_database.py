@@ -36,6 +36,7 @@ from sqlalchemy.orm import Session
 from service_auth.schemas import UserRead
 from service_destinations.at_rest_config import destination_config_for_internal_use
 from service_destinations.copy_schemas import (
+    CopyStarted,
     CopyColumnPlan,
     CopyPlan,
     CopyRequest,
@@ -45,6 +46,7 @@ from service_destinations.copy_schemas import (
 )
 from service_destinations.service import get_destination_model
 from service_destinations.sql_writer import ENGINES, engine_for, validate_table_name
+from service_pipeline_runs import background
 from service_pipeline_runs.service import (
     create_pipeline_run,
     mark_pipeline_run_failed,
@@ -53,6 +55,7 @@ from service_pipeline_runs.service import (
 )
 from service_projects.contracts import ensure_owned_project
 from shared_python.errors import BadRequestError
+from shared_python.words import count_of
 from shared_python.types.coercion import cast_loss
 from shared_python.types.lattice import UNKNOWN, Kind
 from shared_python.types.mappings import get as type_mapping
@@ -325,20 +328,65 @@ def _copy_table(source: _Source, target: Engine, target_type: str, plan: CopyTab
                            carried=carried, not_carried=plan.not_carried, message=message)
 
 
+def start_copy(db: Session, project_id: uuid.UUID, payload: CopyRequest, current_user: UserRead) -> CopyStarted:
+    """Check the copy can be planned, then queue it for the background worker (A7, X3).
+
+    Planning first means a wrong connection or an unknown table is refused
+    while the person is still looking at the dialog, not minutes later.
+    """
+    plan = plan_copy(db, project_id, payload, current_user)
+    run = create_pipeline_run(db, project_id=project_id, current_user=current_user, run_type=RUN_TYPE,
+                              logs_json={"events": []})
+    background.queue(
+        db,
+        run=run,
+        request={"copy": payload.model_dump(mode="json")},
+        message=f"Waiting for the background worker to copy {count_of(len(plan.tables), 'table')}.",
+    )
+    return CopyStarted(run_id=run.id, tables=len(plan.tables))
+
+
+def copy_queued(db: Session, run: Any, storage_backend: Any, settings: Any) -> None:
+    """The worker's half of a copy."""
+    from service_auth.models import User
+
+    owner = db.get(User, run.triggered_by_user_id)
+    if owner is None:
+        raise BadRequestError("The person who started this copy no longer has an account.")
+    payload = CopyRequest.model_validate((run.request_json or {})["copy"])
+    _execute_copy(db, run.project_id, payload, UserRead.model_validate(owner, from_attributes=True), run=run)
+
+
 def run_copy(db: Session, project_id: uuid.UUID, payload: CopyRequest, current_user: UserRead) -> CopyReport:
+    """Copy now, in this process: what the worker does, without the queue."""
+    run = create_pipeline_run(db, project_id=project_id, current_user=current_user, run_type=RUN_TYPE,
+                              logs_json={"events": []})
+    mark_pipeline_run_running(db, run=run, logs_json={"events": []})
+    return _execute_copy(db, project_id, payload, current_user, run=run)
+
+
+def _execute_copy(db: Session, project_id: uuid.UUID, payload: CopyRequest, current_user: UserRead, *, run: Any) -> CopyReport:
     plan = plan_copy(db, project_id, payload, current_user)
     source = _source(db, project_id, payload.connection_id)
     destination = get_destination_model(db, project_id, payload.destination_id)
     config = destination_config_for_internal_use(destination.destination_type, dict(destination.config_json or {}))
 
-    run = create_pipeline_run(db, project_id=project_id, current_user=current_user, run_type=RUN_TYPE,
-                              logs_json={"events": []})
-    mark_pipeline_run_running(db, run=run, logs_json={"events": []})
     target = engine_for(destination.destination_type, config)
     reports: list[CopyTableReport] = []
     try:
-        for table_plan in plan.tables:
-            reports.append(_copy_table(source, target, destination.destination_type, table_plan, replace=payload.replace_existing))
+        for position, table_plan in enumerate(plan.tables, start=1):
+            background.progress(
+                db, run, "copy",
+                f"Copying {table_plan.source} ({position} of {len(plan.tables)}).",
+                table=table_plan.source, position=position, total=len(plan.tables),
+            )
+            report = _copy_table(source, target, destination.destination_type, table_plan, replace=payload.replace_existing)
+            reports.append(report)
+            background.progress(
+                db, run, "copy",
+                f"{table_plan.source}: {report.status}, {count_of(report.rows_copied, 'row')} copied.",
+                table=table_plan.source, position=position, total=len(plan.tables),
+            )
     finally:
         target.dispose()
 
@@ -353,8 +401,9 @@ def run_copy(db: Session, project_id: uuid.UUID, payload: CopyRequest, current_u
         "tables": [report.model_dump() for report in reports],
         "never_copied": plan.never_copied,
     }
-    events = [{"stage": "finished", "message": f"Copied {len(copied)} of {len(reports)} tables.",
-               "recorded_at": datetime.now(UTC).isoformat()}]
+    events = list((run.logs_json or {}).get("events", []))
+    events.append({"stage": "finished", "message": f"Copied {len(copied)} of {len(reports)} tables.",
+                   "recorded_at": datetime.now(UTC).isoformat()})
     if failed:
         mark_pipeline_run_failed(db, run=run, summary_json=summary, logs_json={"events": events})
     else:
@@ -364,3 +413,6 @@ def run_copy(db: Session, project_id: uuid.UUID, payload: CopyRequest, current_u
         run_id=run.id, status="failed" if failed else "succeeded",
         tables=reports, rows_copied=summary["rows_copied"], never_copied=plan.never_copied,
     )
+
+
+background.register(RUN_TYPE, copy_queued)

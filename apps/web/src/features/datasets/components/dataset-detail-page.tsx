@@ -36,6 +36,7 @@ import { extractErrorMessage } from "@/lib/api/errors";
 import { apiFetch } from "@/lib/api/client";
 import { downloadFromApi } from "@/lib/api/download";
 import { DeleteRowButton } from "@/components/ui/delete-row-button";
+import { DatasetBeingRead } from "@/features/datasets/components/dataset-being-read";
 import { DatasetCatalogPanel } from "@/features/datasets/components/dataset-catalog-panel";
 import { DatasetVersionHistoryPanel } from "@/features/datasets/components/dataset-version-history-panel";
 import { DiscussionPanel } from "@/features/team/components/discussion-panel";
@@ -236,13 +237,18 @@ export function DatasetDetailPageView({
           <span className="border-line bg-surface text-ink-2 rounded-full border px-3 py-1 text-[13px]">
             {dataset.is_derived ? "Made by a recipe" : "Original data"}
           </span>
-          <span className="border-line bg-surface text-ink-2 rounded-full border px-3 py-1 text-[13px]">
-            {formatNumber(dataset.row_count)} rows ·{" "}
-            {formatNumber(dataset.column_count)} columns
-          </span>
+          {dataset.ingestion_status === "succeeded" ? (
+            <span className="border-line bg-surface text-ink-2 rounded-full border px-3 py-1 text-[13px]">
+              {formatNumber(dataset.row_count)} rows ·{" "}
+              {formatNumber(dataset.column_count)} columns
+            </span>
+          ) : null}
         </>
       }
     >
+      {["pending", "queued", "running"].includes(dataset.ingestion_status) && dataset.pipeline_run_id ? (
+        <DatasetBeingRead projectId={projectId} runId={dataset.pipeline_run_id} />
+      ) : null}
       <DeliverDatasetModal
         open={isPublishOpen}
         onClose={() => setIsPublishOpen(false)}
@@ -271,6 +277,7 @@ export function DatasetDetailPageView({
         </p>
       ) : null}
 
+      {dataset.ingestion_status === "succeeded" ? (
       <SectionPanel
         title="Rows"
         description={
@@ -312,7 +319,9 @@ export function DatasetDetailPageView({
           </Table>
         </div>
       </SectionPanel>
+      ) : null}
 
+      {dataset.ingestion_status === "succeeded" ? (
       <SectionPanel
         title="Columns"
         description={
@@ -360,6 +369,7 @@ export function DatasetDetailPageView({
           </Table>
         </div>
       </SectionPanel>
+      ) : null}
 
       {dataset.is_derived ? (
         <SectionPanel

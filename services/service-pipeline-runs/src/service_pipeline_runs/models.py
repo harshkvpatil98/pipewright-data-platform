@@ -45,6 +45,11 @@ class PipelineRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     summary_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     logs_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    # A run the worker does instead of the request (A7, X3): what to do, and
+    # the lease of the worker doing it.
+    request_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    claim_owner_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    claim_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     project: Mapped[Project] = relationship(back_populates="pipeline_runs")
     triggered_by_user: Mapped[User] = relationship(back_populates="pipeline_runs")

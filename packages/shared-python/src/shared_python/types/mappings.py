@@ -47,7 +47,14 @@ from shared_python.types.lattice import (
 _PARAMS = re.compile(r"^\s*([a-z0-9_ ]+?)\s*(?:\(\s*([^)]*)\s*\))?\s*$", re.I)
 
 
+#: PostgreSQL writes a precision in the middle: "timestamp(3) with time zone".
+_INNER_PARAMS = re.compile(r"^\s*([a-z ]+?)\s*\(\s*(\d+)\s*\)\s+((?:with|without) time zone)\s*$", re.I)
+
+
 def _split(source_type: str) -> tuple[str, list[int]]:
+    inner = _INNER_PARAMS.match(source_type.strip())
+    if inner is not None:
+        source_type = f"{inner.group(1)} {inner.group(3)}({inner.group(2)})"
     match = _PARAMS.match(source_type.strip())
     if match is None:
         return source_type.strip().lower(), []

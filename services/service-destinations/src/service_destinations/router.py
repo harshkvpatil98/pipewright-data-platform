@@ -9,6 +9,8 @@ from sqlalchemy.orm import Session
 
 from service_auth.schemas import UserRead
 from service_destinations.bi_publish_service import publish_dataset_to_power_bi
+from service_destinations.copy_database import plan_copy, run_copy
+from service_destinations.copy_schemas import CopyPlan, CopyReport, CopyRequest
 from service_destinations.deliver import deliver_dataset, preview_delivery
 from service_destinations.publish_schemas import (
     DeliveryPreview,
@@ -131,6 +133,24 @@ def build_router(
             current_user=current_user,
             storage_backend=storage_backend,
         )
+
+    @router.post("/projects/{project_id}/database-copies/plan", response_model=CopyPlan)
+    def post_database_copy_plan(
+        project_id: uuid.UUID,
+        payload: CopyRequest,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> CopyPlan:
+        return plan_copy(db, project_id, payload, current_user)
+
+    @router.post("/projects/{project_id}/database-copies", response_model=CopyReport)
+    def post_database_copy(
+        project_id: uuid.UUID,
+        payload: CopyRequest,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> CopyReport:
+        return run_copy(db, project_id, payload, current_user)
 
     @router.post(
         "/projects/{project_id}/datasets/{dataset_id}/deliver/preview",

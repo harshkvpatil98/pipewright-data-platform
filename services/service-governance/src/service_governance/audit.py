@@ -57,6 +57,8 @@ SKIPPED_PREFIXES = (
 READ_ONLY_POSTS = frozenset(
     {
         "/api/v1/projects/{id}/charts/preview",
+        "/api/v1/projects/{id}/datasets/{id}/deliver/preview",
+        "/api/v1/projects/{id}/database-copies/plan",
         "/api/v1/projects/{id}/metrics/{id}/preview",
         "/api/v1/projects/{id}/datasets/{id}/pipelines/preview",
         "/api/v1/transformations/tools/preview",

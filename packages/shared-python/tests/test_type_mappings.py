@@ -275,3 +275,14 @@ class TestEveryTypeThroughEveryDialect:
             original = decimal(38, 10)
             recovered = mapping.to_pw(mapping.from_pw(original))
             assert (recovered.precision, recovered.scale) == (38, 10), dialect
+
+
+def test_postgres_precision_written_before_the_time_zone_is_read() -> None:
+    """PostgreSQL compiles "timestamp(3) with time zone", precision in the middle."""
+    from shared_python.types.lattice import Kind
+    from shared_python.types.mappings import get
+
+    zoned = get("postgresql").to_pw("TIMESTAMP(3) WITH TIME ZONE")
+    naive = get("postgresql").to_pw("timestamp(0) without time zone")
+    assert zoned.kind is Kind.TIMESTAMP and zoned.tz_aware and zoned.time_precision == 3
+    assert naive.kind is Kind.TIMESTAMP and not naive.tz_aware and naive.time_precision == 0

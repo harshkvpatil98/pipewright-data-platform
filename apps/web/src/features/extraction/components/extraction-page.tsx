@@ -38,6 +38,7 @@ import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { Icon } from "@/components/ui/icon";
 import { AddDataDialog } from "@/features/datasets/components/add-data-dialog";
 import { UploadDatasetModal } from "@/features/datasets/components/upload-dataset-modal";
+import { CopyDatabaseDialog } from "@/features/destinations/components/copy-database-dialog";
 import { ConnectSourceDialog } from "@/features/extraction/components/connect-source-dialog";
 import { LiveSourcesPanel } from "@/features/extraction/components/live-sources-panel";
 import { groupDatasets, originHints } from "@/lib/dataset-origin";
@@ -154,6 +155,7 @@ export function ExtractionPageView({
   const [connectorType, setConnectorType] =
     useState<SqlConnectorType>("postgresql");
   const [sourcePickerOpen, setSourcePickerOpen] = useState(startConnecting);
+  const [copyFrom, setCopyFrom] = useState<string | null>(null);
   // What the selected connection can do when it is not a database.
   const [listing, setListing] = useState({ canList: true, canResume: true });
   const [previewedStream, setPreviewedStream] = useState<SourceStream | null>(null);
@@ -682,6 +684,11 @@ export function ExtractionPageView({
                             ? "Browse tables"
                             : "See what it holds"}
                       </Button>
+                      {isSqlType(connection.connector_type) ? (
+                        <Button size="sm" variant="secondary" onClick={() => setCopyFrom(connection.id)}>
+                          Copy to a destination
+                        </Button>
+                      ) : null}
                       <Button
                         size="sm"
                         variant="secondary"
@@ -1389,6 +1396,13 @@ export function ExtractionPageView({
           ) : null}
         </div>
       </Modal>
+
+      <CopyDatabaseDialog
+        open={copyFrom !== null}
+        onClose={() => setCopyFrom(null)}
+        projectId={projectId}
+        connectionId={copyFrom ?? undefined}
+      />
 
       <ConnectSourceDialog
         open={sourcePickerOpen}

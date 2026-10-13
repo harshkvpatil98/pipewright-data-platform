@@ -256,10 +256,20 @@ def list_columns(connector_type: str, config: dict[str, Any], *, table: str, sch
     except SQLAlchemyError as exc:
         raise BadRequestError(f"Could not describe table '{table}': {_safe_error(exc)}") from exc
 
+    def type_name(column: dict[str, Any]) -> str:
+        # Compiled for the source's own dialect: a bare str() of the type says
+        # "TIMESTAMP" for PostgreSQL's TIMESTAMP WITH TIME ZONE, which hides
+        # the one fact a copy or a type check most needs.
+        kind = column.get("type")
+        try:
+            return str(kind.compile(dialect=engine.dialect))
+        except Exception:  # noqa: BLE001 - an exotic type still has a name
+            return str(kind)
+
     return [
         DiscoveredColumn(
             name=str(column["name"]),
-            data_type=str(column.get("type")),
+            data_type=type_name(column),
             nullable=bool(column.get("nullable", True)),
             primary_key=str(column["name"]) in pk,
         )

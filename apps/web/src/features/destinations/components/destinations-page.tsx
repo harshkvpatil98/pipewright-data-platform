@@ -13,6 +13,7 @@ import type {
 import { Button, EmptyState, FormField, Input, Modal, SectionPanel, Select } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
+import { CopyDatabaseDialog } from "@/features/destinations/components/copy-database-dialog";
 import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { Icon } from "@/components/ui/icon";
 import {
@@ -52,6 +53,7 @@ export function DestinationsPageView({ currentUser, projectId, initialItems }: D
   const [busy, setBusy] = useState(false);
   const [testing, setTesting] = useState<string | null>(null);
   const [tests, setTests] = useState<Record<string, DestinationTestResult>>({});
+  const [copying, setCopying] = useState(false);
 
   useEffect(() => {
     setItems(initialItems);
@@ -146,10 +148,16 @@ export function DestinationsPageView({ currentUser, projectId, initialItems }: D
       title="Destinations"
       subtitle="Where your data is delivered: database tables and files in storage."
       actions={
-        <Button onClick={() => setPicking(true)}>
-          <Icon name="plus" size={15} />
-          Add a destination
-        </Button>
+        <>
+          <Button onClick={() => setPicking(true)}>
+            <Icon name="plus" size={15} />
+            Add a destination
+          </Button>
+          <Button variant="secondary" onClick={() => setCopying(true)}>
+            <Icon name="database" size={15} />
+            Copy a database
+          </Button>
+        </>
       }
     >
       {items.length === 0 ? (
@@ -218,10 +226,13 @@ export function DestinationsPageView({ currentUser, projectId, initialItems }: D
           ))}
         </ul>
         <p className="mt-3 text-[13px] leading-5 text-ink-3">
-          Power BI and Tableau are under BI tools. Warehouses such as Snowflake, BigQuery and Redshift
-          are not supported yet.
+          To move a whole database, use Copy a database: tables from PostgreSQL, MySQL or SQLite into
+          PostgreSQL or MySQL. Power BI and Tableau are under BI tools. Warehouses such as Snowflake,
+          BigQuery and Redshift are not supported yet.
         </p>
       </SectionPanel>
+
+      <CopyDatabaseDialog open={copying} onClose={() => setCopying(false)} projectId={projectId} />
 
       <Modal
         open={picking}

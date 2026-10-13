@@ -137,8 +137,7 @@ export function describeProfile(profile: ColumnProfile): string {
   if (profile.nulls > 0) parts.push(`${percent(profile.nulls)} null`);
   if (profile.empties > 0) parts.push(`${percent(profile.empties)} empty`);
   parts.push(`${profile.distinct.toLocaleString()} distinct`);
-  const scope = profile.complete
-    ? `${profile.rowsProfiled.toLocaleString()} rows`
-    : `first ${profile.rowsProfiled.toLocaleString()} rows`;
-  return `${parts.join(" · ")} — ${scope}`;
+  const rows = `${profile.rowsProfiled.toLocaleString()} row${profile.rowsProfiled === 1 ? "" : "s"}`;
+  const scope = profile.complete ? rows : `first ${rows}`;
+  return `${parts.join(" · ")} (${scope})`;
 }

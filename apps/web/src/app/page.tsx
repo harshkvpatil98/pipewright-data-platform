@@ -1,9 +1,11 @@
 import { HomeDashboard } from "@/features/dashboard/components/home-dashboard";
+import { appName } from "@/lib/brand";
 import { getCurrentUser } from "@/lib/auth/server";
 import { serverApiFetch } from "@/lib/api/server";
 import type { PlatformStatusResponse, ProjectListResponse } from "@platform/shared-types";
 
-export const metadata = { title: "Home" };
+// The layout's "%s · Pipewright" template skips a page in its own folder.
+export const metadata = { title: { absolute: `Home · ${appName}` } };
 
 // Operational numbers must be current on every visit, not cached from a build.
 export const dynamic = "force-dynamic";

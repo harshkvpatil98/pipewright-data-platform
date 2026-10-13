@@ -1041,8 +1041,8 @@ function ExecutionPlanStrip({
           {rewrites.length > 0 ? (
             <div className="mb-2 rounded-lg border border-line bg-sunken px-2.5 py-2 text-[11.5px]">
               <p className="text-ink">
-                Rewritten first, without changing the result
-                <span className="text-muted"> — each rule is an algebraic identity the differential suite checks on both engines</span>
+                Rewritten first, without changing the result.
+                <span className="text-muted"> Each rewrite is tested to give the same answer on both engines.</span>
               </p>
               <ul className="mt-1 grid gap-0.5 text-muted">
                 {rewrites.map((entry, index) => (
@@ -1066,7 +1066,7 @@ function ExecutionPlanStrip({
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="text-ink">{placement.node}</span>
-                  <span className="text-muted"> — {placement.reason}</span>
+                  <span className="text-muted">: {placement.reason}</span>
                 </span>
               </li>
             ))}

@@ -85,7 +85,7 @@ export function DashboardSubscribe({
       await apiFetch<ScheduledReport>(`/projects/${projectId}/reports`, {
         method: "POST",
         body: JSON.stringify({
-          name: `${dashboardName} — ${chosen.label.toLowerCase()} for ${address}`,
+          name: `${dashboardName}, ${chosen.label.toLowerCase()} for ${address}`,
           description: `Subscription to the ${dashboardName} dashboard.`,
           source_kind: "dashboard",
           source_id: dashboardId,

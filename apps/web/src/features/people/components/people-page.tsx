@@ -180,7 +180,18 @@ export function PeoplePageView({ currentUser, users: initialUsers }: PeoplePageV
           {filtered.length === 0 ? (
             <EmptyState
               title={users.length === 0 ? "No accounts" : "No matching accounts"}
-              description="Accounts are created by a platform admin."
+              description={
+                users.length === 0
+                  ? "Accounts are created by a platform admin."
+                  : "No account matches that search."
+              }
+              action={
+                users.length === 0 ? undefined : (
+                  <Button variant="secondary" size="sm" onClick={() => setQuery("")}>
+                    Clear search
+                  </Button>
+                )
+              }
             />
           ) : (
             <div className="overflow-x-auto">

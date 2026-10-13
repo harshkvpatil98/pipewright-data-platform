@@ -209,7 +209,7 @@ export function AssistantPageView({
                   </div>
                   <p className="mt-1 text-[11.5px] text-ink-3">{finding.reason}</p>
                   <p className="mt-1 text-[11px] text-muted">
-                    Suggested: {finding.suggested_strategy} — {finding.guidance}
+                    Suggested: {finding.suggested_strategy}. {finding.guidance}
                   </p>
                 </li>
               ))}

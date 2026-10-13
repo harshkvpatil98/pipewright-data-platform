@@ -122,7 +122,7 @@ describe("describing a profile", () => {
 
   it("says when it only saw part of the table", () => {
     // Otherwise "12% null" reads as a fact about the data rather than a sample.
-    expect(describeProfile(profileColumn("c", ["a"]))).toContain("first 1 rows");
-    expect(describeProfile(profileColumn("c", ["a"], { complete: true }))).toContain("1 rows");
+    expect(describeProfile(profileColumn("c", ["a"]))).toContain("first 1 row");
+    expect(describeProfile(profileColumn("c", ["a"], { complete: true }))).toContain("(1 row)");
   });
 });

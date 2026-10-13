@@ -662,7 +662,7 @@ function IdentityBanner({ identity }: { identity: RowIdentity }) {
     <div className={cx("rounded-xl border px-4 py-3 text-sm text-ink", tone)}>
       <span className="text-muted">Rows addressed by </span>
       <strong>{identity.columns.join(", ")}</strong>
-      <span className="text-muted"> — {identity.reason}</span>
+      <span className="text-muted">: {identity.reason}</span>
       {identity.caveat ? <p className="mt-1 text-xs text-muted">{identity.caveat}</p> : null}
     </div>
   );

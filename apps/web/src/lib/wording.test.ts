@@ -19,9 +19,9 @@ function sourceFiles(dir: string): string[] {
   return found;
 }
 
-// A dash between words, or at the start or end of a wrapped line of text. A
-// lone "—" standing for an empty value in a table cell is fine.
-const PROSE_DASH = /[\w.,)”'"’] —(\s|$)|^\s*— \w/;
+// A dash after a word, a tag or a value, or at the start or end of a wrapped
+// line of text. A lone "—" standing for an empty value in a cell is fine.
+const PROSE_DASH = /[\w.,)”'"’>}] —(\s|$)|^\s*— [\w{]/;
 
 describe("on-screen wording", () => {
   it("writes sentences without em-dashes", () => {
@@ -32,7 +32,7 @@ describe("on-screen wording", () => {
           .split("\n")
           .forEach((line, index) => {
             const trimmed = line.trim();
-            if (trimmed.startsWith("//") || trimmed.startsWith("*") || trimmed.startsWith("/*")) return;
+            if (/^(\/\/|\*|\/\*|\{\/\*)/.test(trimmed)) return;
             if (PROSE_DASH.test(line)) offenders.push(`${file.split("/src/").pop()}:${index + 1}`);
           });
       }

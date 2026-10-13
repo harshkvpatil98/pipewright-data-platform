@@ -383,7 +383,7 @@ function ErasureRow({ request }: { request: ErasureRequest }) {
       {blocked.length > 0 ? (
         <div className="mt-2 rounded-lg border border-warning-line bg-warning-soft px-2.5 py-2 text-[11.5px] text-warning">
           Not erased ({blocked.length}):{" "}
-          {blocked.map((entry) => `${entry.dataset} — ${entry.reason}`).join("; ")}
+          {blocked.map((entry) => `${entry.dataset}: ${entry.reason}`).join("; ")}
         </div>
       ) : null}
       <div className="mt-1 text-[11px] text-muted">

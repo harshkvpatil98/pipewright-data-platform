@@ -10,7 +10,7 @@ import type {
   IncidentSeverity,
   IncidentStatus,
 } from "@platform/shared-types";
-import { Button, SectionPanel } from "@platform/shared-ui";
+import { Button, SectionPanel, buttonClassName } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { Icon } from "@/components/ui/icon";
@@ -143,7 +143,7 @@ export function IncidentsPageView({ currentUser, projectId, initial }: Incidents
         </div>
 
         {data.items.length === 0 ? (
-          <EmptyState filter={filter} />
+          <EmptyState filter={filter} projectId={projectId} />
         ) : (
           <ul className="space-y-2">
             {data.items.map((incident) => (
@@ -156,7 +156,7 @@ export function IncidentsPageView({ currentUser, projectId, initial }: Incidents
   );
 }
 
-function EmptyState({ filter }: { filter: IncidentStatus | "all" }) {
+function EmptyState({ filter, projectId }: { filter: IncidentStatus | "all"; projectId: string }) {
   return (
     <div className="rounded-xl border border-line px-4 py-8 text-center">
       <div className="text-[13px] text-ink-2">
@@ -168,6 +168,12 @@ function EmptyState({ filter }: { filter: IncidentStatus | "all" }) {
         Incidents appear when a check fails, a source changes shape, data arrives late, or a
         number leaves its usual range.
       </div>
+      <Link
+        href={`/projects/${projectId}/checks`}
+        className={cx(buttonClassName("secondary", "sm"), "mt-3")}
+      >
+        See your checks
+      </Link>
     </div>
   );
 }

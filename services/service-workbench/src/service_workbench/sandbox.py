@@ -130,6 +130,17 @@ class Capabilities:
 
 _PROBE: Capabilities | None = None
 
+#: Read by numpy's maths libraries when they load. A spawned child inherits
+#: the environment it is started with, so these hold a cell to one thread: it
+#: has a CPU limit, and each extra thread would reserve address space the
+#: cell's allowance is for.
+_ONE_THREAD = ("OPENBLAS_NUM_THREADS", "OMP_NUM_THREADS", "MKL_NUM_THREADS")
+
+
+def _hold_math_libraries_to_one_thread() -> None:
+    for name in _ONE_THREAD:
+        os.environ.setdefault(name, "1")
+
 
 def _probe_limits() -> set[str]:
     """Which rlimits this OS will actually accept, found by trying them.
@@ -139,12 +150,13 @@ def _probe_limits() -> set[str]:
     nothing about whether the limit can be enforced. Asking the kernel is the
     only way to know, and the answer decides whether Python cells run at all.
     """
+    _hold_math_libraries_to_one_thread()
     context = multiprocessing.get_context("spawn")
     outbox: Any = context.Queue()
     child = context.Process(target=_probe_child, args=(outbox,), daemon=True)
     child.start()
     try:
-        applied = outbox.get(timeout=20)
+        applied = _receive(outbox, timeout=20)
     except queue.Empty:
         applied = []
     finally:
@@ -156,6 +168,7 @@ def _probe_limits() -> set[str]:
 
 
 def _probe_child(outbox: Any) -> None:
+    _open_channel(outbox)
     try:
         outbox.put(_apply_limits(DEFAULT_MEMORY_MB, DEFAULT_CPU_SECONDS))
     except Exception:  # noqa: BLE001 - an unusable platform reports nothing
@@ -279,6 +292,7 @@ def run(
     if not isinstance(source, str) or not source.strip():
         raise BadRequestError("There is no code to run.")
 
+    _hold_math_libraries_to_one_thread()
     context = multiprocessing.get_context("spawn")
     outbox: Any = context.Queue()
     child = context.Process(
@@ -290,7 +304,7 @@ def run(
     started = time.perf_counter()
     child.start()
     try:
-        payload = outbox.get(timeout=timeout_seconds)
+        payload = _receive(outbox, timeout=timeout_seconds, started=started)
     except queue.Empty:
         # The deadline is the limit that holds when the others are being
         # actively defeated, so it terminates rather than asking politely.
@@ -333,6 +347,7 @@ def _child(source: str, namespace: dict[str, Any], outbox: Any, memory_mb: int, 
     import contextlib
     import traceback
 
+    _open_channel(outbox)
     try:
         applied = _apply_limits(memory_mb, cpu_seconds)
     except Exception as exc:  # noqa: BLE001 - report rather than run unlimited
@@ -387,7 +402,12 @@ def _apply_limits(memory_mb: int | None, cpu_seconds: int) -> list[str]:
         ("RLIMIT_FSIZE", (0, 0)),
     ]
     if memory_mb is not None:
-        limit = memory_mb * 1024 * 1024
+        # On top of what the interpreter already holds. By the time this runs
+        # the child has imported pandas and the gateway's packages, which on
+        # Linux is past 512MB of address space on its own; an absolute limit
+        # left the cell nothing, so even the thread that reports back could
+        # not start and every cell "ran for more than 15 seconds".
+        limit = _address_space_in_use() + memory_mb * 1024 * 1024
         wanted.insert(0, ("RLIMIT_AS", (limit, limit)))
 
     applied: list[str] = []
@@ -401,6 +421,48 @@ def _apply_limits(memory_mb: int | None, cpu_seconds: int) -> list[str]:
             continue
         applied.append(name)
     return applied
+
+
+def _address_space_in_use() -> int:
+    """This process's virtual address space now, in bytes; 0 where unknown.
+
+    RLIMIT_AS limits address space, not resident memory, so the baseline has
+    to be measured the same way. Linux says it in /proc; where there is no
+    /proc the limit is the allowance alone, as before.
+    """
+    try:
+        with open("/proc/self/statm", encoding="ascii") as handle:  # noqa: PTH123
+            pages = int(handle.read().split()[0])
+        return pages * os.sysconf("SC_PAGE_SIZE")
+    except (OSError, ValueError, IndexError):
+        return 0
+
+
+_READY = "ready"
+
+
+def _open_channel(outbox: Any) -> None:
+    """Send a first message before any limit applies.
+
+    A multiprocessing queue starts a thread on its first `put`; started after
+    the address-space limit, it can fail with "can't start new thread" and the
+    result never arrives. Sending first starts it while there is room.
+    """
+    outbox.put(_READY)
+
+
+def _receive(outbox: Any, *, timeout: float, started: float | None = None) -> Any:
+    """The child's result, skipping the opening message, within `timeout` overall."""
+    import time
+
+    deadline = (started if started is not None else time.perf_counter()) + timeout
+    while True:
+        remaining = deadline - time.perf_counter()
+        if remaining <= 0:
+            raise queue.Empty
+        message = outbox.get(timeout=remaining)
+        if message != _READY:
+            return message
 
 
 #: Audited events that end the cell, whatever route reached them. An audit hook

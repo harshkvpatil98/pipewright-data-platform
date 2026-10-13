@@ -49,6 +49,13 @@ class _Storage:
         return self._payload
 
 
+@pytest.fixture(autouse=True)
+def server_files(tmp_path, monkeypatch) -> None:
+    # The local-files connector writes only inside the server-files folder;
+    # here that is the test's own temporary folder.
+    monkeypatch.setenv("SERVER_FILES_ROOT", str(tmp_path))
+
+
 @pytest.fixture()
 def world(db: Session) -> dict:
     project = Project(name="Ops", slug="ops", owner_user_id=OWNER_ID, status="active")

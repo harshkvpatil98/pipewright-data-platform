@@ -42,6 +42,7 @@ from service_connectors.protocol import (
     with_tier_note,
     WriteResult,
 )
+from shared_python.server_files import OutsideServerFiles, confine
 
 # Reading a thousand files into one frame is not a pipeline, it is an outage.
 MAX_FILES_PER_READ = 200
@@ -343,15 +344,15 @@ class LocalFileConnector(_FileConnectorBase):
         type="local_files",
         label="Server files",
         category="file",
-        description="Read files from a directory on the platform's own filesystem.",
+        description="Read files from the server's shared files folder.",
         tier=Tier.CONTAINER,
         verified_by="test_file_connector.py",
         config_fields=(
             ConfigField(
                 "directory",
-                "Directory",
-                placeholder="/data/incoming",
-                help="An absolute path the platform can read.",
+                "Folder",
+                placeholder="incoming",
+                help="A folder inside the server's shared files folder, such as incoming.",
             ),
             *_FORMAT_FIELDS,
         ),
@@ -364,12 +365,14 @@ class LocalFileConnector(_FileConnectorBase):
         raw = str(config.get("directory") or "").strip()
         if not raw:
             raise ConnectorError("No directory set.")
-        root = Path(raw)
-        if not root.is_absolute():
-            # A relative path resolves against whatever the worker's working
-            # directory happens to be, which is not something anyone can reason
-            # about from a config screen.
-            raise ConnectorError("The directory must be an absolute path.")
+        # Only the deployment's server-files folder (and folders inside it)
+        # may be read or written: a directory of "/" would otherwise hand the
+        # server's own files to anyone who can edit a project. A relative path
+        # means a folder inside it.
+        try:
+            root = confine(raw)
+        except OutsideServerFiles as exc:
+            raise ConnectorError(str(exc)) from exc
         if not root.exists():
             raise ConnectorError(f"'{root}' does not exist.")
         if not root.is_dir():

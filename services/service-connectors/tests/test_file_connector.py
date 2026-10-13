@@ -24,7 +24,10 @@ from service_connectors.protocol import ConnectorError, StreamRef
 
 
 @pytest.fixture()
-def folder(tmp_path: Path) -> Iterator[Path]:
+def folder(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
+    # The connector only reads inside the server-files folder; here that is
+    # the test's own temporary folder.
+    monkeypatch.setenv("SERVER_FILES_ROOT", str(tmp_path))
     frame = pd.DataFrame({"id": [1, 2], "name": ["a", "b"]})
     (tmp_path / "2026").mkdir()
     (tmp_path / "orders.csv").write_bytes(write_bytes(frame, format="csv"))
@@ -112,17 +115,17 @@ def test_unreadable_formats_are_warned_about_not_hidden(folder: Path):
     assert any("unrecognised format" in warning for warning in result.warnings)
 
 
-def test_a_missing_directory_fails_the_test_clearly(tmp_path: Path):
-    result = LocalFileConnector().test({"directory": str(tmp_path / "nope"), "pattern": "*"})
+def test_a_missing_directory_fails_the_test_clearly(folder: Path):
+    result = LocalFileConnector().test({"directory": str(folder / "nope"), "pattern": "*"})
     assert result.success is False
     assert "does not exist" in result.message
 
 
-def test_a_relative_directory_is_refused(folder: Path):
-    """It would resolve against whatever the worker's cwd happens to be."""
-    result = LocalFileConnector().test({"directory": "data/incoming", "pattern": "*"})
-    assert result.success is False
-    assert "absolute path" in result.message
+def test_a_relative_directory_means_a_folder_inside_the_server_files_folder(folder: Path):
+    """Never the worker's working directory, which nobody can reason about."""
+    result = LocalFileConnector().test({"directory": "2026", "pattern": "*"})
+    assert result.success, result.message
+    assert "Found 1 file" in result.message
 
 
 def test_discovery_lists_matching_files_with_their_size(folder: Path):
@@ -254,3 +257,10 @@ def test_an_unsupported_write_mode_is_refused(folder: Path):
             mode="upsert",
         )
     assert "upsert" in caught.value.message
+
+
+def test_a_folder_outside_the_server_files_folder_is_refused(folder: Path, tmp_path_factory) -> None:
+    elsewhere = tmp_path_factory.mktemp("elsewhere")
+    result = LocalFileConnector().test(_config(elsewhere))
+    assert not result.success
+    assert "Only folders inside" in result.message

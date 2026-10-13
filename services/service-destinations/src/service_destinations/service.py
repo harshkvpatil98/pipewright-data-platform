@@ -13,6 +13,7 @@ from shared_python.errors import BadRequestError, MisconfiguredEnvironmentError,
 
 from service_destinations.at_rest_config import destination_config_for_internal_use, persist_destination_config_at_rest
 from service_destinations.connectors.local_export import check_local_export_connection
+from service_destinations.connectors.mysql import check_mysql_connection
 from service_destinations.connectors.postgres import check_postgres_connection
 from service_destinations.connectors.s3 import check_s3_connection
 from service_destinations.models import DestinationConfig
@@ -150,6 +151,8 @@ def delete_destination(
 def _run_connection_test(destination_type: str, config: dict[str, Any]) -> tuple[bool, str, float | None, list[str]]:
     if destination_type == "postgres":
         return check_postgres_connection(config)
+    if destination_type == "mysql":
+        return check_mysql_connection(config)
     if destination_type == "s3":
         return check_s3_connection(config)
     if destination_type == "local_export":

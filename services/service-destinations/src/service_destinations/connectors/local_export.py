@@ -1,23 +1,24 @@
 from __future__ import annotations
 
+import os
 import time
-from pathlib import Path
 from typing import Any
+
+from shared_python.server_files import OutsideServerFiles, confine
 
 
 def check_local_export_connection(config: dict[str, Any]) -> tuple[bool, str, float | None, list[str]]:
-    warnings: list[str] = []
-    path = Path(config["path"]).expanduser()
+    """The folder exists inside the server's shared files folder and can be written to."""
     start = time.perf_counter()
     try:
-        resolved = path.resolve()
-    except OSError:
-        return False, "Invalid path.", None, warnings
-
-    if not resolved.exists():
-        return False, "Path does not exist.", None, warnings
-    if not resolved.is_dir():
-        return False, "Path is not a directory.", None, warnings
-
+        folder = confine(str(config.get("path") or ""))
+    except OutsideServerFiles as exc:
+        return False, str(exc), None, []
+    if not folder.exists():
+        return False, f"There is no folder at {folder}.", None, []
+    if not folder.is_dir():
+        return False, f"{folder} is a file, not a folder.", None, []
+    if not os.access(folder, os.W_OK):
+        return False, f"The server cannot write to {folder}.", None, []
     latency_ms = (time.perf_counter() - start) * 1000.0
-    return True, "Directory exists and is accessible.", latency_ms, warnings
+    return True, f"The folder {folder} is ready to receive files.", latency_ms, []

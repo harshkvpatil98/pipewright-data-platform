@@ -71,6 +71,25 @@ def notify_manual_dataset_publish(
                 related_run_id=run_read.id,
                 related_dataset_id=_uuid_or_none(summary.get("dataset_id")),
             )
+    elif run_read.run_type == "dataset_delivery":
+        destination = summary.get("destination") if isinstance(summary.get("destination"), dict) else {}
+        label = str(destination.get("label") or "a destination")
+        target = str(summary.get("target") or label)
+        _persist_notification(
+            db,
+            user_id=run_read.triggered_by_user_id,
+            project_id=run_read.project_id,
+            type="dataset_publish_succeeded" if success else "dataset_publish_failed",
+            level="success" if success else "error",
+            title=f"Delivered to {label}" if success else f"Delivery to {label} failed",
+            message=(
+                f"“{dataset_name}” was delivered to {target}."
+                if success
+                else f"“{dataset_name}” could not be delivered to {target}."
+            ),
+            related_run_id=run_read.id,
+            related_dataset_id=_uuid_or_none(summary.get("dataset_id")),
+        )
     elif publish_type == "dataset_publish_power_bi" or run_read.run_type == "dataset_publish_power_bi":
         dest = str(summary.get("target_dataset_name") or "Power BI")
         if success:

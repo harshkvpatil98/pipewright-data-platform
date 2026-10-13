@@ -511,7 +511,46 @@ export type SavedStatisticalTestDetail = {
   comparison_note: string | null;
 };
 
-export type DestinationType = "postgres" | "s3" | "local_export";
+export type DestinationType = "postgres" | "mysql" | "s3" | "local_export";
+
+/** Replace the table, add the rows, or update matching rows (databases only). */
+export type DeliveryMode = "replace" | "append" | "update";
+
+export type DeliveryRequest = {
+  destination_id: string;
+  mode: DeliveryMode;
+  table_name?: string | null;
+  key_columns?: string[];
+  file_name?: string | null;
+  file_format?: "csv" | "parquet";
+};
+
+export type DeliveryColumn = { name: string; source: string; type: string; key: boolean };
+
+export type DeliveryPreview = {
+  destination_id: string;
+  destination_name: string;
+  destination_label: string;
+  kind: "table" | "file";
+  target: string;
+  mode: DeliveryMode;
+  rows: number;
+  columns: DeliveryColumn[];
+  notes: string[];
+};
+
+export type DeliveryResult = {
+  run_id: string;
+  status: "succeeded" | "failed";
+  target: string;
+  mode: DeliveryMode;
+  message: string;
+  rows_written: number;
+  rows_updated: number;
+  rows_added: number;
+  table_created: boolean | null;
+  warnings: string[];
+};
 export type DestinationStatus = "active" | "disabled";
 
 export type DestinationRecord = {

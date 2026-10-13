@@ -84,3 +84,47 @@ class DatasetPublishPostgresResponse(BaseModel):
     row_count_attempted: int | None = None
     destination: DestinationPublishSummary
     summary_json: dict[str, Any] | None = None
+
+
+class DeliveryRequest(BaseModel):
+    """Deliver a dataset to a destination: a table (databases) or a file (storage)."""
+
+    destination_id: uuid.UUID
+    #: replace, append, or update matching rows (databases only).
+    mode: Literal["replace", "append", "update"] = "replace"
+    table_name: str | None = Field(default=None, max_length=64)
+    key_columns: list[str] = Field(default_factory=list)
+    file_name: str | None = Field(default=None, max_length=255)
+    file_format: Literal["csv", "parquet"] = "csv"
+
+
+class DeliveryColumn(BaseModel):
+    name: str
+    source: str
+    type: str
+    key: bool = False
+
+
+class DeliveryPreview(BaseModel):
+    destination_id: uuid.UUID
+    destination_name: str
+    destination_label: str
+    kind: Literal["table", "file"]
+    target: str
+    mode: str
+    rows: int
+    columns: list[DeliveryColumn]
+    notes: list[str]
+
+
+class DeliveryResult(BaseModel):
+    run_id: uuid.UUID
+    status: Literal["succeeded", "failed"]
+    target: str
+    mode: str
+    message: str
+    rows_written: int
+    rows_updated: int
+    rows_added: int
+    table_created: bool | None = None
+    warnings: list[str] = Field(default_factory=list)

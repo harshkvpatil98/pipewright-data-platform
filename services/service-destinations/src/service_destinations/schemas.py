@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class DestinationCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=160)
-    destination_type: str = Field(pattern=r"^(postgres|s3|local_export)$")
+    destination_type: str = Field(pattern=r"^(postgres|mysql|s3|local_export)$")
     status: str = Field(default="active", pattern=r"^(active|disabled)$")
     config_json: dict[str, Any] = Field(default_factory=dict)
 

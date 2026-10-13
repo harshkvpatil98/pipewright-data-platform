@@ -10,6 +10,12 @@
 #   export CONNECTORS_TEST_MARIADB_URL=mysql+pymysql://root:platform@127.0.0.1:13307/platform
 #   .venv/bin/python -m pytest services/service-connectors/tests/test_containers.py -q
 #
+# MinIO stands in for S3 when testing delivery to an S3-compatible store:
+#   export DELIVERY_TEST_S3_ENDPOINT=http://127.0.0.1:19000 DELIVERY_TEST_S3_BUCKET=deliveries \
+#          DELIVERY_TEST_S3_KEY=platform DELIVERY_TEST_S3_SECRET=platform-secret
+#   .venv/bin/python -m pytest services/service-destinations/tests/test_deliver.py -q
+# (the test creates the bucket if it is missing)
+#
 # Deliberately on non-default ports: the platform's own Postgres is already on
 # 5432, and a verification suite that wrote into the application database would
 # be a bad afternoon. Nothing here shares a volume, so `down -v` is free.
@@ -50,3 +56,11 @@ services:
       interval: 5s
       timeout: 5s
       retries: 30
+
+  connectors-minio:
+    image: cgr.dev/chainguard/minio:latest
+    command: ["server", "/data"]
+    environment:
+      MINIO_ROOT_USER: platform
+      MINIO_ROOT_PASSWORD: platform-secret
+    ports: ["19000:9000"]

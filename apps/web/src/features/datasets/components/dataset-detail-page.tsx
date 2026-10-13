@@ -36,7 +36,7 @@ import { DiscussionPanel } from "@/features/team/components/discussion-panel";
 import { DatasetPipelinesRunSection } from "@/features/datasets/components/dataset-pipelines-run-section";
 import { DatasetSuggestedTransformations } from "@/features/datasets/components/dataset-suggested-transformations";
 import { PreviewTransformModal } from "@/features/datasets/components/preview-transform-modal";
-import { PublishDatasetModal } from "@/features/datasets/components/publish-dataset-modal";
+import { DeliverDatasetModal } from "@/features/datasets/components/deliver-dataset-modal";
 import { PublishPowerBiModal } from "@/features/datasets/components/publish-power-bi-modal";
 import { PublishTableauModal } from "@/features/datasets/components/publish-tableau-modal";
 import {
@@ -130,9 +130,10 @@ export function DatasetDetailPageView({
               icon="send"
               items={[
                 {
-                  id: "postgres",
-                  label: "A PostgreSQL table",
-                  description: "Copy it into a database you own.",
+                  id: "destination",
+                  label: "A destination",
+                  icon: "send",
+                  description: "A database table or a file in storage.",
                   onSelect: () => setIsPublishOpen(true),
                 },
                 {
@@ -245,11 +246,13 @@ export function DatasetDetailPageView({
         projectId={projectId}
         datasetId={dataset.id}
       />
-      <PublishDatasetModal
+      <DeliverDatasetModal
         open={isPublishOpen}
         onClose={() => setIsPublishOpen(false)}
         projectId={projectId}
         datasetId={dataset.id}
+        datasetName={dataset.name}
+        columns={schemaColumns.map((column) => column.name)}
       />
       <PublishPowerBiModal
         open={isPublishPowerBiOpen}

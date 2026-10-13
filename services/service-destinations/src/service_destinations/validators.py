@@ -6,8 +6,9 @@ from typing import Any
 
 from shared_python.errors import BadRequestError
 from shared_python.security.encryption import STORED_SECRET_PREFIX
+from shared_python.server_files import OutsideServerFiles, confine
 
-DESTINATION_TYPES = frozenset({"postgres", "s3", "local_export"})
+DESTINATION_TYPES = frozenset({"postgres", "mysql", "s3", "local_export"})
 BI_INTEGRATION_TYPES = frozenset({"power_bi", "tableau"})
 STATUS_VALUES = frozenset({"active", "disabled"})
 
@@ -53,7 +54,7 @@ def merge_config_preserving_secrets(
 ) -> dict[str, Any]:
     """PATCH merge: placeholder '***' or missing secret keys keep stored values."""
     merged = {**existing, **incoming}
-    if destination_type == "postgres":
+    if destination_type in ("postgres", "mysql"):
         pw = incoming.get("password")
         if pw in (None, "", "***"):
             merged["password"] = existing.get("password", "")
@@ -131,6 +132,26 @@ def validate_postgres_config(raw: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
+def validate_mysql_config(raw: dict[str, Any]) -> dict[str, Any]:
+    host = _non_empty_str(raw.get("host"), "host")
+    database = _non_empty_str(raw.get("database"), "database")
+    username = _non_empty_str(raw.get("username"), "username")
+    password = raw.get("password")
+    if _is_stored_cipher(password):
+        pass
+    elif password is None or (isinstance(password, str) and not password):
+        raise BadRequestError('"password" is required when creating a MySQL destination.')
+    elif not isinstance(password, str):
+        raise BadRequestError('"password" must be a string.')
+    try:
+        port = int(raw.get("port", 3306))
+    except (TypeError, ValueError) as exc:
+        raise BadRequestError('"port" must be an integer between 1 and 65535.') from exc
+    if port < 1 or port > 65535:
+        raise BadRequestError('"port" must be between 1 and 65535.')
+    return {"host": host, "port": port, "database": database, "username": username, "password": password}
+
+
 def validate_s3_config(raw: dict[str, Any]) -> dict[str, Any]:
     bucket = _non_empty_str(raw.get("bucket"), "bucket")
     access_key_id = _non_empty_str(raw.get("access_key_id"), "access_key_id")
@@ -154,6 +175,16 @@ def validate_s3_config(raw: dict[str, Any]) -> dict[str, Any]:
             raise BadRequestError('"prefix" must be a string.')
         prefix = prefix.strip() or ""
 
+    # S3-compatible stores (MinIO, Cloudflare R2, Wasabi, DigitalOcean
+    # Spaces) take the same API at their own address.
+    endpoint_url = raw.get("endpoint_url")
+    if endpoint_url is not None:
+        if not isinstance(endpoint_url, str):
+            raise BadRequestError('"endpoint_url" must be a string.')
+        endpoint_url = endpoint_url.strip().rstrip("/")
+        if endpoint_url and not re.match(r"^https?://", endpoint_url, re.IGNORECASE):
+            raise BadRequestError('"endpoint_url" must start with http:// or https://.')
+
     out: dict[str, Any] = {
         "bucket": bucket,
         "access_key_id": access_key_id,
@@ -163,11 +194,19 @@ def validate_s3_config(raw: dict[str, Any]) -> dict[str, Any]:
         out["region"] = region
     if prefix is not None:
         out["prefix"] = prefix
+    if endpoint_url:
+        out["endpoint_url"] = endpoint_url
     return out
 
 
 def validate_local_export_config(raw: dict[str, Any]) -> dict[str, Any]:
+    """A folder inside the server's shared files folder, and nowhere else:
+    a destination that could write anywhere could overwrite the platform."""
     path = _non_empty_str(raw.get("path"), "path")
+    try:
+        confine(path)
+    except OutsideServerFiles as exc:
+        raise BadRequestError(str(exc)) from exc
     return {"path": path}
 
 
@@ -280,6 +319,8 @@ def validate_tableau_config(raw: dict[str, Any]) -> dict[str, Any]:
 def validate_config_for_type(destination_type: str, raw: dict[str, Any]) -> dict[str, Any]:
     if destination_type == "postgres":
         return validate_postgres_config(raw)
+    if destination_type == "mysql":
+        return validate_mysql_config(raw)
     if destination_type == "s3":
         return validate_s3_config(raw)
     if destination_type == "local_export":

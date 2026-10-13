@@ -9,7 +9,11 @@ from sqlalchemy.orm import Session
 
 from service_auth.schemas import UserRead
 from service_destinations.bi_publish_service import publish_dataset_to_power_bi
+from service_destinations.deliver import deliver_dataset, preview_delivery
 from service_destinations.publish_schemas import (
+    DeliveryPreview,
+    DeliveryRequest,
+    DeliveryResult,
     DatasetPublishPostgresRequest,
     DatasetPublishPostgresResponse,
     DatasetPublishPowerBiRequest,
@@ -127,6 +131,34 @@ def build_router(
             current_user=current_user,
             storage_backend=storage_backend,
         )
+
+    @router.post(
+        "/projects/{project_id}/datasets/{dataset_id}/deliver/preview",
+        response_model=DeliveryPreview,
+    )
+    def post_dataset_delivery_preview(
+        project_id: uuid.UUID,
+        dataset_id: uuid.UUID,
+        payload: DeliveryRequest,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+        storage_backend: Any = Depends(get_storage_backend),
+    ) -> DeliveryPreview:
+        return preview_delivery(db, project_id, dataset_id, payload, current_user, storage_backend)
+
+    @router.post(
+        "/projects/{project_id}/datasets/{dataset_id}/deliver",
+        response_model=DeliveryResult,
+    )
+    def post_dataset_delivery(
+        project_id: uuid.UUID,
+        dataset_id: uuid.UUID,
+        payload: DeliveryRequest,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+        storage_backend: Any = Depends(get_storage_backend),
+    ) -> DeliveryResult:
+        return deliver_dataset(db, project_id, dataset_id, payload, current_user, storage_backend)
 
     @router.post(
         "/projects/{project_id}/datasets/{dataset_id}/publish/power-bi",

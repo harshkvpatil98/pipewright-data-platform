@@ -19,6 +19,7 @@ def check_s3_connection(config: dict[str, Any]) -> tuple[bool, str, float | None
         )
         client = session.client(
             "s3",
+            endpoint_url=config.get("endpoint_url") or None,
             config=boto3.session.Config(connect_timeout=8, read_timeout=12, retries={"max_attempts": 2}),
         )
         client.head_bucket(Bucket=config["bucket"])
@@ -32,4 +33,4 @@ def check_s3_connection(config: dict[str, Any]) -> tuple[bool, str, float | None
         return False, "S3 connection check failed.", None, warnings
 
     latency_ms = (time.perf_counter() - start) * 1000.0
-    return True, "Bucket is reachable (head_bucket succeeded).", latency_ms, warnings
+    return True, "The bucket is reachable.", latency_ms, warnings

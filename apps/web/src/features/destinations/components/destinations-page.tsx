@@ -8,16 +8,26 @@ import type {
   DestinationCreatePayload,
   DestinationRecord,
   DestinationTestResult,
-  DestinationType,
   DestinationUpdatePayload,
 } from "@platform/shared-types";
-import { Button, Modal, SectionPanel } from "@platform/shared-ui";
+import { Button, EmptyState, FormField, Input, Modal, SectionPanel, Select } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { DeleteRowButton } from "@/components/ui/delete-row-button";
+import { Icon } from "@/components/ui/icon";
+import {
+  configFrom,
+  DESTINATION_KINDS,
+  emptyValues,
+  KIND_BY_TYPE,
+  missingField,
+  valuesFrom,
+  type DestinationKind,
+} from "@/features/destinations/destination-kinds";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
-import { formatDate, titleCase } from "@/lib/format";
+import { formatDate } from "@/lib/format";
+import { cx } from "@/lib/utils";
 
 type DestinationsPageViewProps = {
   currentUser: AuthUser;
@@ -25,526 +35,301 @@ type DestinationsPageViewProps = {
   initialItems: DestinationRecord[];
 };
 
-const PG_SSL = ["disable", "allow", "prefer", "require", "verify-ca", "verify-full"] as const;
-
-const emptyFields = (): Record<string, string> => ({
-  host: "",
-  port: "5432",
-  database: "",
-  username: "",
-  password: "",
-  schema: "",
-  ssl_mode: "prefer",
-  bucket: "",
-  region: "",
-  access_key_id: "",
-  secret_access_key: "",
-  prefix: "",
-  path: "",
-});
-
-function buildConfigForType(
-  destinationType: DestinationType,
-  fields: Record<string, string>,
-): Record<string, unknown> {
-  if (destinationType === "postgres") {
-    const cfg: Record<string, unknown> = {
-      host: fields.host.trim(),
-      port: Number.parseInt(fields.port, 10),
-      database: fields.database.trim(),
-      username: fields.username.trim(),
-    };
-    if (fields.password.trim()) {
-      cfg.password = fields.password;
-    }
-    if (fields.schema.trim()) {
-      cfg.schema = fields.schema.trim();
-    }
-    if (fields.ssl_mode) {
-      cfg.ssl_mode = fields.ssl_mode;
-    }
-    return cfg;
-  }
-  if (destinationType === "s3") {
-    const cfg: Record<string, unknown> = {
-      bucket: fields.bucket.trim(),
-      access_key_id: fields.access_key_id.trim(),
-    };
-    if (fields.secret_access_key.trim()) {
-      cfg.secret_access_key = fields.secret_access_key;
-    }
-    if (fields.region.trim()) {
-      cfg.region = fields.region.trim();
-    }
-    if (fields.prefix.trim()) {
-      cfg.prefix = fields.prefix.trim();
-    }
-    return cfg;
-  }
-  return { path: fields.path.trim() };
-}
-
-function configToFields(destinationType: DestinationType, config: Record<string, unknown>): Record<string, string> {
-  const c = config;
-  if (destinationType === "postgres") {
-    return {
-      host: String(c.host ?? ""),
-      port: String(c.port ?? "5432"),
-      database: String(c.database ?? ""),
-      username: String(c.username ?? ""),
-      password: "",
-      schema: String(c.schema ?? ""),
-      ssl_mode: String(c.ssl_mode ?? "prefer"),
-      bucket: "",
-      region: "",
-      access_key_id: "",
-      secret_access_key: "",
-      prefix: "",
-      path: "",
-    };
-  }
-  if (destinationType === "s3") {
-    return {
-      host: "",
-      port: "5432",
-      database: "",
-      username: "",
-      password: "",
-      schema: "",
-      ssl_mode: "prefer",
-      bucket: String(c.bucket ?? ""),
-      region: String(c.region ?? ""),
-      access_key_id: String(c.access_key_id ?? ""),
-      secret_access_key: "",
-      prefix: String(c.prefix ?? ""),
-      path: "",
-    };
-  }
-  return {
-    ...emptyFields(),
-    path: String(c.path ?? ""),
-  };
-}
+type Draft = {
+  kind: DestinationKind;
+  name: string;
+  values: Record<string, string>;
+  /** Set when editing a saved destination. */
+  editing: DestinationRecord | null;
+};
 
 export function DestinationsPageView({ currentUser, projectId, initialItems }: DestinationsPageViewProps) {
   const router = useRouter();
   const [items, setItems] = useState(initialItems);
-  const [createOpen, setCreateOpen] = useState(false);
-  const [editDestination, setEditDestination] = useState<DestinationRecord | null>(null);
-  const [editFields, setEditFields] = useState<Record<string, string>>(emptyFields());
-  const [error, setError] = useState<string | null>(null);
+  const [picking, setPicking] = useState(false);
+  const [draft, setDraft] = useState<Draft | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [testId, setTestId] = useState<string | null>(null);
-  const [testResult, setTestResult] = useState<DestinationTestResult | null>(null);
+  const [testing, setTesting] = useState<string | null>(null);
+  const [tests, setTests] = useState<Record<string, DestinationTestResult>>({});
 
   useEffect(() => {
     setItems(initialItems);
   }, [initialItems]);
 
-  const [newName, setNewName] = useState("");
-  const [newType, setNewType] = useState<DestinationType>("postgres");
-  const [newFields, setNewFields] = useState(emptyFields);
-
-  async function refreshList() {
+  const refresh = async () => {
     const data = await apiFetch<{ items: DestinationRecord[] }>(`/projects/${projectId}/destinations`);
     setItems(data.items);
     router.refresh();
-  }
+  };
 
-  function openEdit(row: DestinationRecord) {
-    setEditDestination(row);
-    setEditFields(configToFields(row.destination_type, row.config_json));
-  }
+  const runTest = async (id: string) => {
+    setTesting(id);
+    try {
+      const result = await apiFetch<DestinationTestResult>(`/projects/${projectId}/destinations/${id}/test`, {
+        method: "POST",
+      });
+      setTests((current) => ({ ...current, [id]: result }));
+    } catch (caught) {
+      setTests((current) => ({
+        ...current,
+        [id]: { success: false, message: extractErrorMessage(caught), checked_at: new Date().toISOString(), latency_ms: null, warnings: [] },
+      }));
+    } finally {
+      setTesting(null);
+    }
+  };
 
-  async function onCreate() {
-    setError(null);
-    if (!newName.trim()) {
-      setError("Name is required.");
+  const save = async () => {
+    if (!draft) return;
+    setFormError(null);
+    if (!draft.name.trim()) {
+      setFormError("Give the destination a name you will recognise.");
       return;
     }
-    if (newType === "postgres" && !newFields.password.trim()) {
-      setError("Password is required for a new PostgreSQL destination.");
-      return;
-    }
-    if (newType === "s3" && !newFields.secret_access_key.trim()) {
-      setError("Secret access key is required for a new S3 destination.");
+    const missing = missingField(draft.kind, draft.values, draft.editing !== null);
+    if (missing) {
+      setFormError(`Fill in ${missing.toLowerCase()}.`);
       return;
     }
     setBusy(true);
     try {
-      const payload: DestinationCreatePayload = {
-        name: newName.trim(),
-        destination_type: newType,
-        status: "active",
-        config_json: buildConfigForType(newType, newFields),
-      };
-      await apiFetch(`/projects/${projectId}/destinations`, {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
-      setCreateOpen(false);
-      setNewName("");
-      setNewType("postgres");
-      setNewFields(emptyFields());
-      await refreshList();
-    } catch (e) {
-      setError(extractErrorMessage(e));
+      const config = configFrom(draft.kind, draft.values);
+      let savedId: string;
+      if (draft.editing) {
+        const patch: DestinationUpdatePayload = { name: draft.name.trim(), config_json: config };
+        await apiFetch(`/projects/${projectId}/destinations/${draft.editing.id}`, {
+          method: "PATCH",
+          body: JSON.stringify(patch),
+        });
+        savedId = draft.editing.id;
+      } else {
+        const payload: DestinationCreatePayload = {
+          name: draft.name.trim(),
+          destination_type: draft.kind.type,
+          status: "active",
+          config_json: config,
+        };
+        const created = await apiFetch<DestinationRecord>(`/projects/${projectId}/destinations`, {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        savedId = created.id;
+      }
+      setDraft(null);
+      await refresh();
+      // Test straight away: "saved" is not the same as "works".
+      void runTest(savedId);
+    } catch (caught) {
+      setFormError(extractErrorMessage(caught));
     } finally {
       setBusy(false);
     }
-  }
+  };
 
-  async function onSaveEdit() {
-    if (!editDestination) {
-      return;
-    }
-    setError(null);
-    setBusy(true);
-    try {
-      const cfg = buildConfigForType(editDestination.destination_type, editFields);
-      const patch: DestinationUpdatePayload = {
-        name: editDestination.name.trim(),
-        config_json: cfg,
-      };
-      await apiFetch(`/projects/${projectId}/destinations/${editDestination.id}`, {
-        method: "PATCH",
-        body: JSON.stringify(patch),
-      });
-      setEditDestination(null);
-      await refreshList();
-    } catch (e) {
-      setError(extractErrorMessage(e));
-    } finally {
-      setBusy(false);
-    }
-  }
+  const startNew = (kind: DestinationKind) => {
+    setPicking(false);
+    setFormError(null);
+    setDraft({ kind, name: "", values: emptyValues(kind), editing: null });
+  };
 
-  async function runTest(id: string) {
-    setError(null);
-    setTestResult(null);
-    setTestId(id);
-    try {
-      const res = await apiFetch<DestinationTestResult>(`/projects/${projectId}/destinations/${id}/test`, {
-        method: "POST",
-      });
-      setTestResult(res);
-    } catch (e) {
-      setError(extractErrorMessage(e));
-    } finally {
-      setTestId(null);
-    }
-  }
-
-  function renderConfigForm(
-    t: DestinationType,
-    fields: Record<string, string>,
-    onChange: (f: Record<string, string>) => void,
-    isEdit: boolean,
-  ) {
-    const set = (key: string, value: string) => onChange({ ...fields, [key]: value });
-    if (t === "postgres") {
-      return (
-        <div className="flex flex-col gap-3">
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
-            Host
-            <input
-              className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
-              value={fields.host}
-              onChange={(e) => set("host", e.target.value)}
-              autoComplete="off"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
-            Port
-            <input
-              className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
-              value={fields.port}
-              onChange={(e) => set("port", e.target.value)}
-              autoComplete="off"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
-            Database
-            <input
-              className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
-              value={fields.database}
-              onChange={(e) => set("database", e.target.value)}
-              autoComplete="off"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
-            Username
-            <input
-              className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
-              value={fields.username}
-              onChange={(e) => set("username", e.target.value)}
-              autoComplete="off"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
-            Password
-            <input
-              type="password"
-              className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
-              value={fields.password}
-              onChange={(e) => set("password", e.target.value)}
-              placeholder={isEdit ? "Leave blank to keep stored secret" : ""}
-              autoComplete="new-password"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
-            Schema (optional)
-            <input
-              className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
-              value={fields.schema}
-              onChange={(e) => set("schema", e.target.value)}
-              autoComplete="off"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
-            SSL mode
-            <select
-              className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
-              value={fields.ssl_mode}
-              onChange={(e) => set("ssl_mode", e.target.value)}
-            >
-              {PG_SSL.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-      );
-    }
-    if (t === "s3") {
-      return (
-        <div className="flex flex-col gap-3">
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
-            Bucket
-            <input
-              className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
-              value={fields.bucket}
-              onChange={(e) => set("bucket", e.target.value)}
-              autoComplete="off"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
-            Region (optional)
-            <input
-              className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
-              value={fields.region}
-              onChange={(e) => set("region", e.target.value)}
-              autoComplete="off"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
-            Access key ID
-            <input
-              className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
-              value={fields.access_key_id}
-              onChange={(e) => set("access_key_id", e.target.value)}
-              autoComplete="off"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
-            Secret access key
-            <input
-              type="password"
-              className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
-              value={fields.secret_access_key}
-              onChange={(e) => set("secret_access_key", e.target.value)}
-              placeholder={isEdit ? "Leave blank to keep stored secret" : ""}
-              autoComplete="new-password"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
-            Prefix (optional)
-            <input
-              className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
-              value={fields.prefix}
-              onChange={(e) => set("prefix", e.target.value)}
-              autoComplete="off"
-            />
-          </label>
-        </div>
-      );
-    }
-    return (
-      <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
-        Directory path
-        <input
-          className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
-          value={fields.path}
-          onChange={(e) => set("path", e.target.value)}
-          autoComplete="off"
-        />
-      </label>
-    );
-  }
+  const startEdit = (row: DestinationRecord) => {
+    const kind = KIND_BY_TYPE.get(row.destination_type);
+    if (!kind) return;
+    setFormError(null);
+    setDraft({ kind, name: row.name, values: valuesFrom(kind, row.config_json), editing: row });
+  };
 
   return (
     <AppShell
       currentUser={currentUser}
       title="Destinations"
-      subtitle="Databases and file stores that receive your data."
+      subtitle="Where your data is delivered: database tables and files in storage."
       actions={
-        <div className="flex flex-wrap gap-2">
-          <Button onClick={() => setCreateOpen(true)}>Add a destination</Button>
-        </div>
+        <Button onClick={() => setPicking(true)}>
+          <Icon name="plus" size={15} />
+          Add a destination
+        </Button>
       }
     >
-      {error ? (
-        <p className="mb-4 text-sm text-danger" role="alert">
-          {error}
-        </p>
-      ) : null}
-      {testResult ? (
-        <SectionPanel title="Last connection test" description="From the most recent test on this page.">
-          <p className={`text-sm ${testResult.success ? "text-success" : "text-danger"}`}>
-            {testResult.success ? "Success" : "Failed"} · {testResult.message}
-            {testResult.latency_ms != null ? ` · ${testResult.latency_ms.toFixed(0)} ms` : ""}
-          </p>
-        </SectionPanel>
-      ) : null}
-
-      <SectionPanel
-        title="Saved destinations"
-        description="PostgreSQL is fully supported for save and test. S3 and local directory configs can be saved and tested; publishing comes later."
-      >
-        {items.length === 0 ? (
-          <p className="text-sm text-ink-3">
-            No delivery destinations yet. Add a PostgreSQL, S3, or local export target to publish or export pipeline outputs.
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] border-collapse text-left text-sm text-ink">
-              <thead>
-                <tr className="border-b border-line text-xs uppercase tracking-[0.14em] text-muted">
-                  <th className="py-2 pr-4 font-medium">Name</th>
-                  <th className="py-2 pr-4 font-medium">Type</th>
-                  <th className="py-2 pr-4 font-medium">Status</th>
-                  <th className="py-2 pr-4 font-medium">Updated</th>
-                  <th className="py-2 font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((row) => (
-                  <tr key={row.id} className="border-b border-line">
-                    <td className="py-3 pr-4 font-medium text-ink">{row.name}</td>
-                    <td className="py-3 pr-4 font-mono text-xs text-ink-2">{titleCase(row.destination_type)}</td>
-                    <td className="py-3 pr-4 text-xs text-ink-3">{row.status}</td>
-                    <td className="py-3 pr-4 text-xs text-ink-3">{formatDate(row.updated_at)}</td>
-                    <td className="py-3">
-                      <div className="flex flex-wrap gap-2">
-                        <Button variant="secondary" size="sm" onClick={() => openEdit(row)}>
-                          View / Edit
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          disabled={testId === row.id}
-                          onClick={() => void runTest(row.id)}
-                        >
-                          {testId === row.id ? "Testing…" : "Test connection"}
-                        </Button>
-                        <DeleteRowButton
-                          path={`/projects/${projectId}/destinations/${row.id}`}
-                          name={row.name}
-                          kind="destination"
-                          consequences={["Its stored connection details and credentials go with it."]}
-                          onDeleted={() =>
-                            setItems((current) => current.filter((item) => item.id !== row.id))
-                          }
-                        />
+      {items.length === 0 ? (
+        <EmptyState
+          title="Nothing to deliver to yet"
+          description="Add a database or a storage bucket, then send any dataset there from its page, by hand or on a schedule."
+          action={<Button onClick={() => setPicking(true)}>Add a destination</Button>}
+        />
+      ) : (
+        <SectionPanel title={`${items.length} destination${items.length === 1 ? "" : "s"}`}>
+          <ul className="divide-y divide-line">
+            {items.map((row) => {
+              const kind = KIND_BY_TYPE.get(row.destination_type);
+              const test = tests[row.id];
+              return (
+                <li key={row.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[color:var(--accent-faint)] text-[color:var(--accent-muted)]">
+                    <Icon name={kind?.icon ?? "send"} size={17} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[15px] font-medium text-ink">{row.name}</div>
+                    <div className="text-[13px] text-ink-3">
+                      {kind?.label ?? row.destination_type} · receives {kind?.receives.toLowerCase() ?? "data"} · added{" "}
+                      {formatDate(row.created_at)}
+                      {row.status !== "active" ? " · turned off" : ""}
+                    </div>
+                    {test ? (
+                      <div className={cx("mt-1 flex items-start gap-1.5 text-[13px]", test.success ? "text-success" : "text-danger")}>
+                        <Icon name={test.success ? "checkCircle" : "warning"} size={14} className="mt-0.5 shrink-0" />
+                        <span>{test.message}</span>
                       </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                    ) : null}
+                  </div>
+                  <div className="flex shrink-0 flex-wrap gap-2">
+                    <Button variant="secondary" size="sm" disabled={testing === row.id} onClick={() => void runTest(row.id)}>
+                      {testing === row.id ? "Testing…" : "Test"}
+                    </Button>
+                    <Button variant="secondary" size="sm" onClick={() => startEdit(row)}>
+                      Edit
+                    </Button>
+                    <DeleteRowButton
+                      path={`/projects/${projectId}/destinations/${row.id}`}
+                      name={row.name}
+                      kind="destination"
+                      consequences={["Its saved address and credentials go with it. Data already delivered stays where it is."]}
+                      onDeleted={() => setItems((current) => current.filter((item) => item.id !== row.id))}
+                    />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </SectionPanel>
+      )}
+
+      <SectionPanel title="What you can deliver to">
+        <ul className="grid gap-3 sm:grid-cols-2">
+          {DESTINATION_KINDS.map((kind) => (
+            <li key={kind.type} className="flex gap-3 rounded-2xl border border-line bg-surface p-3">
+              <Icon name={kind.icon} size={17} className="mt-0.5 shrink-0 text-[color:var(--accent-muted)]" />
+              <div>
+                <div className="text-[14px] font-medium text-ink">{kind.label}</div>
+                <div className="text-[13px] leading-5 text-ink-3">{kind.description}</div>
+              </div>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-3 text-[13px] leading-5 text-ink-3">
+          Power BI and Tableau are under BI tools. Warehouses such as Snowflake, BigQuery and Redshift
+          are not supported yet.
+        </p>
       </SectionPanel>
 
       <Modal
-        open={createOpen}
-        title="Create destination"
-        description="Credentials are stored like other integration configs. Use a dedicated DB user with minimal privileges where possible."
-        onClose={() => {
-          setCreateOpen(false);
-          setError(null);
-        }}
-        footer={
-          <div className="flex flex-wrap justify-end gap-2">
-            <Button variant="ghost" onClick={() => setCreateOpen(false)}>
-              Cancel
-            </Button>
-            <Button disabled={busy} onClick={() => void onCreate()}>
-              {busy ? "Saving…" : "Save"}
-            </Button>
-          </div>
-        }
+        open={picking}
+        onClose={() => setPicking(false)}
+        title="Add a destination"
+        description="Where should data be delivered?"
+        widthClassName="max-w-xl"
       >
-        <div className="flex flex-col gap-4">
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
-            Name
-            <input
-              className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              autoComplete="off"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
-            Type
-            <select
-              className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
-              value={newType}
-              onChange={(e) => setNewType(e.target.value as DestinationType)}
-            >
-              <option value="postgres">PostgreSQL</option>
-              <option value="s3">Amazon S3</option>
-              <option value="local_export">Local directory</option>
-            </select>
-          </label>
-          {renderConfigForm(newType, newFields, setNewFields, false)}
-        </div>
+        <ul className="space-y-2">
+          {DESTINATION_KINDS.map((kind) => (
+            <li key={kind.type}>
+              <button
+                type="button"
+                onClick={() => startNew(kind)}
+                className="flex w-full items-start gap-3 rounded-2xl border border-line bg-surface p-4 text-left transition hover:border-[color:var(--accent-soft)] hover:bg-[color:var(--accent-faint)]"
+              >
+                <Icon name={kind.icon} size={18} className="mt-0.5 shrink-0 text-[color:var(--accent-muted)]" />
+                <span>
+                  <span className="block text-[15px] font-semibold text-ink">{kind.label}</span>
+                  <span className="mt-0.5 block text-[13px] leading-5 text-ink-3">{kind.description}</span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
       </Modal>
 
       <Modal
-        open={editDestination !== null}
-        title="Edit destination"
-        description="Secrets are never shown in full after save. Leave password fields blank to keep the stored value."
-        onClose={() => setEditDestination(null)}
+        open={draft !== null}
+        onClose={() => setDraft(null)}
+        title={draft ? (draft.editing ? `Edit ${draft.editing.name}` : `Add ${draft.kind.label}`) : ""}
+        description={draft?.editing ? "Leave a secret empty to keep the saved one." : draft?.kind.description}
+        widthClassName="max-w-lg"
         footer={
-          <div className="flex flex-wrap justify-end gap-2">
-            <Button variant="ghost" onClick={() => setEditDestination(null)}>
-              Cancel
-            </Button>
-            <Button disabled={busy || !editDestination} onClick={() => void onSaveEdit()}>
-              {busy ? "Saving…" : "Save changes"}
+          <div className="flex justify-between gap-2">
+            {draft && !draft.editing ? (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setDraft(null);
+                  setPicking(true);
+                }}
+              >
+                Back
+              </Button>
+            ) : (
+              <span />
+            )}
+            <Button disabled={busy} onClick={() => void save()}>
+              {busy ? "Saving…" : draft?.editing ? "Save changes" : "Save and test"}
             </Button>
           </div>
         }
       >
-        {editDestination ? (
-          <div className="flex flex-col gap-4">
-            <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-muted">
-              Name
-              <input
-                className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
-                value={editDestination.name}
-                onChange={(e) => setEditDestination({ ...editDestination, name: e.target.value })}
+        {draft ? (
+          <div className="space-y-4">
+            {formError ? (
+              <p role="alert" className="rounded-xl border border-danger-line bg-danger-soft px-3 py-2 text-[13px] text-danger">
+                {formError}
+              </p>
+            ) : null}
+            <FormField label="Name" htmlFor="destination-name">
+              <Input
+                id="destination-name"
+                value={draft.name}
+                onChange={(event) => setDraft({ ...draft, name: event.target.value })}
+                placeholder={`${draft.kind.label} for reports`}
                 autoComplete="off"
+                autoFocus
               />
-            </label>
-            <p className="text-xs text-muted">
-              Type: <span className="font-mono text-ink-2">{editDestination.destination_type}</span> (cannot be
-              changed)
-            </p>
-            {renderConfigForm(editDestination.destination_type, editFields, setEditFields, true)}
+            </FormField>
+            {draft.kind.fields.map((field) => (
+              <FormField
+                key={field.key}
+                label={field.required ? field.label : `${field.label} (optional)`}
+                htmlFor={`destination-${field.key}`}
+                description={field.help}
+              >
+                {field.kind === "select" ? (
+                  <Select
+                    id={`destination-${field.key}`}
+                    value={draft.values[field.key] ?? ""}
+                    onChange={(event) =>
+                      setDraft({ ...draft, values: { ...draft.values, [field.key]: event.target.value } })
+                    }
+                  >
+                    {(field.options ?? []).map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </Select>
+                ) : (
+                  <Input
+                    id={`destination-${field.key}`}
+                    type={field.kind === "password" ? "password" : field.kind === "number" ? "number" : "text"}
+                    value={draft.values[field.key] ?? ""}
+                    onChange={(event) =>
+                      setDraft({ ...draft, values: { ...draft.values, [field.key]: event.target.value } })
+                    }
+                    placeholder={
+                      field.kind === "password" && draft.editing ? "Leave empty to keep the saved one" : field.placeholder
+                    }
+                    autoComplete={field.kind === "password" ? "new-password" : "off"}
+                  />
+                )}
+              </FormField>
+            ))}
           </div>
         ) : null}
       </Modal>

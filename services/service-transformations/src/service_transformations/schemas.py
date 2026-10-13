@@ -43,6 +43,8 @@ class TransformationPipelineRead(BaseModel):
     status: Literal["draft", "active"]
     steps_json: list[TransformationStep]
     step_count: int
+    #: The dataset this recipe's runs write to; None until its first run.
+    output_dataset_id: uuid.UUID | None = None
     created_at: datetime
     updated_at: datetime
 

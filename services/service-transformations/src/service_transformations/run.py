@@ -16,6 +16,7 @@ from service_datasets.service import (
     create_derived_dataset_placeholder,
     finalize_dataset_materialization_success,
     get_dataset_model_for_project,
+    reusable_dataset,
 )
 from service_ingestion.contracts import build_derived_dataset_path
 from service_ingestion.parsers import parse_tabular_file
@@ -228,7 +229,7 @@ def run_saved_transformation_pipeline(
         )
 
         derived_name = _truncate_dataset_name(
-            f"{pipeline.name} · replay" if replay is not None else f"{pipeline.name} · derived"
+            f"{pipeline.name} · replay" if replay is not None else f"{pipeline.name} (result)"
         )
         original_filename = "transformed.csv"
 
@@ -236,19 +237,34 @@ def run_saved_transformation_pipeline(
         log_events.append(_log_event("persist_artifact", "Persisting derived dataset artifact."))
         mark_pipeline_run_running(db, run=run, logs_json=_build_log_events(log_events))
 
-        derived_dataset = create_derived_dataset_placeholder(
-            db,
-            project_id=project_id,
-            parent_dataset_id=base_dataset.id,
-            created_from_pipeline_id=pipeline.id,
-            name=derived_name,
-            original_filename=original_filename,
-            file_type="csv",
-            file_size_bytes=len(csv_bytes),
-            source_id=None,
-            current_user=current_user,
-            pipeline_run_id=run.id,
+        # One dataset per recipe: a run adds a version to the dataset the
+        # recipe's earlier runs wrote, instead of a new look-alike each time.
+        # A replay is the exception by design: it publishes beside the
+        # original so the two can be compared, and rewrites nothing.
+        derived_dataset = (
+            None if replay is not None else reusable_dataset(db, project_id, pipeline.output_dataset_id)
         )
+        created_here = derived_dataset is None
+        if derived_dataset is not None:
+            derived_dataset.file_type = "csv"
+            derived_dataset.file_size_bytes = len(csv_bytes)
+            derived_dataset.pipeline_run_id = run.id
+        else:
+            derived_dataset = create_derived_dataset_placeholder(
+                db,
+                project_id=project_id,
+                parent_dataset_id=base_dataset.id,
+                created_from_pipeline_id=pipeline.id,
+                name=derived_name,
+                original_filename=original_filename,
+                file_type="csv",
+                file_size_bytes=len(csv_bytes),
+                source_id=None,
+                current_user=current_user,
+                pipeline_run_id=run.id,
+            )
+            if replay is None:
+                pipeline.output_dataset_id = derived_dataset.id
 
         relative_path, safe_name = build_derived_dataset_path(
             project_id=str(project_id),
@@ -259,8 +275,11 @@ def run_saved_transformation_pipeline(
         try:
             stored = storage_backend.save_upload(relative_path=relative_path, file_bytes=csv_bytes)
         except OSError as exc:
-            db.delete(derived_dataset)
-            db.flush()
+            if created_here:
+                if replay is None:
+                    pipeline.output_dataset_id = None
+                db.delete(derived_dataset)
+                db.flush()
             raise BadRequestError(f"Unable to store transformed file: {exc}") from exc
 
         current_stage = "finalize"

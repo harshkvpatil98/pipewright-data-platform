@@ -40,6 +40,11 @@ class TransformationPipeline(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default='draft')
     steps_json: Mapped[list[dict[str, Any]]] = mapped_column(JSON, nullable=False, default=list)
+    # The dataset this recipe's runs write to: the first run creates it and
+    # every later run adds a version (replays excepted, which stay separate).
+    output_dataset_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey('datasets.id', ondelete='SET NULL'), nullable=True
+    )
 
     project: Mapped[Project] = relationship(back_populates='transformation_pipelines')
     base_dataset: Mapped[Dataset] = relationship('Dataset', foreign_keys=[base_dataset_id])

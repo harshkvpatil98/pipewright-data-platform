@@ -47,6 +47,7 @@ def _serialize_pipeline(pipeline: TransformationPipeline) -> TransformationPipel
         status=pipeline.status,
         steps_json=validated_steps,
         step_count=len(validated_steps),
+        output_dataset_id=pipeline.output_dataset_id,
         created_at=pipeline.created_at,
         updated_at=pipeline.updated_at,
     )

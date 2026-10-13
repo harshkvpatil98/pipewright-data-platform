@@ -21,6 +21,7 @@ from service_datasets.service import (
     create_uploaded_dataset_placeholder,
     finalize_dataset_materialization_success,
     get_dataset_model_for_project,
+    reusable_dataset,
 )
 from service_extraction.connectors import sql_database
 from service_extraction.shaping import shape_rows
@@ -272,16 +273,26 @@ def run_extraction_job(
         log_events.append(_log_event("persist", "Writing dataset artifact."))
         mark_pipeline_run_running(db, run=run, logs_json={"events": log_events})
 
-        dataset = create_uploaded_dataset_placeholder(
-            db,
-            project_id=project_id,
-            name=job.name.strip()[:160],
-            original_filename=f"{job.name.strip()[:80] or 'extraction'}.csv",
-            file_type="csv",
-            file_size_bytes=len(csv_bytes),
-            current_user=current_user,
-            pipeline_run_id=run.id,
-        )
+        # One dataset per import: the first run creates it and every later run
+        # adds a version to it, so a nightly import is one dataset with a
+        # history rather than 365 look-alikes. Only when that dataset has been
+        # deleted does a run start a new one.
+        dataset = reusable_dataset(db, project_id, job.target_dataset_id)
+        if dataset is not None:
+            dataset.file_type = "csv"
+            dataset.file_size_bytes = len(csv_bytes)
+            dataset.pipeline_run_id = run.id
+        else:
+            dataset = create_uploaded_dataset_placeholder(
+                db,
+                project_id=project_id,
+                name=job.name.strip()[:160],
+                original_filename=f"{job.name.strip()[:80] or 'extraction'}.csv",
+                file_type="csv",
+                file_size_bytes=len(csv_bytes),
+                current_user=current_user,
+                pipeline_run_id=run.id,
+            )
 
         relative_path, _ = build_derived_dataset_path(
             project_id=str(project_id),
@@ -291,8 +302,9 @@ def run_extraction_job(
         try:
             stored = storage_backend.save_upload(relative_path=relative_path, file_bytes=csv_bytes)
         except OSError as exc:
-            db.delete(dataset)
-            db.flush()
+            if dataset.id != previous_dataset_id:
+                db.delete(dataset)
+                db.flush()
             raise BadRequestError(f"Unable to store extracted file: {exc}") from exc
 
         dataset_detail = finalize_dataset_materialization_success(

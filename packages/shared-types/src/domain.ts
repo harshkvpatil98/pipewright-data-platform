@@ -868,6 +868,8 @@ export type TransformationPipelineRecord = {
   status: TransformationPipelineStatus;
   steps_json: TransformationStep[];
   step_count: number;
+  /** The dataset this recipe's runs write to; null until its first run. */
+  output_dataset_id?: string | null;
   created_at: string;
   updated_at: string;
 };

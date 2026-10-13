@@ -66,6 +66,20 @@ def get_dataset_model_for_project(db: Session, project_id: uuid.UUID, dataset_id
     return dataset
 
 
+def reusable_dataset(db: Session, project_id: uuid.UUID, dataset_id: uuid.UUID | None) -> Dataset | None:
+    """The dataset a repeating producer (an import, a recipe) writes its next
+    version into, or None when it has not made one yet or it has been deleted.
+
+    Producers used to create a new dataset on every run, so a nightly import
+    made 365 near-identical datasets a year. Writing a version into the same
+    dataset keeps one name with a history, which versions, diff and AS OF
+    already understand.
+    """
+    if dataset_id is None:
+        return None
+    return db.scalar(select(Dataset).where(Dataset.project_id == project_id, Dataset.id == dataset_id))
+
+
 def get_dataset_by_project(
     db: Session, project_id: uuid.UUID, dataset_id: uuid.UUID, current_user: UserRead
 ) -> DatasetDetailRead:

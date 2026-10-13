@@ -59,3 +59,21 @@ def test_older_rows_without_canonical_type_still_have_the_legacy_field() -> None
     schema = infer_schema(dataframe=_frame())
     for column in schema["columns"]:
         assert "inferred_type" in column
+
+
+def test_a_spaced_phone_number_is_text_not_a_number() -> None:
+    """"+44 113 496 1037" was read as 441134961037: spaces stripped as grouping."""
+    from service_ingestion.sniff.numbers import looks_numeric, parse_number
+
+    for phone in ("+44 113 496 1037", "+1 512 555 1074", "020 7946 0958", "12 34 56 78"):
+        assert not looks_numeric(phone), phone
+        assert parse_number(phone, decimal=".", thousands=None) is None, phone
+
+
+def test_space_grouped_thousands_still_read_as_numbers() -> None:
+    from service_ingestion.sniff.numbers import looks_numeric, parse_number
+
+    assert looks_numeric("1 234 567")
+    assert parse_number("1 234 567", decimal=".", thousands=None) == 1234567
+    assert parse_number("12 345,50", decimal=",", thousands=None) == 12345.5
+    assert parse_number("-1 000", decimal=".", thousands=None) == -1000

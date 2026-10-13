@@ -78,10 +78,39 @@ def strip_decoration(value: str) -> tuple[str, bool]:
     return text, negative
 
 
+_SPACES = (" ", "\u00a0", "\u202f")
+
+
+def _spaced_like_a_phone(text: str) -> bool:
+    """Spaces that are not thousands grouping: a phone number, not an amount.
+
+    A space groups thousands in French and Scandinavian writing, always in
+    threes after the first group ("1 234 567"). "+44 113 496 1037" has spaces
+    too, in groups of 2, 3, 3 and 4 -- read as grouping it became the number
+    441134961037 and a phone column turned into integers. A leading "+" with
+    spaces is a dialling code; anything else must group in threes.
+    """
+    if not any(space in text for space in _SPACES):
+        return False
+    if text.startswith("+"):
+        return True
+    integer = text[1:].lstrip() if text.startswith("-") else text
+    for space in _SPACES[1:]:
+        integer = integer.replace(space, " ")
+    head = integer.split(" ")
+    # Only the part before a decimal separator groups; a trailing ".50" or
+    # ",50" on the last group is allowed.
+    last = re.split(r"[.,]", head[-1])[0]
+    groups = [*head[:-1], last]
+    if not groups[0].isdigit() or not 1 <= len(groups[0]) <= 3:
+        return True
+    return any(len(group) != 3 or not group.isdigit() for group in groups[1:])
+
+
 def parse_number(value: str, *, decimal: str, thousands: str | None) -> float | None:
     """Read one value, or None when it is not a number under this convention."""
     text, negative = strip_decoration(value)
-    if not text:
+    if not text or _spaced_like_a_phone(text):
         return None
     sign = -1.0 if negative else 1.0
     if text.startswith("-"):
@@ -107,7 +136,7 @@ def parse_number(value: str, *, decimal: str, thousands: str | None) -> float | 
 
 def looks_numeric(value: str) -> bool:
     text, _ = strip_decoration(value)
-    return bool(text) and bool(_NUMERIC.match(text))
+    return bool(text) and bool(_NUMERIC.match(text)) and not _spaced_like_a_phone(text)
 
 
 def detect(values: Iterable[str], *, column: str = "") -> NumberFormat:
@@ -119,7 +148,7 @@ def detect(values: Iterable[str], *, column: str = "") -> NumberFormat:
         if not text:
             continue
         accounting = accounting or negative
-        if _NUMERIC.match(text):
+        if _NUMERIC.match(text) and not _spaced_like_a_phone(text):
             sample.append(text)
 
     if not sample:

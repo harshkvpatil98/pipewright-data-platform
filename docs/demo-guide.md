@@ -11,6 +11,14 @@ Use this flow when you want to show:
 - reviewer-friendly documentation
 - an end-to-end ETL workflow that goes beyond CRUD
 
+## Before you share your screen
+
+Switch Pipewright to the light theme (the sun icon in the top bar) for demos,
+screenshots and anything printed. It is what most viewers' laptops show and it
+reads best on a projector; the dark theme stays fully supported for everyday
+use. See [design-system.md](design-system.md) for how the product looks and
+talks.
+
 ## Recommended starting point
 
 Before the demo:

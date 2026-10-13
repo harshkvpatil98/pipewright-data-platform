@@ -368,6 +368,7 @@ infra/             reserved; nothing deployed from here yet
 | [Handoff](docs/HANDOFF.md) | Project state, architecture rules, gotchas, known gaps, the progress ledger and the session log |
 | [Operations](docs/operations.md) · [Disaster recovery](docs/disaster-recovery.md) | Upgrades, backups, scaling, sizing, observability; recovering from loss |
 | [Security overview](docs/security.md) · [Enterprise identity](docs/enterprise-identity.md) | Accounts, credentials, audit; MFA, SSO, SCIM-lite |
+| [Design system](docs/design-system.md) | Tokens, the shared components and when to use each, the voice rules, and the tests that keep them |
 | [Adding a connector](docs/adding-a-connector.md) · [Transformation tools](docs/transformation-tools.md) | The four ways to add a connector; the generated reference for all 173 tools |
 | [Roadmap v2](docs/roadmap-v2.md) | The Studio-era roadmap (its opening status line predates the work; the handoff ledger is current) |
 | [Plans](docs/plans/) | The production-readiness (P0–P9) and adoption-readiness (A0–A9) workflows, and the time-travel requirements and decisions |

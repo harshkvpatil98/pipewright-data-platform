@@ -128,7 +128,7 @@ export function AuditCenterPageView({ currentUser, initial, forbidden }: AuditCe
       <AppShell currentUser={currentUser} title="Audit across all projects" subtitle="Every change in every project, with filters and export.">
         <EmptyState size="compact"
           title="Admins only"
-          description="The Audit Center shows actions across every project, so it is limited to platform admins."
+          description="This page shows actions across every project, so only platform admins can see it."
         />
       </AppShell>
     );

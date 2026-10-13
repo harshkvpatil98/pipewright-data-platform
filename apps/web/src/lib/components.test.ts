@@ -14,11 +14,12 @@ function sourceFiles(dir: string): string[] {
   });
 }
 
-function find(pattern: RegExp): string[] {
+function find(pattern: RegExp, keep: (match: string) => boolean = () => true): string[] {
   const found: string[] = [];
   for (const file of sourceFiles(APP)) {
     const source = readFileSync(file, "utf8");
     for (const match of source.matchAll(pattern)) {
+      if (!keep(match[0])) continue;
       const line = source.slice(0, match.index).split("\n").length;
       found.push(`${file.slice(APP.length)}:${line}: ${match[0].slice(0, 80)}`);
     }
@@ -44,8 +45,8 @@ describe("shared components", () => {
   });
 
   it("shows short labels with Badge rather than a hand-made pill", () => {
-    const pills = find(/<span\s[^>]*?className="([^"]*)"/g).filter((hit) => {
-      const classes = hit.split('className="')[1] ?? "";
+    const pills = find(/<span\s[^>]*?className=(?:"[^"]*"|\{`[^`]*`)/g, (match) => {
+      const classes = match.split("className=")[1] ?? "";
       return (
         /\brounded(-full|-md)?\b/.test(classes) &&
         /\bpx-(1\.5|2|2\.5)\b/.test(classes) &&

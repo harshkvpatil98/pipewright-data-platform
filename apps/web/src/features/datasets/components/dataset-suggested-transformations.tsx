@@ -7,7 +7,7 @@ import type {
   TransformationPipelineRecord,
   TransformationSuggestion,
 } from "@platform/shared-types";
-import { Button, FormField, Input, Modal, SectionPanel, Textarea } from "@platform/shared-ui";
+import { Badge, type BadgeTone, Button, FormField, Input, Modal, SectionPanel, Textarea } from "@platform/shared-ui";
 
 import {
   buildSuggestionPipelinePayload,
@@ -25,14 +25,10 @@ type DatasetSuggestedTransformationsProps = {
   suggestions: TransformationSuggestion[];
 };
 
-function confidenceClass(confidence: TransformationSuggestion["confidence"]): string {
-  if (confidence === "high") {
-    return "border-success-line bg-success-soft text-success";
-  }
-  if (confidence === "medium") {
-    return "border-warning-line bg-warning-soft text-warning";
-  }
-  return "border-line-strong bg-surface text-ink-2";
+function confidenceTone(confidence: TransformationSuggestion["confidence"]): BadgeTone {
+  if (confidence === "high") return "success";
+  if (confidence === "medium") return "warning";
+  return "neutral";
 }
 
 export function DatasetSuggestedTransformations({
@@ -190,15 +186,13 @@ export function DatasetSuggestedTransformations({
                       ✓
                     </span>
                     <span className="font-medium text-ink">{s.title}</span>
-                    <span
-                      className={`rounded-full border px-2 py-0.5 text-[12px] ${confidenceClass(s.confidence)}`}
-                    >
+                    <Badge tone={confidenceTone(s.confidence)}>
                       {s.confidence === "high"
                         ? "Very likely helpful"
                         : s.confidence === "medium"
                           ? "Probably helpful"
                           : "Worth a look"}
-                    </span>
+                    </Badge>
                   </div>
                   <p className="text-sm leading-6 text-ink-3">{s.explanation}</p>
                 </div>

@@ -17,7 +17,7 @@ import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { serviceLabel } from "@/lib/service-labels";
 import { cx } from "@/lib/utils";
-import { Icon, type IconName, useToast } from "@platform/shared-ui";
+import { Badge, Icon, type IconName, useToast } from "@platform/shared-ui";
 
 type HomeDashboardProps = {
   currentUser: AuthUser | null;
@@ -353,27 +353,17 @@ export function HomeDashboard({
                       {(status?.runtime?.components?.length ?? 0) > 0 ? (
                         <div className="mt-3 flex flex-wrap gap-1.5">
                           {status?.runtime?.components.map((component) => (
-                            <span
+                            <Badge
                               key={`${component.component}:${component.host ?? "-"}`}
-                              className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[12px] ${
-                                component.healthy
-                                  ? "border-success-line bg-success-soft text-success"
-                                  : "border-danger-line bg-danger-soft text-danger"
-                              }`}
+                              tone={component.healthy ? "success" : "danger"}
                               title={
                                 component.healthy
-                                  ? "Beating normally"
-                                  : "No recent heartbeat, so this part is not running"
+                                  ? "Checking in normally"
+                                  : "Not checking in, so this part is not running"
                               }
                             >
-                              <span
-                                className={`h-1.5 w-1.5 rounded-full ${
-                                  component.healthy ? "bg-success" : "bg-danger"
-                                }`}
-                              />
-                              {WORKER_LABELS[component.component] ??
-                                component.component}
-                            </span>
+                              {WORKER_LABELS[component.component] ?? component.component}
+                            </Badge>
                           ))}
                         </div>
                       ) : null}

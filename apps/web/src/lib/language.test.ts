@@ -204,7 +204,7 @@ describe("on-screen language", () => {
   it("spells the UK way", () => {
     expect(
       offenders((item) =>
-        /\b\w*(organiz|customiz|normaliz|prioritiz|summariz|analyz|initializ|authoriz|recogniz|visualiz|standardiz|optimiz|materializ|minimiz|maximiz)\w*|\b(color|behavior|favorite|license)\b|\bcatalog\b/.test(
+        /\b\w*(organiz|customiz|normaliz|prioritiz|summariz|analyz|initializ|authoriz|recogniz|visualiz|standardiz|optimiz|materializ|minimiz|maximiz)\w*|\b(color|behavior|favorite|license|center)\b|\bcatalog\b|\bCenter\b/.test(
           item.text,
         ),
       ),

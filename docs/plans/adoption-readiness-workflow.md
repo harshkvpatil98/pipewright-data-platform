@@ -1281,6 +1281,61 @@ with the exact reason when no webhook is configured).
 **Exit gate.** A security questionnaire's identity, encryption, audit and
 session sections can be answered with links to product pages and docs.
 
+
+### A6 specification (written 2026-10-14)
+
+**Measured before starting.**
+
+| | Now |
+|---|---|
+| Read paths that hand dataset rows to a person and apply row and column policies | 1 (download) of 10: detail and preview, version view, as-of SQL, charts and dashboards (including public links), the Studio preview, the assistant, comparisons, the column profile |
+| Events that can reach email or Slack | 6 (schedule, delivery and recipe outcomes); incidents and workflow failures reach only the project owner, in the app |
+| Help menu | Tour, shortcuts, API reference, status: no documentation, no support contact, no "What's new" |
+| Help pages inside the product | 0; "About this page" has nowhere to point |
+| Connectors shown by default | 211, of which 161 "Unverified" |
+| Security questionnaire sections answerable from the product and docs | Identity (SSO unproven live), audit; not encryption of files, network restrictions or a stated session policy |
+
+**W1. Policies on every read.** A viewer limited by a row or column policy
+sees the same limited data everywhere rows reach them, not only in a
+download. One test calls each read path as that viewer.
+
+**W2. Help inside the product.** `/help`, built from `docs/user/` with the
+app (so it always matches the version running): getting started, one page
+per area, the glossary (A0, S2), an admin guide, security, the API guide
+and "What's new". The Help menu gains Documentation, What's new and Contact
+support (an address the deployment sets); each tab's "About this page" links
+to its area's page.
+
+**W3. The API reference, proven.** `/docs` loads; the API guide covers
+signing in with a token and three worked examples (connect a source, run a
+recipe, read a dataset). A test runs the examples against the API and
+checks every documented path exists.
+
+**W4. A catalogue that reassures.** Tested connectors are the catalogue;
+the rest sit under "Available on request" with how validation works, and
+the tier wording says what testing means rather than warning.
+
+**W5. What a security review asks for.** Network allow-lists per
+organisation (sign-in and every request from outside are refused, API
+tokens included); the session policy configurable and stated (idle timeout,
+renewal, the absolute cap); stored files encrypted at rest when a key is
+set, with a command to encrypt existing files; System status says which are
+on.
+
+**W6. Failures reach people.** Incidents and failed workflows go to the
+project's email and Slack targets and, in the app, to everyone who can act
+on them; a weekly summary joins "each" and "daily summary".
+
+**W7. Security overview, true and complete.** `docs/security.md` rewritten
+to what ships, with a questionnaire-style page in the product (identity,
+sessions, encryption, network, audit, data handling) linking to where each
+is set. OIDC against a live identity provider cannot be run here (no tenant
+on this machine); a script that does it against a configured provider is
+provided and the gap stays stated until someone runs it.
+
+**W8. Defects.** D1 to D20 re-checked live, plus anything found on the way
+(a REST import labelled "Database import"); nothing found is left open.
+
 ---
 
 ## A7 — Scale and reliability

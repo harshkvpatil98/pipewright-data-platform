@@ -52,8 +52,11 @@ jobs:
       - name: pip-audit (fail on known vulnerabilities)
         run: |
           .venv/bin/pip install --quiet pip-audit cyclonedx-bom
-          # Audit the resolved environment — what would actually ship.
-          .venv/bin/pip-audit --skip-editable --strict
+          # Audit the resolved third-party packages: what would actually ship.
+          # The workspaces themselves are editable installs with nothing on
+          # PyPI to look up, and `--strict` refuses anything it skips.
+          .venv/bin/pip freeze --exclude-editable | grep -v " @ file:" > resolved-requirements.txt
+          .venv/bin/pip-audit --requirement resolved-requirements.txt --no-deps --disable-pip --strict
       - name: Python SBOM (CycloneDX)
         if: always()
         run: |

@@ -51,6 +51,16 @@ jobs:
       CONNECTORS_TEST_POSTGRES_URL: postgresql+psycopg://platform:platform@127.0.0.1:5432/platform
       CONNECTORS_TEST_MYSQL_URL: mysql+pymysql://root:platform@127.0.0.1:3306/platform
       CONNECTORS_TEST_MARIADB_URL: mysql+pymysql://root:platform@127.0.0.1:3307/platform
+      # MinIO (started below) stands in for S3: stored files in a bucket, two
+      # gateways sharing one, and delivery to an S3-compatible store.
+      STORAGE_TEST_S3_ENDPOINT: http://127.0.0.1:9000
+      STORAGE_TEST_S3_BUCKET: pipewright-files
+      STORAGE_TEST_S3_KEY: platform
+      STORAGE_TEST_S3_SECRET: platform-secret
+      DELIVERY_TEST_S3_ENDPOINT: http://127.0.0.1:9000
+      DELIVERY_TEST_S3_BUCKET: deliveries
+      DELIVERY_TEST_S3_KEY: platform
+      DELIVERY_TEST_S3_SECRET: platform-secret
 
     steps:
       - name: Checkout
@@ -72,6 +82,18 @@ jobs:
 
       - name: Bootstrap Python venv (editable installs)
         run: bash ./scripts/ci-bootstrap-python-venv.sh
+
+      - name: Start MinIO
+        # A step rather than a service: MinIO needs `server /data` as its
+        # command, which service containers cannot be given.
+        run: |
+          docker run -d --name minio -p 9000:9000 \
+            -e MINIO_ROOT_USER=platform -e MINIO_ROOT_PASSWORD=platform-secret \
+            minio/minio server /data
+          for attempt in $(seq 1 30); do
+            curl -sf http://127.0.0.1:9000/minio/health/live && break
+            sleep 1
+          done
 
       - name: Confirm the connector containers are reachable
         # A silent skip here would mean the tier-2 claims quietly stopped being

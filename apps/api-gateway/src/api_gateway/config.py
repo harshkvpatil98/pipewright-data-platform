@@ -65,7 +65,19 @@ class Settings(BaseSettings):
     trusted_proxy_hops: int = 0
     # Shown under Help, Contact support: an email address or a web address.
     support_contact: str | None = None
-    storage_backend: Literal["local"] = "local"
+    # "local": files on this machine's disk (upload_root_path). "s3": an
+    # S3-compatible bucket (AWS S3, MinIO, R2...), so every gateway and worker
+    # reads the same files.
+    storage_backend: Literal["local", "s3"] = "local"
+    storage_s3_bucket: str | None = None
+    # Keys go under this folder in the bucket, so one bucket can hold more.
+    storage_s3_prefix: str = ""
+    # Empty for AWS; the store's address otherwise (http://minio:9000).
+    storage_s3_endpoint_url: str | None = None
+    storage_s3_region: str | None = None
+    # Empty to use the machine's own AWS credentials (an instance role).
+    storage_s3_access_key_id: str | None = None
+    storage_s3_secret_access_key: str | None = None
     upload_root_path: str = "data/uploads"
     #: 32 random bytes, base64. When set, every stored file is AES-256-GCM
     #: encrypted at rest; files stored before keep reading until

@@ -263,6 +263,40 @@ export function NodeInspector({
         </>
       ) : null}
 
+      <Field label="If it fails" htmlFor={`${fieldId}-retries`}>
+        <select
+          id={`${fieldId}-retries`}
+          className={inputClass}
+          value={String(node.retries ?? 0)}
+          onChange={(event) => onChange({ ...node, retries: Number(event.target.value) })}
+        >
+          <option value="0">Do not try again</option>
+          {[1, 2, 3, 4, 5].map((count) => (
+            <option key={count} value={String(count)}>
+              {count === 1 ? "Try once more" : `Try up to ${count} more times`}
+            </option>
+          ))}
+        </select>
+      </Field>
+      {(node.retries ?? 0) > 0 ? (
+        <Field label="Wait before trying again (seconds)" htmlFor={`${fieldId}-retry-wait`}>
+          <input
+            id={`${fieldId}-retry-wait`}
+            type="number"
+            min={1}
+            max={3600}
+            className={inputClass}
+            value={String(node.retry_delay_seconds ?? 30)}
+            onChange={(event) =>
+              onChange({ ...node, retry_delay_seconds: Math.min(3600, Math.max(1, Number(event.target.value) || 1)) })
+            }
+          />
+          <span className="mt-1 block text-[12px] text-muted">
+            Each wait is twice the one before, up to 15 minutes. Good for a source that is briefly busy.
+          </span>
+        </Field>
+      ) : null}
+
       <label className="flex items-start gap-2.5 text-[12px] text-ink-2">
         <input
           type="checkbox"

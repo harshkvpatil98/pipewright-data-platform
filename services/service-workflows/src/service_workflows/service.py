@@ -131,6 +131,8 @@ def _replace_graph(
                 node_type=item.node_type,
                 config_json=dict(item.config),
                 continue_on_failure=item.continue_on_failure,
+                retries=item.retries,
+                retry_delay_seconds=item.retry_delay_seconds,
                 position_x=item.position_x,
                 position_y=item.position_y,
             )
@@ -256,6 +258,8 @@ def update_workflow(
                     node_type=row.node_type,
                     config=dict(row.config_json or {}),
                     continue_on_failure=row.continue_on_failure,
+                    retries=row.retries,
+                    retry_delay_seconds=row.retry_delay_seconds,
                     position_x=row.position_x,
                     position_y=row.position_y,
                 )

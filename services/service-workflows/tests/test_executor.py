@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Iterator
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import create_engine
@@ -432,3 +432,135 @@ def test_a_task_that_is_not_filled_in_is_refused(db: Session, actor, monkeypatch
     assert finished.status == "failed"
     assert "load: choose which import it runs." in (finished.error_message or "")
     assert calls == []
+
+
+# ---- recovering from failure (A7, X4) ----
+
+def _flaky(failures: dict[str, int], calls: list[str]):
+    """A handler that fails each task its given number of times, then succeeds."""
+    remaining = dict(failures)
+
+    def _execute(node_type: str, config: dict, context) -> NodeResult:  # noqa: ARG001
+        key = config.get("__key__", "")
+        calls.append(key)
+        if remaining.get(key, 0) > 0:
+            remaining[key] -= 1
+            return NodeResult(success=False, message="The source timed out.")
+        return NodeResult(success=True, message="ok", output={"dataset_id": str(uuid.uuid4())})
+
+    return _execute
+
+
+def _retrying(db: Session, run: WorkflowRun, key: str, retries: int, delay: int = 30) -> None:
+    node = db.query(WorkflowNode).filter(WorkflowNode.workflow_id == run.workflow_id, WorkflowNode.node_key == key).one()
+    node.retries = retries
+    node.retry_delay_seconds = delay
+    db.commit()
+
+
+def test_a_task_that_fails_once_is_tried_again_and_the_run_succeeds(db: Session, actor, monkeypatch) -> None:
+    _, run = build_workflow(db, [("extract", "extraction"), ("clean", "transformation")], [("extract", "clean", "on_success")])
+    install_handlers(monkeypatch, db, run, {})
+    _retrying(db, run, "extract", retries=2)
+    calls: list[str] = []
+    waits: list[int] = []
+    monkeypatch.setattr(executor_module, "execute_node", _flaky({"extract": 1}, calls))
+    monkeypatch.setattr(executor_module, "_sleep", waits.append)
+
+    finished = execute_workflow_run(db, run=run, storage_backend=None, settings=None)
+
+    assert finished.status == "succeeded"
+    assert calls == ["extract", "extract", "clean"]
+    assert waits == [30]
+    record = node_runs(db, finished)["extract"]
+    assert record.attempts == 2
+    assert "succeeded on attempt 2 of 3" in record.message
+
+
+def test_retries_wait_longer_each_time_and_then_give_up(db: Session, actor, monkeypatch) -> None:
+    _, run = build_workflow(db, [("extract", "extraction")], [])
+    install_handlers(monkeypatch, db, run, {})
+    _retrying(db, run, "extract", retries=3, delay=10)
+    calls: list[str] = []
+    waits: list[int] = []
+    monkeypatch.setattr(executor_module, "execute_node", _flaky({"extract": 99}, calls))
+    monkeypatch.setattr(executor_module, "_sleep", waits.append)
+
+    finished = execute_workflow_run(db, run=run, storage_backend=None, settings=None)
+
+    assert finished.status == "failed"
+    assert waits == [10, 20, 40]
+    record = node_runs(db, finished)["extract"]
+    assert record.attempts == 4
+    assert "failed 4 times" in record.message
+    assert executor_module.retry_wait_seconds(600, 5) == executor_module.MAX_RETRY_WAIT_SECONDS
+
+
+def test_a_failed_run_is_picked_up_from_where_it_failed(db: Session, actor, monkeypatch) -> None:
+    from service_workflows.queue import resume_run
+
+    workflow, run = build_workflow(
+        db,
+        [("extract", "extraction"), ("clean", "transformation"), ("ship", "publish")],
+        [("extract", "clean", "on_success"), ("clean", "ship", "on_success")],
+    )
+    install_handlers(monkeypatch, db, run, {})
+    calls: list[str] = []
+    monkeypatch.setattr(executor_module, "execute_node", _flaky({"clean": 1}, calls))
+    failed = execute_workflow_run(db, run=run, storage_backend=None, settings=None)
+    assert failed.status == "failed"
+    made_by_extract = node_runs(db, failed)["extract"].output_json
+
+    resumed = resume_run(db, project_id=workflow.project_id, run_id=failed.id, current_user=actor)
+    assert resumed.trigger == "resume" and resumed.resumed_from_run_id == failed.id
+    calls.clear()
+    finished = execute_workflow_run(db, run=resumed, storage_backend=None, settings=None)
+
+    assert finished.status == "succeeded"
+    assert calls == ["clean", "ship"]  # the import was not run again
+    reused = node_runs(db, finished)["extract"]
+    assert reused.status == "succeeded" and reused.output_json == made_by_extract
+    assert "Not run again" in reused.message
+
+
+def test_only_an_unchanged_failed_run_can_be_picked_up(db: Session, actor, monkeypatch) -> None:
+    from service_workflows.queue import resume_run
+    from shared_python.errors import BadRequestError
+
+    workflow, run = build_workflow(db, [("extract", "extraction")], [])
+    install_handlers(monkeypatch, db, run, {})
+    succeeded = execute_workflow_run(db, run=run, storage_backend=None, settings=None)
+    with pytest.raises(BadRequestError, match="Only a run that failed"):
+        resume_run(db, project_id=workflow.project_id, run_id=succeeded.id, current_user=actor)
+
+    succeeded.status = "failed"
+    workflow.updated_at = datetime.now(UTC) + timedelta(minutes=5)
+    db.commit()
+    with pytest.raises(BadRequestError, match="has changed since that run"):
+        resume_run(db, project_id=workflow.project_id, run_id=succeeded.id, current_user=actor)
+
+
+def test_one_project_cannot_take_every_worker(db: Session, actor) -> None:
+    from service_workflows.queue import claim_next_run
+
+    class Settings:
+        workflow_max_runs_per_project = 2
+        workflow_lease_seconds = 900
+        workflow_worker_id = "w1"
+
+    busy, _ = build_workflow(db, [("a", "notify")], [])
+    other, _ = build_workflow(db, [("a", "notify")], [])
+    now = datetime.now(UTC)
+    for minutes in (10, 9):  # two of the busy project's runs are already going
+        db.add(WorkflowRun(workflow_id=busy.id, project_id=busy.project_id, status="running", trigger="manual",
+                           queued_at=now - timedelta(minutes=minutes)))
+    db.add(WorkflowRun(workflow_id=busy.id, project_id=busy.project_id, status="queued", trigger="manual",
+                       queued_at=now - timedelta(minutes=8)))
+    db.commit()
+    # build_workflow queued one run per workflow; push the other project's to the back.
+    for queued in db.query(WorkflowRun).filter(WorkflowRun.project_id == other.project_id):
+        queued.queued_at = now
+    db.commit()
+
+    claimed = claim_next_run(db, settings=Settings())
+    assert claimed.project_id == other.project_id

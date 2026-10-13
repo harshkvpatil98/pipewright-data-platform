@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import time
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import select
@@ -35,6 +36,40 @@ from shared_python.logging import get_logger
 logger = get_logger(__name__)
 
 TERMINAL_RUN_STATUSES = frozenset({"succeeded", "failed", "partial", "cancelled"})
+
+#: The longest wait between two tries of a task, however long its backoff grew.
+MAX_RETRY_WAIT_SECONDS = 900
+
+#: How a retry waits. A module attribute so tests can count the waits instead
+#: of sitting through them.
+_sleep = time.sleep
+
+
+def retry_wait_seconds(first_wait: int, retry: int) -> int:
+    """The wait before retry number `retry` (1 for the first): doubling, capped."""
+    return min(MAX_RETRY_WAIT_SECONDS, max(1, first_wait) * 2 ** (retry - 1))
+
+
+def _reusable_results(db: Session, run: WorkflowRun) -> dict[str, WorkflowNodeRun]:
+    """What already succeeded in the run this one resumes, by task."""
+    if run.resumed_from_run_id is None:
+        return {}
+    rows = db.scalars(
+        select(WorkflowNodeRun).where(
+            WorkflowNodeRun.workflow_run_id == run.resumed_from_run_id,
+            WorkflowNodeRun.status == "succeeded",
+        )
+    ).all()
+    return {row.node_key: row for row in rows}
+
+
+def _keep_the_lease(db: Session, run: WorkflowRun, settings: Any, waiting: int) -> None:
+    """A retry's wait is part of the run: extend the worker's lease over it."""
+    if run.claim_expires_at is None:
+        return
+    lease = int(getattr(settings, "workflow_lease_seconds", None) or 900)
+    run.claim_expires_at = datetime.now(UTC) + timedelta(seconds=waiting + lease)
+    db.commit()
 
 
 def _load_graph(db: Session, workflow_id: uuid.UUID) -> tuple[list[WorkflowNode], list[WorkflowEdge]]:
@@ -110,6 +145,7 @@ def execute_workflow_run(
 
     by_key = {row.node_key: row for row in node_rows}
     levels = topological_levels(graph_nodes, graph_edges)
+    reusable = _reusable_results(db, run)
 
     run.status = "running"
     run.started_at = datetime.now(UTC)
@@ -161,18 +197,53 @@ def execute_workflow_run(
                 db.commit()
                 continue
 
+            earlier = reusable.get(node_key)
+            if earlier is not None:
+                # Resumed run: this task already did its work, so its result
+                # stands, and what it made feeds the tasks after it.
+                statuses[node_key] = "succeeded"
+                outputs[node_key] = dict(earlier.output_json or {})
+                run.nodes_succeeded += 1
+                _record(
+                    db, run=run, node=node, sequence=sequence, status="succeeded",
+                    started_at=earlier.started_at, finished_at=earlier.finished_at,
+                    output=earlier.output_json,
+                    message="Not run again: it succeeded in the run this one picks up from.",
+                    pipeline_run_id=earlier.pipeline_run_id, attempts=earlier.attempts,
+                )
+                db.commit()
+                continue
+
             started = datetime.now(UTC)
             raw_config = dict(node.config_json or {})
-            try:
-                node_config = resolve_config(raw_config, macro_context)
-            except ApplicationError as exc:
-                # An unresolvable macro is this node's failure, not the run's.
-                node_config = None
-                result = NodeResult(success=False, message=str(exc.detail))
-
-            if node_config is not None:
+            attempts = 0
+            while True:
+                attempts += 1
+                try:
+                    node_config = resolve_config(raw_config, macro_context)
+                except ApplicationError as exc:
+                    # An unresolvable macro is this node's failure, not the
+                    # run's, and trying again would not change it.
+                    result = NodeResult(success=False, message=str(exc.detail))
+                    break
                 result = execute_node(node.node_type, node_config, context)
+                if result.success or attempts > node.retries:
+                    break
+                waiting = retry_wait_seconds(node.retry_delay_seconds, attempts)
+                logger.info(
+                    "workflow_task_retry run_id=%s task=%s attempt=%s wait=%ss",
+                    run.id, node_key, attempts, waiting,
+                )
+                _keep_the_lease(db, run, settings, waiting)
+                _sleep(waiting)
             finished = datetime.now(UTC)
+            if node.retries and attempts > 1:
+                tries = f"attempt {attempts} of {node.retries + 1}"
+                result.message = (
+                    f"{result.message} (succeeded on {tries})"
+                    if result.success
+                    else f"{result.message} (failed {attempts} times)"
+                )
 
             status = "succeeded" if result.success else "failed"
             statuses[node_key] = status
@@ -200,6 +271,7 @@ def execute_workflow_run(
                 output=result.output,
                 message=result.message,
                 pipeline_run_id=result.pipeline_run_id,
+                attempts=attempts,
             )
             db.commit()
 
@@ -294,6 +366,7 @@ def _record(
     message: str | None = None,
     skip_reason: str | None = None,
     pipeline_run_id: uuid.UUID | None = None,
+    attempts: int = 1,
 ) -> None:
     duration = None
     if started_at and finished_at:
@@ -315,6 +388,7 @@ def _record(
             message=message[:2000] if message else None,
             skip_reason=skip_reason[:500] if skip_reason else None,
             pipeline_run_id=pipeline_run_id,
+            attempts=attempts,
         )
     )
 

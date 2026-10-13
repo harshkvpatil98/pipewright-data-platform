@@ -20,7 +20,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from service_workflows.cron import advance_after_fire, due_workflows
@@ -48,6 +48,20 @@ def lease_seconds(settings: Any | None = None) -> int:
         return DEFAULT_LEASE_SECONDS
 
 
+#: Runs of one project the workers start at once, unless settings say otherwise.
+DEFAULT_RUNS_PER_PROJECT = 3
+
+
+def runs_per_project(settings: Any | None = None) -> int:
+    """How many runs of one project may be running at the same time."""
+    configured = getattr(settings, "workflow_max_runs_per_project", None) if settings else None
+    configured = configured or os.getenv("WORKFLOW_MAX_RUNS_PER_PROJECT")
+    try:
+        return max(1, int(configured or DEFAULT_RUNS_PER_PROJECT))
+    except (TypeError, ValueError):
+        return DEFAULT_RUNS_PER_PROJECT
+
+
 def enqueue_workflow_run(
     db: Session,
     *,
@@ -56,6 +70,7 @@ def enqueue_workflow_run(
     trigger: str = "manual",
     parameters: dict[str, Any] | None = None,
     logical_date: datetime | None = None,
+    resumed_from_run_id: uuid.UUID | None = None,
 ) -> WorkflowRun:
     """Queue a run. Returns immediately; a worker executes it."""
     if not workflow.enabled:
@@ -71,11 +86,55 @@ def enqueue_workflow_run(
         logical_date=logical_date,
         queued_at=datetime.now(UTC),
         triggered_by_user_id=triggered_by_user_id,
+        resumed_from_run_id=resumed_from_run_id,
     )
     db.add(run)
     db.commit()
     db.refresh(run)
     return run
+
+
+def resume_run(db: Session, *, project_id: uuid.UUID, run_id: uuid.UUID, current_user: Any) -> WorkflowRun:
+    """Queue a run that picks up a failed one: its succeeded tasks are reused.
+
+    Only when the workflow is unchanged since that run started: a task whose
+    settings changed must run again, and so must everything after it, which is
+    the same as running from the start.
+    """
+    from service_workflows.graph import MISSING_SETTING
+    from service_workflows.service import _graph_of, _validate_and_order, get_workflow_for_project
+
+    earlier = db.get(WorkflowRun, run_id)
+    if earlier is None or earlier.project_id != project_id:
+        raise NotFoundError("Run not found.")
+    if earlier.status not in ("failed", "partial"):
+        raise BadRequestError("Only a run that failed, or finished partly, can be picked up from where it stopped.")
+    workflow = get_workflow_for_project(db, project_id, earlier.workflow_id)
+    started = earlier.started_at or earlier.queued_at
+    if workflow.updated_at and started and _aware(workflow.updated_at) > _aware(started):
+        raise BadRequestError(
+            "This workflow has changed since that run, so its results cannot be reused. Run it from the start."
+        )
+    validation, _order = _validate_and_order(*_graph_of(db, workflow.id))
+    unfilled = [issue for issue in validation["warnings"] if issue.get("code") == MISSING_SETTING]
+    if not validation["valid"] or unfilled:
+        raise BadRequestError(
+            "This workflow cannot run yet. "
+            + " ".join(str(issue.get("message")) for issue in [*validation["errors"], *unfilled])
+        )
+    return enqueue_workflow_run(
+        db,
+        workflow=workflow,
+        triggered_by_user_id=current_user.id,
+        trigger="resume",
+        parameters=dict(earlier.parameters_json or {}),
+        logical_date=earlier.logical_date,
+        resumed_from_run_id=earlier.id,
+    )
+
+
+def _aware(moment: datetime) -> datetime:
+    return moment if moment.tzinfo else moment.replace(tzinfo=UTC)
 
 
 def claim_next_run(db: Session, *, settings: Any | None = None) -> WorkflowRun | None:
@@ -88,14 +147,25 @@ def claim_next_run(db: Session, *, settings: Any | None = None) -> WorkflowRun |
 
     `FOR UPDATE SKIP LOCKED` lets several workers poll the same table without
     two of them taking the same run.
+
+    A project already running `runs_per_project` runs waits its turn, so one
+    project's backfill cannot take every worker from the others. Two workers
+    claiming at the same instant can each start one, so the cap can be passed
+    by one for a moment; it is a fairness limit, not a lock.
     """
     now = datetime.now(UTC)
     owner = worker_identity(settings)
     expires = now + timedelta(seconds=lease_seconds(settings))
 
+    busy_projects = (
+        select(WorkflowRun.project_id)
+        .where(WorkflowRun.status == "running")
+        .group_by(WorkflowRun.project_id)
+        .having(func.count() >= runs_per_project(settings))
+    )
     statement = (
         select(WorkflowRun)
-        .where(WorkflowRun.status == "queued")
+        .where(WorkflowRun.status == "queued", WorkflowRun.project_id.not_in(busy_projects))
         .order_by(WorkflowRun.queued_at.asc())
         .limit(1)
         .with_for_update(skip_locked=True)

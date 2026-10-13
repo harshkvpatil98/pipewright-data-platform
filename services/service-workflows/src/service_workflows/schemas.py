@@ -9,6 +9,9 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from service_workflows.graph import EDGE_CONDITIONS, NODE_KEY_PATTERN, NODE_TYPES
 
 _NODE_TYPE_PATTERN = "^(" + "|".join(NODE_TYPES) + ")$"
+#: A task is tried at most this many extra times; past that, the failure is
+#: not transient and waiting longer only delays the people who need to know.
+MAX_RETRIES = 5
 _CONDITION_PATTERN = "^(" + "|".join(EDGE_CONDITIONS) + ")$"
 
 
@@ -18,6 +21,10 @@ class WorkflowNodeInput(BaseModel):
     node_type: str = Field(pattern=_NODE_TYPE_PATTERN)
     config: dict[str, Any] = Field(default_factory=dict)
     continue_on_failure: bool = False
+    #: Tries again after a failure, up to this many times.
+    retries: int = Field(default=0, ge=0, le=MAX_RETRIES)
+    #: The first wait before trying again; each later wait is twice the last.
+    retry_delay_seconds: int = Field(default=30, ge=1, le=3600)
     position_x: float = 0.0
     position_y: float = 0.0
 
@@ -77,6 +84,8 @@ class WorkflowNodeRead(BaseModel):
     node_type: str
     config_json: dict[str, Any]
     continue_on_failure: bool
+    retries: int = 0
+    retry_delay_seconds: int = 30
     position_x: float
     position_y: float
 
@@ -137,6 +146,7 @@ class WorkflowNodeRunRead(BaseModel):
     message: str | None
     skip_reason: str | None
     pipeline_run_id: uuid.UUID | None
+    attempts: int = 1
 
 
 class WorkflowRunRead(BaseModel):
@@ -153,6 +163,7 @@ class WorkflowRunRead(BaseModel):
     started_at: datetime | None
     finished_at: datetime | None
     error_message: str | None
+    resumed_from_run_id: uuid.UUID | None = None
     nodes_total: int
     nodes_succeeded: int
     nodes_failed: int

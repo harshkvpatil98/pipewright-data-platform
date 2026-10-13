@@ -37,6 +37,7 @@ _RULES: list[tuple[str, str, str]] = [
     ("POST", r"/workflows/{id}/run", "ran a workflow"),
     ("POST", r"/workflows/{id}/backfill", "ran a workflow for past dates"),
     ("POST", r"/workflow-runs/{id}/cancel", "cancelled a workflow run"),
+    ("POST", r"/workflow-runs/{id}/resume", "picked up a workflow run from where it failed"),
     ("POST", r"/reports/{id}/run", "sent a report"),
     ("POST", r"/schedules/{id}/toggle", "paused or resumed a schedule"),
     ("POST", r"/schedules/{id}/trigger-now", "ran a schedule straight away"),

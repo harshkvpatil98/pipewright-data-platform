@@ -11,7 +11,7 @@ from service_projects.contracts import ensure_owned_project
 from service_workflows.backfill import plan_backfill, queue_backfill
 from service_workflows.catalog import macro_catalog
 from service_workflows.graph import MISSING_SETTING
-from service_workflows.queue import cancel_run, enqueue_workflow_run
+from service_workflows.queue import cancel_run, enqueue_workflow_run, resume_run
 from service_workflows.schemas import (
     BackfillPreviewResponse,
     BackfillRequest,
@@ -150,6 +150,22 @@ def build_router(
             trigger="manual",
             parameters=(payload.parameters if payload else {}),
         )
+        return WorkflowRunRead.model_validate(run, from_attributes=True)
+
+    @router.post(
+        "/projects/{project_id}/workflow-runs/{run_id}/resume",
+        response_model=WorkflowRunRead,
+        status_code=status.HTTP_202_ACCEPTED,
+    )
+    def post_resume(
+        project_id: uuid.UUID,
+        run_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> WorkflowRunRead:
+        """Run a failed run again from where it failed, reusing what succeeded."""
+        ensure_owned_project(db, project_id, current_user.id)
+        run = resume_run(db, project_id=project_id, run_id=run_id, current_user=current_user)
         return WorkflowRunRead.model_validate(run, from_attributes=True)
 
     @router.get("/projects/{project_id}/workflow-runs", response_model=WorkflowRunListResponse)

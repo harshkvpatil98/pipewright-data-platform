@@ -66,6 +66,8 @@ export function WorkflowEditorPage({
       node_type: node.node_type,
       config: node.config_json,
       continue_on_failure: node.continue_on_failure,
+      retries: node.retries ?? 0,
+      retry_delay_seconds: node.retry_delay_seconds ?? 30,
       position_x: node.position_x,
       position_y: node.position_y,
     })),
@@ -116,6 +118,8 @@ export function WorkflowEditorPage({
           node_type: type,
           config: {},
           continue_on_failure: false,
+          retries: 0,
+          retry_delay_seconds: 30,
           position_x: 40 + (current.length % 4) * 240,
           position_y: 40 + Math.floor(current.length / 4) * 120,
         };
@@ -307,6 +311,26 @@ export function WorkflowEditorPage({
   }, [dirty, projectId, workflow.id, toast, watchRun]);
 
   /**
+   * Run a failed run again from where it failed. The tasks that succeeded are
+   * not repeated (an import is not imported twice); the API refuses when the
+   * workflow changed since, because then those results no longer apply.
+   */
+  const resumeRun = useCallback(async () => {
+    if (!activeRun) return;
+    try {
+      const run = await apiFetch<WorkflowRunRecord>(
+        `/projects/${projectId}/workflow-runs/${activeRun.id}/resume`,
+        { method: "POST" },
+      );
+      toast.info("Picking up from where it failed", "Tasks that already succeeded will not run again.");
+      setActiveRun({ ...run, node_runs: [], timeline: null });
+      void watchRun(run.id);
+    } catch (caught) {
+      toast.error("Could not pick the run up", extractErrorMessage(caught));
+    }
+  }, [activeRun, projectId, toast, watchRun]);
+
+  /**
    * Stop a run before a worker picks it up.
    *
    * Only while it is queued. The API refuses anything else -- "Only queued
@@ -491,6 +515,7 @@ export function WorkflowEditorPage({
             executionOrder={executionOrder}
             names={Object.fromEntries(nodes.map((node) => [node.node_key, node.name]))}
             activeRun={activeRun}
+            onResume={dirty ? undefined : resumeRun}
           />
         ),
       }}
@@ -587,6 +612,7 @@ function WorkflowSummaryPanel({
   executionOrder,
   names,
   activeRun,
+  onResume,
 }: {
   workflow: WorkflowDetail;
   validation: WorkflowDetail["validation"];
@@ -594,6 +620,8 @@ function WorkflowSummaryPanel({
   /** Each task's name by its key, so the order reads in the canvas's words. */
   names: Record<string, string>;
   activeRun: WorkflowRunDetail | null;
+  /** Offered on a failed or partial run; absent while there are unsaved edits. */
+  onResume?: () => void;
 }) {
   // Unfilled tasks are named above the canvas, live; not twice.
   const warnings = validation.warnings.filter((issue) => issue.code !== "missing_setting");
@@ -618,6 +646,16 @@ function WorkflowSummaryPanel({
           </div>
           {activeRun.error_message ? (
             <p className="mt-2 text-[12px] text-danger">{activeRun.error_message}</p>
+          ) : null}
+          {onResume && (activeRun.status === "failed" || activeRun.status === "partial") ? (
+            <button
+              type="button"
+              onClick={onResume}
+              className="mt-2.5 inline-flex h-8 items-center gap-1.5 rounded-lg border border-line bg-surface px-2.5 text-[13px] text-ink transition hover:bg-surface-2"
+            >
+              <Icon name="refresh" size={14} />
+              Pick up from where it failed
+            </button>
           ) : null}
           {activeRun.timeline && activeRun.timeline.entries.length > 0 ? (
             <div className="mt-3 border-t border-line pt-3">

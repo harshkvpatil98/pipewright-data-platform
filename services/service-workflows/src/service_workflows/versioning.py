@@ -60,6 +60,8 @@ def snapshot_workflow(
                 "node_type": node.node_type,
                 "config": dict(node.config_json or {}),
                 "continue_on_failure": node.continue_on_failure,
+                "retries": node.retries,
+                "retry_delay_seconds": node.retry_delay_seconds,
                 "position_x": node.position_x,
                 "position_y": node.position_y,
             }
@@ -124,6 +126,8 @@ def apply_workflow_snapshot(
                 node_type=str(entry.get("node_type") or "notify"),
                 config_json=dict(entry.get("config") or {}),
                 continue_on_failure=bool(entry.get("continue_on_failure", False)),
+                retries=int(entry.get("retries") or 0),
+                retry_delay_seconds=int(entry.get("retry_delay_seconds") or 30),
                 position_x=float(entry.get("position_x") or 0.0),
                 position_y=float(entry.get("position_y") or 0.0),
             )

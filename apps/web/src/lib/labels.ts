@@ -211,6 +211,7 @@ const TRIGGER_LABELS: Record<string, string> = {
   backfill: "Backfill",
   api: "From the API",
   retry: "Retry",
+  resume: "Picked up after a failure",
 };
 
 /** How a run started, in words. */

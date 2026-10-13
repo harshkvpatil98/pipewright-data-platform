@@ -20,6 +20,10 @@ export type WorkflowNodeRecord = {
   node_type: WorkflowNodeType;
   config_json: Record<string, unknown>;
   continue_on_failure: boolean;
+  /** Tries again after a failure, up to this many times (A7). */
+  retries?: number;
+  /** The first wait before trying again, in seconds; each later wait doubles. */
+  retry_delay_seconds?: number;
   position_x: number;
   position_y: number;
 };
@@ -79,6 +83,8 @@ export type WorkflowNodeInput = {
   node_type: WorkflowNodeType;
   config: Record<string, unknown>;
   continue_on_failure: boolean;
+  retries?: number;
+  retry_delay_seconds?: number;
   position_x: number;
   position_y: number;
 };
@@ -111,6 +117,8 @@ export type WorkflowNodeRunRecord = {
   message: string | null;
   skip_reason: string | null;
   pipeline_run_id: string | null;
+  /** How many times it ran in this run: more than one when it was retried. */
+  attempts?: number;
 };
 
 export type WorkflowRunRecord = {
@@ -126,6 +134,8 @@ export type WorkflowRunRecord = {
   started_at: string | null;
   finished_at: string | null;
   error_message: string | null;
+  /** Set on a run that picked up a failed one, reusing what had succeeded. */
+  resumed_from_run_id?: string | null;
   nodes_total: number;
   nodes_succeeded: number;
   nodes_failed: number;

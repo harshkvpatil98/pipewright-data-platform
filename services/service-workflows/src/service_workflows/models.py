@@ -84,6 +84,10 @@ class WorkflowNode(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     # A failure here is recorded but does not fail the whole run.
     continue_on_failure: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Tried again this many times after a failure, waiting retry_delay_seconds
+    # and then twice as long each time (A7).
+    retries: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    retry_delay_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=30, server_default="30")
 
     # Canvas coordinates, stored now so the visual editor has somewhere to write.
     position_x: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
@@ -150,6 +154,12 @@ class WorkflowRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # A run started from a failed one: what already succeeded there is reused,
+    # and the rest runs again (A7).
+    resumed_from_run_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("workflow_runs.id", ondelete="SET NULL"), nullable=True
+    )
+
     nodes_total: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     nodes_succeeded: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     nodes_failed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
@@ -187,6 +197,8 @@ class WorkflowNodeRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     # nodes read this to resolve `dataset_from`.
     output_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # How many times it ran in this run: more than one when it was retried.
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
     skip_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Links to the existing run record when a node delegated to one.

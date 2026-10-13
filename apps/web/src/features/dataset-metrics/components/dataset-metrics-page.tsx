@@ -150,7 +150,6 @@ export function DatasetMetricsPageView({
   return (
     <AppShell
       currentUser={currentUser}
-      eyebrow="Trust"
       title={`Metrics · ${scan.dataset_name}`}
       subtitle="Row counts, null rates, and completeness tracked across every run, with a baseline learned from the dataset's own history rather than a threshold somebody guessed."
     >

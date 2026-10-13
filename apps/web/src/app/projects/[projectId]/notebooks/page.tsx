@@ -19,7 +19,8 @@ export default async function ProjectNotebooksPage({ params }: PageProps) {
   const currentUser = await requireCurrentUser();
 
   try {
-    const [project, connections] = await Promise.all([
+    // The project read stays: it is what turns a wrong id into a 404.
+    const [, connections] = await Promise.all([
       serverApiFetch<ProjectDetail>(`/projects/${projectId}`),
       serverApiFetch<ConnectionList>(`/projects/${projectId}/extraction/connections`),
     ]);
@@ -28,7 +29,6 @@ export default async function ProjectNotebooksPage({ params }: PageProps) {
       <NotebookPage
         currentUser={currentUser}
         projectId={projectId}
-        projectName={project.name}
         connections={connections.items.filter((item) => item.status === "active")}
       />
     );

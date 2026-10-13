@@ -103,6 +103,8 @@ describe("assessRuntime", () => {
 describe("humanDuration", () => {
   it("is coarse on purpose", () => {
     expect(humanDuration(90 * 1000)).toBe("1 minute");
+    // Under a minute: "1 minute", never "1 minutes" or "0 minutes".
+    expect(humanDuration(20 * 1000)).toBe("1 minute");
     expect(humanDuration(45 * 60000)).toBe("45 minutes");
     expect(humanDuration(5 * 3600000)).toBe("5 hours");
     expect(humanDuration(33 * 24 * 3600000)).toBe("33 days");

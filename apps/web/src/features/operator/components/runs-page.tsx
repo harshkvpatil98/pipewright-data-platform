@@ -65,9 +65,8 @@ export function RunsPageView({ currentUser, initialRuns }: RunsPageProps) {
   return (
     <AppShell
       currentUser={currentUser}
-      eyebrow="Operate"
-      title="Runs"
-      subtitle="Recent runs across every project you can see. Filter by status to find what needs attention."
+      title="All runs"
+      subtitle="Recent runs across every project you can open."
     >
       <div className="mb-4 flex flex-wrap gap-1.5">
         {FILTERS.map((filter) => (

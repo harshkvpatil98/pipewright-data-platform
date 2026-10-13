@@ -311,8 +311,7 @@ export function PipelineEditorPageView({
   return (
     <AppShell
       currentUser={currentUser}
-      eyebrow="Pipeline editor"
-      title={name.trim() || pipeline?.name || "New pipeline"}
+      title={name.trim() || pipeline?.name || "New recipe"}
       subtitle="Build reusable transformation pipelines with structured step forms, explicit preview, and controlled execution."
       actions={actionLinks}
       meta={

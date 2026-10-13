@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactElement } from "react";
 
@@ -435,18 +434,11 @@ export function BiConnectionsPageView({ currentUser, projectId, initialItems }: 
     <>
       <AppShell
         currentUser={currentUser}
-        eyebrow="Project workspace"
-        title="BI connections"
-        subtitle="Save Power BI and Tableau credentials for publishing from dataset detail (push dataset / Hyper upload). Test and Discover validate auth and list workspaces or projects."
+        title="BI tools"
+        subtitle="Send datasets to Power BI or Tableau."
         actions={
           <>
-            <Link
-              href={`/projects/${projectId}`}
-              className="inline-flex items-center rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:border-line-strong"
-            >
-              Back to project
-            </Link>
-            <Button onClick={() => setCreateOpen(true)}>Create connection</Button>
+            <Button onClick={() => setCreateOpen(true)}>Connect a BI tool</Button>
           </>
         }
       >

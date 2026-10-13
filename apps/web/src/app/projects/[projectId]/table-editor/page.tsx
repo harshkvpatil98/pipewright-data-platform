@@ -32,7 +32,6 @@ export default async function ProjectTableEditorPage({ params }: PageProps) {
       <TableEditorPage
         currentUser={currentUser}
         projectId={projectId}
-        projectName={project.name}
         projectEnvironment={project.environment ?? "development"}
         connections={writable}
       />

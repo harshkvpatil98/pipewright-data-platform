@@ -10,7 +10,6 @@ import {
   Input,
   Modal,
   SectionPanel,
-  StatCard,
   Textarea,
   buttonClassName,
 } from "@platform/shared-ui";
@@ -206,32 +205,25 @@ export function DashboardsPageView({
     <>
       <AppShell
         currentUser={currentUser}
-        eyebrow="Reporting"
         title="Dashboards"
-        subtitle="Saved charts arranged on a page. Build the charts first, then group the ones that belong together; open a dashboard to arrange, filter and share it."
+        subtitle="Pages of charts you can share by link or by email."
         actions={
-          <Button onClick={openCreate} disabled={charts.length === 0}>
-            New dashboard
-          </Button>
+          charts.length > 0 && dashboards.length > 0 ? (
+            <Button onClick={openCreate}>New dashboard</Button>
+          ) : undefined
         }
       >
-        <section className="grid gap-4 md:grid-cols-3">
-          <StatCard
-            label="Dashboards"
-            value={String(dashboards.length)}
-            caption="Saved arrangements in this project."
-          />
-          <StatCard label="Tiles" value={String(totalTiles)} caption="Charts placed across them." />
-          <StatCard
-            label="Shared"
-            value={String(sharedCount)}
-            caption="Dashboards holding a share token."
-          />
-        </section>
-
         <SectionPanel
-          title="Saved dashboards"
-          description="Deleting one removes its tiles; the charts themselves are not touched and stay in the chart builder."
+          title={
+            dashboards.length === 0
+              ? "Dashboards"
+              : `${dashboards.length} dashboard${dashboards.length === 1 ? "" : "s"}`
+          }
+          description={
+            dashboards.length === 0
+              ? undefined
+              : `${totalTiles} chart${totalTiles === 1 ? "" : "s"} placed across them${sharedCount ? `, ${sharedCount} shared by link` : ""}.`
+          }
         >
           {feedback ? <p className="mb-3 text-sm text-accent">{feedback}</p> : null}
           {error && !creating && !editing ? (
@@ -245,11 +237,11 @@ export function DashboardsPageView({
 
           {charts.length === 0 ? (
             <EmptyState
-              title="No charts to arrange yet"
-              description="A dashboard is a group of saved charts, so there has to be at least one before this is useful."
+              title="Make a chart first"
+              description="A dashboard is a page of saved charts. Make one chart, then come back to arrange it."
               action={
-                <Link href={`/projects/${projectId}/charts`}>
-                  <Button>Open the chart builder</Button>
+                <Link href={`/projects/${projectId}/charts`} className={buttonClassName("primary", "sm")}>
+                  Make a chart
                 </Link>
               }
             />

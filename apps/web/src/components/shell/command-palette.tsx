@@ -11,7 +11,10 @@ export type Command = {
   label: string;
   group: string;
   icon: IconName;
+  /** A keyboard shortcut, shown at the right of the row. */
   hint?: string;
+  /** What the destination is for, shown under the label beside its group. */
+  description?: string;
   href?: string;
   run?: () => void;
   /**
@@ -149,11 +152,12 @@ export function CommandPalette({ open, onClose, commands }: CommandPaletteProps)
             ref={inputRef}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search pages and actions…"
+            autoFocus
+            placeholder="Search pages, data and actions…"
             className="h-14 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-muted"
             aria-label="Search pages and actions"
           />
-          <kbd className="shrink-0 rounded border border-line bg-surface px-1.5 py-0.5 font-mono text-[10px] text-ink-3">
+          <kbd className="shrink-0 rounded border border-line bg-surface px-1.5 py-0.5 font-mono text-[12px] text-ink-3">
             esc
           </kbd>
         </div>
@@ -188,12 +192,12 @@ export function CommandPalette({ open, onClose, commands }: CommandPaletteProps)
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm">{command.label}</span>
-                  <span className="block truncate text-[11px] uppercase tracking-[0.14em] text-muted">
-                    {command.group}
+                  <span className="block truncate text-[12px] text-muted">
+                    {command.description ? `${command.group} · ${command.description}` : command.group}
                   </span>
                 </span>
                 {command.hint ? (
-                  <kbd className="shrink-0 rounded border border-line bg-surface px-1.5 py-0.5 font-mono text-[10px] text-ink-3">
+                  <kbd className="shrink-0 rounded border border-line bg-surface px-1.5 py-0.5 font-mono text-[12px] text-ink-3">
                     {command.hint}
                   </kbd>
                 ) : (
@@ -204,7 +208,7 @@ export function CommandPalette({ open, onClose, commands }: CommandPaletteProps)
           )}
         </div>
 
-        <div className="flex items-center gap-4 border-t border-line px-4 py-2.5 text-[11px] text-muted">
+        <div className="flex items-center gap-4 border-t border-line px-4 py-2.5 text-[12px] text-muted">
           <span className="flex items-center gap-1.5">
             <kbd className="rounded border border-line px-1 font-mono">↑↓</kbd> navigate
           </span>

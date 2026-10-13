@@ -128,7 +128,6 @@ export function HomeDashboard({ currentUser, projects, status }: HomeDashboardPr
   return (
     <AppFrame
       currentUser={currentUser}
-      crumbs={[{ label: "Home" }]}
       statusItems={[
         { id: "projects", label: "Projects", value: String(projectCount) },
         { id: "datasets", label: "Datasets", value: String(datasetCount) },
@@ -166,7 +165,7 @@ export function HomeDashboard({ currentUser, projects, status }: HomeDashboardPr
             label="Source connections"
             value={connectionCount}
             caption={`${jobCount} extraction job${jobCount === 1 ? "" : "s"}`}
-            href={firstProject ? `/projects/${firstProject.id}/extraction` : "/projects"}
+            href={firstProject ? `/projects/${firstProject.id}/sources` : "/projects"}
           />
           <Kpi
             icon="shield"
@@ -174,7 +173,7 @@ export function HomeDashboard({ currentUser, projects, status }: HomeDashboardPr
             value={ruleCount}
             caption={failingRules > 0 ? `${failingRules} currently failing` : "All passing"}
             tone={failingRules > 0 ? "warn" : "good"}
-            href={firstProject ? `/projects/${firstProject.id}/data-quality` : "/projects"}
+            href={firstProject ? `/projects/${firstProject.id}/checks` : "/projects"}
           />
           <Kpi
             icon="drift"
@@ -262,7 +261,7 @@ export function HomeDashboard({ currentUser, projects, status }: HomeDashboardPr
                             label="Open Studio"
                           />
                           <QuickLink
-                            href={`/projects/${project.id}/extraction`}
+                            href={`/projects/${project.id}/sources`}
                             icon="database"
                             label="Open sources"
                           />
@@ -325,11 +324,12 @@ export function HomeDashboard({ currentUser, projects, status }: HomeDashboardPr
                   ) : null}
                   {runtime?.level === "stalled" ? (
                     <p className="mt-3 rounded-lg border border-danger-line bg-danger-soft px-3 py-2 text-[12px] leading-5 text-danger">
-                      Nothing is picking it up — the oldest run has waited{" "}
-                      {humanDuration(runtime.oldestWaitMs)}. Start the worker (see System status).
+                      Nothing is picking it up: the oldest has waited{" "}
+                      {humanDuration(runtime.oldestWaitMs)}. Whoever runs Pipewright needs to start
+                      its background worker.
                     </p>
                   ) : (
-                    <p className="mt-3 text-[11.5px] text-muted">
+                    <p className="mt-3 text-[12px] text-muted">
                       {runtimeSignals.queued + runtimeSignals.running + runtimeSignals.dueNow === 0
                         ? "Nothing waiting. Scheduled work will appear here."
                         : "Work is moving normally."}
@@ -403,7 +403,7 @@ export function HomeDashboard({ currentUser, projects, status }: HomeDashboardPr
                 ].map((item, index) => {
                   const base = firstProject ? `/projects/${firstProject.id}` : "/projects";
                   const hrefs = firstProject
-                    ? [base, `${base}/studio`, `${base}/data-quality`, `${base}/schedules`]
+                    ? [base, `${base}/studio`, `${base}/checks`, `${base}/schedules`]
                     : ["/projects", "/projects", "/projects", "/projects"];
                   return (
                     <li key={item.step}>

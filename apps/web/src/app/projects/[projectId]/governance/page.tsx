@@ -15,7 +15,7 @@ type PageProps = {
   params: Promise<{ projectId: string }>;
 };
 
-export const metadata = { title: "Governance" };
+export const metadata = { title: "Policies" };
 
 export default async function GovernancePage({ params }: PageProps) {
   const { projectId } = await params;

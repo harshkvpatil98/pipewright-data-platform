@@ -210,7 +210,7 @@ export function SystemStatusPage({ currentUser }: { currentUser?: AuthUser | nul
     <AppShell
       currentUser={currentUser}
       title="System status"
-      subtitle="Operational snapshot from the API gateway. No secrets or credentials are shown here."
+      subtitle="Whether the platform and its background work are healthy."
       actions={
         <button
           type="button"

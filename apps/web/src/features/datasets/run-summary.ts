@@ -59,7 +59,7 @@ export function getPipelineRunSecondaryText(run: PipelineRunRecord): string {
   }
 
   if (isDatasetTransformationRunSummary(run.summary_json)) {
-    return `${run.summary_json.pipeline.name} · derived dataset transformation`;
+    return `Recipe “${run.summary_json.pipeline.name}”`;
   }
 
   if (isSamplePipelineRunSummary(run.summary_json)) {
@@ -93,5 +93,22 @@ export function getPipelineRunSecondaryText(run: PipelineRunRecord): string {
     return `${name} · Tableau publish`;
   }
 
-  return "Stored orchestration summary available.";
+  // A database import names its job, table and what it added.
+  if (typeof sj === "object" && sj !== null && "extraction_type" in sj) {
+    const extraction = sj as {
+      job?: { name?: string };
+      connection?: { name?: string };
+      rows_added?: number;
+    };
+    const parts = [
+      extraction.job?.name,
+      extraction.connection?.name ? `from ${extraction.connection.name}` : undefined,
+      typeof extraction.rows_added === "number"
+        ? `${extraction.rows_added.toLocaleString("en")} new row${extraction.rows_added === 1 ? "" : "s"}`
+        : undefined,
+    ].filter(Boolean);
+    if (parts.length > 0) return parts.join(" · ");
+  }
+
+  return "Open for details.";
 }

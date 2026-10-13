@@ -47,6 +47,8 @@ export function LiveSourcesPanel({ projectId, connections, initial }: LiveSource
   const [feedback, setFeedback] = useState<string | null>(null);
   const [secret, setSecret] = useState<StreamSourceCreated | null>(null);
   const [events, setEvents] = useState<{ source: StreamSource; items: StreamEvent[] } | null>(null);
+  // Most projects never need a live feed, so the set-up form waits to be asked for.
+  const [formOpen, setFormOpen] = useState(false);
 
   const postgresConnections = connections.filter((connection) => connection.connector_type === "postgresql");
   const apiOrigin = appConfig.apiBaseUrl.replace(/\/api\/v1\/?$/, "");
@@ -84,9 +86,10 @@ export function LiveSourcesPanel({ projectId, connections, initial }: LiveSource
     if (!created) return;
     setName("");
     setTables("");
+    setFormOpen(false);
     await reload();
     if (created.token) setSecret(created);
-    else setFeedback(`${created.name} is following ${created.tables.join(", ")}. The worker polls it; Poll now reads a batch immediately.`);
+    else setFeedback(`${created.name} is following ${created.tables.join(", ")}. Changes are picked up automatically; "Check for changes" reads them now.`);
   };
 
   const poll = async (source: StreamSource) => {
@@ -108,7 +111,7 @@ export function LiveSourcesPanel({ projectId, connections, initial }: LiveSource
     );
     if (!result) return;
     await reload();
-    setFeedback(`${source.name}: ${result.rows} event(s) written as version ${result.version_number} of its dataset.`);
+    setFeedback(`${source.name}: ${result.rows} event(s) saved as version ${result.version_number} of its dataset.`);
   };
 
   const showEvents = async (source: StreamSource) => {
@@ -121,21 +124,27 @@ export function LiveSourcesPanel({ projectId, connections, initial }: LiveSource
   return (
     <>
       <SectionPanel
-        title="Live sources"
-        description="Rows that arrive on their own. A webhook stores whatever is posted to it; change data capture follows a PostgreSQL table's own change log in micro-batches, at-least-once. Materialise writes everything so far as a new version of one append-only dataset."
+        title="Live feeds"
+        description="Data that arrives by itself: events sent to a web address, or changes followed in a PostgreSQL table."
+        actions={
+          <Button variant="secondary" size="sm" onClick={() => setFormOpen((open) => !open)}>
+            {formOpen ? "Cancel" : "Set up a live feed"}
+          </Button>
+        }
       >
-        {feedback ? <p className="mb-3 text-[12.5px] text-accent">{feedback}</p> : null}
+        {feedback ? <p className="mb-3 text-[13px] text-accent">{feedback}</p> : null}
         {error ? (
           <p role="alert" className="mb-3 rounded-2xl border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger">
             {error}
           </p>
         ) : null}
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,360px)_1fr]">
+        <div className={cx("grid gap-6", formOpen && "lg:grid-cols-[minmax(0,360px)_1fr]")}>
+          {formOpen ? (
           <div className="space-y-3 rounded-2xl border border-line bg-surface p-4">
-            <FormField label="Kind" htmlFor="stream-kind">
+            <FormField label="Kind of feed" htmlFor="stream-kind">
               <Select id="stream-kind" value={kind} onChange={(event) => setKind(event.target.value as typeof kind)}>
-                <option value="webhook">Inbound webhook</option>
-                <option value="postgres_cdc">PostgreSQL change data capture</option>
+                <option value="webhook">Receive events at a web address (webhook)</option>
+                <option value="postgres_cdc">Follow changes in a PostgreSQL table</option>
               </Select>
             </FormField>
             <FormField label="Name" htmlFor="stream-name">
@@ -144,12 +153,12 @@ export function LiveSourcesPanel({ projectId, connections, initial }: LiveSource
             {kind === "postgres_cdc" ? (
               <>
                 <FormField
-                  label="Connection"
+                  label="Database"
                   htmlFor="stream-connection"
                   description={
                     postgresConnections.length === 0
-                      ? "Add a PostgreSQL connection above first. The database needs wal_level = logical and a role allowed to create a replication slot."
-                      : "Needs wal_level = logical and a role allowed to create a replication slot; the first poll says so if not."
+                      ? "Connect a PostgreSQL database above first. Your database administrator may need to turn on change tracking (wal_level = logical)."
+                      : "Your database administrator may need to turn on change tracking (wal_level = logical). The first check says so if it is off."
                   }
                 >
                   <Select id="stream-connection" value={connectionId} onChange={(event) => setConnectionId(event.target.value)}>
@@ -159,13 +168,13 @@ export function LiveSourcesPanel({ projectId, connections, initial }: LiveSource
                     ))}
                   </Select>
                 </FormField>
-                <FormField label="Tables to follow" htmlFor="stream-tables" description="Comma separated, schema.table or table.">
+                <FormField label="Tables to follow" htmlFor="stream-tables" description="Separate several with commas.">
                   <Input id="stream-tables" value={tables} onChange={(event) => setTables(event.target.value)} placeholder="public.orders, public.customers" />
                 </FormField>
               </>
             ) : (
-              <p className="text-[11.5px] leading-4 text-muted">
-                You get a URL with a token, shown once. Anything posted to it (JSON preferred) is stored as an event; nested JSON is flattened into columns when materialised.
+              <p className="text-[13px] leading-5 text-muted">
+                You get a private web address, shown once. Anything sent to it is stored as an event and becomes rows when you save it to a dataset.
               </p>
             )}
             <Button
@@ -173,42 +182,43 @@ export function LiveSourcesPanel({ projectId, connections, initial }: LiveSource
               onClick={() => void create()}
               disabled={busy === "create" || name.trim().length < 2 || (kind === "postgres_cdc" && (!connectionId || !tables.trim()))}
             >
-              {busy === "create" ? "Creating…" : kind === "webhook" ? "Create webhook" : "Start following"}
+              {busy === "create" ? "Creating…" : kind === "webhook" ? "Create web address" : "Start following"}
             </Button>
           </div>
+          ) : null}
 
           <div className="space-y-3">
             {sources.length === 0 ? (
-              <p className="rounded-2xl border border-dashed border-line px-4 py-8 text-center text-sm text-muted">
-                No live sources yet.
+              <p className="rounded-2xl border border-dashed border-line px-4 py-6 text-center text-[14px] text-muted">
+                No live feeds. Most projects do not need one: files and database imports cover the usual cases.
               </p>
             ) : (
               sources.map((source) => (
                 <div key={source.id} className="rounded-2xl border border-line bg-surface px-4 py-3">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-sm font-semibold text-ink">{source.name}</h3>
-                    <span className="rounded-full border border-line bg-sunken px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-ink-3">
-                      {source.kind === "webhook" ? "webhook" : "postgres cdc"}
+                    <span className="rounded-full border border-line bg-sunken px-2 py-0.5 text-[12px] text-ink-3">
+                      {source.kind === "webhook" ? "Web address" : "PostgreSQL changes"}
                     </span>
-                    <span className={cx("rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.14em]", source.last_error ? "border-danger-line bg-danger-soft text-danger" : "border-line text-muted")}>
-                      {source.last_error ? "error" : source.status}
+                    <span className={cx("rounded-full border px-2 py-0.5 text-[12px]", source.last_error ? "border-danger-line bg-danger-soft text-danger" : "border-line text-muted")}>
+                      {source.last_error ? "Needs attention" : source.status === "active" ? "On" : source.status}
                     </span>
                     <div className="ml-auto flex flex-wrap items-center gap-2">
                       {source.kind === "postgres_cdc" ? (
                         <Button variant="secondary" size="sm" disabled={busy !== null} onClick={() => void poll(source)}>
-                          {busy === `poll-${source.id}` ? "Polling…" : "Poll now"}
+                          {busy === `poll-${source.id}` ? "Checking…" : "Check for changes"}
                         </Button>
                       ) : null}
                       <Button variant="secondary" size="sm" disabled={busy !== null || source.events_count === 0} onClick={() => void materialise(source)}>
-                        {busy === `mat-${source.id}` ? "Writing…" : "Materialise"}
+                        {busy === `mat-${source.id}` ? "Saving…" : "Save to a dataset"}
                       </Button>
                       <Button variant="ghost" size="sm" disabled={busy !== null} onClick={() => void showEvents(source)}>
-                        Events
+                        Show events
                       </Button>
                       <DeleteRowButton
                         path={`/projects/${projectId}/streams/${source.id}`}
                         name={source.name}
-                        kind="live source"
+                        kind="live feed"
                         consequences={[
                           "Its stored events go with it.",
                           ...(source.kind === "postgres_cdc" ? ["Its replication slot is dropped, so the database stops keeping change log for it."] : []),
@@ -218,7 +228,7 @@ export function LiveSourcesPanel({ projectId, connections, initial }: LiveSource
                       />
                     </div>
                   </div>
-                  <div className="mt-1 text-[11.5px] text-muted">
+                  <div className="mt-1 text-[13px] text-muted">
                     {source.events_count} event{source.events_count === 1 ? "" : "s"}
                     {source.last_event_at ? ` · last ${formatDateTime(source.last_event_at)}` : ""}
                     {source.kind === "postgres_cdc" ? ` · ${source.connection_name ?? "connection"} · ${source.tables.join(", ")} · slot ${source.slot_name}` : ` · ${apiOrigin}${source.webhook_path}`}
@@ -226,15 +236,15 @@ export function LiveSourcesPanel({ projectId, connections, initial }: LiveSource
                     {source.last_polled_at ? ` · polled ${formatDateTime(source.last_polled_at)}` : ""}
                   </div>
                   {source.dataset_id ? (
-                    <div className="mt-1 text-[11.5px] text-ink-3">
-                      Materialised into{" "}
+                    <div className="mt-1 text-[13px] text-ink-3">
+                      Saved into{" "}
                       <Link href={`/projects/${projectId}/datasets/${source.dataset_id}`} className="text-accent">
                         {source.dataset_name ?? "its dataset"}
                       </Link>
                       {source.last_materialised_at ? ` · ${formatDateTime(source.last_materialised_at)}` : ""}
                     </div>
                   ) : null}
-                  {source.last_error ? <p className="mt-1 text-[11.5px] text-danger">{source.last_error}</p> : null}
+                  {source.last_error ? <p className="mt-1 text-[13px] text-danger">{source.last_error}</p> : null}
                 </div>
               ))
             )}
@@ -244,8 +254,8 @@ export function LiveSourcesPanel({ projectId, connections, initial }: LiveSource
 
       <Modal
         open={secret !== null}
-        title="Webhook created"
-        description="This address includes the token, and this is the only time it is shown. Anyone who holds it can post events to this source."
+        title="Your feed's web address"
+        description="Copy it now: this is the only time it is shown. Anyone who has it can send events to this feed."
         onClose={() => setSecret(null)}
         widthClassName="max-w-lg"
         footer={<Button size="sm" onClick={() => setSecret(null)}>Done</Button>}
@@ -263,7 +273,7 @@ export function LiveSourcesPanel({ projectId, connections, initial }: LiveSource
       <Modal
         open={events !== null}
         title={events ? `${events.source.name} · latest events` : "Events"}
-        description="Newest first. Materialise writes all of them, oldest first, as one dataset version."
+        description="Newest first. Saving to a dataset writes all of them, oldest first, as one new version."
         onClose={() => setEvents(null)}
         widthClassName="max-w-3xl"
         footer={<Button variant="secondary" size="sm" onClick={() => setEvents(null)}>Close</Button>}
@@ -274,13 +284,13 @@ export function LiveSourcesPanel({ projectId, connections, initial }: LiveSource
           <ul className="max-h-[50vh] space-y-1 overflow-auto">
             {events.items.map((event) => (
               <li key={event.id} className="rounded-lg border border-line bg-surface px-3 py-2">
-                <div className="flex flex-wrap gap-2 text-[11px] text-muted">
+                <div className="flex flex-wrap gap-2 text-[12px] text-muted">
                   <span className="font-mono text-ink">#{event.seq}</span>
-                  <span className="uppercase tracking-[0.12em]">{event.kind}</span>
+                  <span>{event.kind}</span>
                   {event.table_name ? <span>{event.table_name}</span> : null}
                   <span>{formatDateTime(event.received_at)}</span>
                 </div>
-                <pre className="mt-1 overflow-x-auto font-mono text-[11px] text-ink-2">{JSON.stringify(event.payload_json, null, 1)}</pre>
+                <pre className="mt-1 overflow-x-auto font-mono text-[12px] text-ink-2">{JSON.stringify(event.payload_json, null, 1)}</pre>
               </li>
             ))}
           </ul>

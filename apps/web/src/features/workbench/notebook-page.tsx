@@ -57,12 +57,10 @@ const KIND_LABEL: Record<CellKind, string> = {
 export function NotebookPage({
   currentUser,
   projectId,
-  projectName,
   connections,
 }: {
   currentUser: AuthUser;
   projectId: string;
-  projectName: string;
   connections: Connection[];
 }) {
   const toast = useToast();
@@ -209,18 +207,13 @@ export function NotebookPage({
     return (
       <AppFrame
         currentUser={currentUser}
-        crumbs={[
-          { label: "Projects", href: "/projects" },
-          { label: projectName, href: `/projects/${projectId}` },
-          { label: "Notebooks" },
-        ]}
       >
         <EmptyState
           title="No database connections in this project"
           description="A notebook can hold Python and recipe cells without one, but SQL cells need a database to read from."
           action={
             <a
-              href={`/projects/${projectId}/extraction`}
+              href={`/projects/${projectId}/sources`}
               className="inline-flex items-center rounded-full border border-[color:var(--accent-soft)] bg-[color:var(--accent-faint)] px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:brightness-110"
             >
               Add a connection
@@ -234,11 +227,6 @@ export function NotebookPage({
   return (
     <AppFrame
       currentUser={currentUser}
-      crumbs={[
-        { label: "Projects", href: "/projects" },
-        { label: projectName, href: `/projects/${projectId}` },
-        { label: "Notebooks" },
-      ]}
       ribbon={ribbon}
       statusItems={[
         { id: "cells", label: "Cells", value: String(cells.length) },

@@ -14,9 +14,9 @@ type PageProps = {
   params: Promise<{ projectId: string }>;
 };
 
-export const metadata = { title: "Data quality" };
+export const metadata = { title: "Checks" };
 
-export default async function ProjectDataQualityPage({ params }: PageProps) {
+export default async function ProjectChecksPage({ params }: PageProps) {
   const { projectId } = await params;
   const currentUser = await requireCurrentUser();
 

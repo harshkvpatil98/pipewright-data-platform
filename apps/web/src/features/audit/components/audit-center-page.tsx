@@ -100,7 +100,7 @@ export function AuditCenterPageView({ currentUser, initial, forbidden }: AuditCe
 
   if (forbidden) {
     return (
-      <AppShell currentUser={currentUser} eyebrow="Govern" title="Audit Center" subtitle="Cross-project audit trail.">
+      <AppShell currentUser={currentUser} title="Audit across all projects" subtitle="Every change in every project, with filters and export.">
         <OperationalEmpty
           title="Admins only"
           description="The Audit Center shows actions across every project, so it is limited to platform admins."
@@ -112,8 +112,7 @@ export function AuditCenterPageView({ currentUser, initial, forbidden }: AuditCe
   return (
     <AppShell
       currentUser={currentUser}
-      eyebrow="Govern"
-      title="Audit Center"
+      title="Audit across all projects"
       subtitle="Every action across every project. Filter, then export for an offline record."
       actions={
         <>

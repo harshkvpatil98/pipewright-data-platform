@@ -56,9 +56,8 @@ export function DatasetsSearchPageView({ currentUser, initialDatasets }: Dataset
   return (
     <AppShell
       currentUser={currentUser}
-      eyebrow="Operate"
-      title="Datasets"
-      subtitle="Every dataset across the projects you can see. Search by name to find one without knowing its project."
+      title="Find a dataset"
+      subtitle="Search datasets across every project you can open."
     >
       <div className="mb-4 max-w-md">
         <Input

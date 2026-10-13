@@ -84,7 +84,6 @@ type AppliedStep = {
 type StudioPageProps = {
   currentUser: AuthUser;
   projectId: string;
-  projectName: string;
   datasets: DatasetRecord[];
   initialDatasetId?: string;
 };
@@ -95,7 +94,6 @@ const nextUid = () => `step-${++uidCounter}`;
 export function StudioPage({
   currentUser,
   projectId,
-  projectName,
   datasets,
   initialDatasetId,
 }: StudioPageProps) {
@@ -470,11 +468,6 @@ export function StudioPage({
   return (
     <AppFrame
       currentUser={currentUser}
-      crumbs={[
-        { label: "Projects", href: "/projects" },
-        { label: projectName, href: `/projects/${projectId}` },
-        { label: "Studio" },
-      ]}
       ribbon={ribbon}
       commands={toolCommands}
       disableWelcomeTour

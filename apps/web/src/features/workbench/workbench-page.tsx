@@ -38,7 +38,6 @@ import type {
 type Props = {
   currentUser: AuthUser;
   projectId: string;
-  projectName: string;
   projectEnvironment: string;
   connections: Connection[];
 };
@@ -48,7 +47,6 @@ type Side = "schema" | "metrics" | "saved" | "history";
 export function WorkbenchPage({
   currentUser,
   projectId,
-  projectName,
   projectEnvironment,
   connections,
 }: Props) {
@@ -396,18 +394,13 @@ export function WorkbenchPage({
     return (
       <AppFrame
         currentUser={currentUser}
-        crumbs={[
-          { label: "Projects", href: "/projects" },
-          { label: projectName, href: `/projects/${projectId}` },
-          { label: "SQL workbench" },
-        ]}
       >
         <EmptyState
           title="No database connections in this project"
           description="The workbench runs SQL against a live database, so it needs one to run against."
           action={
             <a
-              href={`/projects/${projectId}/extraction`}
+              href={`/projects/${projectId}/sources`}
               className="inline-flex items-center rounded-full border border-[color:var(--accent-soft)] bg-[color:var(--accent-faint)] px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:brightness-110"
             >
               Add a connection
@@ -421,11 +414,6 @@ export function WorkbenchPage({
   return (
     <AppFrame
       currentUser={currentUser}
-      crumbs={[
-        { label: "Projects", href: "/projects" },
-        { label: projectName, href: `/projects/${projectId}` },
-        { label: "SQL workbench" },
-      ]}
       ribbon={ribbon}
       statusItems={[
         { id: "mode", label: "Mode", value: plan?.policy.description ?? "read-only" },

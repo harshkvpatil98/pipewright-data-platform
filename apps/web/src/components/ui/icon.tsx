@@ -42,7 +42,22 @@ export type IconName =
   | "menu"
   | "download"
   | "refresh"
-  | "book";
+  | "book"
+  | "users"
+  | "file"
+  | "folder"
+  | "wrench"
+  | "zap"
+  | "barChart"
+  | "shieldCheck"
+  | "checkCircle"
+  | "list"
+  | "share"
+  | "key"
+  | "link"
+  | "upload"
+  | "keyboard"
+  | "external";
 
 const PATHS: Record<IconName, React.ReactNode> = {
   home: <path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z" />,
@@ -182,6 +197,85 @@ const PATHS: Record<IconName, React.ReactNode> = {
     <>
       <path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H10a2.5 2.5 0 0 1 2 1 2.5 2.5 0 0 1 2-1h4.5A1.5 1.5 0 0 1 20 5.5v12a1.5 1.5 0 0 1-1.5 1.5H14a2.5 2.5 0 0 0-2 1 2.5 2.5 0 0 0-2-1H5.5A1.5 1.5 0 0 1 4 17.5z" />
       <path d="M12 5v15" />
+    </>
+  ),
+  users: (
+    <>
+      <circle cx="9" cy="8.5" r="3.2" />
+      <path d="M3.5 19.5c.4-3.2 2.6-5.2 5.5-5.2s5.1 2 5.5 5.2" />
+      <path d="M15.5 5.6a3 3 0 0 1 0 5.8M17.6 14.6c1.7.6 2.7 2.4 2.9 4.9" />
+    </>
+  ),
+  file: (
+    <>
+      <path d="M14 3.5H7A1.5 1.5 0 0 0 5.5 5v14A1.5 1.5 0 0 0 7 20.5h10a1.5 1.5 0 0 0 1.5-1.5V8z" />
+      <path d="M14 3.5V8h4.5M9 12.5h6M9 16h4" />
+    </>
+  ),
+  folder: (
+    <path d="M3.5 7A1.5 1.5 0 0 1 5 5.5h4l2 2.5h8A1.5 1.5 0 0 1 20.5 9.5V18a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 18z" />
+  ),
+  wrench: (
+    <path d="M14.7 6.3a4 4 0 0 0-5.2 5.2l-5.7 5.7a1.6 1.6 0 0 0 2.3 2.3l5.7-5.7a4 4 0 0 0 5.2-5.2l-2.5 2.5-2.3-.5-.5-2.3z" />
+  ),
+  zap: <path d="M13 3.5 5.5 13.5H12l-1 7 7.5-10H12z" />,
+  barChart: (
+    <>
+      <path d="M4 20h16" />
+      <rect x="5.5" y="11" width="3" height="6.5" rx="0.6" />
+      <rect x="10.5" y="6.5" width="3" height="11" rx="0.6" />
+      <rect x="15.5" y="13.5" width="3" height="4" rx="0.6" />
+    </>
+  ),
+  shieldCheck: (
+    <>
+      <path d="M12 3.5 5 6.2V12c0 4.2 2.9 7.4 7 8.5 4.1-1.1 7-4.3 7-8.5V6.2z" />
+      <path d="m9 12 2.2 2.2L15.5 10" />
+    </>
+  ),
+  checkCircle: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="m8.5 12.2 2.4 2.4 4.6-4.8" />
+    </>
+  ),
+  list: <path d="M9 6.5h11M9 12h11M9 17.5h11M4.5 6.5h.01M4.5 12h.01M4.5 17.5h.01" />,
+  share: (
+    <>
+      <circle cx="17.5" cy="6" r="2.5" />
+      <circle cx="6.5" cy="12" r="2.5" />
+      <circle cx="17.5" cy="18" r="2.5" />
+      <path d="m8.7 10.8 6.6-3.6M8.7 13.2l6.6 3.6" />
+    </>
+  ),
+  key: (
+    <>
+      <circle cx="8" cy="15" r="4" />
+      <path d="m10.9 12.1 8.6-8.6M16.5 6.5l2.5 2.5M14 9l2 2" />
+    </>
+  ),
+  link: (
+    <>
+      <path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1" />
+      <path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" />
+    </>
+  ),
+  upload: (
+    <>
+      <path d="M12 15.5V4M7.5 8.5 12 4l4.5 4.5" />
+      <path d="M4.5 15v3.5A1.5 1.5 0 0 0 6 20h12a1.5 1.5 0 0 0 1.5-1.5V15" />
+    </>
+  ),
+  keyboard: (
+    <>
+      <rect x="3" y="6" width="18" height="12" rx="2" />
+      <path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10" />
+    </>
+  ),
+  external: (
+    <>
+      <path d="M14 4.5h5.5V10M19.5 4.5 11 13" />
+      <path d="M18 14v4.5A1.5 1.5 0 0 1 16.5 20h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6H10" />
     </>
   ),
 };

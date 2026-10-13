@@ -1,4 +1,4 @@
-import { friendlyStepMessage, ruleTypeLabel, severityLabel, typeLabel } from "@/lib/labels";
+import { describeCheckSettings, friendlyStepMessage, ruleTypeLabel, severityLabel, typeLabel } from "@/lib/labels";
 
 describe("type labels", () => {
   it("maps every engine spelling a surface actually emits", () => {
@@ -39,7 +39,8 @@ describe("rule and severity labels", () => {
   });
 
   it("explains what a severity actually does", () => {
-    expect(severityLabel("error")).toMatch(/quarantined/);
+    // Plain words for quarantine (A0 voice guide): the rows go into their own dataset.
+    expect(severityLabel("error")).toMatch(/set aside/);
     expect(severityLabel("warn")).toMatch(/nothing is blocked/i);
   });
 });
@@ -64,5 +65,21 @@ describe("friendly step messages", () => {
     expect(friendlyStepMessage("Column 'x' does not exist.")).toBe(
       "Column 'x' does not exist.",
     );
+  });
+});
+
+describe("describeCheckSettings", () => {
+  it("reads a check's settings as words, not JSON", () => {
+    expect(describeCheckSettings({ column: "customer_email" })).toBe("Column customer_email");
+    expect(describeCheckSettings({ column: "amount", min: 0, max: 100 })).toBe(
+      "Column amount · between 0 and 100",
+    );
+    expect(describeCheckSettings({ column: "status", allowed_values: ["new", "paid"] })).toBe(
+      "Column status · one of new, paid",
+    );
+  });
+
+  it("is empty when there is nothing to say", () => {
+    expect(describeCheckSettings(null)).toBe("");
   });
 });

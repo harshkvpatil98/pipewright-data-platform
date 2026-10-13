@@ -15,7 +15,7 @@ import { Button, FormField, Input, SectionPanel, Select, StatusBadge } from "@pl
 import { AppShell } from "@/components/layout/app-shell";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
-import { ruleTypeLabel } from "@/lib/labels";
+import { describeCheckSettings, ruleTypeLabel, severityShortLabel } from "@/lib/labels";
 import { DATA_QUALITY_TOUR_ID, dataQualityTour } from "@/components/tour/tours";
 import { useTour } from "@/components/tour/tour-provider";
 import { cx } from "@/lib/utils";
@@ -216,9 +216,8 @@ export function DataQualityPageView({
   return (
     <AppShell
       currentUser={currentUser}
-      eyebrow="Govern"
-      title="Data quality"
-      subtitle="Assert what must be true about your data. Failing rows can be quarantined into their own dataset instead of flowing downstream."
+      title="Checks"
+      subtitle="Rules your data must pass, and what happened when they ran."
     >
       {error ? (
         <div className="rounded-2xl border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger">
@@ -345,7 +344,7 @@ export function DataQualityPageView({
           <div className="space-y-3">
             {rules.length === 0 ? (
               <p className="rounded-2xl border border-dashed border-line px-4 py-8 text-center text-sm text-muted">
-                No rules defined yet.
+                No checks yet. Add one on the left: for example, "email must be present".
               </p>
             ) : (
               rules.map((rule) => (
@@ -356,25 +355,25 @@ export function DataQualityPageView({
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="text-sm font-semibold text-ink">{rule.name}</h3>
-                      <span className="rounded-full border border-line px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-ink-3">
-                        {rule.rule_type}
+                      <span className="rounded-full border border-line px-2 py-0.5 text-[12px] text-ink-3">
+                        {ruleTypeLabel(rule.rule_type)}
                       </span>
                       <span
                         className={cx(
-                          "rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.16em]",
+                          "rounded-full border px-2 py-0.5 text-[12px]",
                           rule.severity === "error"
                             ? "border-danger-line bg-danger-soft text-danger"
                             : "border-warning-line bg-warning-soft text-warning",
                         )}
                       >
-                        {rule.severity}
+                        {severityShortLabel(rule.severity)}
                       </span>
                       {rule.last_status ? (
-                        <StatusBadge value={rule.last_status === "passed" ? "succeeded" : "failed"} />
+                        <StatusBadge value={rule.last_status === "passed" ? "passed" : "failed"} />
                       ) : null}
                     </div>
-                    <p className="mt-1 font-mono text-xs text-muted">
-                      {JSON.stringify(rule.config_json)}
+                    <p className="mt-1 text-[13px] text-muted">
+                      {describeCheckSettings(rule.config_json)}
                     </p>
                   </div>
                   <Button
@@ -450,15 +449,15 @@ export function DataQualityPageView({
                   {evaluation.results.map((result) => (
                     <tr key={`${result.name}-${result.rule_type}`} className="text-ink-2">
                       <td className="cell-pad font-medium text-ink">{result.name}</td>
-                      <td className="cell-pad">{result.rule_type}</td>
-                      <td className="cell-pad">{result.severity}</td>
+                      <td className="cell-pad">{ruleTypeLabel(result.rule_type)}</td>
+                      <td className="cell-pad">{severityShortLabel(result.severity)}</td>
                       <td className="cell-pad">
                         <span
                           className={cx(
                             result.status === "passed" ? "text-success" : "text-danger",
                           )}
                         >
-                          {result.status}
+                          {result.status === "passed" ? "Passed" : "Failed"}
                         </span>
                       </td>
                       <td className="cell-pad tabular">

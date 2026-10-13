@@ -10,7 +10,7 @@ type PageProps = {
   params: Promise<{ projectId: string }>;
 };
 
-export const metadata = { title: "Schema drift" };
+export const metadata = { title: "Schema changes" };
 
 export default async function ProjectSchemaDriftPage({ params }: PageProps) {
   const { projectId } = await params;

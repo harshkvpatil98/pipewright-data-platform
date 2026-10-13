@@ -37,7 +37,6 @@ export function DatasetAuditPageView({ currentUser, projectId, audit }: DatasetA
   return (
     <AppShell
       currentUser={currentUser}
-      eyebrow="Dataset audit"
       title={audit.name}
       subtitle="Read-only summary assembled from persisted dataset metadata, schema, profile, and lineage."
       actions={

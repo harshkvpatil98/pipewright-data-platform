@@ -9,9 +9,10 @@ read-only audits of the code (information architecture and copy; feature
 coverage against what a data-platform buyer expects). Every number below was
 measured, not estimated.
 
-**Status:** review complete; **A0 (Product definition and IA reset) is next**.
-One phase executes per session-run; the owner says "continue" to start the
-next. `docs/HANDOFF.md` records what actually happened.
+**Status:** **A0 and A1 done (2026-10-13); A2 (golden path and onboarding) is
+next.** Each phase's "What shipped" note below says what was delivered, what
+was measured, and what moved to a later phase. `docs/HANDOFF.md` records the
+session.
 
 ---
 
@@ -386,7 +387,7 @@ the reason to a tooltip.
 
 ---
 
-## A0 — Product definition and IA reset *(next)*
+## A0 — Product definition and IA reset *(done 2026-10-13)*
 
 **Why.** Every finding in §2 comes from the absence of one agreed model of
 what the product is and how it is organised. This phase writes that model
@@ -443,9 +444,134 @@ page, chart colours match the palette.
 **Exit gate.** Spec sections 1–6 written here and approved with "continue";
 quick wins shipped; `npm run verify` green.
 
+### A0 specification (written 2026-10-13)
+
+The owner's instruction for this session was to complete the next two phases
+(A0 and A1) with the user experience as the priority, so this specification
+was written and then implemented in the same session rather than waiting for
+a separate "continue". Where it departs from the proposal above, it says why.
+
+#### S1. Personas and the jobs they come to do
+
+| Persona | Who | Comes to | Lives in |
+|---|---|---|---|
+| **Data owner** (primary) | An analyst or team lead who owns a subject: sales, stock, customers. Not an engineer. | Bring data in, clean it, check it, share it. | Data, Build, Share |
+| **Operator** | Whoever keeps the numbers arriving on time. Often the same person on a different day. | Schedule work, watch runs, act on incidents, deliver data out. | Automate, Trust |
+| **Administrator** | IT or the platform owner. | Invite people, set roles and policies, prove what happened. | Admin, a project's People and Settings, Trust → Policies and Audit log |
+
+Every page has one primary persona, recorded beside it in
+`apps/web/src/lib/navigation.ts`. When a page's copy has to choose who it is
+talking to, it talks to that persona.
+
+#### S2. Vocabulary: eighteen nouns, one meaning each
+
+| Word | Means | Retired from the UI |
+|---|---|---|
+| **Project** | A space for one team or subject. Everything else lives inside one. | "workspace" for a project |
+| **Source** | Where data comes from: an uploaded file, a database connection or a live feed. | registered source, extraction, ingestion, "connection" as a page name |
+| **Connector** | A kind of source in the catalogue (PostgreSQL, Stripe, S3). | connector-in-use |
+| **Dataset** | A table of data in a project. | artifact, materialisation |
+| **Version** | One saved state of a dataset; every change makes a new one. | snapshot (in UI copy) |
+| **Recipe** | The ordered **steps** that turn one dataset into another. "Step" is used only inside a recipe. | pipeline, transformation pipeline, applied steps |
+| **Run** | One go of a recipe, an import, a workflow or a check. | job run, orchestration run, pipeline run |
+| **Workflow** | **Tasks** that run in order, by hand or on a schedule. | node, DAG, graph (in UI copy) |
+| **Schedule** | When something runs by itself. | cron slot, trigger (as a noun) |
+| **Check** | A rule the data must pass. | data quality rule, expectation |
+| **Incident** | Something that went wrong and needs a person. | alert (for incidents) |
+| **Schema change** | A column added, removed or retyped at a source. | schema drift, drift event |
+| **Destination** | Where data is delivered: a database, a file store, a BI tool. | publish target, BI connection (as a page name) |
+| **Dashboard · Chart · Report** | A page of charts · a saved question drawn as a picture · a file sent on a schedule. | consumption, reporting |
+| **Metric** | A number defined once and reused everywhere. | semantic layer, measure definition |
+| **Policy** | A rule about who sees which rows and columns, or how long data is kept. | governance (as a page name) |
+| **Change request** | An edit waiting for someone's approval. The tab that lists them is **Approvals**. | changes awaiting review |
+| **Member** | A person with access to a project, with a role: viewer, operator, editor or admin. | "People" meaning two different pages |
+
+Also retired: the 24 eyebrow labels (Consumption, Reach, Intelligence,
+Enterprise, Testing lab, Ingest…), "watermark" (say "loaded up to"), "upsert"
+(say "update matching rows"), "tenant" (say "organisation").
+
+#### S3. The navigation tree
+
+**One sentence:** the rail is the open project; the top bar is everything
+around it.
+
+**Top bar, left to right.** The product mark (goes to the workspace Home) ·
+the project switcher (the open project's name; its menu lists projects, the
+project's overview, people and settings, all projects, and a new project) ·
+the breadcrumb (Area › Tab › object) · Search (⌘K) · theme · notifications ·
+Help (tour, keyboard shortcuts, API reference, system status) · account
+(settings, sign out).
+
+**Rail: seven items, each a project area with tabs.** With no project open,
+an area link opens the project chooser rather than a dead page.
+
+| Area | Tabs | Replaces |
+|---|---|---|
+| **Overview** | Overview · People · Alerts · Settings | project page + its five tiles, Workspace menu, "People" (project), notification targets, the project settings panel |
+| **Data** | Sources · Datasets · Catalog | Sources/"Extraction", the v1 "Register source" registry, the overview's datasets tab |
+| **Build** | Studio · Recipes · SQL · Notebooks · Table editor | five rail items and the unlisted pipelines list |
+| **Automate** | Workflows · Schedules · Runs · Destinations · BI tools | Workflows, Schedules, Destinations, BI connections (Workspace-menu only before) and the overview's runs tab |
+| **Trust** | Checks · Comparisons · Incidents · Schema changes · Policies · Approvals · Audit log | Data quality, Saved tests (Workspace-menu only before), Incidents, Schema drift, Governance, Changes, Audit log |
+| **Share** | Dashboards · Charts · Reports · Metrics | Charts, Metrics, Reports and Dashboards (not in the rail before) |
+| **Admin** *(platform admins only)* | People · Organisations · Audit (all projects) · Connectors · System status | the Administration and Platform rail sections |
+
+**Workspace pages** sit outside the rail, reached from the mark, the switcher
+and Search: Home `/` with tabs Home · Projects · Runs · Datasets (the
+cross-project views), plus Notifications, personal Settings, the Connectors
+catalogue and System status (all also in Help, Admin or the account menu).
+
+Departures from the proposal: **Versions** is not a tab because versions
+belong to one dataset and live on its page; **Lineage** likewise. **Home**
+became two things the proposal folded together: the workspace Home (the
+mark) and the project **Overview** (the first rail item), because the rail is
+the project. **Comparisons** (saved statistical tests) joins Trust so no list
+page is left reachable only by a deep link.
+
+**URLs follow the words where they disagreed:** `/extraction` → `/sources`,
+`/data-quality` → `/checks`; every old address redirects permanently.
+`/pipelines` keeps its address until A3 makes one recipe editor.
+
+#### S4. Page templates
+
+1. **List page** — title; one purpose line; one primary action at the top
+   right; filters if the list can grow; the list; an empty state with a verb
+   and its button. Create forms open in a dialog, not at the top of the page.
+2. **Detail page** — identity (name, kind, status) and at most three actions,
+   the rest in an overflow menu; sections or tabs below.
+3. **Editor page** — Studio, SQL, Notebook, Workflow: the canvas is the page;
+   one collapsible side panel; nothing below 12px.
+4. **Settings page** — sections with a title and a one-line description, each
+   saving on its own.
+
+Every page in an area shows the area's tabs, so where you are and what sits
+beside it is always on screen. Stat tiles appear only where the number
+drives an action (workspace Home and Trust); a page whose tiles would all be
+zero shows its empty state instead.
+
+#### S5. Design principles (enforced in review)
+
+1. **The data is the page.** Chrome earns its space or goes.
+2. **One primary action per screen.**
+3. **No error before input.** A page opens neutral; problems appear after the
+   user has done something.
+4. **No word a business user would have to look up.** S2 is the dictionary.
+5. **Every empty state says what to do next and offers the button.**
+
+#### S6. Voice guide (applied fully in A5; new copy follows it now)
+
+- Sentence case everywhere: titles, buttons, tabs. No uppercase pills.
+- A page's purpose line is one sentence of at most 15 words.
+- Say what the thing does, not why it was built; rationale goes in the docs.
+- No field, table or column names from the code (`next_run_at`,
+  `summary_json`, `RLIMIT_AS`), no HTTP verbs, no raw identifiers.
+- UK spelling (organisation, catalogue in prose; "Catalog" stays as the tab
+  name already in use).
+- No em-dashes in UI strings; a full stop or a comma does the job.
+- Errors say what happened and what to do next, in that order.
+
 ---
 
-## A1 — Navigation and shell
+## A1 — Navigation and shell *(done 2026-10-13)*
 
 **Why.** F-IA-1..9, D2, D10, D12.
 
@@ -478,6 +604,66 @@ target ≤ 3 clicks each, no wrong turns. Every old URL redirects.
 **Exit gate.** Rail ≤ 7 top-level items; no page reachable only by deep link
 except object detail pages; one taxonomy in code (a single `navigation.ts`
 that the rail, palette and breadcrumbs all read).
+
+**What shipped.**
+
+- `apps/web/src/lib/navigation.ts` is the one tree (S3 above); the rail, the
+  area tabs, the breadcrumb, the project switcher's "same page" target and
+  Search all read it. `navigation.test.ts` walks every `page.tsx` in
+  `src/app` and fails if one is outside the tree without a stated reason
+  (frameless, standalone, or a redirect), if a tab points at a page that
+  does not exist, or if the rail grows past seven.
+- Rail: Overview, Data, Build, Automate, Trust, Share, and Admin for
+  platform admins, each with a distinct new icon; the open project's name
+  heads it and it never changes shape. Expanded by default, as before.
+- Every page in an area shows the area's tabs. Eyebrow labels (46 call sites)
+  and the Workspace menu are gone; `AppShell` is the list/detail template.
+- New pages: Data → Datasets (one row per dataset name, repeated loads
+  folded under it, "came from" in words), Automate → Runs (status filter,
+  plain run names, duration), Overview → Settings. The project Overview is
+  the checklist plus recent data and runs; its five tiles, the v1 "Register
+  source" registry, "Trigger sample run" and the Workspace menu are gone.
+- Sources (renamed from Extraction) is one page for uploaded files,
+  databases and live feeds, list first: connecting a database and creating
+  an import are dialogs, a previewed table has "Import this table", and
+  import modes are in words ("Only new rows", "Loaded up to …"). The v1
+  `service-sources` registry is no longer shown anywhere; its API stays for
+  compatibility (D12).
+- Renamed addresses redirect permanently: `/extraction` → `/sources`,
+  `/data-quality` → `/checks`. Titles, browser-tab names and purpose lines
+  follow the S2 vocabulary on every tab page.
+- Status bar renders only when a page has facts for it (the editors).
+  Search lists every tab with its area and one-line description, recent
+  objects, projects, "New project" and "Show me around".
+- Help menu: Show me around, Keyboard shortcuts, API reference (now that
+  `/docs` loads), System status. The welcome tour is rewritten for the new
+  layout as `welcome-v2`.
+- Found and fixed on the way: Tailwind never scanned `packages/shared-ui`, so
+  classes used only there were missing (panel corners, header layouts, the
+  empty-state icon); the shared dialog could not scroll and lost its title
+  and buttons on a laptop screen; Enter in the tour skipped every other step;
+  `humanDuration` said "1 minutes"; and listing extraction jobs returned 500
+  for any project with an import that had no shaping steps (P9 regression),
+  which broke that project's whole Sources page.
+
+**Measured (browser, 1440×900 window, admin account, dev stack).**
+
+| Task | Clicks | Wrong turns | Notes |
+|---|---|---|---|
+| Find where dashboards are and open one (from a project's Overview) | 2 (Share, Open) | 0 | Target ≤ 3 |
+| Connect a database and see it in Sources (fresh project) | 3 (Data, Connect a database, Connect) plus typing | 0 | Target ≤ 3. The new database is the first section on the page |
+| Continue: import a table and open the dataset | 5 more (Browse tables, pick table, Import this table, Create import, Run now) | 0 | Feedback offers "Open the dataset" |
+
+Not a fresh browser profile: the session cookie was set from a dev login,
+and the tester knows the product. Five people outside the team remain the
+A9 gate.
+
+**Moved to later phases.** The Studio's own layout (ribbon, panels) is A3.
+Studio-made recipes still open in the legacy form editor from the Recipes
+list (D3, A3). Older pages' body copy, tables and form-first panels outside
+the tabs touched here (Checks' "Define a rule", People's "Add someone") are
+A2/A5. Datasets still multiply in the backend (D13); the list folds them,
+the data model change is A4.
 
 ---
 

@@ -92,8 +92,8 @@ export function assessRuntime(signals: RuntimeSignals): RuntimeAssessment {
   return {
     level: "stalled",
     message:
-      `Nothing is picking up background work — ${parts.join(" and ")}. ` +
-      `Start the worker, or see System status.`,
+      `Nothing is picking up background work: ${parts.join(" and ")}. ` +
+      `Whoever runs Pipewright needs to start its background worker.`,
     oldestWaitMs,
   };
 }
@@ -101,7 +101,11 @@ export function assessRuntime(signals: RuntimeSignals): RuntimeAssessment {
 /** "4 minutes", "3 hours", "33 days" — coarse on purpose; this is a banner. */
 export function humanDuration(ms: number): string {
   const minutes = Math.floor(ms / 60000);
-  if (minutes < 60) return `${Math.max(minutes, 1)} minute${minutes === 1 ? "" : "s"}`;
+  if (minutes < 60) {
+    // Under a minute reads as "1 minute": "0 minutes" would say nothing waited.
+    const shown = Math.max(minutes, 1);
+    return `${shown} minute${shown === 1 ? "" : "s"}`;
+  }
   const hours = Math.floor(minutes / 60);
   if (hours < 48) return `${hours} hour${hours === 1 ? "" : "s"}`;
   const days = Math.floor(hours / 24);

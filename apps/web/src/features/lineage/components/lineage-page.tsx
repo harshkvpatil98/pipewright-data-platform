@@ -60,7 +60,6 @@ export function LineagePageView({
   return (
     <AppShell
       currentUser={currentUser}
-      eyebrow="Trust"
       title={`Lineage · ${initial.dataset_name}`}
       subtitle="Where every column came from, and what would break if it changed. Derived from the pipeline definitions rather than stored, so it cannot go stale."
     >

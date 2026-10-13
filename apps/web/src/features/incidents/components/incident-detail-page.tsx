@@ -68,7 +68,6 @@ export function IncidentDetailPageView({
   return (
     <AppShell
       currentUser={currentUser}
-      eyebrow="Trust"
       title={incident.title}
       subtitle={incident.summary ?? "Opened automatically by a check that failed."}
     >

@@ -1,16 +1,29 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
 
 import type { AuthUser } from "@platform/shared-types";
 
+import { AreaTabs } from "@/components/shell/area-tabs";
 import { CommandPalette, type Command } from "@/components/shell/command-palette";
-import { NavRail, type RailSection } from "@/components/shell/nav-rail";
+import { NavRail } from "@/components/shell/nav-rail";
 import { Ribbon, type RibbonGroup } from "@/components/shell/ribbon";
 import { Inspector, StatusBar, type StatusItem } from "@/components/shell/status-bar";
-import { TopBar, type Crumb } from "@/components/shell/top-bar";
+import { TopBar } from "@/components/shell/top-bar";
 import { useTour } from "@/components/tour/tour-provider";
 import { WELCOME_TOUR_ID, welcomeTour } from "@/components/tour/tours";
+import {
+  AREAS,
+  STANDALONE_PAGES,
+  breadcrumbsFor,
+  locate,
+  railAreas,
+  tabHref,
+  visibleTabs,
+  type Crumb,
+} from "@/lib/navigation";
+import { readRecent, recordRecent } from "@/lib/recent";
 import { useActiveProject } from "@/lib/use-active-project";
 
 const RAIL_STORAGE_KEY = "pipewright.rail.expanded";
@@ -18,7 +31,13 @@ const INSPECTOR_STORAGE_KEY = "pipewright.inspector.open";
 
 type AppFrameProps = {
   currentUser?: AuthUser | null;
-  crumbs: Crumb[];
+  /**
+   * The page's own name. On something inside a tab (a dataset, a dashboard)
+   * it becomes the last breadcrumb and is remembered for Search's "Recent".
+   */
+  title?: string;
+  /** Overrides the breadcrumb the navigation tree would derive. Rarely needed. */
+  crumbs?: Crumb[];
   /** Contextual ribbon for the current page. Omit for pages with no actions. */
   ribbon?: RibbonGroup[];
   statusItems?: StatusItem[];
@@ -31,89 +50,9 @@ type AppFrameProps = {
   children: React.ReactNode;
 };
 
-/**
- * Rail contents depend on whether a project is open.
- *
- * Project-scoped destinations are omitted entirely when there is no project,
- * because pointing them all at the project list would put several identical
- * links in the rail.
- */
-function buildRailSections(
-  projectId?: string,
-  projectName?: string,
-  isPlatformAdmin = false,
-): RailSection[] {
-  const sections: RailSection[] = [
-    {
-      id: "workspace",
-      label: "Workspace",
-      items: [
-        { id: "home", label: "Home", icon: "home", href: "/" },
-        { id: "projects", label: "Projects", icon: "grid", href: "/projects", exact: true },
-        { id: "runs", label: "Runs", icon: "activity", href: "/runs", exact: true },
-        { id: "datasets", label: "Datasets", icon: "table", href: "/datasets", exact: true },
-      ],
-    },
-  ];
-
-  if (projectId) {
-    const scoped = (suffix: string) => `/projects/${projectId}${suffix}`;
-    sections.push({
-      id: "project",
-      label: projectName ?? "Project",
-      items: [
-        { id: "overview", label: "Overview", icon: "book", href: `/projects/${projectId}`, exact: true },
-        { id: "sources", label: "Sources", icon: "database", href: scoped("/extraction") },
-        { id: "studio", label: "Studio", icon: "transform", href: scoped("/studio") },
-        { id: "table-editor", label: "Table editor", icon: "table", href: scoped("/table-editor") },
-        { id: "workbench", label: "SQL workbench", icon: "sigma", href: scoped("/workbench") },
-        { id: "notebooks", label: "Notebooks", icon: "book", href: scoped("/notebooks") },
-        { id: "workflows", label: "Workflows", icon: "merge", href: scoped("/workflows") },
-        { id: "quality", label: "Data quality", icon: "shield", href: scoped("/data-quality") },
-        { id: "charts", label: "Charts", icon: "sigma", href: scoped("/charts") },
-        { id: "metrics", label: "Metrics", icon: "activity", href: scoped("/metrics") },
-        { id: "catalog", label: "Catalog", icon: "search", href: scoped("/catalog") },
-        { id: "reports", label: "Reports", icon: "download", href: scoped("/reports") },
-        { id: "drift", label: "Schema drift", icon: "drift", href: scoped("/schema-drift") },
-        { id: "incidents", label: "Incidents", icon: "warning", href: scoped("/incidents") },
-        { id: "members", label: "People", icon: "grid", href: scoped("/members") },
-        { id: "changes", label: "Changes", icon: "check", href: scoped("/changes") },
-        { id: "audit", label: "Audit log", icon: "book", href: scoped("/audit-log") },
-        { id: "governance", label: "Governance", icon: "shield", href: scoped("/governance") },
-        { id: "schedules", label: "Schedules", icon: "clock", href: scoped("/schedules") },
-        { id: "destinations", label: "Destinations", icon: "send", href: scoped("/destinations") },
-      ],
-    });
-  }
-
-  if (isPlatformAdmin) {
-    sections.push({
-      id: "admin",
-      label: "Administration",
-      items: [
-        { id: "people", label: "People", icon: "shield", href: "/people" },
-        { id: "organisations", label: "Organisations", icon: "grid", href: "/organisations" },
-        { id: "audits", label: "Audit Center", icon: "book", href: "/audits", exact: true },
-      ],
-    });
-  }
-
-  sections.push({
-    id: "platform",
-    label: "Platform",
-    items: [
-      { id: "connectors", label: "Connectors", icon: "database", href: "/connectors" },
-      { id: "notifications", label: "Notifications", icon: "bell", href: "/notifications" },
-      { id: "status", label: "System status", icon: "activity", href: "/system-status" },
-      { id: "settings", label: "Settings", icon: "settings", href: "/settings" },
-    ],
-  });
-
-  return sections;
-}
-
 export function AppFrame({
   currentUser,
+  title,
   crumbs,
   ribbon = [],
   statusItems = [],
@@ -123,11 +62,13 @@ export function AppFrame({
   disableWelcomeTour = false,
   children,
 }: AppFrameProps) {
+  const pathname = usePathname();
   // Labels visible by default: an icon-only rail is a memory test.
   const [railExpanded, setRailExpanded] = useState(true);
   const [inspectorOpen, setInspectorOpen] = useState(true);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [isMac, setIsMac] = useState(true);
+  const [recent, setRecent] = useState(() => [] as ReturnType<typeof readRecent>);
   const { start, startIfUnseen } = useTour();
 
   // Restore layout preferences after mount so the server render stays stable.
@@ -143,18 +84,22 @@ export function AppFrame({
     }
   }, []);
 
+  const isAdmin = currentUser?.role === "admin";
+  const location = useMemo(() => locate(pathname), [pathname]);
   const { active: activeProject, projects, loading: projectsLoading, ensureLoaded } =
     useActiveProject();
+  const projectId = location?.projectId ?? activeProject?.id ?? null;
 
-  const railSections = useMemo(
-    () => buildRailSections(activeProject?.id, activeProject?.name, currentUser?.role === "admin"),
-    [activeProject, currentUser?.role],
+  const breadcrumb = useMemo(
+    () => crumbs ?? breadcrumbsFor(pathname, title ?? "", isAdmin),
+    [crumbs, pathname, title, isAdmin],
   );
 
-  const railItems = useMemo(
-    () => railSections.flatMap((section) => section.items),
-    [railSections],
-  );
+  // Remember objects (not tab pages) for Search's "Recent" group.
+  useEffect(() => {
+    if (!location || location.isTabRoot || !title) return;
+    recordRecent({ href: pathname, label: title, where: location.tab.label });
+  }, [location, pathname, title]);
 
   const toggleRail = useCallback(() => {
     setRailExpanded((current) => {
@@ -180,60 +125,106 @@ export function AppFrame({
     });
   }, []);
 
-  const allCommands = useMemo<Command[]>(
-    () => [
+  const allCommands = useMemo<Command[]>(() => {
+    const navigation: Command[] = [];
+    for (const area of [...railAreas(isAdmin), ...AREAS.filter((candidate) => !candidate.inRail)]) {
+      for (const tab of visibleTabs(area, isAdmin)) {
+        const href = tabHref(area, tab, area.scope === "project" ? projectId : null);
+        if (!href) continue;
+        navigation.push({
+          id: `nav-${area.id}-${tab.id}`,
+          label: tab.label === area.label ? area.label : tab.label,
+          group: area.label,
+          icon: tab.icon,
+          href,
+          description: tab.description,
+          keywords: `${area.label} ${tab.description} ${tab.keywords ?? ""}`,
+        });
+      }
+    }
+    for (const page of STANDALONE_PAGES) {
+      navigation.push({
+        id: `nav-${page.path}`,
+        label: page.label,
+        group: "Go to",
+        icon: page.icon,
+        href: page.path,
+        description: page.description,
+      });
+    }
+    return [
       ...commands,
-      ...railItems.map((item) => ({
-        id: `nav-${item.id}`,
-        label: item.label,
-        group: "Navigate",
-        icon: item.icon,
-        href: item.href,
-      })),
+      ...recent
+        .filter((item) => item.href !== pathname)
+        .map((item) => ({
+          id: `recent-${item.href}`,
+          label: item.label,
+          group: `Recent · ${item.where}`,
+          icon: "clock" as const,
+          href: item.href,
+        })),
+      ...navigation,
       ...projects.map((project) => ({
         id: `project-${project.id}`,
         label: project.name,
         group: "Open project",
-        icon: "grid" as const,
+        icon: "folder" as const,
         href: `/projects/${project.id}`,
       })),
       {
+        id: "action-new-project",
+        label: "New project",
+        group: "Actions",
+        icon: "plus" as const,
+        href: "/projects?new=1",
+      },
+      {
         id: "action-tour",
-        label: "Replay product tour",
+        label: "Show me around",
         group: "Help",
         icon: "sparkles" as const,
+        keywords: "tour help guide",
         run: () => start(welcomeTour, WELCOME_TOUR_ID),
       },
       {
         id: "action-toggle-rail",
-        label: railExpanded ? "Collapse navigation" : "Expand navigation",
+        label: railExpanded ? "Hide navigation labels" : "Show navigation labels",
         group: "View",
         icon: "menu" as const,
         run: toggleRail,
       },
-      {
-        id: "action-toggle-inspector",
-        label: inspectorOpen ? "Hide inspector" : "Show inspector",
-        group: "View",
-        icon: "panelRight" as const,
-        run: toggleInspector,
-      },
-    ],
-    [
-      commands,
-      railItems,
-      projects,
-      railExpanded,
-      inspectorOpen,
-      start,
-      toggleRail,
-      toggleInspector,
-    ],
-  );
+      ...(inspector
+        ? [
+            {
+              id: "action-toggle-inspector",
+              label: inspectorOpen ? "Hide the side panel" : "Show the side panel",
+              group: "View",
+              icon: "panelRight" as const,
+              run: toggleInspector,
+            },
+          ]
+        : []),
+    ];
+  }, [
+    commands,
+    recent,
+    pathname,
+    isAdmin,
+    projectId,
+    projects,
+    railExpanded,
+    inspector,
+    inspectorOpen,
+    start,
+    toggleRail,
+    toggleInspector,
+  ]);
 
-  // The palette can search projects, so its data must be there when it opens.
+  // The palette searches projects and recent items, so load them as it opens.
   useEffect(() => {
-    if (paletteOpen) ensureLoaded();
+    if (!paletteOpen) return;
+    ensureLoaded();
+    setRecent(readRecent());
   }, [paletteOpen, ensureLoaded]);
 
   // Global shortcuts. Ignored while typing so they never eat real input.
@@ -275,7 +266,7 @@ export function AppFrame({
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-transparent text-ink">
       <TopBar
-        crumbs={crumbs}
+        crumbs={breadcrumb}
         currentUser={currentUser}
         onOpenCommand={() => setPaletteOpen(true)}
         onReplayTour={() => start(welcomeTour, WELCOME_TOUR_ID)}
@@ -289,9 +280,25 @@ export function AppFrame({
       />
 
       <div className="flex min-h-0 flex-1">
-        <NavRail sections={railSections} expanded={railExpanded} onToggle={toggleRail} />
+        <NavRail
+          areas={railAreas(isAdmin)}
+          activeAreaId={location?.area.id}
+          projectId={activeProject?.id ?? null}
+          projectName={activeProject?.name}
+          isAdmin={isAdmin}
+          expanded={railExpanded}
+          onToggle={toggleRail}
+        />
 
         <main className="flex min-w-0 flex-1 flex-col">
+          {location ? (
+            <AreaTabs
+              area={location.area}
+              activeTabId={location.tab.id}
+              projectId={location.area.scope === "project" ? projectId : null}
+              isAdmin={isAdmin}
+            />
+          ) : null}
           {ribbon.length > 0 ? <Ribbon groups={ribbon} /> : null}
           <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
         </main>

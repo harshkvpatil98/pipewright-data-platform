@@ -47,17 +47,8 @@ export function SavedTestsListPageView({
   return (
     <AppShell
       currentUser={currentUser}
-      eyebrow="Testing lab"
-      title="Saved statistical tests"
-      subtitle="Persisted test definitions and run history. Reruns use the current dataset files and column data."
-      actions={
-        <Link
-          href={`/projects/${projectId}`}
-          className="rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:border-line-strong"
-        >
-          Back to project
-        </Link>
-      }
+      title="Comparisons"
+      subtitle="Saved statistical comparisons between two datasets, ready to run again."
     >
       <SectionPanel
         title="Saved tests"

@@ -52,9 +52,8 @@ export function AuditLogPageView({ currentUser, projectId, initial }: AuditLogPa
   return (
     <AppShell
       currentUser={currentUser}
-      eyebrow="Team"
       title="Audit log"
-      subtitle="Every request that could change something, including the ones that were refused. Written by the gateway rather than by each service, so nothing gets through unlogged."
+      subtitle="Who changed what in this project, and when."
     >
       {error ? (
         <div className="rounded-2xl border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger">

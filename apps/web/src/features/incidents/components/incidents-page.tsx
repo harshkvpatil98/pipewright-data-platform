@@ -92,9 +92,8 @@ export function IncidentsPageView({ currentUser, projectId, initial }: Incidents
   return (
     <AppShell
       currentUser={currentUser}
-      eyebrow="Trust"
       title="Incidents"
-      subtitle="Failing rules, schema drift, stale datasets, and metrics outside their usual range — grouped so that one recurring problem is one line, not thirty."
+      subtitle="Problems that need a person, newest first."
     >
       {error ? (
         <div className="rounded-2xl border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger">

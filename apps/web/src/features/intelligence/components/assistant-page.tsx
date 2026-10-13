@@ -96,7 +96,6 @@ export function AssistantPageView({
   return (
     <AppShell
       currentUser={currentUser}
-      eyebrow="Intelligence"
       title={`Assistant · ${datasetName}`}
       subtitle="Everything here is worked out from the data itself — patterns, overlap, similarity, and timing. There are no model calls, and each panel says what produced its answer."
     >

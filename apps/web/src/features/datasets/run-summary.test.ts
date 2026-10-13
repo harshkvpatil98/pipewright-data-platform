@@ -68,6 +68,6 @@ describe("run summary helpers", () => {
 
   it("falls back cleanly for unknown summaries", () => {
     const run = buildRun({ arbitrary: "value" });
-    expect(getPipelineRunSecondaryText(run)).toBe("Stored orchestration summary available.");
+    expect(getPipelineRunSecondaryText(run)).toBe("Open for details.");
   });
 });

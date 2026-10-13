@@ -180,9 +180,8 @@ export function OrganisationsPageView({
     <>
       <AppShell
         currentUser={currentUser}
-        eyebrow="Platform administration"
         title="Organisations"
-        subtitle="Tenants, who belongs to them, and how to revoke that membership. A user with no organisation stops matching every project that has one."
+        subtitle="Separate groups of people and projects."
       >
         {restricted ? (
           <SectionPanel title="Organisations" description="Tenant administration.">

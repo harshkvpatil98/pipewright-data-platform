@@ -44,7 +44,7 @@ export function runtimeSignalsFromStatus(status: StatusPayload) {
 }
 
 /**
- * "Nothing is picking up background work" — shown on the pages where a user
+ * "Nothing is picking up background work", shown on the pages where a user
  * is about to hand work to the runtime (Workflows, Schedules), so the promise
  * and the warning live on the same screen.
  */
@@ -77,8 +77,8 @@ export function RuntimeBanner() {
       <Icon name="warning" size={15} className="mt-0.5 shrink-0" />
       <div>
         {assessment.message}{" "}
-        <Link href="/system-status" className="underline underline-offset-2">
-          System status
+        <Link href="/system-status" className="font-medium underline underline-offset-2">
+          See what is running
         </Link>
       </div>
     </div>

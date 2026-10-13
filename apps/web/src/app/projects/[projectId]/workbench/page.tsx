@@ -12,7 +12,7 @@ type ConnectionList = {
   items: { id: string; name: string; connector_type: string; status: string }[];
 };
 
-export const metadata = { title: "SQL workbench" };
+export const metadata = { title: "SQL" };
 
 export default async function ProjectWorkbenchPage({ params }: PageProps) {
   const { projectId } = await params;
@@ -28,7 +28,6 @@ export default async function ProjectWorkbenchPage({ params }: PageProps) {
       <WorkbenchPage
         currentUser={currentUser}
         projectId={projectId}
-        projectName={project.name}
         projectEnvironment={project.environment ?? "development"}
         connections={connections.items.filter((item) => item.status === "active")}
       />

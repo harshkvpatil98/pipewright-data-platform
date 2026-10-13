@@ -1,48 +1,78 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 
-import { Icon, type IconName } from "@/components/ui/icon";
+import { Icon } from "@/components/ui/icon";
 import { Tooltip } from "@/components/ui/tooltip";
+import { areaHref, type AreaId, type NavArea } from "@/lib/navigation";
 import { cx } from "@/lib/utils";
 
-export type RailItem = {
-  id: string;
-  label: string;
-  icon: IconName;
-  href: string;
-  badge?: number;
-  /** Match only this exact path, for parents of deeper routes. */
-  exact?: boolean;
-};
-
-export type RailSection = {
-  id: string;
-  /** Shown above the group when the rail is expanded. */
-  label: string;
-  items: RailItem[];
-};
-
 type NavRailProps = {
-  sections: RailSection[];
+  areas: NavArea[];
+  activeAreaId?: AreaId;
+  /** The open project, which every project area links into. */
+  projectId: string | null;
+  projectName?: string;
+  isAdmin: boolean;
   expanded: boolean;
   onToggle: () => void;
 };
 
 /**
- * Icon rail grouped by scope: global destinations, then the destinations that
- * belong to the open project, then platform-wide tools. Project-scoped items
- * only appear when a project is actually open, so no two entries can point at
- * the same page.
+ * The rail is the open project: one item per area, in the order data moves
+ * (bring it in, build with it, automate it, trust it, share it), and Admin
+ * last for platform administrators. It never changes shape; with no project
+ * open, a project area leads to the project list instead of a dead page.
+ * Each area's pages are tabs under the top bar, not more rail items.
  */
-export function NavRail({ sections, expanded, onToggle }: NavRailProps) {
-  const pathname = usePathname();
+export function NavRail({
+  areas,
+  activeAreaId,
+  projectId,
+  projectName,
+  isAdmin,
+  expanded,
+  onToggle,
+}: NavRailProps) {
+  const projectAreas = areas.filter((area) => area.scope === "project");
+  const otherAreas = areas.filter((area) => area.scope !== "project");
 
-  const isActive = (item: RailItem) => {
-    if (item.exact) return pathname === item.href;
-    if (item.href === "/") return pathname === "/";
-    return pathname === item.href || pathname.startsWith(`${item.href}/`);
+  const renderItem = (area: NavArea) => {
+    const active = area.id === activeAreaId;
+    const href = areaHref(area, area.scope === "project" ? projectId : null, isAdmin);
+    const link = (
+      <Link
+        href={href}
+        aria-current={active ? "page" : undefined}
+        className={cx(
+          "relative flex items-center rounded-xl transition duration-[var(--duration-fast)] ease-[var(--ease-out)]",
+          expanded ? "w-full gap-3 px-3 py-2.5" : "h-10 w-10 justify-center",
+          active
+            ? "bg-[color:var(--accent-faint)] font-medium text-ink"
+            : "text-ink-3 hover:bg-surface-2 hover:text-ink",
+        )}
+      >
+        {active ? (
+          <span
+            className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-[color:var(--accent)]"
+            aria-hidden="true"
+          />
+        ) : null}
+        <Icon name={area.icon} size={18} />
+        {expanded ? <span className="truncate text-[14px]">{area.label}</span> : null}
+      </Link>
+    );
+    return (
+      <li key={area.id} className="w-full">
+        {expanded ? (
+          link
+        ) : (
+          <Tooltip label={`${area.label}: ${area.description}`} side="right">
+            {link}
+          </Tooltip>
+        )}
+      </li>
+    );
   };
 
   return (
@@ -51,76 +81,26 @@ export function NavRail({ sections, expanded, onToggle }: NavRailProps) {
       aria-label="Primary"
       className={cx(
         "flex shrink-0 flex-col overflow-y-auto border-r border-line bg-[color:var(--sidebar)] py-3 transition-[width] duration-[var(--duration-base)] ease-[var(--ease-out)]",
-        expanded ? "w-[212px] px-3" : "w-[60px] items-center px-2",
+        expanded ? "w-[208px] px-3" : "w-[60px] items-center px-2",
       )}
     >
-      {sections.map((section, sectionIndex) => (
-        <div key={section.id} className="w-full">
-          {sectionIndex > 0 ? (
-            expanded ? (
-              <div className="mb-1.5 mt-4 px-3 text-[10px] font-medium uppercase tracking-[0.16em] text-muted">
-                {section.label}
-              </div>
-            ) : (
-              <div className="mx-2 my-2 h-px bg-surface-2" aria-hidden="true" />
-            )
-          ) : expanded ? (
-            <div className="mb-1.5 px-3 text-[10px] font-medium uppercase tracking-[0.16em] text-muted">
-              {section.label}
-            </div>
-          ) : null}
-
-          <ul className="flex w-full flex-col gap-1">
-            {section.items.map((item) => {
-              const active = isActive(item);
-              const link = (
-                <Link
-                  href={item.href}
-                  aria-current={active ? "page" : undefined}
-                  className={cx(
-                    "relative flex items-center rounded-xl transition duration-[var(--duration-fast)] ease-[var(--ease-out)]",
-                    expanded ? "w-full gap-3 px-3 py-2.5" : "h-10 w-10 justify-center",
-                    active
-                      ? "bg-[color:var(--accent-faint)] text-ink"
-                      : "text-ink-3 hover:bg-surface-2 hover:text-ink",
-                  )}
-                >
-                  {active ? (
-                    <span
-                      className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-[color:var(--accent)]"
-                      aria-hidden="true"
-                    />
-                  ) : null}
-                  <span className="relative flex items-center justify-center">
-                    <Icon name={item.icon} size={18} />
-                    {item.badge ? (
-                      <span
-                        className="absolute -right-1.5 -top-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-[color:var(--danger)] px-1 text-[9px] font-semibold text-ink"
-                        aria-label={`${item.badge} needing attention`}
-                      >
-                        {item.badge > 9 ? "9+" : item.badge}
-                      </span>
-                    ) : null}
-                  </span>
-                  {expanded ? <span className="truncate text-[13px]">{item.label}</span> : null}
-                </Link>
-              );
-
-              return (
-                <li key={item.id} className="w-full">
-                  {expanded ? (
-                    link
-                  ) : (
-                    <Tooltip label={item.label} side="right">
-                      {link}
-                    </Tooltip>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
+      {expanded ? (
+        <div className="mb-2 px-3" title={projectName}>
+          <div className="text-[12px] text-muted">Project</div>
+          <div className="truncate text-[13px] font-medium text-ink-2">
+            {projectName ?? "None open"}
+          </div>
         </div>
-      ))}
+      ) : null}
+
+      <ul className="flex w-full flex-col gap-1">{projectAreas.map(renderItem)}</ul>
+
+      {otherAreas.length > 0 ? (
+        <>
+          <div className={cx("my-3 h-px bg-line", expanded ? "mx-3" : "mx-2 w-8")} aria-hidden="true" />
+          <ul className="flex w-full flex-col gap-1">{otherAreas.map(renderItem)}</ul>
+        </>
+      ) : null}
 
       <div className="mt-auto w-full pt-3">
         <button

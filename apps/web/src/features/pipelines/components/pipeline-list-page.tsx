@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import type { AuthUser, DatasetRecord, ProjectDetail, TransformationPipelineRecord } from "@platform/shared-types";
-import { Button, EmptyState, SectionPanel, StatusBadge } from "@platform/shared-ui";
+import { EmptyState, SectionPanel, StatusBadge, buttonClassName } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { PipelineNameCell } from "@/features/pipelines/components/pipeline-name-cell";
@@ -21,48 +21,46 @@ export function PipelineListPageView({ currentUser, project, pipelines, datasets
   const createHref = activeDatasetId
     ? `/projects/${project.id}/pipelines/new?sourceDatasetId=${activeDatasetId}`
     : `/projects/${project.id}/pipelines/new`;
+  const studioHref = activeDatasetId
+    ? `/projects/${project.id}/studio?dataset=${activeDatasetId}`
+    : `/projects/${project.id}/studio`;
 
   return (
     <AppShell
       currentUser={currentUser}
-      eyebrow="Transformation pipelines"
-      title={`${project.name} pipelines`}
-      subtitle="Create reusable ordered transformation plans with strict structure validation and project-scoped ownership checks."
+      title="Recipes"
+      subtitle="Saved recipes: the steps that turn one dataset into another."
       actions={
-        <>
-          <Link
-            href={`/projects/${project.id}`}
-            className="inline-flex h-11 items-center justify-center rounded-xl border border-line bg-surface-2 px-4 text-sm font-medium text-ink transition hover:border-line-strong hover:bg-surface-2"
-          >
-            Back to project
-          </Link>
-          <Link
-            href={createHref}
-            className="inline-flex h-11 items-center justify-center rounded-xl bg-[color:var(--accent)] px-4 text-sm font-medium text-accent-ink shadow-[var(--shadow-glow)] transition hover:brightness-110"
-          >
-            Create pipeline
-          </Link>
-        </>
+        <Link href={studioHref} className={buttonClassName("primary")}>
+          New recipe in Studio
+        </Link>
       }
       meta={
-        <>
-          <span className="rounded-full border border-line bg-surface px-3 py-1 text-xs uppercase tracking-[0.18em] text-ink-2">
-            {pipelines.length} pipelines
+        activeDatasetId ? (
+          <span className="rounded-full border border-line bg-surface px-3 py-1 text-[13px] text-ink-2">
+            Starting from {datasetNameMap.get(activeDatasetId) ?? "one dataset"}
           </span>
-          {activeDatasetId ? (
-            <span className="rounded-full border border-line bg-surface px-3 py-1 text-xs uppercase tracking-[0.18em] text-ink-2">
-              Filtered by {datasetNameMap.get(activeDatasetId) ?? "dataset"}
-            </span>
-          ) : null}
-        </>
+        ) : undefined
       }
     >
-      <SectionPanel title="Pipeline registry" description="Reusable project-scoped transformation plans tied to existing datasets.">
+      <SectionPanel
+        title={`${pipelines.length} saved recipe${pipelines.length === 1 ? "" : "s"}`}
+        description="Open one to change its steps, or run it to make a fresh copy of its result."
+        actions={
+          <Link href={createHref} className={buttonClassName("secondary", "sm")}>
+            Write steps in a form instead
+          </Link>
+        }
+      >
         {pipelines.length === 0 ? (
           <EmptyState
-            title="No pipelines created"
-            description="Create the first reusable transformation pipeline for this project or dataset."
-            action={<Link href={createHref}><Button>Create pipeline</Button></Link>}
+            title="No recipes yet"
+            description="Open Studio, pick a dataset and add steps. Save it, and it appears here."
+            action={
+              <Link href={studioHref} className={buttonClassName("primary", "sm")}>
+                Open Studio
+              </Link>
+            }
           />
         ) : (
           <div className="overflow-hidden rounded-[24px] border border-line bg-sunken">
@@ -70,8 +68,8 @@ export function PipelineListPageView({ currentUser, project, pipelines, datasets
               <table className="min-w-full divide-y divide-line text-left text-sm">
                 <thead className="bg-surface text-ink-3">
                   <tr>
-                    <th className="cell-pad font-medium">Pipeline</th>
-                    <th className="cell-pad font-medium">Base dataset</th>
+                    <th className="cell-pad font-medium">Recipe</th>
+                    <th className="cell-pad font-medium">Starts from</th>
                     <th className="cell-pad font-medium">Status</th>
                     <th className="cell-pad font-medium">Steps</th>
                     <th className="cell-pad font-medium">Created</th>
@@ -88,7 +86,7 @@ export function PipelineListPageView({ currentUser, project, pipelines, datasets
                           baseDatasetId={pipeline.base_dataset_id}
                           name={pipeline.name}
                         />
-                        <div className="mt-1 max-w-sm text-ink-3">{pipeline.description ?? "No pipeline description provided."}</div>
+                        <div className="mt-1 max-w-sm text-ink-3">{pipeline.description ?? "No description."}</div>
                       </td>
                       <td className="cell-pad align-top text-ink-2">{datasetNameMap.get(pipeline.base_dataset_id) ?? pipeline.base_dataset_id}</td>
                       <td className="cell-pad align-top">

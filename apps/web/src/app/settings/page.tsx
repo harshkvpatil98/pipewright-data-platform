@@ -1,7 +1,7 @@
 import { SettingsPageView } from "@/features/settings/components/settings-page";
 import { requireCurrentUser } from "@/lib/auth/server";
 
-export const metadata = { title: "Settings" };
+export const metadata = { title: "Your settings" };
 
 export default async function SettingsPage() {
   const currentUser = await requireCurrentUser();

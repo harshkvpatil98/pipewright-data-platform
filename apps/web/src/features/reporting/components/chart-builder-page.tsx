@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type {
@@ -13,7 +14,7 @@ import type {
   LineageColumnListResponse,
   Metric,
 } from "@platform/shared-types";
-import { Button, SectionPanel } from "@platform/shared-ui";
+import { Button, EmptyState, SectionPanel, buttonClassName } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { DeleteRowButton } from "@/components/ui/delete-row-button";
@@ -195,15 +196,18 @@ export function ChartBuilderPageView({
     return (
       <AppShell
         currentUser={currentUser}
-        eyebrow="Consumption"
         title="Charts"
-        subtitle="Ask a question of any dataset without leaving the platform."
+        subtitle="Ask a question of a dataset and save the answer as a chart."
       >
-        <SectionPanel title="Nothing to chart yet">
-          <p className="text-[12.5px] text-ink-3">
-            Load a dataset first — a chart is a question about data that is already here.
-          </p>
-        </SectionPanel>
+        <EmptyState
+          title="Nothing to chart yet"
+          description="A chart answers a question about data that is already here. Add some data first."
+          action={
+            <Link href={`/projects/${projectId}/sources`} className={buttonClassName("primary", "sm")}>
+              Add data
+            </Link>
+          }
+        />
       </AppShell>
     );
   }
@@ -211,9 +215,8 @@ export function ChartBuilderPageView({
   return (
     <AppShell
       currentUser={currentUser}
-      eyebrow="Consumption"
       title="Charts"
-      subtitle="Pick a dataset, a grouping, and a number. The preview updates as you change it, and what you save is the question rather than a picture of an answer."
+      subtitle="Ask a question of a dataset and save the answer as a chart."
     >
       {error ? (
         <div className="rounded-2xl border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger">
@@ -430,9 +433,19 @@ export function ChartBuilderPageView({
         </SectionPanel>
       </div>
 
-      <SectionPanel title={`Saved charts (${saved.length})`} description="Drop these onto a dashboard.">
+      <SectionPanel
+        title={`Saved charts (${saved.length})`}
+        description="Put them on a dashboard to share several together."
+        actions={
+          saved.length > 0 ? (
+            <Link href={`/projects/${projectId}/dashboards`} className={buttonClassName("secondary", "sm")}>
+              Go to dashboards
+            </Link>
+          ) : null
+        }
+      >
         {saved.length === 0 ? (
-          <p className="text-[12.5px] text-muted">Nothing saved yet.</p>
+          <p className="text-[13px] text-muted">Nothing saved yet. Save the chart above and it appears here.</p>
         ) : (
           <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
             {saved.map((chart) => (

@@ -4,13 +4,18 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useId, useState } from "react";
 
-import type { AuthUser, WorkflowDetail, WorkflowSummary } from "@platform/shared-types";
+import type {
+  AuthUser,
+  WorkflowDetail,
+  WorkflowSummary,
+} from "@platform/shared-types";
+import { Button, EmptyState, Modal, StatusBadge } from "@platform/shared-ui";
 
+import { AppShell } from "@/components/layout/app-shell";
 import { useToast } from "@/components/providers/toast-provider";
-import { AppFrame } from "@/components/shell/app-frame";
 import { RuntimeBanner } from "@/components/ui/runtime-banner";
+import { describeCron } from "@/lib/cron-words";
 import { humanDuration } from "@/lib/runtime-health";
-import type { RibbonGroup } from "@/components/shell/ribbon";
 import { Icon } from "@/components/ui/icon";
 import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { apiFetch } from "@/lib/api/client";
@@ -21,7 +26,6 @@ import { cx } from "@/lib/utils";
 type WorkflowListPageProps = {
   currentUser: AuthUser;
   projectId: string;
-  projectName: string;
   initialWorkflows: WorkflowSummary[];
 };
 
@@ -39,7 +43,6 @@ const CRON_PRESETS = [
 export function WorkflowListPage({
   currentUser,
   projectId,
-  projectName,
   initialWorkflows,
 }: WorkflowListPageProps) {
   const router = useRouter();
@@ -48,7 +51,7 @@ export function WorkflowListPage({
 
   const [workflows, setWorkflows] = useState(initialWorkflows);
   const [creating, setCreating] = useState(false);
-  const [showForm, setShowForm] = useState(initialWorkflows.length === 0);
+  const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
     name: "",
     description: "",
@@ -60,19 +63,22 @@ export function WorkflowListPage({
   const create = useCallback(async () => {
     setCreating(true);
     try {
-      const created = await apiFetch<WorkflowDetail>(`/projects/${projectId}/workflows`, {
-        method: "POST",
-        body: JSON.stringify({
-          name: form.name,
-          description: form.description || null,
-          trigger_type: form.trigger,
-          cron_expression: form.trigger === "cron" ? form.cron : null,
-          timezone: form.trigger === "cron" ? form.timezone : null,
-          nodes: [],
-          edges: [],
-        }),
-      });
-      toast.success("Workflow created", "Add steps on the canvas.");
+      const created = await apiFetch<WorkflowDetail>(
+        `/projects/${projectId}/workflows`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            name: form.name,
+            description: form.description || null,
+            trigger_type: form.trigger,
+            cron_expression: form.trigger === "cron" ? form.cron : null,
+            timezone: form.trigger === "cron" ? form.timezone : null,
+            nodes: [],
+            edges: [],
+          }),
+        },
+      );
+      toast.success("Workflow created", "Add its tasks on the canvas.");
       router.push(`/projects/${projectId}/workflows/${created.id}`);
     } catch (caught) {
       toast.error("Could not create the workflow", extractErrorMessage(caught));
@@ -85,10 +91,15 @@ export function WorkflowListPage({
       try {
         const updated = await apiFetch<WorkflowDetail>(
           `/projects/${projectId}/workflows/${workflow.id}`,
-          { method: "PATCH", body: JSON.stringify({ enabled: !workflow.enabled }) },
+          {
+            method: "PATCH",
+            body: JSON.stringify({ enabled: !workflow.enabled }),
+          },
         );
         setWorkflows((current) =>
-          current.map((item) => (item.id === workflow.id ? { ...item, ...updated } : item)),
+          current.map((item) =>
+            item.id === workflow.id ? { ...item, ...updated } : item,
+          ),
         );
         toast.success(updated.enabled ? "Schedule resumed" : "Schedule paused");
       } catch (caught) {
@@ -98,273 +109,262 @@ export function WorkflowListPage({
     [projectId, toast],
   );
 
-  const ribbon: RibbonGroup[] = [
-    {
-      id: "workflows",
-      label: "Workflows",
-      actions: [
-        {
-          id: "new",
-          label: "New",
-          icon: "plus",
-          prominent: true,
-          onClick: () => setShowForm(true),
-        },
-      ],
-    },
-  ];
-
-  const scheduled = workflows.filter((item) => item.trigger_type === "cron" && item.enabled);
-
   return (
-    <AppFrame
+    <AppShell
       currentUser={currentUser}
-      crumbs={[
-        { label: "Projects", href: "/projects" },
-        { label: projectName, href: `/projects/${projectId}` },
-        { label: "Workflows" },
-      ]}
-      ribbon={ribbon}
-      statusItems={[
-        { id: "total", label: "Workflows", value: String(workflows.length) },
-        { id: "scheduled", label: "Scheduled", value: String(scheduled.length) },
-      ]}
+      title="Workflows"
+      subtitle="Tasks that run in order, by hand or on a schedule."
+      actions={
+        workflows.length > 0 ? (
+          <Button onClick={() => setShowForm(true)}>New workflow</Button>
+        ) : undefined
+      }
     >
-      <div className="px-6 py-6 lg:px-8">
-        <RuntimeBanner />
-        <header className="mb-6 max-w-3xl">
-          <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.2em] text-[color:var(--accent-muted)]">
-            Automate
+      <RuntimeBanner />
+      <Modal
+        open={showForm}
+        title="New workflow"
+        description="Name it and say when it runs. You add its tasks on the next screen."
+        onClose={() => setShowForm(false)}
+        widthClassName="max-w-lg"
+      >
+        <div className="space-y-4">
+          <div>
+            <label
+              htmlFor={`${fieldId}-name`}
+              className="text-ink mb-1.5 block text-[12px] font-medium"
+            >
+              Name
+            </label>
+            <input
+              id={`${fieldId}-name`}
+              className={inputClass}
+              value={form.name}
+              placeholder="Nightly invoice load"
+              onChange={(event) =>
+                setForm((f) => ({ ...f, name: event.target.value }))
+              }
+            />
           </div>
-          <h1 className="text-[26px] font-semibold tracking-tight text-ink">Workflows</h1>
-          <p className="mt-2 text-[13px] leading-6 text-ink-3">
-            Chain extraction, transformation, quality gates, and publishing into one run. A gate
-            that fails stops the steps after it, so bad data never reaches a destination.
-          </p>
-        </header>
 
-        {showForm ? (
-          <section className="mb-6 max-w-2xl rounded-2xl border border-line bg-[color:var(--panel)] p-5">
-            <h2 className="text-[14px] font-semibold text-ink">New workflow</h2>
-            <div className="mt-4 space-y-3">
+          <div>
+            <label
+              htmlFor={`${fieldId}-desc`}
+              className="text-ink mb-1.5 block text-[12px] font-medium"
+            >
+              Description
+            </label>
+            <input
+              id={`${fieldId}-desc`}
+              className={inputClass}
+              value={form.description}
+              placeholder="What this workflow is for"
+              onChange={(event) =>
+                setForm((f) => ({ ...f, description: event.target.value }))
+              }
+            />
+          </div>
+
+          <div>
+            <span className="text-ink mb-1.5 block text-[12px] font-medium">
+              Trigger
+            </span>
+            <div className="border-line flex rounded-lg border p-0.5">
+              {(["manual", "cron"] as const).map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, trigger: value }))}
+                  className={cx(
+                    "flex-1 rounded-md px-3 py-1.5 text-[12px] transition",
+                    form.trigger === value
+                      ? "text-accent-ink bg-[color:var(--accent)]"
+                      : "text-ink-3 hover:text-ink",
+                  )}
+                >
+                  {value === "manual" ? "Run by hand" : "On a schedule"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {form.trigger === "cron" ? (
+            <>
               <div>
                 <label
-                  htmlFor={`${fieldId}-name`}
-                  className="mb-1.5 block text-[12px] font-medium text-ink"
+                  htmlFor={`${fieldId}-cron`}
+                  className="text-ink mb-1.5 block text-[12px] font-medium"
                 >
-                  Name
+                  Schedule
                 </label>
                 <input
-                  id={`${fieldId}-name`}
-                  className={inputClass}
-                  value={form.name}
-                  placeholder="Nightly invoice load"
-                  onChange={(event) => setForm((f) => ({ ...f, name: event.target.value }))}
+                  id={`${fieldId}-cron`}
+                  className={cx(inputClass, "font-mono")}
+                  value={form.cron}
+                  onChange={(event) =>
+                    setForm((f) => ({ ...f, cron: event.target.value }))
+                  }
                 />
-              </div>
-
-              <div>
-                <label
-                  htmlFor={`${fieldId}-desc`}
-                  className="mb-1.5 block text-[12px] font-medium text-ink"
-                >
-                  Description
-                </label>
-                <input
-                  id={`${fieldId}-desc`}
-                  className={inputClass}
-                  value={form.description}
-                  placeholder="What this workflow is for"
-                  onChange={(event) => setForm((f) => ({ ...f, description: event.target.value }))}
-                />
-              </div>
-
-              <div>
-                <span className="mb-1.5 block text-[12px] font-medium text-ink">Trigger</span>
-                <div className="flex rounded-lg border border-line p-0.5">
-                  {(["manual", "cron"] as const).map((value) => (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {CRON_PRESETS.map((preset) => (
                     <button
-                      key={value}
+                      key={preset.value}
                       type="button"
-                      onClick={() => setForm((f) => ({ ...f, trigger: value }))}
+                      onClick={() =>
+                        setForm((f) => ({ ...f, cron: preset.value }))
+                      }
                       className={cx(
-                        "flex-1 rounded-md px-3 py-1.5 text-[12px] transition",
-                        form.trigger === value
-                          ? "bg-[color:var(--accent)] text-accent-ink"
-                          : "text-ink-3 hover:text-ink",
+                        "rounded-md px-2 py-1 text-[11px] transition",
+                        form.cron === preset.value
+                          ? "text-accent-ink bg-[color:var(--accent)]"
+                          : "bg-surface-2 text-ink-2 hover:bg-surface-2",
                       )}
                     >
-                      {value === "manual" ? "Run by hand" : "On a schedule"}
+                      {preset.label}
                     </button>
                   ))}
                 </div>
               </div>
+              <div>
+                <label
+                  htmlFor={`${fieldId}-tz`}
+                  className="text-ink mb-1.5 block text-[12px] font-medium"
+                >
+                  Timezone
+                </label>
+                <input
+                  id={`${fieldId}-tz`}
+                  className={inputClass}
+                  value={form.timezone}
+                  onChange={(event) =>
+                    setForm((f) => ({ ...f, timezone: event.target.value }))
+                  }
+                />
+                <p className="text-muted mt-1.5 text-[11px]">
+                  The schedule follows this zone, including daylight saving.
+                </p>
+              </div>
+            </>
+          ) : null}
 
-              {form.trigger === "cron" ? (
-                <>
-                  <div>
-                    <label
-                      htmlFor={`${fieldId}-cron`}
-                      className="mb-1.5 block text-[12px] font-medium text-ink"
-                    >
-                      Schedule
-                    </label>
-                    <input
-                      id={`${fieldId}-cron`}
-                      className={cx(inputClass, "font-mono")}
-                      value={form.cron}
-                      onChange={(event) => setForm((f) => ({ ...f, cron: event.target.value }))}
-                    />
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {CRON_PRESETS.map((preset) => (
-                        <button
-                          key={preset.value}
-                          type="button"
-                          onClick={() => setForm((f) => ({ ...f, cron: preset.value }))}
-                          className={cx(
-                            "rounded-md px-2 py-1 text-[11px] transition",
-                            form.cron === preset.value
-                              ? "bg-[color:var(--accent)] text-accent-ink"
-                              : "bg-surface-2 text-ink-2 hover:bg-surface-2",
-                          )}
-                        >
-                          {preset.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <label
-                      htmlFor={`${fieldId}-tz`}
-                      className="mb-1.5 block text-[12px] font-medium text-ink"
-                    >
-                      Timezone
-                    </label>
-                    <input
-                      id={`${fieldId}-tz`}
-                      className={inputClass}
-                      value={form.timezone}
-                      onChange={(event) => setForm((f) => ({ ...f, timezone: event.target.value }))}
-                    />
-                    <p className="mt-1.5 text-[11px] text-muted">
-                      The schedule follows this zone, including daylight saving.
-                    </p>
-                  </div>
-                </>
-              ) : null}
+          <div className="flex gap-2 pt-1">
+            <button
+              type="button"
+              onClick={create}
+              disabled={creating || form.name.trim().length < 2}
+              className="text-accent-ink inline-flex items-center gap-1.5 rounded-lg bg-[color:var(--accent)] px-3.5 py-2 text-[12.5px] font-medium transition hover:brightness-110 disabled:opacity-40"
+            >
+              {creating ? "Creating…" : "Create workflow"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowForm(false)}
+              className="border-line text-ink hover:bg-surface-2 rounded-lg border px-3.5 py-2 text-[13px] transition"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </Modal>
 
-              <div className="flex gap-2 pt-1">
+      <div className="space-y-2">
+        {workflows.length === 0 ? (
+          <EmptyState
+            title="No workflows yet"
+            description="A workflow runs several things in order: import a table, clean it, check it, then deliver it. If a check fails, the steps after it stop."
+            action={
+              <Button onClick={() => setShowForm(true)}>New workflow</Button>
+            }
+          />
+        ) : (
+          workflows.map((workflow) => (
+            <article
+              key={workflow.id}
+              className="group border-line hover:border-line-strong relative flex items-center gap-4 rounded-xl border bg-[color:var(--panel)] px-4 py-3.5 transition"
+            >
+              <Link
+                href={`/projects/${projectId}/workflows/${workflow.id}`}
+                className="absolute inset-0 z-0 rounded-xl"
+                aria-label={`Open ${workflow.name}`}
+              />
+              <span className="border-line bg-surface text-ink-3 pointer-events-none flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border">
+                <Icon name="transform" size={16} />
+              </span>
+
+              <div className="pointer-events-none min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-ink truncate text-[14px] font-medium">
+                    {workflow.name}
+                  </span>
+                  {workflow.trigger_type === "cron" &&
+                  workflow.cron_expression ? (
+                    <span
+                      className="border-line text-ink-3 rounded-full border px-2 py-0.5 text-[12px]"
+                      title={workflow.cron_expression}
+                    >
+                      {describeCron(workflow.cron_expression)}
+                      {workflow.enabled ? "" : " · paused"}
+                    </span>
+                  ) : null}
+                  {workflow.last_run_status ? (
+                    <StatusBadge value={workflow.last_run_status} />
+                  ) : null}
+                  {workflow.last_run_status === "queued" &&
+                  workflow.last_run_at ? (
+                    <span className="text-warning text-[12px]">
+                      waiting{" "}
+                      {humanDuration(
+                        Date.now() - Date.parse(workflow.last_run_at),
+                      )}
+                    </span>
+                  ) : null}
+                </div>
+                <div className="text-muted mt-0.5 truncate text-[13px]">
+                  {workflow.trigger_type === "cron" && workflow.next_run_at
+                    ? `Next run ${formatDate(workflow.next_run_at)}`
+                    : workflow.last_run_at
+                      ? `Last run ${formatDate(workflow.last_run_at)}`
+                      : "Never run"}
+                  {workflow.execution_count > 0
+                    ? ` · run ${workflow.execution_count} time${workflow.execution_count === 1 ? "" : "s"}`
+                    : ""}
+                </div>
+              </div>
+
+              {workflow.trigger_type === "cron" ? (
                 <button
                   type="button"
-                  onClick={create}
-                  disabled={creating || form.name.trim().length < 2}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-[color:var(--accent)] px-3.5 py-2 text-[12.5px] font-medium text-accent-ink transition hover:brightness-110 disabled:opacity-40"
+                  onClick={() => toggleEnabled(workflow)}
+                  className="border-line text-ink hover:bg-surface-2 relative z-10 shrink-0 rounded-lg border px-2.5 py-1.5 text-[13px] transition"
                 >
-                  {creating ? "Creating…" : "Create workflow"}
+                  {workflow.enabled ? "Pause" : "Resume"}
                 </button>
-                {workflows.length > 0 ? (
-                  <button
-                    type="button"
-                    onClick={() => setShowForm(false)}
-                    className="rounded-lg border border-line px-3.5 py-2 text-[12.5px] text-ink transition hover:bg-surface-2"
-                  >
-                    Cancel
-                  </button>
-                ) : null}
-              </div>
-            </div>
-          </section>
-        ) : null}
+              ) : null}
 
-        <div className="space-y-2">
-          {workflows.length === 0 && !showForm ? (
-            <p className="rounded-2xl border border-dashed border-line px-4 py-10 text-center text-[13px] text-muted">
-              No workflows yet.
-            </p>
-          ) : (
-            workflows.map((workflow) => (
-              <article
-                key={workflow.id}
-                className="group relative flex items-center gap-4 rounded-xl border border-line bg-[color:var(--panel)] px-4 py-3.5 transition hover:border-line-strong"
-              >
-                <Link
-                  href={`/projects/${projectId}/workflows/${workflow.id}`}
-                  className="absolute inset-0 z-0 rounded-xl"
-                  aria-label={`Open ${workflow.name}`}
-                />
-                <span className="pointer-events-none flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-line bg-surface text-ink-3">
-                  <Icon name="transform" size={16} />
-                </span>
+              <DeleteRowButton
+                path={`/projects/${projectId}/workflows/${workflow.id}`}
+                name={workflow.name}
+                kind="workflow"
+                consequences={[
+                  "Its run history stays; the workflow definition stops existing.",
+                ]}
+                onDeleted={() =>
+                  setWorkflows((current) =>
+                    current.filter((item) => item.id !== workflow.id),
+                  )
+                }
+                className="border-line text-muted hover:border-danger-line hover:text-danger relative z-10 shrink-0 rounded-lg border p-1.5 transition"
+              />
 
-                <div className="pointer-events-none min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="truncate text-[13.5px] font-medium text-ink">
-                      {workflow.name}
-                    </span>
-                    {workflow.trigger_type === "cron" ? (
-                      <span className="rounded-full border border-line px-2 py-0.5 font-mono text-[10px] text-ink-3">
-                        {workflow.cron_expression}
-                      </span>
-                    ) : null}
-                    {workflow.last_run_status ? (
-                      <span
-                        className={cx(
-                          "rounded-full px-2 py-0.5 text-[10px] uppercase tracking-[0.14em]",
-                          workflow.last_run_status === "succeeded"
-                            ? "bg-success-soft text-success"
-                            : workflow.last_run_status === "failed"
-                              ? "bg-danger-soft text-danger"
-                              : "bg-warning-soft text-warning",
-                        )}
-                      >
-                        {workflow.last_run_status}
-                        {workflow.last_run_status === "queued" && workflow.last_run_at
-                          ? ` · waiting ${humanDuration(Date.now() - Date.parse(workflow.last_run_at))}`
-                          : ""}
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className="mt-0.5 truncate text-[11.5px] text-muted">
-                    {workflow.trigger_type === "cron" && workflow.next_run_at
-                      ? `Next run ${formatDate(workflow.next_run_at)}`
-                      : workflow.last_run_at
-                        ? `Last run ${formatDate(workflow.last_run_at)}`
-                        : "Never run"}
-                    {workflow.execution_count > 0 ? ` · ${workflow.execution_count} run(s)` : ""}
-                  </div>
-                </div>
-
-                {workflow.trigger_type === "cron" ? (
-                  <button
-                    type="button"
-                    onClick={() => toggleEnabled(workflow)}
-                    className="relative z-10 shrink-0 rounded-lg border border-line px-2.5 py-1.5 text-[11.5px] text-ink transition hover:bg-surface-2"
-                  >
-                    {workflow.enabled ? "Pause" : "Resume"}
-                  </button>
-                ) : null}
-
-                <DeleteRowButton
-                  path={`/projects/${projectId}/workflows/${workflow.id}`}
-                  name={workflow.name}
-                  kind="workflow"
-                  consequences={["Its run history stays; the workflow definition stops existing."]}
-                  onDeleted={() =>
-                    setWorkflows((current) => current.filter((item) => item.id !== workflow.id))
-                  }
-                  className="relative z-10 shrink-0 rounded-lg border border-line p-1.5 text-muted transition hover:border-danger-line hover:text-danger"
-                />
-
-                <Icon
-                  name="chevronRight"
-                  size={14}
-                  className="pointer-events-none shrink-0 text-muted"
-                />
-              </article>
-            ))
-          )}
-        </div>
+              <Icon
+                name="chevronRight"
+                size={14}
+                className="text-muted pointer-events-none shrink-0"
+              />
+            </article>
+          ))
+        )}
       </div>
-    </AppFrame>
+    </AppShell>
   );
 }

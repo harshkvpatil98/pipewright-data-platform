@@ -10,7 +10,7 @@ type PageProps = {
   params: Promise<{ projectId: string }>;
 };
 
-export const metadata = { title: "Changes" };
+export const metadata = { title: "Approvals" };
 
 export default async function Page({ params }: PageProps) {
   const { projectId } = await params;

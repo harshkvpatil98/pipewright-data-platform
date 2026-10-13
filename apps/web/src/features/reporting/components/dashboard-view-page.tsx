@@ -279,7 +279,6 @@ export function DashboardViewPage({
     <>
       <AppShell
         currentUser={currentUser}
-        eyebrow="Dashboard"
         title={dashboard.name}
         subtitle={dashboard.description ?? "Saved charts arranged on one page."}
         actions={
@@ -334,19 +333,13 @@ export function DashboardViewPage({
                 Edit layout
               </Button>
             )}
-            <Link
-              href={`/projects/${projectId}/dashboards`}
-              className="rounded-full border border-line bg-surface px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.14em] text-ink-2 hover:border-line-strong"
-            >
-              All dashboards
-            </Link>
           </div>
         }
       >
         {/* Global filter bar */}
         <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-line bg-[color:var(--panel)] px-4 py-3">
           <Icon name="filter" size={12} className="text-muted" />
-          <span className="text-[11px] uppercase tracking-[0.16em] text-muted">Filters</span>
+          <span className="text-[13px] font-medium text-ink-3">Filters</span>
           {activeFilters.length === 0 ? (
             <span className="text-[12.5px] text-ink-3">None — every tile shows all of its data.</span>
           ) : (
@@ -695,7 +688,7 @@ function EditorToolbar({
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-dashed border-line-strong bg-sunken px-4 py-3">
-      <span className="text-[11px] uppercase tracking-[0.16em] text-muted">Editing</span>
+      <span className="text-[13px] font-medium text-ink-3">Editing</span>
       <span className="text-[12px] text-ink-3">Drag tiles to reorder, set width and height, then save.</span>
       <div className="ml-auto flex flex-wrap items-center gap-2">
         <select

@@ -109,9 +109,8 @@ export function GovernancePageView({
   return (
     <AppShell
       currentUser={currentUser}
-      eyebrow="Enterprise"
-      title="Governance"
-      subtitle="Who may see which rows, how long things are kept, what a person's data costs to hold, and what it costs to run."
+      title="Policies"
+      subtitle="Who sees which rows and columns, and how long data is kept."
     >
       {error ? (
         <div className="rounded-2xl border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger">

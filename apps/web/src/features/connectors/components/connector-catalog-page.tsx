@@ -99,9 +99,8 @@ export function ConnectorCatalogPageView({
   return (
     <AppShell
       currentUser={currentUser}
-      eyebrow="Reach"
       title="Connectors"
-      subtitle="Everything the platform can read from or write back to. Each one describes its own settings, so the form you fill in comes from the connector rather than from a page somebody remembered to update."
+      subtitle="Every kind of source Pipewright can connect to, and how well each is tested."
     >
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Stat value={initial.items.length} label="Connectors" />

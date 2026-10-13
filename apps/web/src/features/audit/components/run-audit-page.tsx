@@ -72,7 +72,6 @@ export function RunAuditPageView({ currentUser, projectId, audit }: RunAuditPage
   return (
     <AppShell
       currentUser={currentUser}
-      eyebrow="Pipeline run audit"
       title={`Run ${audit.id.slice(0, 8)}…`}
       subtitle="Read-only summary from persisted run, summary_json, and logs_json."
       actions={

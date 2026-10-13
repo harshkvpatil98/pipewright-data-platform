@@ -19,7 +19,6 @@ export function RunComparisonPageView({ currentUser, projectId, comparison }: Ru
   return (
     <AppShell
       currentUser={currentUser}
-      eyebrow="Testing lab"
       title="Run comparison"
       subtitle="Before/after metrics from persisted pipeline run summary_json (transformation runs have the richest view)."
       actions={

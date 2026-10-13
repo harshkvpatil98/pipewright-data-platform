@@ -20,7 +20,6 @@ export function ProjectCard({ project, onDeleted }: ProjectCardProps) {
 
   const holdings = [
     project.dataset_count ? `${project.dataset_count} dataset(s)` : null,
-    project.source_count ? `${project.source_count} source(s)` : null,
   ].filter(Boolean) as string[];
 
   return (
@@ -40,14 +39,13 @@ export function ProjectCard({ project, onDeleted }: ProjectCardProps) {
         />
         <div className="pointer-events-none relative z-10 flex h-full flex-col">
           <div className="flex items-start justify-between gap-4">
-            <div>
-              <div className="text-[11px] uppercase tracking-[0.22em] text-muted">{project.slug}</div>
-              <h3 className="mt-3 text-xl font-semibold text-ink transition group-hover:text-accent">
+            <div className="min-w-0">
+              <h3 className="text-lg font-semibold text-ink transition group-hover:text-accent">
                 {project.name}
               </h3>
             </div>
             <div className="flex items-center gap-2">
-              <StatusBadge value={project.status} />
+              {project.status !== "active" ? <StatusBadge value={project.status} /> : null}
               <button
                 type="button"
                 onClick={() => setConfirming(true)}
@@ -59,21 +57,16 @@ export function ProjectCard({ project, onDeleted }: ProjectCardProps) {
             </div>
           </div>
           <p className="mt-4 line-clamp-3 text-sm leading-6 text-ink-3">
-            {project.description ?? "No description yet. Add one to capture the purpose of this workspace."}
+            {project.description ?? "No description yet."}
           </p>
-          <div className="mt-6 grid grid-cols-2 gap-3">
-            <div className="rounded-2xl border border-line bg-sunken px-4 py-3">
-              <div className="text-xs uppercase tracking-[0.2em] text-muted">Sources</div>
-              <div className="mt-2 text-2xl font-semibold text-ink">{project.source_count}</div>
-            </div>
-            <div className="rounded-2xl border border-line bg-sunken px-4 py-3">
-              <div className="text-xs uppercase tracking-[0.2em] text-muted">Datasets</div>
-              <div className="mt-2 text-2xl font-semibold text-ink">{project.dataset_count}</div>
-            </div>
-          </div>
-          <div className="mt-6 flex items-center justify-between text-sm text-muted">
-            <span>Updated {formatDate(project.updated_at)}</span>
-            <span className="transition group-hover:translate-x-0.5 group-hover:text-ink">Open →</span>
+          <div className="mt-auto flex items-center justify-between pt-5 text-[13px] text-muted">
+            <span>
+              {project.dataset_count === 0
+                ? "No data yet"
+                : `${project.dataset_count} dataset${project.dataset_count === 1 ? "" : "s"}`}{" "}
+              · updated {formatDate(project.updated_at)}
+            </span>
+            <span className="transition group-hover:translate-x-0.5 group-hover:text-ink">Open</span>
           </div>
         </div>
       </div>
@@ -85,8 +78,8 @@ export function ProjectCard({ project, onDeleted }: ProjectCardProps) {
         requireTypedName
         consequences={[
           holdings.length
-            ? `Everything inside it goes too: ${holdings.join(" and ")}, plus their runs, pipelines and history.`
-            : "Everything inside it goes too, including its runs, pipelines and history.",
+            ? `Everything inside it goes too: ${holdings.join(" and ")}, plus their runs, recipes and history.`
+            : "Everything inside it goes too, including its runs, recipes and history.",
           "Anyone you shared this project with loses access to it.",
         ]}
         onConfirm={() => apiFetch(`/projects/${project.id}`, { method: "DELETE" })}

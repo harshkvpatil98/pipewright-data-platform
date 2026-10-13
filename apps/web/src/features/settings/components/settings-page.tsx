@@ -61,7 +61,6 @@ export function SettingsPageView({ currentUser }: SettingsPageProps) {
   return (
     <AppFrame
       currentUser={currentUser}
-      crumbs={[{ label: "Settings" }]}
       statusItems={[
         { id: "user", label: "Signed in as", value: currentUser.username },
         { id: "role", label: "Role", value: currentUser.role },

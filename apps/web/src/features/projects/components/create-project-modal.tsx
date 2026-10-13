@@ -3,12 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { Button } from "@platform/shared-ui";
-import { FormField } from "@platform/shared-ui";
-import { Input } from "@platform/shared-ui";
-import { Modal } from "@platform/shared-ui";
-import { Select } from "@platform/shared-ui";
-import { Textarea } from "@platform/shared-ui";
+import { Button, FormField, Input, Modal, Select, Textarea } from "@platform/shared-ui";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import type { CreateProjectPayload, ProjectDetail, ProjectStatus } from "@platform/shared-types";
@@ -58,12 +53,12 @@ export function CreateProjectModal({ open, onClose }: CreateProjectModalProps) {
     setError(null);
 
     if (form.name.trim().length < 2) {
-      setError("Project name must be at least 2 characters.");
+      setError("Give the project a name of at least two characters.");
       return;
     }
 
     if (form.slug.trim() && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(form.slug.trim())) {
-      setError("Slug can only contain lowercase letters, numbers, and hyphens.");
+      setError("The short name can only use lowercase letters, numbers and hyphens.");
       return;
     }
 
@@ -93,63 +88,88 @@ export function CreateProjectModal({ open, onClose }: CreateProjectModalProps) {
     <Modal
       open={open}
       onClose={handleClose}
-      title="Create project"
-      description="Create a new workspace for datasets, registered sources, and future pipeline execution."
+      title="New project"
+      description="A project keeps one team's or one subject's data, recipes and dashboards together."
+      widthClassName="max-w-lg"
       footer={
         <div className="flex items-center justify-end gap-3">
           <Button variant="secondary" onClick={handleClose} disabled={submitting}>
             Cancel
           </Button>
-          <Button type="submit" form="create-project-form" disabled={submitting || form.name.trim().length < 2}>
-            {submitting ? "Creating..." : "Create project"}
+          <Button
+            type="submit"
+            form="create-project-form"
+            disabled={submitting || form.name.trim().length < 2}
+          >
+            {submitting ? "Creating…" : "Create project"}
           </Button>
         </div>
       }
     >
       <form id="create-project-form" className="space-y-5" onSubmit={handleSubmit}>
-        <div className="grid gap-5 lg:grid-cols-2">
-          <FormField label="Project name" htmlFor="project-name" description="Use a descriptive workspace name for the data initiative.">
-            <Input
-              id="project-name"
-              value={form.name}
-              onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
-              placeholder="Revenue quality monitoring"
-              autoFocus
-            />
-          </FormField>
-          <FormField label="Status" htmlFor="project-status" description="You can change status conventions later as lifecycle rules expand.">
-            <Select
-              id="project-status"
-              value={form.status}
-              onChange={(event) => setForm((current) => ({ ...current, status: event.target.value as ProjectStatus }))}
-            >
-              <option value="active">Active</option>
-              <option value="draft">Draft</option>
-              <option value="archived">Archived</option>
-            </Select>
-          </FormField>
-        </div>
-        <FormField label="Description" htmlFor="project-description" description="Capture the business purpose, scope, or ownership context.">
+        <FormField label="Name" htmlFor="project-name">
+          <Input
+            id="project-name"
+            value={form.name}
+            onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
+            placeholder="Sales reporting"
+            autoFocus
+          />
+        </FormField>
+        <FormField label="What it is for (optional)" htmlFor="project-description">
           <Textarea
             id="project-description"
             value={form.description}
-            onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
-            placeholder="Monitor inbound source registrations and dataset readiness for finance analytics."
+            onChange={(event) =>
+              setForm((current) => ({ ...current, description: event.target.value }))
+            }
+            placeholder="Weekly sales numbers for the regional managers."
+            rows={2}
           />
         </FormField>
-        <FormField
-          label="Optional slug"
-          htmlFor="project-slug"
-          description={slugHint ? `Suggested identifier: ${slugHint}` : "A stable URL-friendly identifier will be generated automatically if left blank."}
-        >
-          <Input
-            id="project-slug"
-            value={form.slug}
-            onChange={(event) => setForm((current) => ({ ...current, slug: event.target.value.toLowerCase() }))}
-            placeholder="revenue-quality-monitoring"
-          />
-        </FormField>
-        {error ? <div className="rounded-2xl border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger">{error}</div> : null}
+        <details className="rounded-xl border border-line px-3 py-2">
+          <summary className="cursor-pointer text-[13px] text-ink-2">More options</summary>
+          <div className="mt-3 space-y-4">
+            <FormField label="Status" htmlFor="project-status">
+              <Select
+                id="project-status"
+                value={form.status}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, status: event.target.value as ProjectStatus }))
+                }
+              >
+                <option value="active">Active</option>
+                <option value="draft">Draft: still being set up</option>
+              </Select>
+            </FormField>
+            <FormField
+              label="Short name for links"
+              htmlFor="project-slug"
+              description={
+                slugHint
+                  ? `Leave blank to use ${slugHint}. Lowercase letters, numbers and hyphens.`
+                  : "Made from the name if left blank."
+              }
+            >
+              <Input
+                id="project-slug"
+                value={form.slug}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, slug: event.target.value.toLowerCase() }))
+                }
+                placeholder={slugHint || "sales-reporting"}
+              />
+            </FormField>
+          </div>
+        </details>
+        {error ? (
+          <div
+            role="alert"
+            className="rounded-2xl border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger"
+          >
+            {error}
+          </div>
+        ) : null}
       </form>
     </Modal>
   );

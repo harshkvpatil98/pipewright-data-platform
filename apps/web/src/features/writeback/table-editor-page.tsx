@@ -94,7 +94,6 @@ const COLUMN_TYPES = ["text", "integer", "bigint", "numeric", "boolean", "date",
 type Props = {
   currentUser: AuthUser;
   projectId: string;
-  projectName: string;
   projectEnvironment: string;
   connections: Connection[];
 };
@@ -102,7 +101,6 @@ type Props = {
 export function TableEditorPage({
   currentUser,
   projectId,
-  projectName,
   projectEnvironment,
   connections,
 }: Props) {
@@ -471,11 +469,6 @@ export function TableEditorPage({
   return (
     <AppFrame
       currentUser={currentUser}
-      crumbs={[
-        { label: "Projects", href: "/projects" },
-        { label: projectName, href: `/projects/${projectId}` },
-        { label: "Table editor" },
-      ]}
       ribbon={ribbon}
       statusItems={[
         { id: "table", label: "Table", value: shape?.table ?? "none" },
@@ -510,7 +503,7 @@ export function TableEditorPage({
             }
             action={
               <a
-                href={`/projects/${projectId}/extraction`}
+                href={`/projects/${projectId}/sources`}
                 className="inline-flex items-center rounded-full border border-[color:var(--accent-soft)] bg-[color:var(--accent-faint)] px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:brightness-110"
               >
                 Add a connection

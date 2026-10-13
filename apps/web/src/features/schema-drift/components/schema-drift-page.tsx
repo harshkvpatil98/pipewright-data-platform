@@ -72,9 +72,8 @@ export function SchemaDriftPageView({
   return (
     <AppShell
       currentUser={currentUser}
-      eyebrow="Govern"
-      title="Schema drift"
-      subtitle="Every extraction compares the incoming schema against the last one it produced. Structural changes are recorded here before they reach downstream pipelines."
+      title="Schema changes"
+      subtitle="Columns added, removed or retyped at a source."
     >
       {error ? (
         <div className="rounded-2xl border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger">

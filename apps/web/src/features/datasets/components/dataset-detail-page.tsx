@@ -85,7 +85,6 @@ export function DatasetDetailPageView({
   return (
     <AppShell
       currentUser={currentUser}
-      eyebrow="Dataset detail"
       title={dataset.name}
       subtitle="Inspect file metadata, inferred schema, quality profile, and a stable preview of ingested rows."
       actions={
@@ -154,9 +153,6 @@ export function DatasetDetailPageView({
           <span className="rounded-full border border-line bg-surface px-3 py-1 text-xs uppercase tracking-[0.18em] text-ink-2">
             {dataset.file_type ? titleCase(dataset.file_type) : "Unknown type"}
           </span>
-          <Link href={`/projects/${projectId}`} className="rounded-full border border-line bg-surface px-3 py-1 text-xs uppercase tracking-[0.18em] text-ink-2">
-            Back to project
-          </Link>
         </>
       }
     >

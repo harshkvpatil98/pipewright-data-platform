@@ -33,7 +33,6 @@ import { cx } from "@/lib/utils";
 type WorkflowEditorPageProps = {
   currentUser: AuthUser;
   projectId: string;
-  projectName: string;
   workflow: WorkflowDetail;
   options: NodeOptions;
 };
@@ -52,7 +51,6 @@ const POLL_MS = 1500;
 export function WorkflowEditorPage({
   currentUser,
   projectId,
-  projectName,
   workflow,
   options,
 }: WorkflowEditorPageProps) {
@@ -432,12 +430,7 @@ export function WorkflowEditorPage({
   return (
     <AppFrame
       currentUser={currentUser}
-      crumbs={[
-        { label: "Projects", href: "/projects" },
-        { label: projectName, href: `/projects/${projectId}` },
-        { label: "Workflows", href: `/projects/${projectId}/workflows` },
-        { label: workflow.name },
-      ]}
+      title={workflow.name}
       ribbon={ribbon}
       disableWelcomeTour
       statusItems={[

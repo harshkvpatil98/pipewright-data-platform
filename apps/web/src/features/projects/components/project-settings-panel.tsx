@@ -15,6 +15,12 @@ type ProjectSettingsPanelProps = {
 
 const STATUS_OPTIONS = ["active", "draft", "archived"] as const;
 
+const STATUS_LABELS: Record<(typeof STATUS_OPTIONS)[number], string> = {
+  active: "Active",
+  draft: "Draft: still being set up",
+  archived: "Archived: kept, but no longer in use",
+};
+
 /**
  * Renaming, describing, archiving and deleting a project.
  *
@@ -65,19 +71,15 @@ export function ProjectSettingsPanel({ project }: ProjectSettingsPanelProps) {
 
   const holdings = [
     project.dataset_count ? `${project.dataset_count} dataset(s)` : null,
-    project.source_count ? `${project.source_count} source(s)` : null,
   ].filter(Boolean) as string[];
 
   return (
     <>
-      <SectionPanel
-        title="Project settings"
-        description="Rename this workspace, describe what it is for, archive it when it is no longer in use, or delete it outright."
-      >
+      <SectionPanel title="Name and status" description="How this project is named and described to everyone in it.">
         <div className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             <label className="space-y-1.5">
-              <span className="text-[12px] text-ink-3">Name</span>
+              <span className="text-[13px] text-ink-2">Name</span>
               <input
                 value={name}
                 onChange={(event) => setName(event.target.value)}
@@ -86,7 +88,7 @@ export function ProjectSettingsPanel({ project }: ProjectSettingsPanelProps) {
               />
             </label>
             <label className="space-y-1.5">
-              <span className="text-[12px] text-ink-3">Status</span>
+              <span className="text-[13px] text-ink-2">Status</span>
               <select
                 value={status}
                 onChange={(event) => setStatus(event.target.value as ProjectDetail["status"])}
@@ -95,7 +97,7 @@ export function ProjectSettingsPanel({ project }: ProjectSettingsPanelProps) {
               >
                 {STATUS_OPTIONS.map((value) => (
                   <option key={value} value={value}>
-                    {value}
+                    {STATUS_LABELS[value]}
                   </option>
                 ))}
               </select>
@@ -103,12 +105,12 @@ export function ProjectSettingsPanel({ project }: ProjectSettingsPanelProps) {
           </div>
 
           <label className="block space-y-1.5">
-            <span className="text-[12px] text-ink-3">Description</span>
+            <span className="text-[13px] text-ink-2">Description</span>
             <textarea
               value={description}
               onChange={(event) => setDescription(event.target.value)}
               rows={3}
-              placeholder="What this workspace is for."
+              placeholder="What this project is for."
               aria-label="Project description"
               className="w-full rounded-lg border border-line bg-sunken px-3 py-2 text-sm leading-6 text-ink outline-none focus:border-accent"
             />
@@ -139,8 +141,8 @@ export function ProjectSettingsPanel({ project }: ProjectSettingsPanelProps) {
         requireTypedName
         consequences={[
           holdings.length
-            ? `Everything inside it goes too: ${holdings.join(" and ")}, plus their runs, pipelines and history.`
-            : "Everything inside it goes too, including its runs, pipelines and history.",
+            ? `Everything inside it goes too: ${holdings.join(" and ")}, plus their runs, recipes and history.`
+            : "Everything inside it goes too, including its runs, recipes and history.",
           "Anyone you shared this project with loses access to it.",
         ]}
         onConfirm={() => apiFetch(`/projects/${project.id}`, { method: "DELETE" })}

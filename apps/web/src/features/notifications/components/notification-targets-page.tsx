@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -204,19 +203,12 @@ export function NotificationTargetsPageView({
     <>
       <AppShell
         currentUser={currentUser}
-        eyebrow="Project workspace"
-        title="External notification targets"
-        subtitle="Optional email and Slack webhook delivery for run outcomes. In-app notifications remain the primary channel; external delivery is best-effort and requires server SMTP env vars for email."
+        title="Alerts"
+        subtitle="Send failures and reports to email or Slack."
         actions={
           <>
-            <Link
-              href={`/projects/${projectId}`}
-              className="inline-flex items-center rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-ink hover:border-line-strong"
-            >
-              Back to project
-            </Link>
             <Button type="button" onClick={openCreate}>
-              Create target
+              Add an alert
             </Button>
           </>
         }
@@ -228,11 +220,11 @@ export function NotificationTargetsPageView({
         ) : null}
 
         <SectionPanel
-          title="Targets"
-          description="Each target subscribes to event types. When a matching in-app notification is created, the gateway attempts delivery (failures are logged; they do not fail the pipeline run)."
+          title="Where alerts go"
+          description="Each one receives the kinds of event you choose. If sending fails, the run itself is not affected."
         >
           {items.length === 0 ? (
-            <p className="text-sm text-ink-3">No external targets yet. Create one to forward alerts outside the app.</p>
+            <p className="text-sm text-ink-3">Nothing set up yet. Everything already appears in your notifications; add an email address or a Slack channel to get it there too.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[720px] border-collapse text-left text-sm text-ink">

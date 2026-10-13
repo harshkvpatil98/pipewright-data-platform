@@ -220,9 +220,8 @@ export function MetricsPageView({ currentUser, projectId, initial, datasets }: M
     <>
       <AppShell
         currentUser={currentUser}
-        eyebrow="Semantic layer"
         title="Metrics"
-        subtitle="One definition of each number, with an owner. Charts name a metric instead of restating it, so changing the definition changes them all at once — and says what will move first."
+        subtitle="Numbers defined once, so every chart and report agrees."
         actions={
           <Button onClick={openNew} disabled={datasets.length === 0}>
             Define a metric

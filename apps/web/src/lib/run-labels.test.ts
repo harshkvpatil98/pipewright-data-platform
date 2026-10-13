@@ -4,7 +4,9 @@ import { formatNotificationEventLabel, formatRunStatusLabel, formatRunTypeLabel 
 
 describe("formatRunTypeLabel", () => {
   it("maps known run types", () => {
-    expect(formatRunTypeLabel("dataset_publish_postgres")).toBe("PostgreSQL publish");
+    // A0 vocabulary: "deliver" and "recipe", not "publish" and "transformation".
+    expect(formatRunTypeLabel("dataset_publish_postgres")).toBe("Delivered to PostgreSQL");
+    expect(formatRunTypeLabel("database_extraction")).toBe("Database import");
   });
 
   it("falls back for unknown types", () => {
@@ -12,7 +14,7 @@ describe("formatRunTypeLabel", () => {
   });
 
   it("handles empty", () => {
-    expect(formatRunTypeLabel(null)).toBe("Pipeline run");
+    expect(formatRunTypeLabel(null)).toBe("Run");
   });
 });
 
@@ -29,7 +31,7 @@ describe("formatRunStatusLabel", () => {
 
 describe("formatNotificationEventLabel", () => {
   it("maps known notification types", () => {
-    expect(formatNotificationEventLabel("transformation_run_succeeded")).toBe("Transformation");
+    expect(formatNotificationEventLabel("transformation_run_succeeded")).toBe("Recipe run");
   });
 
   it("falls back for unknown types", () => {

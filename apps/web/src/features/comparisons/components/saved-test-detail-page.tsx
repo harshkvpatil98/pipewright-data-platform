@@ -42,7 +42,6 @@ export function SavedTestDetailPageView({ currentUser, projectId, detail }: Save
   return (
     <AppShell
       currentUser={currentUser}
-      eyebrow="Testing lab"
       title={saved_test.name}
       subtitle={saved_test.description ?? "Saved statistical test configuration and run history."}
       actions={

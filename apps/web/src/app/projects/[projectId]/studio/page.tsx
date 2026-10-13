@@ -19,7 +19,8 @@ export default async function ProjectStudioPage({ params, searchParams }: PagePr
   const currentUser = await requireCurrentUser();
 
   try {
-    const [project, datasets] = await Promise.all([
+    // The project read stays: it is what turns a wrong id into a 404.
+    const [, datasets] = await Promise.all([
       serverApiFetch<ProjectDetail>(`/projects/${projectId}`),
       serverApiFetch<DatasetListResponse>(`/projects/${projectId}/datasets`),
     ]);
@@ -31,7 +32,6 @@ export default async function ProjectStudioPage({ params, searchParams }: PagePr
       <StudioPage
         currentUser={currentUser}
         projectId={projectId}
-        projectName={project.name}
         datasets={usable}
         initialDatasetId={dataset}
       />

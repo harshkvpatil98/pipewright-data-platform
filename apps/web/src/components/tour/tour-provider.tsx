@@ -122,7 +122,10 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     if (!active) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") finish();
-      if (event.key === "ArrowRight" || event.key === "Enter") {
+      // Enter on a focused tour button already clicks it; advancing here too
+      // skipped every other step.
+      const onButton = (event.target as HTMLElement | null)?.tagName === "BUTTON";
+      if (event.key === "ArrowRight" || (event.key === "Enter" && !onButton)) {
         setIndex((current) => (current + 1 < steps.length ? current + 1 : (finish(), current)));
       }
       if (event.key === "ArrowLeft") setIndex((current) => Math.max(0, current - 1));

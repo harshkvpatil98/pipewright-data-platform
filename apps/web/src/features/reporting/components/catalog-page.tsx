@@ -64,9 +64,8 @@ export function CatalogPageView({
   return (
     <AppShell
       currentUser={currentUser}
-      eyebrow="Consumption"
       title="Catalog"
-      subtitle="Search across every dataset by name, column, tag, or what somebody wrote about it — because people remember a column far more often than they remember what a table was called."
+      subtitle="Search datasets by name, column or tag, and keep the glossary."
     >
       {error ? (
         <div className="rounded-2xl border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger">

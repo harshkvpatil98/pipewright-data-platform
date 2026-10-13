@@ -85,9 +85,8 @@ export function ChangesPageView({ currentUser, projectId, initial }: ChangesPage
   return (
     <AppShell
       currentUser={currentUser}
-      eyebrow="Team"
-      title="Changes awaiting review"
-      subtitle="In a project that requires approval, edits to workflows and pipelines are proposed here instead of being applied. Running things is never gated — only changing what they are."
+      title="Approvals"
+      subtitle="Changes waiting for someone to approve them."
     >
       {error ? (
         <div className="rounded-2xl border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger">

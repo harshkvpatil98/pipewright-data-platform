@@ -104,9 +104,8 @@ export function MembersPageView({ currentUser, projectId, initial }: MembersPage
   return (
     <AppShell
       currentUser={currentUser}
-      eyebrow="Team"
       title="People"
-      subtitle="Who can reach this project, and what they may do once they are in. The owner is always an admin and cannot be removed."
+      subtitle="Who can see and change this project, and what each person can do."
     >
       {error ? (
         <div className="rounded-2xl border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger">

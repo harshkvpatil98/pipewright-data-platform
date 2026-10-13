@@ -26,14 +26,17 @@ const TONE_TEXT = {
 } as const;
 
 /**
- * Persistent bottom strip, in the spirit of a spreadsheet status bar: cheap
- * glanceable facts that stay true while you work, never actions.
+ * Bottom strip, in the spirit of a spreadsheet status bar: cheap glanceable
+ * facts that stay true while you work, never actions. Only pages with such
+ * facts (the editors) show it; an empty strip on every list page was chrome
+ * that said nothing.
  */
 export function StatusBar({ items, health }: StatusBarProps) {
+  if (items.length === 0 && !health) return null;
   return (
     <footer
       data-tour="status-bar"
-      className="flex h-7 shrink-0 items-center gap-4 border-t border-line bg-[color:var(--panel-strong)] px-4 text-[11px]"
+      className="flex h-8 shrink-0 items-center gap-4 border-t border-line bg-[color:var(--panel-strong)] px-4 text-[12px]"
     >
       {items.map((item) => (
         <span key={item.id} className="flex items-center gap-1.5 whitespace-nowrap">
@@ -102,7 +105,7 @@ export function Inspector({ open, onToggle, title, children }: InspectorProps) {
         )}
       >
         {open ? (
-          <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted">
+          <span className="text-[13px] font-medium text-ink-2">
             {title}
           </span>
         ) : null}
@@ -122,7 +125,7 @@ export function Inspector({ open, onToggle, title, children }: InspectorProps) {
       ) : (
         <div className="flex flex-1 items-start justify-center pt-4">
           <span
-            className="whitespace-nowrap text-[10px] uppercase tracking-[0.18em] text-muted"
+            className="whitespace-nowrap text-[12px] text-muted"
             style={{ writingMode: "vertical-rl" }}
           >
             {title}

@@ -65,10 +65,52 @@ export function ruleTypeLabel(raw: string | null | undefined): string {
 }
 
 const SEVERITY_LABELS: Record<string, string> = {
-  error: "Error — failing rows are quarantined",
-  warn: "Warning — reported, nothing is blocked",
-  warning: "Warning — reported, nothing is blocked",
+  error: "Error: failing rows are set aside",
+  warn: "Warning: reported, nothing is blocked",
+  warning: "Warning: reported, nothing is blocked",
 };
+
+/** The one-word form, for a badge beside a check's name. */
+export function severityShortLabel(raw: string | null | undefined): string {
+  const key = (raw ?? "error").trim().toLowerCase();
+  return key === "warn" || key === "warning" ? "Warning" : "Error";
+}
+
+/**
+ * A check's settings in words: "Column customer_email · between 0 and 100".
+ * The stored config was shown as raw JSON, which says the same thing to an
+ * engineer and nothing to anyone else.
+ */
+export function describeCheckSettings(config: Record<string, unknown> | null | undefined): string {
+  if (!config) return "";
+  const value = (raw: unknown): string =>
+    Array.isArray(raw) ? raw.map((item) => String(item)).join(", ") : String(raw);
+  const parts: string[] = [];
+  const used = new Set<string>();
+  const take = (key: string) => {
+    used.add(key);
+    return config[key];
+  };
+  if (config.column !== undefined) parts.push(`Column ${value(take("column"))}`);
+  if (config.columns !== undefined) parts.push(`Columns ${value(take("columns"))}`);
+  const min = config.min ?? config.min_value;
+  const max = config.max ?? config.max_value;
+  ["min", "min_value", "max", "max_value"].forEach((key) => used.add(key));
+  if (min !== undefined && max !== undefined) parts.push(`between ${value(min)} and ${value(max)}`);
+  else if (min !== undefined) parts.push(`at least ${value(min)}`);
+  else if (max !== undefined) parts.push(`at most ${value(max)}`);
+  if (config.pattern !== undefined) parts.push(`matching ${value(take("pattern"))}`);
+  const allowed = config.allowed_values ?? config.values;
+  ["allowed_values", "values"].forEach((key) => used.add(key));
+  if (allowed !== undefined) parts.push(`one of ${value(allowed)}`);
+  for (const [key, raw] of Object.entries(config)) {
+    if (used.has(key) || raw === null || raw === undefined || typeof raw === "object" && !Array.isArray(raw)) {
+      continue;
+    }
+    parts.push(`${prettify(key)} ${value(raw)}`);
+  }
+  return parts.join(" · ");
+}
 
 /** Display name for a rule severity. */
 export function severityLabel(raw: string | null | undefined): string {

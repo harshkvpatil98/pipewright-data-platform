@@ -120,9 +120,8 @@ export function ReportsPageView({
   return (
     <AppShell
       currentUser={currentUser}
-      eyebrow="Consumption"
-      title="Scheduled reports"
-      subtitle="The chore this removes: somebody exporting the same spreadsheet every Monday and emailing it round. Reports run on the worker, not when a page is open."
+      title="Reports"
+      subtitle="Files sent by email or Slack on a schedule."
     >
       {error ? (
         <div className="rounded-2xl border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger">

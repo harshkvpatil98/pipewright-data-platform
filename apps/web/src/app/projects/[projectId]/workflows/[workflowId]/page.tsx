@@ -25,7 +25,8 @@ export default async function WorkflowEditorRoute({ params }: PageProps) {
   try {
     // Everything the node inspector needs to offer real choices, fetched
     // together so the editor opens ready to configure rather than loading.
-    const [project, workflow, jobs, pipelines, destinations, datasets] = await Promise.all([
+    // The project read stays: it is what turns a wrong id into a 404.
+    const [, workflow, jobs, pipelines, destinations, datasets] = await Promise.all([
       serverApiFetch<ProjectDetail>(`/projects/${projectId}`),
       serverApiFetch<WorkflowDetail>(`/projects/${projectId}/workflows/${workflowId}`),
       serverApiFetch<ExtractionJobListResponse>(`/projects/${projectId}/extraction/jobs`).catch(
@@ -46,7 +47,6 @@ export default async function WorkflowEditorRoute({ params }: PageProps) {
       <WorkflowEditorPage
         currentUser={currentUser}
         projectId={projectId}
-        projectName={project.name}
         workflow={workflow}
         options={{
           extractionJobs: jobs.items.map((job) => ({ id: job.id, name: job.name })),

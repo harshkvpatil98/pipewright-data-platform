@@ -17,7 +17,8 @@ export default async function ProjectWorkflowsPage({ params }: PageProps) {
   const currentUser = await requireCurrentUser();
 
   try {
-    const [project, workflows] = await Promise.all([
+    // The project read stays: it is what turns a wrong id into a 404.
+    const [, workflows] = await Promise.all([
       serverApiFetch<ProjectDetail>(`/projects/${projectId}`),
       serverApiFetch<WorkflowListResponse>(`/projects/${projectId}/workflows`),
     ]);
@@ -26,7 +27,6 @@ export default async function ProjectWorkflowsPage({ params }: PageProps) {
       <WorkflowListPage
         currentUser={currentUser}
         projectId={projectId}
-        projectName={project.name}
         initialWorkflows={workflows.items}
       />
     );

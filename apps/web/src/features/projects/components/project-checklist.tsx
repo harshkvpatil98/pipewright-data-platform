@@ -52,28 +52,28 @@ export function ProjectChecklist({ projectId, datasetCount, onAddData }: Project
       {
         key: "data",
         title: "Add data",
-        blurb: "Upload a file or connect a source to bring data in.",
+        blurb: "Upload a file or connect a database.",
         done: datasetCount > 0,
         action: { label: "Add data", onClick: onAddData },
       },
       {
         key: "shape",
-        title: "Shape it",
-        blurb: "Clean and transform it in Studio — no code required.",
+        title: "Clean it",
+        blurb: "Fix and reshape it in Studio. No code needed.",
         done: pipelines > 0,
         action: { label: "Open Studio", href: `/projects/${projectId}/studio` },
       },
       {
         key: "guard",
-        title: "Guard it",
-        blurb: "Add a quality rule so bad rows cannot pass downstream.",
+        title: "Check it",
+        blurb: "Add a check so bad rows are caught before anyone relies on them.",
         done: rules > 0,
-        action: { label: "Add a rule", href: `/projects/${projectId}/data-quality` },
+        action: { label: "Add a check", href: `/projects/${projectId}/checks` },
       },
       {
         key: "schedule",
-        title: "Schedule it",
-        blurb: "Run it automatically and publish the result.",
+        title: "Automate it",
+        blurb: "Run it on a schedule so it stays up to date.",
         done: schedules > 0,
         action: { label: "Add a schedule", href: `/projects/${projectId}/schedules` },
       },
@@ -89,8 +89,8 @@ export function ProjectChecklist({ projectId, datasetCount, onAddData }: Project
   const doneCount = steps.filter((s) => s.done).length;
   const allDone = doneCount === steps.length;
 
-  // Complete or dismissed: gone. The workspace menu carries every destination
-  // from here on, so nothing is lost.
+  // Complete or dismissed: gone. The rail and its tabs carry every
+  // destination from here on, so nothing is lost.
   if (dismissed || allDone) return null;
 
   const dismiss = () => {
@@ -106,19 +106,18 @@ export function ProjectChecklist({ projectId, datasetCount, onAddData }: Project
   const activeKey = steps.find((s) => !s.done)?.key;
 
   return (
-    <section className="mb-6 rounded-2xl border border-line bg-[color:var(--panel)] p-5">
+    <section className="rounded-2xl border border-line bg-[color:var(--panel)] p-5">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="text-[15px] font-semibold text-ink">Get this project running</h2>
-          <p className="mt-0.5 text-[12px] text-muted">
-            {doneCount} of {steps.length} done — the usual path from raw data to a scheduled,
-            validated pipeline.
+          <p className="mt-0.5 text-[13px] text-muted">
+            {doneCount} of {steps.length} done. Each step ticks itself when you finish it.
           </p>
         </div>
         <button
           type="button"
           onClick={dismiss}
-          className="text-[11px] text-muted underline-offset-2 transition hover:text-ink hover:underline"
+          className="text-[13px] text-muted underline-offset-2 transition hover:text-ink hover:underline"
         >
           Dismiss
         </button>
@@ -140,21 +139,21 @@ export function ProjectChecklist({ projectId, datasetCount, onAddData }: Project
             >
               <div className="flex items-center gap-2">
                 <span
-                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${
+                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[12px] font-semibold ${
                     step.done ? "bg-success text-accent-ink" : "bg-surface-2 text-ink-3"
                   }`}
                 >
                   {step.done ? <Icon name="check" size={11} /> : index + 1}
                 </span>
-                <span className="text-[13px] font-medium text-ink">{step.title}</span>
+                <span className="text-[14px] font-medium text-ink">{step.title}</span>
               </div>
-              <p className="mt-1.5 flex-1 text-[11.5px] leading-4 text-ink-3">{step.blurb}</p>
+              <p className="mt-1.5 flex-1 text-[13px] leading-5 text-ink-3">{step.blurb}</p>
               {step.done ? (
-                <span className="mt-2 text-[11px] font-medium text-success">Done</span>
+                <span className="mt-2 text-[13px] font-medium text-success">Done</span>
               ) : step.action.href ? (
                 <Link
                   href={step.action.href}
-                  className="mt-2 inline-flex w-fit items-center gap-1 rounded-lg bg-[color:var(--accent)] px-2.5 py-1.5 text-[11.5px] font-medium text-accent-ink transition hover:brightness-110"
+                  className="mt-2 inline-flex w-fit items-center gap-1 rounded-lg bg-[color:var(--accent)] px-3 py-1.5 text-[13px] font-medium text-accent-ink transition hover:brightness-110"
                 >
                   {step.action.label}
                 </Link>
@@ -162,7 +161,7 @@ export function ProjectChecklist({ projectId, datasetCount, onAddData }: Project
                 <button
                   type="button"
                   onClick={step.action.onClick}
-                  className="mt-2 inline-flex w-fit items-center gap-1 rounded-lg bg-[color:var(--accent)] px-2.5 py-1.5 text-[11.5px] font-medium text-accent-ink transition hover:brightness-110"
+                  className="mt-2 inline-flex w-fit items-center gap-1 rounded-lg bg-[color:var(--accent)] px-3 py-1.5 text-[13px] font-medium text-accent-ink transition hover:brightness-110"
                 >
                   {step.action.label}
                 </button>
@@ -172,14 +171,14 @@ export function ProjectChecklist({ projectId, datasetCount, onAddData }: Project
         })}
       </ol>
 
-      <div className="mt-4 flex flex-wrap items-center gap-x-1.5 gap-y-1 border-t border-line pt-3 text-[11.5px] text-muted">
+      <div className="mt-4 flex flex-wrap items-center gap-x-1.5 gap-y-1 border-t border-line pt-3 text-[13px] text-muted">
         <Icon name="bell" size={12} className="text-ink-3" />
         <span>Failures already show up in your notifications.</span>
         <Link
           href={`/projects/${projectId}/notification-targets`}
           className="font-medium text-accent underline-offset-2 hover:underline"
         >
-          Also send them to Slack or email →
+          Also send them to Slack or email
         </Link>
       </div>
     </section>

@@ -109,7 +109,6 @@ export function DatasetComparePageView({ currentUser, projectId, comparison }: D
   return (
     <AppShell
       currentUser={currentUser}
-      eyebrow="Testing lab"
       title="Dataset comparison"
       subtitle="Before/after style comparison using persisted row counts, schema_json, profile_json, and lineage fields only."
       actions={

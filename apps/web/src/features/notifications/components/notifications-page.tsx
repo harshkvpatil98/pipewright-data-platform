@@ -93,7 +93,7 @@ export function NotificationsPage({ currentUser }: NotificationsPageProps) {
   return (
     <AppShell
       title="Notifications"
-      subtitle="In-app alerts for scheduled runs, publishes, and transformations. External delivery is optional; this page is the cleanest place to review recent outcomes."
+      subtitle="Messages about your runs, reports and mentions."
       currentUser={currentUser}
       actions={
         <Button type="button" variant="secondary" size="sm" onClick={() => void onMarkAll()} disabled={markingAll}>

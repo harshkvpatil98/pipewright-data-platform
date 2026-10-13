@@ -37,6 +37,10 @@ MAX_NODES = 200
 class GraphNode:
     key: str
     node_type: str
+    #: What the task is called on the canvas, for messages; the key otherwise.
+    name: str = ""
+    #: The task's settings, checked for the ones it cannot run without.
+    config: dict = field(default_factory=dict, compare=False, hash=False)
 
 
 @dataclass(frozen=True)
@@ -162,14 +166,14 @@ def validate_graph(nodes: list[GraphNode], edges: list[GraphEdge]) -> GraphValid
     result = GraphValidation()
 
     if not nodes:
-        result.errors.append(GraphIssue("empty_graph", "A workflow needs at least one node."))
+        result.errors.append(GraphIssue("empty_graph", "A workflow needs at least one task."))
         return result
 
     if len(nodes) > MAX_NODES:
         result.errors.append(
             GraphIssue(
                 "too_many_nodes",
-                f"A workflow supports at most {MAX_NODES} nodes; this one has {len(nodes)}.",
+                f"A workflow can have at most {MAX_NODES} tasks; this one has {len(nodes)}.",
             )
         )
 
@@ -179,14 +183,14 @@ def validate_graph(nodes: list[GraphNode], edges: list[GraphEdge]) -> GraphValid
             result.errors.append(
                 GraphIssue(
                     "invalid_node_key",
-                    f"Node key '{node.key}' must start with a letter and use only "
-                    "lowercase letters, numbers, and underscores.",
+                    f"The task id '{node.key}' must start with a letter and use only "
+                    "lowercase letters, numbers and underscores.",
                     node.key,
                 )
             )
         elif node.key in seen_keys:
             result.errors.append(
-                GraphIssue("duplicate_node_key", f"Two nodes share the key '{node.key}'.", node.key)
+                GraphIssue("duplicate_node_key", f"Two tasks share the id '{node.key}'.", node.key)
             )
         seen_keys.add(node.key)
 
@@ -194,8 +198,7 @@ def validate_graph(nodes: list[GraphNode], edges: list[GraphEdge]) -> GraphValid
             result.errors.append(
                 GraphIssue(
                     "unknown_node_type",
-                    f"Node '{node.key}' has unsupported type '{node.node_type}'. "
-                    f"Supported: {', '.join(NODE_TYPES)}.",
+                    f"The task '{node.key}' is of a kind this version cannot run ('{node.node_type}').",
                     node.key,
                 )
             )
@@ -208,7 +211,7 @@ def validate_graph(nodes: list[GraphNode], edges: list[GraphEdge]) -> GraphValid
             result.errors.append(
                 GraphIssue(
                     "unknown_edge_source",
-                    f"An edge starts at '{edge.from_key}', which is not a node in this workflow.",
+                    f"A link starts at '{edge.from_key}', which is not a task in this workflow.",
                     edge.from_key,
                 )
             )
@@ -217,7 +220,7 @@ def validate_graph(nodes: list[GraphNode], edges: list[GraphEdge]) -> GraphValid
             result.errors.append(
                 GraphIssue(
                     "unknown_edge_target",
-                    f"An edge points at '{edge.to_key}', which is not a node in this workflow.",
+                    f"A link points at '{edge.to_key}', which is not a task in this workflow.",
                     edge.to_key,
                 )
             )
@@ -226,7 +229,7 @@ def validate_graph(nodes: list[GraphNode], edges: list[GraphEdge]) -> GraphValid
             result.errors.append(
                 GraphIssue(
                     "self_dependency",
-                    f"Node '{edge.from_key}' cannot depend on itself.",
+                    f"The task '{edge.from_key}' cannot run after itself.",
                     edge.from_key,
                 )
             )
@@ -235,8 +238,8 @@ def validate_graph(nodes: list[GraphNode], edges: list[GraphEdge]) -> GraphValid
             result.errors.append(
                 GraphIssue(
                     "unknown_condition",
-                    f"Edge '{edge.from_key}' -> '{edge.to_key}' has unsupported condition "
-                    f"'{edge.condition}'. Supported: {', '.join(EDGE_CONDITIONS)}.",
+                    f"The link from '{edge.from_key}' to '{edge.to_key}' has a condition this "
+                    f"version does not know ('{edge.condition}').",
                     edge.from_key,
                 )
             )
@@ -247,7 +250,7 @@ def validate_graph(nodes: list[GraphNode], edges: list[GraphEdge]) -> GraphValid
             result.errors.append(
                 GraphIssue(
                     "duplicate_edge",
-                    f"There is more than one edge from '{edge.from_key}' to '{edge.to_key}'.",
+                    f"There is more than one link from '{edge.from_key}' to '{edge.to_key}'.",
                     edge.from_key,
                 )
             )
@@ -261,7 +264,7 @@ def validate_graph(nodes: list[GraphNode], edges: list[GraphEdge]) -> GraphValid
             result.errors.append(
                 GraphIssue(
                     "cycle",
-                    "These nodes depend on each other in a loop: " + " -> ".join(cycle) + ".",
+                    "These tasks wait for each other in a loop: " + " -> ".join(cycle) + ".",
                 )
             )
 
@@ -272,12 +275,50 @@ def validate_graph(nodes: list[GraphNode], edges: list[GraphEdge]) -> GraphValid
                 result.warnings.append(
                     GraphIssue(
                         "isolated_node",
-                        f"Node '{node.key}' has no connections, so it runs on its own.",
+                        f"The task '{node.name or node.key}' is not linked to the others, so it runs on its own.",
                         node.key,
                     )
                 )
 
+    for node in nodes:
+        missing = missing_setting(node)
+        if missing:
+            result.warnings.append(GraphIssue(MISSING_SETTING, f"{node.name or node.key}: {missing}", node.key))
+
     return result
+
+
+#: The code of a warning that a task is not filled in. A workflow can be
+#: saved like that, while it is being built, but not run.
+MISSING_SETTING = "missing_setting"
+
+
+def missing_setting(node: GraphNode) -> str | None:
+    """What a task still needs before it can run, in words, or None."""
+    config = node.config or {}
+    has_dataset = bool(config.get("dataset_id") or config.get("dataset_from"))
+    if node.node_type == "extraction" and not config.get("extraction_job_id"):
+        return "choose which import it runs."
+    if node.node_type == "transformation" and not config.get("pipeline_id"):
+        return "choose which recipe it runs."
+    if node.node_type in ("quality_gate", "drift_gate") and not has_dataset:
+        return "choose which dataset it checks."
+    if node.node_type == "publish":
+        if not config.get("destination_id"):
+            return "choose where it delivers to."
+        if not has_dataset:
+            return "choose which dataset it delivers."
+    if node.node_type == "reverse_etl":
+        if not has_dataset:
+            return "choose which dataset it sends."
+        if not config.get("connector_type") or not str(config.get("target") or "").strip():
+            return "choose where it sends the rows."
+    return None
+
+
+def runnable(validation: GraphValidation) -> bool:
+    """Structurally sound and every task filled in."""
+    return validation.valid and not any(issue.code == MISSING_SETTING for issue in validation.warnings)
 
 
 def should_run(

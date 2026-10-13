@@ -25,11 +25,13 @@ import { RunDiffPanel } from "@/features/workflows/components/run-diff-panel";
 import { VersionHistoryPanel } from "@/features/workflows/components/version-history-panel";
 import { RunTimelineView } from "@/features/workflows/components/run-timeline";
 import { NODE_META, WorkflowCanvas } from "@/features/workflows/components/workflow-canvas";
+import { missingSetting } from "@/features/workflows/missing-setting";
+import { describeCron } from "@/lib/cron-words";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
-import { formatDate } from "@/lib/format";
+import { countOf, formatDate } from "@/lib/format";
 import { cx } from "@/lib/utils";
-import { Icon, useToast } from "@platform/shared-ui";
+import { Icon, StatusBadge, useToast } from "@platform/shared-ui";
 
 type WorkflowEditorPageProps = {
   currentUser: AuthUser;
@@ -336,6 +338,13 @@ export function WorkflowEditorPage({
 
   // ------------------------------------------------------------------ ribbon
 
+  // Checked live, as tasks are filled in: a half-built workflow saves, but
+  // cannot run until each task says what it works on.
+  const unfilled = nodes.flatMap((node) => {
+    const missing = missingSetting(node);
+    return missing ? [`${node.name}: ${missing}`] : [];
+  });
+
   const ribbon = useMemo<RibbonGroup[]>(
     () => [
       {
@@ -344,7 +353,7 @@ export function WorkflowEditorPage({
         actions: [
           {
             id: "save",
-            label: dirty ? "Save*" : "Save",
+            label: dirty ? "Save changes" : "Save",
             icon: "check",
             prominent: dirty,
             disabled: saving,
@@ -354,7 +363,7 @@ export function WorkflowEditorPage({
             id: "run",
             label: "Run now",
             icon: "play",
-            disabled: nodes.length === 0 || (!dirty && !validation.valid),
+            disabled: nodes.length === 0 || unfilled.length > 0 || (!dirty && !validation.valid),
             onClick: runNow,
           },
           // Only while a worker could still be stopped from starting: the API
@@ -371,6 +380,24 @@ export function WorkflowEditorPage({
                 },
               ]
             : []),
+        ],
+      },
+      {
+        // Next to Save and Run, so the way to build a workflow is in view at
+        // any width rather than past the edge of the toolbar.
+        id: "tasks",
+        label: "Add a task",
+        actions: NODE_ORDER.map((type) => ({
+          id: type,
+          label: NODE_META[type].label,
+          icon: NODE_META[type].icon,
+          onClick: () => addNode(type),
+        })),
+      },
+      {
+        id: "more",
+        label: "More",
+        actions: [
           {
             id: "backfill",
             label: "Backfill",
@@ -393,18 +420,8 @@ export function WorkflowEditorPage({
           },
         ],
       },
-      {
-        id: "steps",
-        label: "Add a step",
-        actions: NODE_ORDER.map((type) => ({
-          id: type,
-          label: NODE_META[type].label,
-          icon: NODE_META[type].icon,
-          onClick: () => addNode(type),
-        })),
-      },
     ],
-    [dirty, saving, save, runNow, tidy, validation.valid, nodes.length, addNode],
+    [dirty, saving, save, runNow, tidy, validation.valid, nodes.length, unfilled.length, addNode, activeRun?.status, cancelRun],
   );
 
   // Server validation describes the *saved* graph. While edits are unsaved it
@@ -417,16 +434,18 @@ export function WorkflowEditorPage({
   const graphState: { value: string; tone: "neutral" | "good" | "bad" } =
     nodes.length === 0
       ? { value: "empty", tone: "neutral" }
-      : dirty
-        ? { value: "unsaved changes", tone: "neutral" }
-        : validation.valid
-          ? { value: "ready to run", tone: "good" }
-          : { value: "needs attention", tone: "bad" };
+      : unfilled.length > 0
+        ? { value: countOf(unfilled.length, "task") + " to finish", tone: "neutral" }
+        : dirty
+          ? { value: "unsaved changes", tone: "neutral" }
+          : validation.valid
+            ? { value: "ready to run", tone: "good" }
+            : { value: "needs attention", tone: "bad" };
 
   const scheduleLabel =
-    workflow.trigger_type === "cron"
-      ? `${workflow.cron_expression} (${workflow.timezone || "UTC"})`
-      : "Manual";
+    workflow.trigger_type === "cron" && workflow.cron_expression
+      ? `${describeCron(workflow.cron_expression)} (${workflow.timezone || "UTC"})`
+      : "By hand";
 
   return (
     <AppFrame
@@ -435,9 +454,9 @@ export function WorkflowEditorPage({
       ribbon={ribbon}
       disableWelcomeTour
       statusItems={[
-        { id: "steps", label: "Steps", value: String(nodes.length) },
+        { id: "tasks", label: "Tasks", value: String(nodes.length) },
         { id: "links", label: "Links", value: String(edges.length) },
-        { id: "schedule", label: "Trigger", value: scheduleLabel },
+        { id: "schedule", label: "Runs", value: scheduleLabel },
         {
           id: "next",
           label: "Next run",
@@ -454,7 +473,7 @@ export function WorkflowEditorPage({
           : undefined
       }
       inspector={{
-        title: selected ? "Step settings" : "Workflow",
+        title: selected ? "Task settings" : "Workflow",
         content: selected ? (
           <NodeInspector
             node={selected}
@@ -470,12 +489,24 @@ export function WorkflowEditorPage({
             workflow={workflow}
             validation={validation}
             executionOrder={executionOrder}
+            names={Object.fromEntries(nodes.map((node) => [node.node_key, node.name]))}
             activeRun={activeRun}
           />
         ),
       }}
     >
       <div className="flex h-full min-h-0 flex-col">
+        {unfilled.length > 0 ? (
+          <div className="flex items-start gap-2.5 border-b border-line bg-surface px-4 py-2.5 text-[13px] text-ink-2">
+            <Icon name="info" size={14} className="mt-0.5 shrink-0 text-[color:var(--accent-muted)]" />
+            <div>
+              <div className="font-medium text-ink">Before this workflow can run</div>
+              {unfilled.map((line) => (
+                <div key={line}>{line}</div>
+              ))}
+            </div>
+          </div>
+        ) : null}
         {savedIssues.length > 0 ? (
           <div className="flex items-start gap-2.5 border-b border-danger-line bg-danger-soft px-4 py-2.5 text-[13px] text-danger">
             <Icon name="warning" size={14} className="mt-0.5 shrink-0" />
@@ -489,6 +520,8 @@ export function WorkflowEditorPage({
 
         <div className="relative min-h-0 flex-1">
           <WorkflowCanvas
+            onAdd={addNode}
+            addable={NODE_ORDER}
             nodes={nodes}
             edges={edges}
             selectedKey={selectedKey}
@@ -552,13 +585,18 @@ function WorkflowSummaryPanel({
   workflow,
   validation,
   executionOrder,
+  names,
   activeRun,
 }: {
   workflow: WorkflowDetail;
   validation: WorkflowDetail["validation"];
   executionOrder: string[][];
+  /** Each task's name by its key, so the order reads in the canvas's words. */
+  names: Record<string, string>;
   activeRun: WorkflowRunDetail | null;
 }) {
+  // Unfilled tasks are named above the canvas, live; not twice.
+  const warnings = validation.warnings.filter((issue) => issue.code !== "missing_setting");
   return (
     <div className="space-y-4">
       <div>
@@ -573,7 +611,7 @@ function WorkflowSummaryPanel({
           <div className="mb-2 text-[12px] text-muted">
             Current run
           </div>
-          <div className="text-[13px] text-ink">{activeRun.status}</div>
+          <StatusBadge value={activeRun.status} label={formatRunStatusLabel(activeRun.status)} />
           <div className="mt-1 text-[12px] text-muted">
             {activeRun.nodes_succeeded} succeeded · {activeRun.nodes_failed} failed ·{" "}
             {activeRun.nodes_skipped} skipped
@@ -592,16 +630,16 @@ function WorkflowSummaryPanel({
       {executionOrder.length > 0 ? (
         <div>
           <div className="mb-1.5 text-[12px] text-muted">
-            Execution order
+            Runs in this order
           </div>
           <ol className="space-y-1">
             {executionOrder.map((level, index) => (
               <li key={index} className="flex gap-2 rounded-md bg-surface px-2 py-1.5">
                 <span className="shrink-0 font-mono text-[12px] text-muted">{index + 1}</span>
                 <span className="min-w-0 flex-1 text-[12px] text-ink-2">
-                  {level.join(", ")}
+                  {level.map((key) => names[key] ?? key).join(", ")}
                   {level.length > 1 ? (
-                    <span className="ml-1 text-[12px] text-muted">(in parallel)</span>
+                    <span className="ml-1 text-[12px] text-muted">(at the same time)</span>
                   ) : null}
                 </span>
               </li>
@@ -610,9 +648,9 @@ function WorkflowSummaryPanel({
         </div>
       ) : null}
 
-      {validation.warnings.length > 0 ? (
+      {warnings.length > 0 ? (
         <div className="rounded-lg border border-warning-line bg-warning-soft p-2.5">
-          {validation.warnings.map((issue) => (
+          {warnings.map((issue) => (
             <div key={issue.code + (issue.node_key ?? "")} className="text-[12px] text-warning">
               {issue.message}
             </div>
@@ -621,8 +659,8 @@ function WorkflowSummaryPanel({
       ) : null}
 
       <p className="text-[12px] leading-5 text-muted">
-        Drag a step to move it. Drag from the dot on its right edge onto another step to make that
-        step run after it. Click a link to remove it.
+        Drag a task to move it. Drag from the dot on its right edge onto another task to make that
+        task run after it. Click a link to remove it.
       </p>
     </div>
   );

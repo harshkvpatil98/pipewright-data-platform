@@ -62,6 +62,9 @@ type WorkflowCanvasProps = {
   onMoveNode: (key: string, x: number, y: number) => void;
   onConnect: (fromKey: string, toKey: string) => void;
   onDeleteEdge: (from: string, to: string) => void;
+  /** Offered on an empty canvas, so the first task is one click away. */
+  addable?: WorkflowNodeType[];
+  onAdd?: (type: WorkflowNodeType) => void;
 };
 
 export function WorkflowCanvas({
@@ -74,6 +77,8 @@ export function WorkflowCanvas({
   onMoveNode,
   onConnect,
   onDeleteEdge,
+  addable = [],
+  onAdd,
 }: WorkflowCanvasProps) {
   const surfaceRef = useRef<HTMLDivElement>(null);
   const [connecting, setConnecting] = useState<Connecting>(null);
@@ -342,13 +347,28 @@ export function WorkflowCanvas({
         })}
 
         {nodes.length === 0 ? (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-center">
+          <div className="absolute inset-0 flex items-center justify-center p-6">
+            <div className="max-w-md text-center">
               <Icon name="transform" size={26} className="mx-auto text-muted" />
-              <p className="mt-3 text-[13px] text-ink-3">This workflow has no steps yet.</p>
-              <p className="mt-1 text-[12px] text-muted">
-                Add one from the ribbon above to begin.
+              <p className="mt-3 text-[15px] font-medium text-ink">Add the first task</p>
+              <p className="mt-1 text-[13.5px] leading-5 text-ink-3">
+                A workflow runs its tasks in order: import, then a recipe, then checks, then deliver.
               </p>
+              {onAdd && !readOnly ? (
+                <div className="mt-4 flex flex-wrap justify-center gap-2">
+                  {addable.map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => onAdd(type)}
+                      className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-line bg-[color:var(--panel-strong)] px-3 text-[13.5px] text-ink transition hover:border-[color:var(--accent-line)] hover:bg-[color:var(--accent-faint)]"
+                    >
+                      <Icon name={NODE_META[type].icon} size={15} className="text-[color:var(--accent-muted)]" />
+                      {NODE_META[type].label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </div>
           </div>
         ) : null}

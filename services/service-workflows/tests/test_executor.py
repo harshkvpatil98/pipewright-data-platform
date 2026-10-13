@@ -128,6 +128,20 @@ def scripted(outcomes: dict[str, bool], calls: list[str]):
     return _execute
 
 
+#: Settings that make each kind of task runnable. The handlers are scripted,
+#: so the values only have to be present; an unfilled task is refused before
+#: anything runs (`test_a_task_that_is_not_filled_in_is_refused`).
+_ID = str(uuid.uuid4())
+FILLED = {
+    "extraction": {"extraction_job_id": _ID},
+    "transformation": {"pipeline_id": _ID},
+    "quality_gate": {"dataset_id": _ID},
+    "drift_gate": {"dataset_id": _ID},
+    "publish": {"destination_id": _ID, "dataset_id": _ID},
+    "reverse_etl": {"dataset_id": _ID, "connector_type": "postgresql", "target": "t"},
+}
+
+
 def install_handlers(
     monkeypatch: pytest.MonkeyPatch, db: Session, run: WorkflowRun, outcomes: dict[str, bool]
 ) -> list[str]:
@@ -137,7 +151,7 @@ def install_handlers(
 
     # The executor passes the node's config, so stamp the key into it first.
     for node in db.query(WorkflowNode).filter(WorkflowNode.workflow_id == run.workflow_id):
-        node.config_json = {"__key__": node.node_key}
+        node.config_json = {**FILLED.get(node.node_type, {}), "__key__": node.node_key}
     db.commit()
 
     monkeypatch.setattr(executor_module, "execute_node", handler)
@@ -317,7 +331,7 @@ def test_invalid_graph_fails_the_run_before_executing_anything(
 
     assert calls == []
     assert finished.status == "failed"
-    assert "not runnable" in finished.error_message
+    assert "cannot run yet" in finished.error_message
 
 
 def test_run_without_an_actor_fails_rather_than_escalating(
@@ -355,7 +369,7 @@ def test_node_config_macros_resolve_against_the_runs_slot(
     _, run = build_workflow(db, [("ship", "publish")], [])
     run.logical_date = datetime(2026, 3, 3, tzinfo=UTC)
     for node in db.query(WorkflowNode).filter(WorkflowNode.workflow_id == run.workflow_id):
-        node.config_json = {"table_name": "orders_{{ ds_nodash }}", "max_rows": 500}
+        node.config_json = {**FILLED["publish"], "table_name": "orders_{{ ds_nodash }}", "max_rows": 500}
     db.commit()
 
     seen: dict[str, object] = {}
@@ -382,7 +396,7 @@ def test_an_unknown_macro_fails_only_its_own_node(
     )
     for node in db.query(WorkflowNode).filter(WorkflowNode.workflow_id == run.workflow_id):
         node.config_json = (
-            {"table_name": "t_{{ nonsense }}"} if node.node_key == "broken" else {"__key__": "good"}
+            {**FILLED["publish"], "table_name": "t_{{ nonsense }}"} if node.node_key == "broken" else {"__key__": "good"}
         )
     db.commit()
 
@@ -407,3 +421,14 @@ def test_workflow_summary_is_updated_after_a_run(
     assert workflow.last_run_status == "succeeded"
     assert workflow.execution_count == 1
     assert workflow.last_run_at is not None
+
+
+def test_a_task_that_is_not_filled_in_is_refused(db: Session, actor, monkeypatch) -> None:
+    """A workflow can be saved half built, but not run: the run says what is missing."""
+    _workflow, run = build_workflow(db, [("load", "extraction"), ("tell", "notify")], [("load", "tell", "on_success")])
+    calls: list[str] = []
+    monkeypatch.setattr(executor_module, "execute_node", scripted({}, calls))
+    finished = execute_workflow_run(db, run=run, storage_backend=None, settings=None)
+    assert finished.status == "failed"
+    assert "load: choose which import it runs." in (finished.error_message or "")
+    assert calls == []

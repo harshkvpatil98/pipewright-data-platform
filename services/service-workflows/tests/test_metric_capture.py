@@ -85,7 +85,8 @@ def world(db: Session) -> dict:
             node_key="extract",
             name="Extract",
             node_type="extraction",
-            config_json={},
+            # Filled in: the handler is scripted, so only its presence matters.
+            config_json={"extraction_job_id": str(uuid.uuid4())},
         )
     )
     run = WorkflowRun(

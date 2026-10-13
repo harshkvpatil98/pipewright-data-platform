@@ -63,11 +63,11 @@ export function NodeInspector({
         </span>
         <div className="min-w-0">
           <div className="truncate text-[13px] font-medium text-ink">{meta.label}</div>
-          <div className="truncate font-mono text-[12px] text-muted">{node.node_key}</div>
+          <div className="truncate text-[12px] text-muted">A task in this workflow</div>
         </div>
       </div>
 
-      <Field label="Step name" htmlFor={`${fieldId}-name`}>
+      <Field label="Task name" htmlFor={`${fieldId}-name`}>
         <input
           id={`${fieldId}-name`}
           className={inputClass}
@@ -222,7 +222,7 @@ export function NodeInspector({
           className="mt-0.5 h-3.5 w-3.5 rounded border-line-strong bg-sunken"
         />
         <span>
-          Keep going if this step fails
+          Keep going if this task fails
           <span className="mt-0.5 block text-[12px] text-muted">
             The run is marked partial rather than failed.
           </span>
@@ -245,7 +245,7 @@ export function NodeInspector({
                     edge.from_node_key}
                 </span>
                 <select
-                  aria-label={`Condition from ${edge.from_node_key}`}
+                  aria-label={`When to run after ${allNodes.find((item) => item.node_key === edge.from_node_key)?.name ?? edge.from_node_key}`}
                   className="h-7 rounded-md border border-line bg-sunken px-1.5 text-[12px] text-ink outline-none"
                   value={edge.condition}
                   onChange={(event) =>
@@ -272,7 +272,7 @@ export function NodeInspector({
         className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-danger-line py-2 text-[12px] text-danger transition hover:bg-danger-soft"
       >
         <Icon name="trash" size={13} />
-        Remove step
+        Remove task
       </button>
     </div>
   );
@@ -311,7 +311,7 @@ function DatasetSource({
             usingUpstream ? "bg-[color:var(--accent)] text-accent-ink" : "text-ink-3",
           )}
         >
-          From a previous step
+          From an earlier task
         </button>
         <button
           type="button"
@@ -330,12 +330,12 @@ function DatasetSource({
 
       {usingUpstream ? (
         <select
-          aria-label="Upstream step"
+          aria-label="Earlier task"
           className={inputClass}
           value={String(node.config.dataset_from ?? "")}
           onChange={(event) => setConfig("dataset_from", event.target.value)}
         >
-          <option value="">Choose a step…</option>
+          <option value="">Choose a task…</option>
           {upstreamKeys.map((key) => (
             <option key={key} value={key}>
               {allNodes.find((item) => item.node_key === key)?.name ?? key}
@@ -361,12 +361,12 @@ function DatasetSource({
 
       {upstreamKeys.length === 0 && usingUpstream ? (
         <p className="mt-1.5 text-[12px] text-warning">
-          Connect a step into this one first.
+          Link a task into this one first.
         </p>
       ) : (
         <p className="mt-1.5 text-[12px] text-muted">
           {usingUpstream
-            ? "Uses whatever that step produced on this run."
+            ? "Uses whatever that task produced on this run."
             : "Always reads the same dataset."}
         </p>
       )}

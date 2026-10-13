@@ -14,7 +14,9 @@ from service_workflows.graph import (
 
 
 def node(key: str, node_type: str = "transformation") -> GraphNode:
-    return GraphNode(key=key, node_type=node_type)
+    # Filled in, so these tests see only the graph's shape; unfilled tasks
+    # are covered by test_an_unfilled_task_is_named_but_still_saves.
+    return GraphNode(key=key, node_type=node_type, config={"pipeline_id": "p"})
 
 
 def edge(source: str, target: str, condition: str = "on_success") -> GraphEdge:
@@ -258,3 +260,16 @@ def test_every_node_type_the_engine_can_run_is_a_valid_node_type():
     from service_workflows.nodes import NODE_HANDLERS
 
     assert set(NODE_TYPES) == set(NODE_HANDLERS)
+
+
+def test_an_unfilled_task_is_named_but_still_saves() -> None:
+    from service_workflows.graph import MISSING_SETTING, runnable
+
+    result = validate_graph(
+        [GraphNode(key="load", node_type="extraction", name="Load orders"), node("clean")],
+        [edge("load", "clean")],
+    )
+    assert result.valid  # a half-built workflow can be saved
+    assert not runnable(result)  # but not run
+    missing = [issue for issue in result.warnings if issue.code == MISSING_SETTING]
+    assert [issue.message for issue in missing] == ["Load orders: choose which import it runs."]

@@ -72,7 +72,10 @@ def _graph_of(db: Session, workflow_id: uuid.UUID) -> tuple[list[WorkflowNode], 
 def _validate_and_order(
     nodes: list[WorkflowNode], edges: list[WorkflowEdge]
 ) -> tuple[dict[str, Any], list[list[str]]]:
-    graph_nodes = [GraphNode(key=row.node_key, node_type=row.node_type) for row in nodes]
+    graph_nodes = [
+        GraphNode(key=row.node_key, node_type=row.node_type, name=row.name, config=row.config_json or {})
+        for row in nodes
+    ]
     graph_edges = [
         GraphEdge(from_key=row.from_node_key, to_key=row.to_node_key, condition=row.condition)
         for row in edges
@@ -94,7 +97,10 @@ def _replace_graph(
     Validating before writing means a workflow can never be left in a state the
     executor would refuse.
     """
-    graph_nodes = [GraphNode(key=item.node_key, node_type=item.node_type) for item in nodes]
+    graph_nodes = [
+        GraphNode(key=item.node_key, node_type=item.node_type, name=item.name, config=item.config or {})
+        for item in nodes
+    ]
     graph_edges = [
         GraphEdge(from_key=item.from_node_key, to_key=item.to_node_key, condition=item.condition)
         for item in edges
@@ -102,7 +108,7 @@ def _replace_graph(
     validation = validate_graph(graph_nodes, graph_edges)
     if not validation.valid:
         raise BadRequestError(
-            "This graph cannot run: " + "; ".join(issue.message for issue in validation.errors)
+            "This workflow cannot be saved. " + " ".join(issue.message for issue in validation.errors)
         )
 
     for existing in db.scalars(

@@ -10,6 +10,7 @@ from service_auth.schemas import UserRead
 from service_projects.contracts import ensure_owned_project
 from service_workflows.backfill import plan_backfill, queue_backfill
 from service_workflows.catalog import macro_catalog
+from service_workflows.graph import MISSING_SETTING
 from service_workflows.queue import cancel_run, enqueue_workflow_run
 from service_workflows.schemas import (
     BackfillPreviewResponse,
@@ -133,12 +134,13 @@ def build_router(
 
         # Refuse to queue a graph that cannot run, rather than failing later.
         validation = validate_workflow(db, project_id, workflow_id, current_user)
-        if not validation.valid:
+        unfilled = [issue for issue in validation.warnings if issue.get("code") == MISSING_SETTING]
+        if not validation.valid or unfilled:
             from shared_python.errors import BadRequestError
 
             raise BadRequestError(
-                "This workflow cannot run: "
-                + "; ".join(str(issue.get("message")) for issue in validation.errors)
+                "This workflow cannot run yet. "
+                + " ".join(str(issue.get("message")) for issue in [*validation.errors, *unfilled])
             )
 
         run = enqueue_workflow_run(
@@ -216,12 +218,13 @@ def build_router(
         workflow = get_workflow_for_project(db, project_id, workflow_id)
 
         validation = validate_workflow(db, project_id, workflow_id, current_user)
-        if not validation.valid:
+        unfilled = [issue for issue in validation.warnings if issue.get("code") == MISSING_SETTING]
+        if not validation.valid or unfilled:
             from shared_python.errors import BadRequestError
 
             raise BadRequestError(
-                "This workflow cannot run: "
-                + "; ".join(str(issue.get("message")) for issue in validation.errors)
+                "This workflow cannot run yet. "
+                + " ".join(str(issue.get("message")) for issue in [*validation.errors, *unfilled])
             )
 
         plan = plan_backfill(start=payload.start, end=payload.end, interval=payload.interval)

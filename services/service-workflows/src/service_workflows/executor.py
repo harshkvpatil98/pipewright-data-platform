@@ -12,8 +12,10 @@ from sqlalchemy.orm import Session
 from service_auth.models import User
 from service_auth.schemas import UserRead
 from service_workflows.graph import (
+    MISSING_SETTING,
     GraphEdge,
     GraphNode,
+    runnable,
     should_run,
     topological_levels,
     validate_graph,
@@ -91,16 +93,20 @@ def execute_workflow_run(
         )
 
     node_rows, edge_rows = _load_graph(db, workflow.id)
-    graph_nodes = [GraphNode(key=row.node_key, node_type=row.node_type) for row in node_rows]
+    graph_nodes = [
+        GraphNode(key=row.node_key, node_type=row.node_type, name=row.name, config=row.config_json or {})
+        for row in node_rows
+    ]
     graph_edges = [
         GraphEdge(from_key=row.from_node_key, to_key=row.to_node_key, condition=row.condition)
         for row in edge_rows
     ]
 
     validation = validate_graph(graph_nodes, graph_edges)
-    if not validation.valid:
-        summary = "; ".join(issue.message for issue in validation.errors)
-        return _finish(db, run, status="failed", error=f"Workflow is not runnable: {summary}")
+    if not runnable(validation):
+        issues = [*validation.errors, *(w for w in validation.warnings if w.code == MISSING_SETTING)]
+        summary = " ".join(issue.message for issue in issues)
+        return _finish(db, run, status="failed", error=f"This workflow cannot run yet. {summary}")
 
     by_key = {row.node_key: row for row in node_rows}
     levels = topological_levels(graph_nodes, graph_edges)

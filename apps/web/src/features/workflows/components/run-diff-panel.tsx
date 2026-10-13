@@ -32,7 +32,7 @@ const VERDICT_LABEL: Record<NodeDiff["verdict"], string> = {
   faster: "faster",
   status_changed: "status changed",
   output_changed: "different data",
-  added: "new step",
+  added: "new task",
   removed: "removed",
 };
 

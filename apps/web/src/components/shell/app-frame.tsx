@@ -290,7 +290,9 @@ export function AppFrame({
           onToggle={toggleRail}
         />
 
-        <main className="flex min-w-0 flex-1 flex-col">
+        {/* The tabs span the side panel too, so a page with one never
+            squeezes its neighbours' names off the strip. */}
+        <div className="flex min-w-0 flex-1 flex-col">
           {location ? (
             <AreaTabs
               area={location.area}
@@ -299,15 +301,19 @@ export function AppFrame({
               isAdmin={isAdmin}
             />
           ) : null}
-          {ribbon.length > 0 ? <Ribbon groups={ribbon} /> : null}
-          <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
-        </main>
+          <div className="flex min-h-0 flex-1">
+            <main className="flex min-w-0 flex-1 flex-col">
+              {ribbon.length > 0 ? <Ribbon groups={ribbon} /> : null}
+              <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+            </main>
 
-        {inspector ? (
-          <Inspector open={inspectorOpen} onToggle={toggleInspector} title={inspector.title}>
-            {inspector.content}
-          </Inspector>
-        ) : null}
+            {inspector ? (
+              <Inspector open={inspectorOpen} onToggle={toggleInspector} title={inspector.title}>
+                {inspector.content}
+              </Inspector>
+            ) : null}
+          </div>
+        </div>
       </div>
 
       <StatusBar items={statusItems} health={health} />

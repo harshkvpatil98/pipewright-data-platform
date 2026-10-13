@@ -52,8 +52,23 @@ export async function parseApiResponse<T>(response: Response): Promise<T> {
     : undefined;
 
   if (!response.ok) {
-    throw new ApiError(response.status, payload);
+    // An address whose id is malformed ("/workflows/new", a link cut short)
+    // names nothing, so it is "not found", as a well-formed id that matches
+    // nothing is. The API says 422 for it; pages that turn 404 into their
+    // not-found page then do so for both, instead of crashing.
+    const status = response.status === 422 && namesAMalformedPathPart(payload) ? 404 : response.status;
+    throw new ApiError(status, payload);
   }
 
   return payload as T;
+}
+
+/** True when a 422 is only about the address: every complaint is about a path part. */
+function namesAMalformedPathPart(payload: unknown): boolean {
+  const detail = (payload as { detail?: unknown } | undefined)?.detail;
+  return (
+    Array.isArray(detail) &&
+    detail.length > 0 &&
+    detail.every((item) => Array.isArray((item as { loc?: unknown }).loc) && (item as { loc: unknown[] }).loc[0] === "path")
+  );
 }

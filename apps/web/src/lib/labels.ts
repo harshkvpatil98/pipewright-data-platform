@@ -179,6 +179,31 @@ export function fileFormatLabel(raw: string | null | undefined): string {
   return FILE_FORMAT_LABELS[raw.toLowerCase()] ?? raw.toUpperCase();
 }
 
+/**
+ * A platform role in words. Only administration is a platform-wide power;
+ * everything else a person may do is set per project, so every other stored
+ * role reads as a member.
+ */
+export function platformRoleLabel(role: string | null | undefined): string {
+  return role === "admin" ? "Platform administrator" : "Member";
+}
+
+const ENGINE_LABELS: Record<string, string> = {
+  postgresql: "PostgreSQL",
+  postgres: "PostgreSQL",
+  mysql: "MySQL",
+  mariadb: "MariaDB",
+  sqlite: "SQLite",
+  mssql: "SQL Server",
+  oracle: "Oracle",
+};
+
+/** A database engine as its makers write it: PostgreSQL, MySQL. */
+export function engineLabel(raw: string | null | undefined): string {
+  if (!raw) return "";
+  return ENGINE_LABELS[raw.toLowerCase()] ?? sentenceLabel(raw);
+}
+
 const TRIGGER_LABELS: Record<string, string> = {
   manual: "By hand",
   schedule: "On schedule",

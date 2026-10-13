@@ -14,6 +14,7 @@ import { brand } from "@/lib/brand";
 import { apiFetch } from "@/lib/api/client";
 import { clearAccessToken } from "@/lib/auth/session";
 import { appConfig } from "@/lib/config";
+import { platformRoleLabel } from "@/lib/labels";
 import type { Crumb } from "@/lib/navigation";
 import { cx } from "@/lib/utils";
 
@@ -32,11 +33,6 @@ type TopBarProps = {
 function apiReferenceUrl(): string {
   return `${appConfig.apiBaseUrl.replace(/\/api\/v\d+\/?$/, "")}/docs`;
 }
-
-const ROLE_LABELS: Record<string, string> = {
-  admin: "Platform administrator",
-  user: "Member",
-};
 
 export function TopBar({
   crumbs,
@@ -295,7 +291,7 @@ export function TopBar({
               </div>
               {currentUser ? (
                 <div className="mt-0.5 truncate text-[12px] text-muted">
-                  {currentUser.username} · {ROLE_LABELS[currentUser.role] ?? currentUser.role}
+                  {currentUser.username} · {platformRoleLabel(currentUser.role)}
                 </div>
               ) : null}
             </div>

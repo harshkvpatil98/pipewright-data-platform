@@ -10,6 +10,7 @@ import type { RibbonGroup } from "@/components/shell/ribbon";
 import { DataGrid, type GridColumn } from "@/features/studio/grid/data-grid";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
+import { engineLabel } from "@/lib/labels";
 import { cx } from "@/lib/utils";
 
 import {
@@ -480,7 +481,7 @@ export function TableEditorPage({
         content: <TrayPanel tray={tray} onDiscardAll={() => setTray(emptyTray())} />,
       }}
     >
-      <div className="flex h-full flex-col gap-4">
+      <div className="flex h-full flex-col gap-4 px-4 py-4 lg:px-6">
         {isProduction ? (
           <div className="flex items-center gap-3 rounded-xl border border-[color:var(--danger-line)] bg-[color:var(--danger-soft)] px-4 py-3 text-sm text-ink">
             <Icon name="warning" className="h-4 w-4 shrink-0" />
@@ -518,7 +519,7 @@ export function TableEditorPage({
               {connections.length === 0 ? <option value="">No connections</option> : null}
               {connections.map((connection) => (
                 <option key={connection.id} value={connection.id}>
-                  {connection.name} ({connection.connector_type})
+                  {connection.name} ({engineLabel(connection.connector_type)})
                 </option>
               ))}
             </Select>

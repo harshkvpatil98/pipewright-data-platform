@@ -28,9 +28,11 @@ type RibbonProps = {
 };
 
 /**
- * Contextual command surface, in the shape Office and Power BI use: actions are
- * grouped by task with a labelled divider, so a user scans group titles rather
- * than reading every button.
+ * A page's actions, on one line under the tabs: each button an icon and its
+ * name side by side, the way buttons look everywhere else, with groups kept
+ * apart by a thin divider and named for screen readers. It replaced the
+ * Office-style ribbon (icons over tiny labels, a caption under each group),
+ * which drew a second, taller kind of button on four pages (A6).
  */
 export function Ribbon({ groups, className }: RibbonProps) {
   if (groups.length === 0) return null;
@@ -38,32 +40,19 @@ export function Ribbon({ groups, className }: RibbonProps) {
   return (
     <div
       data-tour="ribbon"
-      className={cx("relative border-b border-line bg-[color:var(--surface-sunken)]", className)}
+      role="toolbar"
+      className={cx("border-b border-line bg-[color:var(--panel)]", className)}
     >
-      <div className="flex items-stretch gap-1 overflow-x-auto px-3 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="flex items-center gap-1 overflow-x-auto px-4 py-1.5 lg:px-6">
         {groups.map((group, groupIndex) => (
-          <div key={group.id} className="flex items-stretch">
-            <div className="flex flex-col items-center gap-1 px-2">
-              <div className="flex items-end gap-1">
-                {group.actions.map((action) => (
-                  <RibbonButton key={action.id} action={action} />
-                ))}
-              </div>
-              <span className="whitespace-nowrap text-[12px] text-muted">
-                {group.label}
-              </span>
-            </div>
-            {groupIndex < groups.length - 1 ? (
-              <div className="my-1 w-px shrink-0 bg-surface-2" aria-hidden="true" />
-            ) : null}
+          <div key={group.id} role="group" aria-label={group.label} className="flex items-center gap-1">
+            {groupIndex > 0 ? <span className="mx-1.5 h-5 w-px shrink-0 bg-line" aria-hidden="true" /> : null}
+            {group.actions.map((action) => (
+              <RibbonButton key={action.id} action={action} />
+            ))}
           </div>
         ))}
       </div>
-      {/* Signals that the toolbar continues past the right edge. */}
-      <div
-        className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-[color:var(--surface-sunken)] to-transparent"
-        aria-hidden="true"
-      />
     </div>
   );
 }
@@ -76,20 +65,16 @@ function RibbonButton({ action }: { action: RibbonAction }) {
       {...(action.href ? { href: action.href } : { type: "button" as const })}
       onClick={action.onClick}
       disabled={action.disabled}
-      aria-label={action.label}
       className={cx(
-        "group inline-flex select-none flex-col items-center justify-center gap-1 rounded-lg border border-transparent transition duration-[var(--duration-fast)] ease-[var(--ease-out)]",
-        action.prominent ? "min-w-[62px] px-2.5 py-1.5" : "min-w-[54px] px-2 py-1.5",
-        action.disabled
-          ? "cursor-not-allowed opacity-35"
-          : "hover:border-line hover:bg-surface-2 active:scale-[0.97]",
+        "inline-flex h-8 shrink-0 select-none items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 text-[13.5px] transition duration-[var(--duration-fast)] ease-[var(--ease-out)]",
+        action.disabled ? "cursor-not-allowed opacity-40" : "hover:bg-surface-2 active:scale-[0.98]",
         action.prominent && !action.disabled
-          ? "bg-[color:var(--accent-faint)] text-ink hover:bg-[color:var(--accent-soft)]"
-          : "text-ink-2",
+          ? "bg-[color:var(--accent)] font-medium text-accent-ink hover:bg-[color:var(--accent-hover)]"
+          : "text-ink-2 hover:text-ink",
       )}
     >
-      <Icon name={action.icon} size={action.prominent ? 19 : 17} />
-      <span className="text-[12px] leading-none">{action.label}</span>
+      <Icon name={action.icon} size={15} />
+      {action.label}
     </Component>
   );
 

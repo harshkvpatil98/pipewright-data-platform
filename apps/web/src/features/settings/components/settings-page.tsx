@@ -14,6 +14,7 @@ import { SessionPolicyNote } from "@/features/settings/components/session-policy
 import { ApiTokensPanel } from "@/features/settings/components/api-tokens-panel";
 import { MfaPanel } from "@/features/settings/components/mfa-panel";
 import { appConfig } from "@/lib/config";
+import { platformRoleLabel } from "@/lib/labels";
 import { cx } from "@/lib/utils";
 import { Icon, useToast } from "@platform/shared-ui";
 
@@ -64,7 +65,7 @@ export function SettingsPageView({ currentUser }: SettingsPageProps) {
       currentUser={currentUser}
       statusItems={[
         { id: "user", label: "Signed in as", value: currentUser.username },
-        { id: "role", label: "Role", value: currentUser.role },
+        { id: "role", label: "Role", value: platformRoleLabel(currentUser.role) },
       ]}
     >
       <div className="mx-auto max-w-3xl px-6 py-8">
@@ -90,14 +91,14 @@ export function SettingsPageView({ currentUser }: SettingsPageProps) {
             <Row label="Display name" value={currentUser.display_name} />
           ) : null}
           {currentUser.email ? <Row label="Email" value={currentUser.email} /> : null}
-          <Row label="Role" value={currentUser.role} />
+          <Row label="Role" value={platformRoleLabel(currentUser.role)} />
           <Row label="Status" value={currentUser.is_active ? "Active" : "Disabled"} />
         </Section>
 
         <Section
           id="notifications"
           title="Notifications"
-          description="For each kind of message: one notification each time, one summary a day, or none."
+          description="For each kind of message: one notification each time, a daily or weekly summary, or none."
         >
           <NotificationPreferences />
         </Section>

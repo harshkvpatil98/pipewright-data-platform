@@ -56,4 +56,18 @@ describe("parseApiResponse", () => {
 
     await expect(parseApiResponse(response)).rejects.toMatchObject({ status: 500 });
   });
+
+  it("treats a malformed id in the address as not found", async () => {
+    const malformed = new Response(
+      JSON.stringify({ detail: [{ type: "uuid_parsing", loc: ["path", "workflow_id"], msg: "Input should be a valid UUID" }] }),
+      { status: 422, headers: { "content-type": "application/json" } },
+    );
+    await expect(parseApiResponse(malformed)).rejects.toMatchObject({ status: 404 });
+
+    const badBody = new Response(
+      JSON.stringify({ detail: [{ type: "missing", loc: ["body", "name"], msg: "Field required" }] }),
+      { status: 422, headers: { "content-type": "application/json" } },
+    );
+    await expect(parseApiResponse(badBody)).rejects.toMatchObject({ status: 422 });
+  });
 });

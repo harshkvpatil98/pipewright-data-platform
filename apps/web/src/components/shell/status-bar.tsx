@@ -113,7 +113,7 @@ export function Inspector({ open, onToggle, title, children }: InspectorProps) {
           type="button"
           data-tour="inspector-toggle"
           onClick={onToggle}
-          aria-label={open ? "Collapse inspector" : "Expand inspector"}
+          aria-label={open ? "Hide the side panel" : "Show the side panel"}
           aria-expanded={open}
           className="flex h-7 w-7 items-center justify-center rounded-lg text-muted transition hover:bg-surface-2 hover:text-ink"
         >

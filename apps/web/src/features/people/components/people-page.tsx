@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 
 import {
+  Badge,
   Button,
   EmptyState,
   FormField,
@@ -33,7 +34,11 @@ type PeoplePageViewProps = {
   users: AuthUser[];
 };
 
-const PLATFORM_ROLES = ["admin", "operator", "viewer"] as const;
+/** The two platform roles a person can be given here; see `platformRoleLabel`. */
+const PLATFORM_ROLE_CHOICES = [
+  { value: "viewer", label: "Member" },
+  { value: "admin", label: "Platform administrator" },
+] as const;
 
 /**
  * Platform accounts: who exists, what they may administer, and whether they
@@ -151,9 +156,11 @@ export function PeoplePageView({ currentUser, users: initialUsers }: PeoplePageV
         title="Accounts"
         subtitle="Everyone who can sign in to this platform: invite, reset and deactivate."
         meta={
-          <span className="rounded-full border border-line bg-surface px-3 py-1 text-[13px] text-ink-2">
-            {isPlatformAdmin ? "You can make changes here" : "Read only: platform administrators can make changes"}
-          </span>
+          isPlatformAdmin ? undefined : (
+            <span className="rounded-full border border-line bg-surface px-3 py-1 text-[13px] text-ink-2">
+              Read only: platform administrators can make changes
+            </span>
+          )
         }
       >
         <section className="grid gap-4 md:grid-cols-3">
@@ -209,13 +216,11 @@ export function PeoplePageView({ currentUser, users: initialUsers }: PeoplePageV
               }
             />
           ) : (
-            <Table minWidth={720}>
+            <Table minWidth={600}>
               <TableHead>
                 <TableRow>
-                  <TableHeaderCell>Username</TableHeaderCell>
+                  <TableHeaderCell>Person</TableHeaderCell>
                   <TableHeaderCell>Platform role</TableHeaderCell>
-                  <TableHeaderCell>Status</TableHeaderCell>
-                  <TableHeaderCell>Created</TableHeaderCell>
                   <TableHeaderCell className="text-right">Actions</TableHeaderCell>
                 </TableRow>
               </TableHead>
@@ -225,48 +230,44 @@ export function PeoplePageView({ currentUser, users: initialUsers }: PeoplePageV
                   const busy = busyId === user.id;
                   return (
                     <TableRow key={user.id}>
-                      <TableCell className="font-medium text-ink">
-                        {user.display_name || user.username}
-                        {user.display_name ? (
-                          <span className="ml-2 text-[12px] text-muted">{user.username}</span>
-                        ) : null}
-                        {isSelf ? <span className="ml-2 text-[12px] text-muted">(you)</span> : null}
+                      <TableCell>
+                        <div className="font-medium text-ink">
+                          {user.display_name || user.username}
+                          {user.display_name ? (
+                            <span className="ml-2 text-[13px] font-normal text-ink-3">{user.username}</span>
+                          ) : null}
+                          {isSelf ? <span className="ml-2 text-[13px] font-normal text-ink-3">(you)</span> : null}
+                          {user.is_active ? null : (
+                            <Badge tone="neutral" className="ml-2 align-middle">
+                              Deactivated
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="mt-0.5 text-[13px] text-ink-3">Added {formatDate(user.created_at)}</div>
                       </TableCell>
                       <TableCell>
                         <select
-                          value={user.role}
+                          value={user.role === "admin" ? "admin" : "viewer"}
                           aria-label={`Platform role for ${user.username}`}
                           disabled={!isPlatformAdmin || isSelf || busy}
                           onChange={(event) =>
                             void patch(
                               user,
                               { role: event.target.value },
-                              `${user.username} is now ${event.target.value}.`,
+                              `${user.username} is now ${event.target.value === "admin" ? "a platform administrator" : "a member"}.`,
                             )
                           }
-                          className="h-8 rounded-lg border border-line bg-sunken px-2 text-[12px] text-ink outline-none disabled:opacity-50"
+                          className="h-8 rounded-lg border border-line bg-sunken px-2 text-[13px] text-ink outline-none disabled:opacity-50"
                         >
-                          {PLATFORM_ROLES.map((role) => (
-                            <option key={role} value={role}>
-                              {role}
+                          {PLATFORM_ROLE_CHOICES.map((choice) => (
+                            <option key={choice.value} value={choice.value}>
+                              {choice.label}
                             </option>
                           ))}
                         </select>
                       </TableCell>
                       <TableCell>
-                        <span
-                          className={`rounded-full border px-2.5 py-1 text-[12px] font-semibold ${
-                            user.is_active
-                              ? "border-success-line bg-success-soft text-success"
-                              : "border-line bg-surface-2 text-ink-2"
-                          }`}
-                        >
-                          {user.is_active ? "Active" : "Deactivated"}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-xs text-ink-3">{formatDate(user.created_at)}</TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap justify-end gap-2">
+                        <div className="flex justify-end gap-2 whitespace-nowrap">
                           <Button
                             variant="secondary"
                             size="sm"
@@ -289,16 +290,17 @@ export function PeoplePageView({ currentUser, users: initialUsers }: PeoplePageV
                             disabled={!isPlatformAdmin || busy}
                             onClick={() => void generateResetCode(user)}
                           >
-                            Reset code
+                            Reset password
                           </Button>
                           <button
                             type="button"
                             disabled={!isPlatformAdmin || isSelf || busy}
                             onClick={() => setDeleting(user)}
                             aria-label={`Delete ${user.username}`}
-                            className="rounded-lg border border-line p-1.5 text-muted transition hover:border-danger-line hover:text-danger disabled:opacity-40 disabled:hover:border-line disabled:hover:text-muted"
+                            title="Delete account"
+                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-line text-ink-3 transition hover:border-danger-line hover:text-danger disabled:opacity-40 disabled:hover:border-line disabled:hover:text-ink-3"
                           >
-                            <Icon name="trash" size={12} />
+                            <Icon name="trash" size={14} />
                           </button>
                         </div>
                       </TableCell>
@@ -346,11 +348,17 @@ export function PeoplePageView({ currentUser, users: initialUsers }: PeoplePageV
               placeholder="jordan@company.com"
             />
           </FormField>
-          <FormField label="Platform role" htmlFor="invite-role">
+          <FormField
+            label="Platform role"
+            htmlFor="invite-role"
+            description="What they may do inside a project is set in that project, under People."
+          >
             <Select id="invite-role" value={inviteRole} onChange={(e) => setInviteRole(e.target.value)}>
-              <option value="viewer">Viewer</option>
-              <option value="operator">Operator</option>
-              <option value="admin">Admin</option>
+              {PLATFORM_ROLE_CHOICES.map((choice) => (
+                <option key={choice.value} value={choice.value}>
+                  {choice.label}
+                </option>
+              ))}
             </Select>
           </FormField>
           {inviteError ? <p role="alert" className="text-[12px] text-danger">{inviteError}</p> : null}

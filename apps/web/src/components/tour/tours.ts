@@ -48,7 +48,7 @@ export const welcomeTour: TourStep[] = [
     target: "help-trigger",
     placement: "left",
     title: "Help is always here",
-    body: "Replay this tour, see keyboard shortcuts or check that everything is running. A good first step: add some data from the Overview.",
+    body: "Read the help, replay this tour or see keyboard shortcuts. A good first step: add some data from the Overview.",
   },
 ];
 

@@ -14,6 +14,7 @@ import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { DataGrid } from "@/features/studio/grid/data-grid";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
+import { engineLabel } from "@/lib/labels";
 import { cx } from "@/lib/utils";
 
 import { describeRun, formatDuration, sqlToRun } from "./editor-state";
@@ -548,7 +549,7 @@ export function WorkbenchPage({
             >
               {connections.map((connection) => (
                 <option key={connection.id} value={connection.id}>
-                  {connection.name} ({connection.connector_type})
+                  {connection.name} ({engineLabel(connection.connector_type)})
                 </option>
               ))}
             </Select>

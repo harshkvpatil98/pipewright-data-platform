@@ -297,6 +297,7 @@ def test_previews_are_not_audited_but_changes_are():
     assert is_audited("POST", f"/api/v1/projects/{project}/something-new")
     assert not is_audited("GET", f"/api/v1/projects/{project}/charts")
     assert not is_audited("POST", "/api/v1/auth/login")
+    assert not is_audited("POST", "/api/v1/transformations/templates/clean_contacts/steps")
 
 
 def test_identifiers_are_stripped_so_actions_group():

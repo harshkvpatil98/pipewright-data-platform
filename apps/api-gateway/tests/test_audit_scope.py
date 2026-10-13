@@ -9,7 +9,7 @@ both mistakes visible.
 import re
 
 from api_gateway.main import app
-from service_governance.audit import READ_ONLY_POSTS
+from service_governance.audit import READ_ONLY_POST_PREFIXES, READ_ONLY_POSTS
 
 
 def _post_skeletons() -> set[str]:
@@ -26,3 +26,10 @@ def _post_skeletons() -> set[str]:
 def test_every_read_only_post_is_a_real_route() -> None:
     missing = sorted(READ_ONLY_POSTS - _post_skeletons())
     assert not missing, f"not a POST route in the gateway: {missing}"
+
+
+def test_every_read_only_prefix_covers_a_real_route() -> None:
+    paths = app.openapi()["paths"]
+    posts = [path for path, operations in paths.items() if "post" in operations]
+    for prefix in READ_ONLY_POST_PREFIXES:
+        assert any(path.startswith(prefix) for path in posts), prefix

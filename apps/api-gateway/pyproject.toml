@@ -52,3 +52,7 @@ scim-sync = "api_gateway.scripts.scim_sync:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+# The sample datasets a new project can start from (api_gateway/samples.py).
+api_gateway = ["sample_data/*.csv"]

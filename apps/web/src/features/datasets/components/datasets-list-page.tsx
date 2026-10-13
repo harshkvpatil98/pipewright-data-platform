@@ -4,11 +4,11 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import type { AuthUser, DatasetRecord, PipelineRunRecord, StreamSource } from "@platform/shared-types";
-import { Button, EmptyState, SectionPanel, StatusBadge, buttonClassName } from "@platform/shared-ui";
+import { Button, EmptyState, SectionPanel, StatusBadge } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { Icon } from "@/components/ui/icon";
-import { UploadDatasetModal } from "@/features/datasets/components/upload-dataset-modal";
+import { AddDataDialog } from "@/features/datasets/components/add-data-dialog";
 import {
   ORIGIN_LABELS,
   groupDatasets,
@@ -68,15 +68,10 @@ export function DatasetsListPageView({
   );
 
   const actions = (
-    <>
-      <Button onClick={() => setUploadOpen(true)}>
-        <Icon name="upload" size={16} />
-        Upload a file
-      </Button>
-      <Link href={`/projects/${projectId}/sources`} className={buttonClassName("secondary")}>
-        Connect a database
-      </Link>
-    </>
+    <Button onClick={() => setUploadOpen(true)}>
+      <Icon name="plus" size={16} />
+      Add data
+    </Button>
   );
 
   return (
@@ -90,7 +85,7 @@ export function DatasetsListPageView({
         {groups.length === 0 ? (
           <EmptyState
             title="No data in this project yet"
-            description="Upload a spreadsheet or CSV file, or connect a database, and it appears here."
+            description="Upload a file, connect a database, or start with sample data. It appears here."
             action={<div className="flex flex-wrap justify-center gap-2">{actions}</div>}
           />
         ) : (
@@ -167,7 +162,7 @@ export function DatasetsListPageView({
           </SectionPanel>
         )}
       </AppShell>
-      <UploadDatasetModal open={uploadOpen} onClose={() => setUploadOpen(false)} projectId={projectId} />
+      <AddDataDialog open={uploadOpen} onClose={() => setUploadOpen(false)} projectId={projectId} />
     </>
   );
 }

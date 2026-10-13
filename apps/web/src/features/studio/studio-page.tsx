@@ -27,6 +27,8 @@ import {
   STEP_GROUPS,
   type StepDefinition,
 } from "@/features/studio/step-catalog";
+import { AddDataDialog } from "@/features/datasets/components/add-data-dialog";
+import { RecipeTemplatesDialog } from "@/features/studio/recipe-templates-dialog";
 import { RecipeYamlPanel } from "@/features/studio/recipe-yaml-panel";
 import { ColumnMenu } from "@/features/studio/tools/column-menu";
 import { ToolBrowser } from "@/features/studio/tools/tool-browser";
@@ -109,6 +111,8 @@ export function StudioPage({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [savePromptOpen, setSavePromptOpen] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [addDataOpen, setAddDataOpen] = useState(false);
   const [saveName, setSaveName] = useState("");
   /**
    * Columns of the untransformed source. Held separately so the step editor
@@ -330,7 +334,7 @@ export function StudioPage({
       });
       router.refresh();
     } catch (caught) {
-      toast.error("Could not save pipeline", extractErrorMessage(caught));
+      toast.error("Could not save the recipe", extractErrorMessage(caught));
     } finally {
       setSaving(false);
     }
@@ -574,8 +578,21 @@ export function StudioPage({
 
           <ol className="flex-1 overflow-y-auto p-2">
             {steps.length === 0 ? (
-              <li className="px-2 py-8 text-center text-[12px] leading-5 text-muted">
-                Pick a tool from the ribbon above to add your first step.
+              <li className="px-2 py-6 text-center">
+                <p className="text-[13px] leading-5 text-muted">
+                  Pick a tool from the ribbon above to add your first step, or start from a
+                  common job.
+                </p>
+                {datasetId ? (
+                  <button
+                    type="button"
+                    onClick={() => setTemplatesOpen(true)}
+                    className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-[color:var(--accent-soft)] bg-[color:var(--accent-faint)] px-3 py-1.5 text-[13px] font-medium text-ink transition hover:brightness-110"
+                  >
+                    <Icon name="sparkles" size={14} />
+                    Start from a template
+                  </button>
+                ) : null}
               </li>
             ) : (
               steps.map((step, index) => {
@@ -716,8 +733,13 @@ export function StudioPage({
           <div className={cx("min-h-0 flex-1 transition-opacity", loading && "opacity-60")}>
             {datasets.length === 0 ? (
               <EmptyState
-                title="No datasets in this project yet"
-                body="Upload a file or run an extraction job, then come back to shape the data here."
+                title="Nothing to clean yet"
+                body="Add some data to this project, then come back to clean and reshape it here."
+                action={
+                  <Button size="sm" onClick={() => setAddDataOpen(true)}>
+                    Add data
+                  </Button>
+                }
               />
             ) : (
               <DataGrid
@@ -781,8 +803,8 @@ export function StudioPage({
       <Modal
         open={savePromptOpen}
         onClose={() => setSavePromptOpen(false)}
-        title="Save this pipeline"
-        description="Give it a name you will recognise in the pipelines list and when scheduling it."
+        title="Save this recipe"
+        description="Give it a name you will recognise in the Recipes list and when scheduling it."
         widthClassName="max-w-md"
         footer={
           <div className="flex justify-end gap-2">
@@ -797,7 +819,7 @@ export function StudioPage({
                 void savePipeline(saveName);
               }}
             >
-              {saving ? "Saving…" : "Save pipeline"}
+              {saving ? "Saving…" : "Save recipe"}
             </Button>
           </div>
         }
@@ -811,6 +833,27 @@ export function StudioPage({
           />
         </FormField>
       </Modal>
+
+      <RecipeTemplatesDialog
+        open={templatesOpen}
+        onClose={() => setTemplatesOpen(false)}
+        projectId={projectId}
+        datasetId={datasetId}
+        onApply={(templateSteps, templateName) => {
+          const added = templateSteps.map((step) => ({
+            uid: nextUid(),
+            step_type: step.step_type,
+            config: step.config,
+          }));
+          setSteps((current) => [...current, ...added]);
+          setSelectedUid(null);
+          toast.success(
+            `${templateName}: ${added.length} step${added.length === 1 ? "" : "s"} added`,
+            "Check the result in the grid, change any step, then save the recipe.",
+          );
+        }}
+      />
+      <AddDataDialog open={addDataOpen} onClose={() => setAddDataOpen(false)} projectId={projectId} />
     </AppFrame>
   );
 }
@@ -884,12 +927,21 @@ function InspectorIdle({
   );
 }
 
-function EmptyState({ title, body }: { title: string; body: string }) {
+function EmptyState({
+  title,
+  body,
+  action,
+}: {
+  title: string;
+  body: string;
+  action?: React.ReactNode;
+}) {
   return (
     <div className="flex h-full flex-col items-center justify-center rounded-xl border border-dashed border-line px-6 text-center">
       <Icon name="table" size={26} className="text-muted" />
-      <h3 className="mt-3 text-[14px] font-medium text-ink-2">{title}</h3>
-      <p className="mt-1.5 max-w-sm text-[12px] leading-5 text-muted">{body}</p>
+      <h3 className="mt-3 text-[15px] font-medium text-ink-2">{title}</h3>
+      <p className="mt-1.5 max-w-sm text-[13px] leading-5 text-muted">{body}</p>
+      {action ? <div className="mt-4">{action}</div> : null}
     </div>
   );
 }

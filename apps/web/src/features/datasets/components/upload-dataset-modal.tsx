@@ -116,7 +116,7 @@ export function UploadDatasetModal({ open, onClose, projectId }: UploadDatasetMo
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (name.trim().length < 2) {
-      setError("Dataset name must be at least 2 characters.");
+      setError("Give the dataset a name of at least two characters.");
       return;
     }
     const validationError = validateDatasetUploadFile(file, appConfig.maxUploadSizeBytes);
@@ -180,8 +180,8 @@ export function UploadDatasetModal({ open, onClose, projectId }: UploadDatasetMo
     <Modal
       open={open}
       onClose={handleClose}
-      title="Upload dataset"
-      description="Choose a file and the platform works out how to read it — separator, encoding, header row, every column's type — and shows you before anything is stored."
+      title="Upload a file"
+      description="Pipewright works out how to read it and shows you before anything is saved."
       footer={
         <div className="flex items-center justify-end gap-3">
           <Button variant="secondary" onClick={handleClose} disabled={submitting}>
@@ -207,7 +207,7 @@ export function UploadDatasetModal({ open, onClose, projectId }: UploadDatasetMo
         <FormField
           label="Dataset name"
           htmlFor="dataset-upload-name"
-          description="This will become the project-scoped dataset label shown in the workspace."
+          description="How this data is named in the project."
         >
           <Input
             id="dataset-upload-name"

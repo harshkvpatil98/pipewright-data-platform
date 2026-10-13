@@ -1,0 +1,22 @@
+customer_id,name,email,phone,city,country,signup_date
+C100,Asha Rao,asha.rao@example.com,+91 20 5550 1000,Pune,India,2025-01-10
+C101,Ben Ode,ben.ode@example.com,+44 113 496 1037,Leeds,United Kingdom,2025-01-27
+C102,Chen Li,  CHEN.LI@EXAMPLE.COM ,+1 512 555 1074,Austin,United States,2025-02-13
+C103,Dana Smith,dana.smith@example.com,+33 4 7200 1111,Lyon,France,2025-03-02
+C104,eli khan,eli.khan@example.com,+233 30 255 1148,Accra,Ghana,2025-03-19
+C105,Fatima Novak,fatima.novak@example.com,+81 6 6555 1185,Osaka,Japan,2025-04-05
+C106,Gus Brown,gus.brown@example.com,+91 20 5550 1222,Pune,India,2025-04-22
+C107,  Hana Ito,hana.ito@example.com,+44 113 496 1259,Leeds,United Kingdom,2025-05-09
+C108,Ivan Petrov,ivan.petrov@example.com,+1 512 555 1296,Austin,United States,2025-05-26
+C109,Jade Silva,  JADE.SILVA@EXAMPLE.COM ,+33 4 7200 1333,Lyon,France,2025-06-12
+C110,Kofi Mensah,kofi.mensah@example.com,+233 30 255 1370,Accra,Ghana,2025-06-29
+C111,Lena Weber,lena.weber@example.com,+81 6 6555 1407,Osaka,Japan,2025-07-16
+C112,Mo Ali,,+91 20 5550 1444,Pune,India,2025-08-02
+C113,Nia Okafor,nia.okafor@example.com,+44 113 496 1481,Leeds,United Kingdom,2025-08-19
+C114,Omar Haddad,omar.haddad@example.com,+1 512 555 1518,Austin,United States,2025-09-05
+C115,Priya Patel,priya.patel@example.com,+33 4 7200 1555,Lyon,France,2025-09-22
+C116,Quinn Byrne,quinn.byrne@example.com,+233 30 255 1592,Accra,Ghana,2025-10-09
+C117,Rosa Garcia,rosa.garcia@example.com,+81 6 6555 1629,Osaka,Japan,2025-10-26
+C118,Sam Lee,sam.lee@example.com,+91 20 5550 1666,Pune,India,2025-11-12
+C119,Tara Nair,tara.nair@example.com,+44 113 496 1703,Leeds,United Kingdom,2025-11-29
+C104,Eli Khan,ELI.KHAN@EXAMPLE.COM,+233 30 255 1740,Accra,Ghana,2025-03-19

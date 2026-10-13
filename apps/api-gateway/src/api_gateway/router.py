@@ -12,6 +12,7 @@ from service_connectors import build_router as build_connectors_router
 from api_gateway.audit_center import build_audit_center_router
 from api_gateway.demo import build_demo_router
 from api_gateway.operator_views import build_operator_router
+from api_gateway.samples import build_samples_router
 from api_gateway.sso_router import build_router as build_sso_router
 from service_datasets import build_router as build_datasets_router
 from service_destinations import build_bi_router, build_router as build_destinations_router
@@ -52,6 +53,7 @@ def build_api_router(settings) -> APIRouter:
     api_router.include_router(build_operator_router(get_db, current_user))
     api_router.include_router(build_audit_center_router(get_db, current_user, settings))
     api_router.include_router(build_demo_router(get_db, current_user, get_storage_backend, settings))
+    api_router.include_router(build_samples_router(get_db, current_user, get_storage_backend, settings))
     api_router.include_router(build_access_router(get_db, current_user))
     api_router.include_router(
         build_enterprise_router(get_db, current_user, get_storage_backend)

@@ -14,12 +14,14 @@ import type {
 
 type PageProps = {
   params: Promise<{ projectId: string }>;
+  searchParams: Promise<{ connect?: string }>;
 };
 
 export const metadata = { title: "Sources" };
 
-export default async function ProjectSourcesPage({ params }: PageProps) {
+export default async function ProjectSourcesPage({ params, searchParams }: PageProps) {
   const { projectId } = await params;
+  const { connect } = await searchParams;
   const currentUser = await requireCurrentUser();
 
   try {
@@ -45,6 +47,7 @@ export default async function ProjectSourcesPage({ params }: PageProps) {
         initialJobs={jobs.items}
         datasets={datasets.items}
         runs={runs.items}
+        startConnecting={connect === "1"}
       />
     );
   } catch (error) {

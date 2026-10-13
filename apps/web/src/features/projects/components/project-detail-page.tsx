@@ -14,7 +14,7 @@ import { Button, EmptyState, SectionPanel, StatusBadge, buttonClassName } from "
 
 import { AppShell } from "@/components/layout/app-shell";
 import { Icon } from "@/components/ui/icon";
-import { UploadDatasetModal } from "@/features/datasets/components/upload-dataset-modal";
+import { AddDataDialog } from "@/features/datasets/components/add-data-dialog";
 import { getPipelineRunSecondaryText } from "@/features/datasets/run-summary";
 import { ProjectChecklist } from "@/features/projects/components/project-checklist";
 import { ORIGIN_LABELS, groupDatasets, originHints } from "@/lib/dataset-origin";
@@ -97,16 +97,11 @@ export function ProjectDetailPageView({
             {groups.length === 0 ? (
               <EmptyState
                 title="No data yet"
-                description="Upload a spreadsheet or CSV file, or connect a database."
+                description="Upload a file, connect a database, or start with sample data."
                 action={
-                  <div className="flex flex-wrap justify-center gap-2">
-                    <Button size="sm" onClick={() => setUploadOpen(true)}>
-                      Upload a file
-                    </Button>
-                    <Link href={`${base}/sources`} className={buttonClassName("secondary", "sm")}>
-                      Connect a database
-                    </Link>
-                  </div>
+                  <Button size="sm" onClick={() => setUploadOpen(true)}>
+                    Add data
+                  </Button>
                 }
               />
             ) : (
@@ -183,7 +178,7 @@ export function ProjectDetailPageView({
         </div>
       </AppShell>
 
-      <UploadDatasetModal open={uploadOpen} onClose={() => setUploadOpen(false)} projectId={project.id} />
+      <AddDataDialog open={uploadOpen} onClose={() => setUploadOpen(false)} projectId={project.id} />
     </>
   );
 }

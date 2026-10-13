@@ -78,6 +78,11 @@ READ_ONLY_POSTS = frozenset(
     }
 )
 
+# Read-only POSTs whose identifiers are names rather than UUIDs, so a skeleton
+# cannot match them: everything under these prefixes computes and stores
+# nothing.
+READ_ONLY_POST_PREFIXES = ("/api/v1/transformations/templates/",)
+
 _UUID_PATTERN = re.compile(
     r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
 )
@@ -93,7 +98,9 @@ def is_audited(method: str, path: str) -> bool:
     """Whether a request belongs in the audit log."""
     if method not in AUDITED_METHODS or path.startswith(SKIPPED_PREFIXES):
         return False
-    if method == "POST" and route_skeleton(path) in READ_ONLY_POSTS:
+    if method == "POST" and (
+        route_skeleton(path) in READ_ONLY_POSTS or path.startswith(READ_ONLY_POST_PREFIXES)
+    ):
         return False
     return True
 

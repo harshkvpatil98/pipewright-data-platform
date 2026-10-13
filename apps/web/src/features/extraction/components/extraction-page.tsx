@@ -33,6 +33,7 @@ import {
 import { AppShell } from "@/components/layout/app-shell";
 import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { Icon } from "@/components/ui/icon";
+import { AddDataDialog } from "@/features/datasets/components/add-data-dialog";
 import { UploadDatasetModal } from "@/features/datasets/components/upload-dataset-modal";
 import { LiveSourcesPanel } from "@/features/extraction/components/live-sources-panel";
 import { groupDatasets, originHints } from "@/lib/dataset-origin";
@@ -50,6 +51,8 @@ type ExtractionPageProps = {
   /** For the uploaded-files list: datasets and the runs that made them. */
   datasets: DatasetRecord[];
   runs: PipelineRunRecord[];
+  /** Open "Connect a database" straight away (`?connect=1`). */
+  startConnecting?: boolean;
 };
 
 const CONNECTOR_LABELS: Record<ConnectorType, string> = {
@@ -121,6 +124,7 @@ export function ExtractionPageView({
   initialStreams,
   datasets,
   runs,
+  startConnecting = false,
 }: ExtractionPageProps) {
   const fieldPrefix = useId();
   const [connections, setConnections] = useState(initialConnections);
@@ -168,7 +172,8 @@ export function ExtractionPageView({
   const [jobForm, setJobForm] = useState(EMPTY_JOB_FORM);
   // Creating things happens in dialogs; the page itself is the list of what
   // exists (A0 page template: no form-first pages).
-  const [connectionDialogOpen, setConnectionDialogOpen] = useState(false);
+  const [connectionDialogOpen, setConnectionDialogOpen] = useState(startConnecting);
+  const [addDataOpen, setAddDataOpen] = useState(false);
   const [jobDialogOpen, setJobDialogOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
 
@@ -445,11 +450,16 @@ export function ExtractionPageView({
       {uploadedFiles.length === 0 ? (
         <div className="border-line flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed px-4 py-5">
           <p className="text-ink-3 text-[14px]">
-            No files yet. CSV, Excel, JSON and Parquet all work.
-          </p>
-          <Button size="sm" onClick={() => setUploadOpen(true)}>
-            Upload a file
-          </Button>
+            No files yet. CSV, Excel, JSON and Parquet all work, or start with sample data.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" variant="secondary" onClick={() => setAddDataOpen(true)}>
+                    Try sample data
+                  </Button>
+                  <Button size="sm" onClick={() => setUploadOpen(true)}>
+                    Upload a file
+                  </Button>
+                </div>
         </div>
       ) : (
         <ul className="divide-line divide-y">
@@ -901,6 +911,16 @@ export function ExtractionPageView({
           </Link>
         </p>
       </AppShell>
+
+      <AddDataDialog
+
+        open={addDataOpen}
+
+        onClose={() => setAddDataOpen(false)}
+
+        projectId={projectId}
+
+      />
 
       <UploadDatasetModal
         open={uploadOpen}

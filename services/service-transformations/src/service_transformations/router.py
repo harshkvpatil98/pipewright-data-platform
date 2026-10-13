@@ -7,6 +7,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 from fastapi import APIRouter, Depends, Query, status
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from shared_python.errors import BadRequestError
@@ -30,6 +31,7 @@ from service_transformations.schemas import (
     ToolPreviewResponse,
     ToolRead,
 )
+from service_transformations import templates as recipe_templates
 from service_transformations import tools
 from service_transformations.tools import docs as tool_docs
 from service_transformations.tools.apply import apply_tool
@@ -154,6 +156,41 @@ def build_router(
             ],
             warnings=warnings,
         )
+
+    # --------------------------------------------------------- recipe templates
+    #
+    # Platform-wide like the tool library: a template is a property of the
+    # product, and both calls compute an answer from the columns sent and
+    # store nothing.
+
+    @router.get('/transformations/templates', response_model=RecipeTemplateListResponse)
+    def get_recipe_templates(
+        current_user: UserRead = Depends(get_current_user),
+    ) -> RecipeTemplateListResponse:
+        return RecipeTemplateListResponse(items=[_template_read(item) for item in recipe_templates.TEMPLATES])
+
+    @router.post('/transformations/templates/match', response_model=RecipeTemplateMatchResponse)
+    def post_match_recipe_templates(
+        payload: RecipeTemplateColumns,
+        current_user: UserRead = Depends(get_current_user),
+    ) -> RecipeTemplateMatchResponse:
+        """Each template, with the columns it would use here and what it lacks."""
+        items = []
+        for template in recipe_templates.TEMPLATES:
+            mapping, missing = recipe_templates.suggest_mapping(template, payload.columns, payload.types)
+            items.append(
+                RecipeTemplateMatch(template=_template_read(template), mapping=mapping, missing=missing)
+            )
+        return RecipeTemplateMatchResponse(items=items)
+
+    @router.post('/transformations/templates/{template_id}/steps', response_model=RecipeTemplateStepsResponse)
+    def post_recipe_template_steps(
+        template_id: str,
+        payload: RecipeTemplateStepsRequest,
+        current_user: UserRead = Depends(get_current_user),
+    ) -> RecipeTemplateStepsResponse:
+        steps = recipe_templates.build_steps(template_id, payload.mapping, payload.columns, payload.types)
+        return RecipeTemplateStepsResponse(steps=steps)
 
     @router.get('/projects/{project_id}/pipelines', response_model=TransformationPipelineListResponse)
     def get_project_pipelines(
@@ -305,3 +342,66 @@ def build_router(
         )
 
     return router
+
+
+class RecipeTemplateRoleRead(BaseModel):
+    key: str
+    label: str
+    description: str
+    kind: str
+    required: bool
+    multiple: bool
+
+
+class RecipeTemplateRead(BaseModel):
+    id: str
+    name: str
+    description: str
+    roles: list[RecipeTemplateRoleRead]
+
+
+class RecipeTemplateListResponse(BaseModel):
+    items: list[RecipeTemplateRead]
+
+
+class RecipeTemplateColumns(BaseModel):
+    columns: list[str] = Field(max_length=2000)
+    #: Column name -> type name, as the lineage column listing reports them.
+    types: dict[str, str] = Field(default_factory=dict)
+
+
+class RecipeTemplateMatch(BaseModel):
+    template: RecipeTemplateRead
+    mapping: dict[str, Any]
+    missing: list[str]
+
+
+class RecipeTemplateMatchResponse(BaseModel):
+    items: list[RecipeTemplateMatch]
+
+
+class RecipeTemplateStepsRequest(RecipeTemplateColumns):
+    mapping: dict[str, Any] = Field(default_factory=dict)
+
+
+class RecipeTemplateStepsResponse(BaseModel):
+    steps: list[dict[str, Any]]
+
+
+def _template_read(template: recipe_templates.Template) -> RecipeTemplateRead:
+    return RecipeTemplateRead(
+        id=template.id,
+        name=template.name,
+        description=template.description,
+        roles=[
+            RecipeTemplateRoleRead(
+                key=role.key,
+                label=role.label,
+                description=role.description,
+                kind=role.kind,
+                required=role.required,
+                multiple=role.multiple,
+            )
+            for role in template.roles
+        ],
+    )

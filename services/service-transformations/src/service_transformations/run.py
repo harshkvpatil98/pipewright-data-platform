@@ -136,7 +136,7 @@ def run_saved_transformation_pipeline(
         run_type = "dataset_transformation"
 
     if not base_file_path or not base_file_type:
-        raise BadRequestError("Base dataset has no stored file artifact.")
+        raise BadRequestError("The input dataset has no saved data.")
 
     context = ExecutionContext(
         evaluated_at=evaluated_at,

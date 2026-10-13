@@ -149,9 +149,7 @@ export function GovernancePageView({
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-[13px] text-ink">{policy.name}</span>
                   <div className="flex items-center gap-2">
-                    <Badge className="capitalize">
-                      applies to {policy.role}
-                    </Badge>
+                    <Badge>Applies to {policy.role}s</Badge>
                     <DeleteRowButton
                       path={`/projects/${projectId}/security-policies/${policy.id}`}
                       name={policy.name}

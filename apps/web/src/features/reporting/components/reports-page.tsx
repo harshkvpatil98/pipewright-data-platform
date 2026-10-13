@@ -422,7 +422,7 @@ function ReportRow({
           </Badge>
           {!report.enabled ? (
             <Badge>
-              paused
+              Paused
             </Badge>
           ) : null}
         </div>

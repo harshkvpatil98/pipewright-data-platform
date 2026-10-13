@@ -79,7 +79,7 @@ def validate_and_normalize_target_config(
         if dest.status != "active":
             raise BadRequestError("Destination is disabled.")
         if not ds.file_path or not ds.file_type:
-            raise BadRequestError("Dataset has no stored file artifact to publish.")
+            raise BadRequestError("This dataset has no saved data to send.")
         return {
             "dataset_id": str(dataset_id),
             "destination_id": str(destination_id),

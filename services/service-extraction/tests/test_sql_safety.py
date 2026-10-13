@@ -70,7 +70,7 @@ def test_rejects_write_hidden_after_comment() -> None:
 
 
 def test_rejects_empty_query() -> None:
-    with pytest.raises(BadRequestError, match="empty"):
+    with pytest.raises(BadRequestError, match="Write the query"):
         ensure_read_only_select("   ")
 
 

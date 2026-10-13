@@ -153,7 +153,7 @@ export function MembersPageView({
                   </span>
                   {member.is_owner ? (
                     <Badge>
-                      owner
+                      Owner
                     </Badge>
                   ) : null}
                 </div>

@@ -124,7 +124,7 @@ def _load_frame(db: Session, project_id: uuid.UUID, dataset_id: uuid.UUID, stora
     if len(frame) > MAX_SOURCE_ROWS:
         raise BadRequestError(
             f"'{dataset.name}' has {len(frame):,} rows, above the {MAX_SOURCE_ROWS:,} "
-            "limit for charting. Aggregate it in a pipeline first."
+            "limit for charting. Summarise it in a recipe first."
         )
     return frame
 

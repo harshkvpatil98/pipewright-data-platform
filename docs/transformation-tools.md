@@ -2077,7 +2077,7 @@ Offered on **textual** columns.
 |---|---|
 | `hello` | `HELLO` |
 
-### lowercase
+### Lowercase
 
 `text.lower`
 

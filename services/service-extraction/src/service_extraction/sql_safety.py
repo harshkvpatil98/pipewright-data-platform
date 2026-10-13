@@ -66,12 +66,12 @@ def ensure_read_only_select(sql: str) -> str:
     Raises BadRequestError with an operator-readable reason on rejection.
     """
     if not isinstance(sql, str) or not sql.strip():
-        raise BadRequestError("Extraction query cannot be empty.")
+        raise BadRequestError("Write the query to import from first.")
 
     trimmed = sql.strip()
     if len(trimmed) > MAX_QUERY_LENGTH:
         raise BadRequestError(
-            f"Extraction query is too long ({len(trimmed)} characters, limit {MAX_QUERY_LENGTH})."
+            f"The import query is too long ({len(trimmed)} characters, limit {MAX_QUERY_LENGTH})."
         )
 
     scannable = strip_sql_noise(trimmed)
@@ -79,22 +79,22 @@ def ensure_read_only_select(sql: str) -> str:
     # A trailing semicolon is conventional; anything after one is a second statement.
     body, _, remainder = scannable.partition(";")
     if remainder.strip():
-        raise BadRequestError("Extraction query must be a single statement; remove everything after the semicolon.")
+        raise BadRequestError("The import query must be a single statement; remove everything after the semicolon.")
 
     words = [match.group(0).lower() for match in _WORD.finditer(body)]
     if not words:
-        raise BadRequestError("Extraction query cannot be empty.")
+        raise BadRequestError("Write the query to import from first.")
 
     if words[0] not in _ALLOWED_LEADING_KEYWORDS:
         raise BadRequestError(
-            f"Extraction query must begin with SELECT or WITH (found '{words[0].upper()}'). "
+            f"The import query must begin with SELECT or WITH (found '{words[0].upper()}'). "
             "Only read-only queries are allowed."
         )
 
     forbidden = sorted({word for word in words if word in _FORBIDDEN_KEYWORDS})
     if forbidden:
         raise BadRequestError(
-            f"Extraction query contains disallowed keyword(s): {', '.join(kw.upper() for kw in forbidden)}. "
+            f"The import query uses words that change data: {', '.join(kw.upper() for kw in forbidden)}. "
             "Only read-only queries are allowed."
         )
 

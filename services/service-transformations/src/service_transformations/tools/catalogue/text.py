@@ -51,7 +51,7 @@ simple("text.upper", "UPPERCASE", CATEGORY, "Convert to upper case.", "upper",
        synonyms=("capitals", "caps", "uppercase"),
        example=_ex(["hello"], ["HELLO"]))
 
-simple("text.lower", "lowercase", CATEGORY, "Convert to lower case.", "lower",
+simple("text.lower", "Lowercase", CATEGORY, "Convert to lower case.", "lower",
        synonyms=("lowercase", "small"),
        example=_ex(["HELLO"], ["hello"]))
 

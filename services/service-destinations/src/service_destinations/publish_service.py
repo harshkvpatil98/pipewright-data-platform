@@ -48,7 +48,7 @@ def _build_log_events(events: list[dict[str, object]]) -> dict[str, object]:
 
 def _load_dataframe(dataset: Dataset, storage_backend: Any) -> pd.DataFrame:
     if not dataset.file_path or not dataset.file_type:
-        raise BadRequestError("Dataset has no stored file artifact to publish.")
+        raise BadRequestError("This dataset has no saved data to send.")
     try:
         file_bytes = storage_backend.read_bytes(dataset.file_path)
     except FileNotFoundError as exc:

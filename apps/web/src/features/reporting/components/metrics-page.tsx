@@ -37,6 +37,7 @@ import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { formatDate } from "@/lib/format";
 import { cx } from "@/lib/utils";
+import { sentenceLabel } from "@/lib/labels";
 
 import { describeFilter, parseFilterValue } from "../dashboard-layout";
 
@@ -288,9 +289,9 @@ export function MetricsPageView({ currentUser, projectId, initial, datasets }: M
                       <button type="button" onClick={() => void inspect(metric, "", dialect)} className="text-[13.5px] font-medium text-ink hover:text-accent">
                         {metric.name}
                       </button>
-                      <Badge className="font-mono">v{metric.version_number}</Badge>
+                      <Badge>Version {metric.version_number}</Badge>
                       <Badge>
-                        {metric.aggregation.replace("_", " ")} of {metric.formula ? metric.formula : metric.column}
+                        {sentenceLabel(metric.aggregation)} of {metric.formula ? metric.formula : metric.column}
                       </Badge>
                       {metric.filters.map((filter, index) => (
                         <Badge key={index}>

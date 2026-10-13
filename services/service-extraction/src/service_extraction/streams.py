@@ -358,7 +358,7 @@ def materialise_source(db: Session, project_id: uuid.UUID, source_id: uuid.UUID,
     source = _get_source(db, project_id, source_id)
     events = list(db.scalars(select(StreamEvent).where(StreamEvent.source_id == source.id).order_by(StreamEvent.seq)).all())
     if not events:
-        raise BadRequestError("Nothing has arrived yet; there is nothing to materialise.")
+        raise BadRequestError("Nothing has arrived yet, so there is nothing to save.")
     frame = _events_frame(source, events)
     buffer = io.StringIO()
     frame.to_csv(buffer, index=False)

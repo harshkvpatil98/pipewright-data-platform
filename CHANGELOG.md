@@ -13,6 +13,27 @@ the test counts at the time — is in the session log in
 
 ---
 
+## A5 — copy, design system and consistency (2026-10-14)
+
+- **Every screen in the product's words**: recipe, import, check, schema
+  change, deliver, organisation, version. No stored field names, ids or web
+  addresses on screen; identifiers sit behind "Technical details".
+- **Runs and datasets you can read**: a run's page says who started it,
+  which recipe, what it read, what it made and each step it went through;
+  datasets, comparisons and System status are written the same way.
+- **An audit trail in sentences**: "platform-admin ran an import", naming
+  what was touched while it still exists; search understands words like
+  "recipe".
+- **Easier to read**: nothing smaller than 12px, no uppercase labels.
+- **One look everywhere**: every table, badge, dialog, tab list and toast
+  comes from one shared set of components; buttons no longer wrap.
+- **Power BI and Tableau**: "Send to" dialogs with plain choices.
+- **Kept that way by tests**: a language lint on the web app and on the
+  API's error messages, a type-scale test and a components test, explained
+  in `docs/design-system.md`.
+- **Fixed**: the Audit Center's outcome filter never matched anything and
+  coloured every row as a failure.
+
 ## A4 — sources, destinations and migration (2026-10-14)
 
 - **One dataset per import and per recipe**: running an import or a recipe

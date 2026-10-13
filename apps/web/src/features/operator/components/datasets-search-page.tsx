@@ -116,7 +116,7 @@ export function DatasetsSearchPageView({ currentUser, initialDatasets }: Dataset
                       </Link>
                       {dataset.is_derived ? (
                         <Badge className="ml-2">
-                          derived
+                          Made by a recipe
                         </Badge>
                       ) : null}
                     </TableCell>

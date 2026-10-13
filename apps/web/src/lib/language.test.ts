@@ -44,7 +44,7 @@ const SHOWN_ATTRIBUTES = new Set([
   "actionLabel",
 ]);
 
-type Shown = { file: string; line: number; text: string; context: string };
+type Shown = { file: string; line: number; text: string; context: string; leading: boolean };
 
 function shownStrings(): Shown[] {
   const found: Shown[] = [];
@@ -52,11 +52,11 @@ function shownStrings(): Shown[] {
     for (const file of sourceFiles(root)) {
       const source = ts.createSourceFile(file, readFileSync(file, "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
       const name = file.split("/src/").pop() ?? file;
-      const add = (node: ts.Node, text: string, context: string) => {
+      const add = (node: ts.Node, text: string, context: string, leading = true) => {
         const clean = text.replace(/\s+/g, " ").trim();
         // Web addresses and CSS media queries are code, not words on screen.
         if (/^\/|^\(prefers-/.test(clean)) return;
-        if (clean) found.push({ file: name, line: source.getLineAndCharacterOfPosition(node.getStart()).line + 1, text: clean, context });
+        if (clean) found.push({ file: name, line: source.getLineAndCharacterOfPosition(node.getStart()).line + 1, text: clean, context, leading });
       };
       const contextOf = (node: ts.Node): string => {
         let current: ts.Node | undefined = node.parent;
@@ -75,7 +75,10 @@ function shownStrings(): Shown[] {
       };
       const visit = (node: ts.Node) => {
         if (ts.isJsxText(node)) {
-          add(node, node.text, contextOf(node));
+          // Text that opens its element, rather than following a value ("{n} times").
+          const siblings = ts.isJsxElement(node.parent) ? node.parent.children : undefined;
+          const first = siblings?.find((child) => !(ts.isJsxText(child) && !child.text.trim()));
+          add(node, node.text, contextOf(node), !siblings || first === node);
         } else if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
           const parent = node.parent;
           const context = contextOf(node);
@@ -152,6 +155,8 @@ const RETIRED: [RegExp, string][] = [
 describe("on-screen language", () => {
   it("reads at least the strings it means to", () => {
     expect(SHOWN.length).toBeGreaterThan(2500);
+    expect(SHOWN.filter((item) => item.context === "AppShell.subtitle").length).toBeGreaterThan(40);
+    expect(SHOWN.filter((item) => item.file.endsWith("tour/tours.ts") && item.context === "prop:body").length).toBeGreaterThan(10);
   });
 
   it("uses the product's words, not retired or engine words", () => {
@@ -184,6 +189,7 @@ describe("on-screen language", () => {
     const words = (text: string) => text.split(/\s+/).filter(Boolean).length;
     expect(offenders((item) => item.context === "AppShell.subtitle" && words(item.text) > 15)).toEqual([]);
     expect(offenders((item) => /\.description$/.test(item.context) && words(item.text) > 25)).toEqual([]);
+    expect(offenders((item) => item.file.endsWith("tour/tours.ts") && item.context === "prop:body" && words(item.text) > 25)).toEqual([]);
   });
 
   it("uses sentence case on buttons, headings and titles", () => {
@@ -199,6 +205,11 @@ describe("on-screen language", () => {
     };
     const SHORT_PLACES = /^(Button|h1|h2|h3|h4|button|Link|SectionPanel\.title|Modal\.title|AppShell\.title|EmptyState\.title|Badge|TableHeaderCell)$/;
     expect(offenders((item) => SHORT_PLACES.test(item.context) && titleCase(item.text))).toEqual([]);
+  });
+
+  it("starts every label, button and heading with a capital", () => {
+    const LABEL_PLACES = /^(Button|Badge|TableHeaderCell|h1|h2|h3|SectionPanel\.title|Modal\.title|AppShell\.title|EmptyState\.title)$/;
+    expect(offenders((item) => item.leading && LABEL_PLACES.test(item.context) && /^[a-z]/.test(item.text))).toEqual([]);
   });
 
   it("spells the UK way", () => {

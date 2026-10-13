@@ -172,7 +172,7 @@ export function DiscussionPanel({
                 <span className="text-[12px] text-muted">{formatDateTime(comment.created_at)}</span>
                 {comment.resolved_at ? (
                   <Badge>
-                    resolved
+                    Resolved
                   </Badge>
                 ) : (
                   <button

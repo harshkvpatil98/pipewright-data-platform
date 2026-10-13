@@ -287,7 +287,7 @@ export function DatasetVersionHistoryPanel({
                                 : "Data removed by retention; the record is kept."
                             }
                           >
-                            pruned
+                            Data removed
                           </Badge>
                         ) : null}
                         {scheduled ? (
@@ -298,14 +298,14 @@ export function DatasetVersionHistoryPanel({
                                 : "Marked by a retention sweep for removal after its grace period."
                             }
                           >
-                            scheduled for removal
+                            Due for removal
                           </Badge>
                         ) : null}
                         {version.active_pins > 0 ? (
                           <Badge
-                            title="A rollback or replay is reading this version right now; it cannot be pruned while held."
+                            title="A restore or replay is reading this version right now, so it cannot be removed yet."
                           >
-                            held open
+                            In use
                           </Badge>
                         ) : null}
                       </span>

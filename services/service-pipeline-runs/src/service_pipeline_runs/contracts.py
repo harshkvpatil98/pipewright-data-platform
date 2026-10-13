@@ -14,7 +14,7 @@ def get_pipeline_run_for_project(db: Session, project_id: uuid.UUID, run_id: uui
         select(PipelineRun).where(PipelineRun.id == run_id, PipelineRun.project_id == project_id)
     )
     if pipeline_run is None:
-        raise NotFoundError("Pipeline run not found.")
+        raise NotFoundError("That run no longer exists.")
     return pipeline_run
 
 

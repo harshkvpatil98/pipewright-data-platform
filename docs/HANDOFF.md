@@ -4,8 +4,8 @@
 last one stopped. Keep it current. If you change project state, update the **Progress ledger**
 and **Session log** at the bottom before you finish.
 
-**Last updated:** 2026-10-14 (adoption-readiness A0–A4 complete)
-**Updated by:** session `75332b59` (A0 product definition and quick wins, A1 navigation and shell, A2 golden path, A3 Studio, A4 sources and destinations)
+**Last updated:** 2026-10-14 (adoption-readiness A0–A5 complete)
+**Updated by:** session `75332b59` (A0 product definition and quick wins, A1 navigation and shell, A2 golden path, A3 Studio, A4 sources and destinations, A5 copy and design system)
 
 ---
 
@@ -66,8 +66,8 @@ session log).
 npm run verify     # ruff + pytest + ESLint + tsc + production build
 ```
 
-Everything must be green before moving on. Current baseline (2026-10-14, after A4): **6,407 Python tests
-passed (591 skipped), 770 web tests, all passing, zero warnings.** The
+Everything must be green before moving on. Current baseline (2026-10-14, after A5): **6,416 Python tests
+passed (591 skipped), 783 web tests, all passing, zero warnings.** The
 skips include the real-server delivery and copy tests; see §6 for running
 them.
 
@@ -259,8 +259,9 @@ increments without declaring P2 complete; later development is outside that snap
 definition, vocabulary, navigation tree, templates, voice guide, plus the
 quick-win defect fixes) and A1 (navigation and shell) are done as of
 2026-10-13, and A2 (golden path and onboarding) and A3 (Studio redesign) as
-of 2026-10-14, as is A4 (sources, destinations and migration); A5 (copy,
-design system and consistency) is next.** Each phase's section in the plan lists what shipped, the
+of 2026-10-14, as are A4 (sources, destinations and migration) and A5 (copy,
+design system and consistency); A6 (trust, help and support for buyers) is
+next.** Each phase's section in the plan lists what shipped, the
 measured cold-user task results and what moved to later phases. Rules for anyone touching the web app now:
 
 - **`apps/web/src/lib/navigation.ts` is the navigation.** A new page goes into
@@ -276,10 +277,26 @@ measured cold-user task results and what moved to later phases. Rules for anyone
   the tabs and breadcrumb from the URL; pass `title` on object pages.
 - **Shared components are styled from `packages/shared-ui`** only because
   `globals.css` has an `@source` line for it; keep it.
-- **On-screen words are tested.** `wording.test.ts` fails an em-dash inside a
-  sentence; `navigation.test.ts` fails a page with no browser-tab title and a
-  tab whose "About this page" help is missing or long. A new page needs a
-  `metadata` title and a `help` entry beside its tab.
+- **On-screen words are tested** (A5; `docs/design-system.md` explains it all).
+  `lib/language.test.ts` reads every on-screen string through the TypeScript
+  parser and fails retired words (pipeline, tenant, snapshot, publish...),
+  stored field names, HTTP paths, em-dashes, purpose lines over 15 words,
+  descriptions or tour steps over 25, lowercase or Title Case labels and US
+  spelling; its allowlist needs a reason per entry. `type-scale.test.ts` fails
+  text under 12px, uppercase and tracked letters anywhere. `components.test.ts`
+  fails a hand-built table, dialog, tab list or pill, or a local Button, Modal,
+  Badge, Table, PageHeader, EmptyState, StatTile, Tabs or Toast: use
+  `@platform/shared-ui`. `navigation.test.ts` fails a page with no browser-tab
+  title or "About this page" help. On the server, `test_error_words.py` holds
+  raised error messages to the same words, and `test_audit_words.py` needs
+  every audited route to have a phrase in `service_governance/audit_words.py`;
+  a new mutating route needs one.
+- **Show stored codes through a label**, never raw: `lib/labels.ts`
+  (`sentenceLabel`, `fileFormatLabel`, `triggerLabel`, `tierTone`, `typeLabel`),
+  `lib/run-labels.ts` (`formatRunTypeLabel`, `formatStageLabel`), `StatusBadge`.
+- **Run logs are read by people.** Messages passed to `_log_event` and audit
+  or comparison notes are shown on the run page as written; write them in the
+  product's words.
 - **Notifications go through `create_user_notification`**, which applies the
   person's preference for the event's category. `category_for` in
   `preferences.py` files a new event type by its name and level (`_failed` or
@@ -777,3 +794,4 @@ Report honestly. If something is unverified, say so and add it to §7.
 
 <!-- Add a row above when you finish a session. Keep it to one line. -->
 | 2026-10-14 | `75332b59` | **Adoption-readiness A4 complete.** Spec U1–U6 written first. U1: an import's and a recipe's runs add versions to one dataset (`reusable_dataset`, `output_dataset_id`, migration 0047 with backfill). U2: imports from any connector that can read through `service_extraction/connector_sources.py` (settings validated and secrets encrypted per connector, list/preview/import/resume, `stream_json`, migration 0048); "Connect a source" catalogue with tiers. U3: `sql_writer.py` loads PostgreSQL and MySQL (replace / add rows / update matching rows, keys become the primary key, types inferred from values), S3 and a server folder through the SDK's file connectors, a preview before writing, each delivery a run; Destinations page rebuilt; "Send to → A destination". U4: Copy a database plans through the type lattice (lossy casts marked, not-carried items counted), creates tables with keys and NOT NULL, streams rows, reports per table. U5: download any version as CSV/Parquet with policies applied. Security found on the way: the local-files connector read any server path (now `SERVER_FILES_ROOT`), URL-fetching connectors could reach the metadata service and the server (now `shared_python/outbound.py`). Also fixed: delivered columns all TEXT, TIMESTAMPTZ discovered as TIMESTAMP, "timestamp(3) with time zone" unparsed, REST `//path` became a host. Measured live: REST source (tier 2) imported 3 rows; MySQL update-matching-rows twice gave 20 added then 20 updated / 0 added; PostgreSQL shop schema (3 tables) copied to MySQL with microseconds, JSON, exact decimals, keys and NOT NULL. `npm run verify` green: 6,407 Python passed / 591 skipped, 770 web, ESLint/tsc/build clean. Pushed to `main`. **Next: A5 (copy, design system and consistency).** |
+| 2026-10-14 | `75332b59` | **Adoption-readiness A5 complete.** Spec V1–V6 measured first (3,786 on-screen strings via the TS parser; 41 pages in the browser). V1: `lib/language.test.ts` (retired words, code names, HTTP paths, em-dashes, purpose ≤15 / description and tour step ≤25 words, capital and sentence case, UK spelling; replaces `wording.test.ts`) and `test_error_words.py` for raised API errors. V2: every flagged string rewritten; Run audit, Dataset audit, both comparisons and System status rebuilt in words with names from the API (`triggered_by_name`, `pipeline_name`, `dataset_names`; dataset audit names); run logs, audit/comparison notes, role descriptions, impact summaries and 29 error messages reworded at the source; Power BI/Tableau dialogs became "Send to"; raw-JSON "Try a change" and create-pipeline dialogs removed. V3: `service_governance/audit_words.py` turns all 165 audited routes into phrases and names the object; Audit Center outcome filter fixed (sent values no entry had). V4: 343 sub-12px sizes, 200 uppercase uses, 10 letter-spacings gone (`type-scale.test.ts`). V5: shared-ui Badge/Table/Tabs/Toast/StatTile/PageHeader/Overlay (+Modal drawer, compact EmptyState, icons); 33 tables, ~80 pills, 3 dialogs, 3 tab lists migrated (`components.test.ts`). V6: `docs/design-system.md`, light theme for demos. Measured: pages with sub-12px text 17→0, uppercase 16→0, raw ids 4→0, retired words 13→1 (vendor "endpoint" on Connectors). `npm run verify` green: 6,416 Python passed / 591 skipped, 783 web, ESLint/tsc/build clean. Pushed to `main`. **Next: A6 (trust, help and support for buyers).** |

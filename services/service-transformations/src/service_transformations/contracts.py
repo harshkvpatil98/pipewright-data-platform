@@ -22,7 +22,7 @@ def get_transformation_pipeline_for_project(db: Session, project_id: uuid.UUID, 
         )
     )
     if pipeline is None:
-        raise NotFoundError('Transformation pipeline not found.')
+        raise NotFoundError('That recipe no longer exists.')
     return pipeline
 
 

@@ -281,8 +281,8 @@ def describe(role: str) -> str:
     """One line a person can read next to the role name."""
     return {
         "viewer": "Can see everything in the project, and change nothing.",
-        "operator": "Can run pipelines and workflows, and work incidents. Cannot edit definitions.",
-        "editor": "Can create and edit pipelines, workflows, and rules, and run them.",
+        "operator": "Can run recipes and workflows, and handle incidents. Cannot change how they are set up.",
+        "editor": "Can create and change recipes, workflows and checks, and run them.",
         "admin": "Full control, including managing who has access.",
     }.get(role, "Unknown role.")
 

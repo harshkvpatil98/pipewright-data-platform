@@ -88,19 +88,19 @@ export const dataQualityTour: TourStep[] = [
     target: "",
     placement: "center",
     title: "Check your data is right",
-    body: "A check says what must always be true: a column is never empty, a value stays in range, every row is unique. It catches a bad load before it reaches a dashboard.",
+    body: "A check says what must always be true, such as a column never being empty. It stops bad data before it reaches a dashboard.",
   },
   {
     target: "dq-define",
     placement: "right",
     title: "Add a check",
-    body: "Pick a kind of check and the form asks only for what it needs: a column, an allowed range, a pattern. Severity decides whether a failure stops the run or just warns.",
+    body: "Pick a kind of check and fill in what it needs. Choose whether a failure stops the run or only warns.",
   },
   {
     target: "dq-evaluate",
     placement: "top",
     title: "Run it against a dataset",
-    body: "Every check on the dataset runs at once. Turn on quarantine and failing rows are set aside in their own dataset, while the good rows carry on.",
+    body: "All the dataset's checks run together. With quarantine on, failing rows are set aside in their own dataset.",
   },
 ];
 

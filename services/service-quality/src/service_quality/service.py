@@ -47,7 +47,7 @@ MAX_RESULT_HISTORY = 200
 def _load_dataset_frame(db: Session, project_id: uuid.UUID, dataset_id: uuid.UUID, storage_backend: Any) -> tuple[Any, pd.DataFrame]:
     dataset = get_dataset_model_for_project(db, project_id, dataset_id)
     if not dataset.file_path or not dataset.file_type:
-        raise BadRequestError("Dataset has no stored file artifact to evaluate.")
+        raise BadRequestError("This dataset has no saved data to check.")
     try:
         file_bytes = storage_backend.read_bytes(dataset.file_path)
     except FileNotFoundError as exc:

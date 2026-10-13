@@ -46,7 +46,7 @@ def _resolve_column(dataframe: pd.DataFrame, name: str) -> str:
 
 def _load_dataframe(dataset: Dataset, storage_backend: Any) -> pd.DataFrame:
     if not dataset.file_path or not dataset.file_type:
-        raise BadRequestError("Dataset has no stored file artifact to analyze.")
+        raise BadRequestError("This dataset has no saved data to analyse.")
     try:
         file_bytes = storage_backend.read_bytes(dataset.file_path)
     except FileNotFoundError as exc:

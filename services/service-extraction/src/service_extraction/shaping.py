@@ -72,8 +72,9 @@ def validate_job_steps(steps: Any, *, load_mode: str) -> list[dict[str, Any]]:
             raise BadRequestError(
                 f"{', '.join(sorted(set(offending)))} cannot be applied to an incremental load: "
                 "each run reads only a slice of the source, so a step that changes the grain "
-                "would compute per slice what you meant per table. Use full_refresh, or keep "
-                "row-wise steps (filter, select, rename, cast, derive) here and aggregate in a pipeline."
+                "would compute per slice what you meant per table. Import the whole table each "
+                "time, or keep row-by-row steps (filter, select, rename, cast, derive) here and "
+                "summarise in a recipe."
             )
     return [{"step_type": step.step_type, "config": dict(step.config or {})} for step in validated]
 
@@ -98,7 +99,7 @@ def wrap_pushed_sql(pushed_sql: str, base_query: str, *, dialect_quote: Callable
     own quoting, so the token is exact and unique."""
     token = f"FROM {dialect_quote(SOURCE)}"
     if token not in pushed_sql:
-        raise IRError("The compiled SQL does not read from the extraction source.")
+        raise IRError("The compiled SQL does not read from the import's source.")
     return pushed_sql.replace(token, f"FROM ({base_query}) AS {dialect_quote(SOURCE)}", 1)
 
 

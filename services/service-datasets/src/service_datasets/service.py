@@ -186,7 +186,7 @@ def _read_version_frame(storage_backend, version: DatasetVersion, fallback_type:
         stored = storage_backend.read_bytes(version.file_path)
     except Exception as exc:  # noqa: BLE001 - every read failure gets the same honest answer
         raise BadRequestError(
-            f"Version {version.version_number}'s stored artifact could not be read."
+            f"Version {version.version_number}'s saved data could not be read."
         ) from exc
     return parse_tabular_file(
         file_bytes=stored, file_type=version.file_type or fallback_type or "csv"
@@ -292,7 +292,7 @@ def rollback_dataset_version(
         release_pins(db, holder_kind="rollback", holder_id=holder_id)
         db.commit()
         raise BadRequestError(
-            f"Version {version_number}'s stored artifact could not be read."
+            f"Version {version_number}'s saved data could not be read."
         ) from exc
     frame = parse_tabular_file(file_bytes=payload_bytes, file_type=file_type).dataframe
 

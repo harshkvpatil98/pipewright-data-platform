@@ -353,7 +353,7 @@ def read_dataframe(
         raise BadRequestError(f"Query failed: {_safe_error(exc)}") from exc
     except Exception as exc:  # noqa: BLE001
         logger.exception("extraction_read_failed connector_type=%s", connector_type)
-        raise BadRequestError("Extraction query failed to execute.") from exc
+        raise BadRequestError("The source database could not run the import's query.") from exc
 
     if frames:
         dataframe = pd.concat(frames, ignore_index=True) if len(frames) > 1 else frames[0].reset_index(drop=True)

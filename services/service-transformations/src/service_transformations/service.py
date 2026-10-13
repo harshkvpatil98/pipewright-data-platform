@@ -24,7 +24,7 @@ from shared_python.errors import BadRequestError
 def _normalize_name(name: str) -> str:
     normalized_name = name.strip()
     if len(normalized_name) < 2:
-        raise BadRequestError("Pipeline name must be at least 2 characters.")
+        raise BadRequestError("Give the recipe a name of at least two characters.")
     return normalized_name
 
 

@@ -49,8 +49,9 @@ clicks. A3 rebuilt the Studio around the data, with step settings where you
 click, one search for every step, undo, and one recipe editor. A4 widened
 what goes in and out: import from any connector that can read, deliver to
 PostgreSQL, MySQL, S3 or a server folder, download any version, and copy a
-whole database with a report of what did not come across. The progress
-ledger lives in [docs/HANDOFF.md](docs/HANDOFF.md).
+whole database with a report of what did not come across. A5 put every
+screen into the product's own words, with one type scale and one set of
+components, kept that way by tests. The progress ledger lives in [docs/HANDOFF.md](docs/HANDOFF.md).
 
 At a glance, measured on `main`:
 

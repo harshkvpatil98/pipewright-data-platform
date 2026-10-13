@@ -9,8 +9,8 @@ read-only audits of the code (information architecture and copy; feature
 coverage against what a data-platform buyer expects). Every number below was
 measured, not estimated.
 
-**Status:** **A0 and A1 done (2026-10-13); A2, A3 and A4 done (2026-10-14);
-A5 (copy, design system and consistency) is next.** Each phase's "What shipped" note below says what was delivered, what
+**Status:** **A0 and A1 done (2026-10-13); A2 to A5 done (2026-10-14); A6
+(trust, help and support for buyers) is next.** Each phase's "What shipped" note below says what was delivered, what
 was measured, and what moved to a later phase. `docs/HANDOFF.md` records the
 session.
 
@@ -1100,7 +1100,7 @@ against recorded vendor contracts, not live accounts.
 
 ---
 
-## A5 — Copy, design system and consistency
+## A5 — Copy, design system and consistency *(done 2026-10-14)*
 
 **Why.** F-UX-4..6, F-ST-2, F-ST-6.
 
@@ -1186,6 +1186,66 @@ built on a shared `Overlay`).
 components and when to use each, the voice rules the lint enforces, and
 light as the recommended theme for screenshots and demos (dark stays
 first-class; "system" stays the default).
+
+**What shipped.**
+
+- **V1, the language lint.** `lib/language.test.ts` reads 3,700+ on-screen
+  strings through the TypeScript parser and fails a retired word, a stored
+  field name, an HTTP path, an em-dash, a purpose line over 15 words, a
+  description or tour step over 25, a lowercase or Title Case label, and US
+  spelling. Two allowlist entries, each with its reason (Microsoft's "Tenant
+  ID", PostgreSQL's `wal_level`), plus the run page's Technical details IDs.
+  `test_error_words.py` holds the API's own error messages to the same words,
+  since they are shown as they are.
+- **V2, the words.** Every flagged string rewritten. Run audit, Dataset
+  audit, both comparison pages and System status rebuilt in words: names
+  instead of ids (the audit APIs now send who, which recipe and which
+  datasets), "what it made / what it read / steps", the stored record behind
+  Technical details. Run logs, audit notes, comparison notes, role
+  descriptions, impact summaries and 29 error messages are written in plain
+  words at the source. Power BI and Tableau dialogs became "Send to", on the
+  shared form fields. The raw-JSON "Try a change" and create-pipeline dialogs
+  were removed; the Studio does that job.
+- **V3, the audit trail in words.** `service_governance/audit_words.py`
+  turns every audited route into a phrase ("ran a recipe", "shared a
+  dashboard by link") and names the object while it exists; the request
+  stays on the row's tooltip and in exports. A test holds all 165 audited
+  routes to words of their own. Search understands product words.
+- **V4, type and case.** 343 sub-12px sizes to 12px (classes, the grid
+  canvas, SVG labels), 200 uppercase uses and 10 letter-spacings removed;
+  where uppercase had hidden a stored code, a label function now shows it.
+- **V5, one component per job.** shared-ui gained Badge, Table, Tabs, Toast,
+  StatTile, PageHeader, a compact EmptyState and the Overlay that Modal (and
+  its drawer side), both palettes and the tour sit on; the icon set moved
+  with them. 33 tables, about 80 pills, three dialogs and three tab lists
+  moved onto them, and four local duplicates were deleted.
+- **V6.** `docs/design-system.md`; the demo guide recommends light for
+  screen sharing.
+- **Found on the way.** The Audit Center's outcome filter sent values no
+  entry has, so filtering by outcome always came back empty and every row
+  was coloured as a failure. Buttons wrapped onto two lines in narrow
+  headers. Tables inside bordered boxes ran text into the border. The
+  workbench's side tabs showed raw lowercase names.
+
+**Measured (41 pages in the browser, same script before and after).**
+
+| | Before | After |
+|---|---|---|
+| Pages with text under 12px | 17 | 0 |
+| Pages with uppercase text | 16 | 0 |
+| Pages showing raw ids | 4 | 0 |
+| Pages showing a retired or engine word | 13 | 1 (Connectors: vendor descriptions say "endpoint") |
+| Purpose lines over 15 words | 3 | 0 |
+| Audit (all projects): sub-12px / uppercase / raw ids | 200 / 105 / 131 | 0 / 0 / 0 |
+| Connectors: sub-12px elements | 1,662 | 0 |
+| System status: retired words | 9 | 0 |
+| Hand-built tables / dialogs / tab lists outside shared-ui | 33 / 7 / 3 | 0 / 0 / 0 |
+
+**Moved to later phases.** Stat tiles still open some pages where the number
+does not drive an action (F-UX-2, A8's polish pass). The language lint covers
+the web app and the API's raised errors; messages built elsewhere on the
+server (warnings inside run summaries, connector descriptions) are not
+linted yet.
 
 ---
 

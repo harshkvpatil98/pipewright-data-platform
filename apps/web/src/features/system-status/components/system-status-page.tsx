@@ -34,13 +34,82 @@ import { sentenceLabel } from "@/lib/labels";
  */
 const TONE_TO_BADGE = { success: "success", warning: "warning", danger: "danger", neutral: "neutral" } as const;
 
+/** The counters each part reports, in the product's words. */
+const DETAIL_LABELS: Record<string, string> = {
+  user_count: "accounts",
+  project_count: "projects",
+  memberships: "memberships",
+  shared_projects: "shared projects",
+  enforcement: "enforcement",
+  organisations: "organisations",
+  security_policies: "access policies",
+  retention_policies: "retention rules",
+  retention_in_report_only_mode: "retention rules only reporting",
+  erasure_requests: "erasure requests",
+  versions_recorded: "versions kept",
+  changes_awaiting_review: "changes waiting for approval",
+  audit_entries: "audit entries",
+  comments: "comments",
+  source_count: "registered sources",
+  connectors: "connectors",
+  available: "ready to use",
+  writable: "can write back",
+  drivers_not_installed: "need a driver installed",
+  dataset_count: "datasets",
+  destination_count: "destinations",
+  supported_extensions: "file types read",
+  connection_count: "source connections",
+  job_count: "imports",
+  rule_count: "checks",
+  rules_currently_failing: "checks failing",
+  unacknowledged_drift_events: "schema changes not yet seen",
+  breaking_drift_events: "schema changes that break things",
+  pipeline_run_count: "runs",
+  pipeline_count: "recipes",
+  supported_step_types: "step types",
+  workflow_count: "workflows",
+  runs_queued: "runs waiting",
+  runs_running: "runs running",
+  oldest_queued_at: "oldest waiting",
+  schedules_due_now: "schedules due",
+  change_set_count: "sets of table edits",
+  draft_count: "unsaved table edits",
+  committed_count: "saved table edits",
+  rows_written: "rows written back",
+  saved_query_count: "saved queries",
+  notebook_count: "notebooks",
+  queries_run: "queries run",
+  python_cells: "Python cells",
+  python_cells_reason: "why",
+  derived_datasets: "datasets made by recipes",
+  pipelines_traceable: "recipes traced",
+  storage: "kept as",
+  pii_detectors: "personal data detectors",
+  phrases_understood: "phrases understood",
+  datasets_analysable: "datasets it can analyse",
+  method: "method",
+  metrics_recorded: "health records",
+  freshness_policies: "freshness rules",
+  incidents_open: "open incidents",
+  incidents_critical: "critical incidents",
+  charts: "charts",
+  dashboards: "dashboards",
+  scheduled_reports: "scheduled reports",
+  reports_due_now: "reports due",
+  shared_dashboards: "shared dashboards",
+  saved_statistical_test_count: "saved comparisons",
+  scheduled_operation_count: "schedules",
+  notification_row_count: "notifications",
+  external_notification_target_count: "alert channels",
+};
+
 function ModuleDetails({ details }: { details: Record<string, unknown> }) {
   const [showRaw, setShowRaw] = useState(false);
   const entries = Object.entries(details);
   if (entries.length === 0) return <span>—</span>;
 
   const chips: string[] = [];
-  const label = (key: string) => key.replace(/_/g, " ");
+  const label = (key: string) => DETAIL_LABELS[key] ?? key.replace(/_/g, " ");
   for (const [key, value] of entries) {
     if (Array.isArray(value)) {
       chips.push(`${value.length} ${label(key)}`);

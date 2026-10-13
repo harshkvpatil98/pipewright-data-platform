@@ -122,7 +122,7 @@ def run_extraction_job(
     connection = get_connection_for_project(db, project_id, job.connection_id)
 
     if not job.enabled:
-        raise BadRequestError("This extraction job is disabled.")
+        raise BadRequestError("This import is switched off. Switch it on to run it.")
 
     log_events = [
         _log_event(
@@ -459,7 +459,7 @@ def run_extraction_job(
             stage=current_stage,
             message="An unexpected error occurred during extraction.",
         )
-        raise InternalServerError("Extraction failed due to an unexpected error.") from exc
+        raise InternalServerError("The import stopped with an unexpected error. Try again; if it repeats, check the source connection.") from exc
 
 
 def _record_failure(

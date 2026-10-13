@@ -138,7 +138,7 @@ def test_real_sql_works_and_values_come_back_in_the_declared_shape(db, world):
 def test_writes_are_refused_by_the_read_only_policy_not_run(db, world):
     with pytest.raises(BadRequestError) as excinfo:
         _query(world, db, f"DELETE FROM {TABLE_NAME}", version_number=2)
-    assert "read-only snapshot" in str(excinfo.value.detail)
+    assert "can only be read" in str(excinfo.value.detail)
     assert "write mode" not in str(excinfo.value.detail)  # there is none to turn on
     # The stored bytes are what they were: the query engine is a throwaway copy
     # anyway, but the refusal must come from policy, before anything runs.

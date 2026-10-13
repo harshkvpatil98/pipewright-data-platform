@@ -287,7 +287,7 @@ def delete_organisation(
         raise ConflictError(
             f"{organisation.name} still holds {projects} project(s) and "
             f"{members} member(s). Move them to another organisation first; "
-            f"deleting it now would leave them pointing at a tenant that no "
+            f"deleting it now would leave them in an organisation that no "
             f"longer exists, reachable by nobody."
         )
 

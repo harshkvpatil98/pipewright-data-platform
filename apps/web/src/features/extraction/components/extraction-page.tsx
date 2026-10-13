@@ -845,7 +845,7 @@ export function ExtractionPageView({
                                 .map((step) => step.step_type)
                                 .join(" → ")}
                             >
-                              cleans {job.steps.length} step
+                              Cleans in {job.steps.length} step
                               {job.steps.length === 1 ? "" : "s"} on the way in
                             </Badge>
                           ) : null}

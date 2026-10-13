@@ -301,7 +301,7 @@ export function AssistantPageView({
           <div className="mt-1.5 flex flex-wrap gap-1">
             {documentation.dataset.facts_used.map((fact) => (
               <Badge key={fact}>
-                from {fact}
+                From {fact}
               </Badge>
             ))}
           </div>

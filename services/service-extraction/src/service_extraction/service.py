@@ -94,7 +94,7 @@ def get_connection_for_project(
         )
     )
     if connection is None:
-        raise NotFoundError("Extraction connection not found.")
+        raise NotFoundError("That source connection no longer exists.")
     return connection
 
 
@@ -286,7 +286,7 @@ def resolve_job_query(connector_type: str, *, source_kind: str, table: str | Non
     if source_kind == "query":
         return ensure_read_only_select(query_sql or "")
     if not table:
-        raise BadRequestError("A table name is required for table extraction.")
+        raise BadRequestError("Choose a table to import.")
     return sql_database.build_table_query(connector_type, table=table, schema=schema)
 
 
@@ -348,7 +348,7 @@ def get_job_for_project(db: Session, project_id: uuid.UUID, job_id: uuid.UUID) -
         select(ExtractionJob).where(ExtractionJob.id == job_id, ExtractionJob.project_id == project_id)
     )
     if job is None:
-        raise NotFoundError("Extraction job not found.")
+        raise NotFoundError("That import no longer exists.")
     return job
 
 

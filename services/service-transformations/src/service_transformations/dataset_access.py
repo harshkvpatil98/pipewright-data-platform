@@ -51,7 +51,7 @@ def build_step_context(
         dataset = get_dataset_model_for_project(db, project_id, _coerce_id(key))
         file_path, file_type = overrides.get(key, (dataset.file_path, dataset.file_type))
         if not file_path or not file_type:
-            raise BadRequestError(f"Dataset '{dataset.name}' has no stored file artifact to read.")
+            raise BadRequestError(f"The dataset '{dataset.name}' has no saved data to read.")
         if pins is not None and key not in overrides:
             from service_transformations.execution_context import head_pin
 

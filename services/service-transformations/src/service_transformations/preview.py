@@ -36,7 +36,7 @@ def preview_dataset_transformations(
     dataset = get_dataset_model_for_project(db, project_id, dataset_id)
 
     if not dataset.file_path or not dataset.file_type:
-        raise BadRequestError("Dataset has no stored file artifact to preview.")
+        raise BadRequestError("This dataset has no saved data to preview.")
 
     try:
         file_bytes = storage_backend.read_bytes(dataset.file_path)

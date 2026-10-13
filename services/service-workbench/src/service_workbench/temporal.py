@@ -116,7 +116,7 @@ def temporal_query(
         # There is no write mode here to turn on: a version is a snapshot, and
         # the copy this query runs against is thrown away with the request.
         raise BadRequestError(
-            "A version is a read-only snapshot; only a SELECT can run against it "
+            "A version can only be read, so only a SELECT can run against it "
             f"(statement 1 is a {only.kind.value}). To change live data, use the "
             "table editor, which stages a reviewed change set."
         )
@@ -159,7 +159,7 @@ def _load_frame(storage: Any, version: DatasetVersion, *, fallback_type: str | N
         stored = storage.read_bytes(version.file_path)
     except Exception as exc:  # noqa: BLE001 - one honest answer for every read failure
         raise BadRequestError(
-            f"Version {version.version_number}'s stored artifact could not be read."
+            f"Version {version.version_number}'s saved data could not be read."
         ) from exc
     return parse_tabular_file(
         file_bytes=stored, file_type=version.file_type or fallback_type or "csv"

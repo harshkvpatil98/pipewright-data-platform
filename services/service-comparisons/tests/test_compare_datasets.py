@@ -79,5 +79,5 @@ def test_comparison_notes_duplicate_and_completeness() -> None:
     )
     out = build_dataset_comparison_summary(left=left, right=right)
     text = " ".join(out.comparison_notes).lower()
-    assert "duplicate" in text
-    assert "completeness" in text
+    assert "repeated rows" in text
+    assert "filled in" in text

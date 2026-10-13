@@ -353,7 +353,7 @@ export function DashboardViewPage({
           )}
           {filtersDiffer ? (
             <Badge tone="warning">
-              applied here only, not saved
+              Applied here only, not saved
             </Badge>
           ) : null}
           <div className="ml-auto flex items-center gap-2">

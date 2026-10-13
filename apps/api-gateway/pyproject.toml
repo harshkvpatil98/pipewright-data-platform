@@ -37,7 +37,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   "httpx>=0.28,<1.0",
-  "pytest>=8.3,<9.0",
+  "pytest>=9.0.3,<10.0",
   # Pinned to a minor series: ruff expands its default rule set between minors,
   # so an open range makes `make verify` fail on unrelated new lint rules.
   "ruff>=0.11,<0.12"

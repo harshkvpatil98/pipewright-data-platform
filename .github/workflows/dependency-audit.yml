@@ -45,13 +45,10 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install workspaces into a clean venv
-        run: |
-          python -m venv .venv
-          .venv/bin/pip install --quiet --upgrade pip
-          .venv/bin/pip install --quiet -e apps/api-gateway -e packages/shared-python
-          for service in services/service-*; do
-            .venv/bin/pip install --quiet -e "$service"
-          done
+        # The same order CI uses: the workspaces depend on each other by name
+        # and are not on PyPI, so each must be installed before a dependent.
+        # Installing the gateway first failed before anything was audited.
+        run: bash ./scripts/ci-bootstrap-python-venv.sh
       - name: pip-audit (fail on known vulnerabilities)
         run: |
           .venv/bin/pip install --quiet pip-audit cyclonedx-bom
@@ -78,8 +75,8 @@ jobs:
           node-version: "22"
       - name: Install exactly the lockfile
         run: npm ci --ignore-scripts
-      - name: npm audit (fail on high or critical)
-        run: npm audit --audit-level=high
+      - name: npm audit (fail on high or critical, bar the reasoned list)
+        run: node scripts/audit-npm.mjs
       - name: JS SBOM (CycloneDX)
         if: always()
         run: npx --yes @cyclonedx/cyclonedx-npm --output-file sbom-npm.json || true

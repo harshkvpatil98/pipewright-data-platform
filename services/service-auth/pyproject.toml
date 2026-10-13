@@ -14,7 +14,7 @@ dependencies = [
   "shared-python>=0.1.0",
   # PyJWT signs the between-steps MFA login ticket; segno renders the TOTP
   # enrolment QR server-side (pure Python, no native library).
-  "PyJWT>=2.8,<3.0",
+  "PyJWT>=2.15,<3.0",
   "segno>=1.6,<2.0"
 ]
 

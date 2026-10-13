@@ -26,6 +26,10 @@ export const SECURITY_HEADERS = [
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // The build checks the app with the same configuration as the typecheck
+  // step, which leaves out test files: since Next 16.4 the build checks every
+  // file tsconfig.json includes, and tests use Vitest's globals.
+  typescript: { tsconfigPath: "tsconfig.typecheck.json" },
   transpilePackages: ["@platform/shared-types", "@platform/shared-ui"],
   async headers() {
     return [{ source: "/:path*", headers: SECURITY_HEADERS }];

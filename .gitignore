@@ -55,6 +55,9 @@ backups/
 # configuration. Kept on the machine, never in the repository.
 /AGENTS.md
 /CLAUDE.md
+# Next.js 16.4 writes these into the web app for coding agents.
+apps/web/AGENTS.md
+apps/web/CLAUDE.md
 /docs/agent-context.md
 .claude/
 .mcp.json

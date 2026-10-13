@@ -4,8 +4,8 @@
 last one stopped. Keep it current. If you change project state, update the **Progress ledger**
 and **Session log** at the bottom before you finish.
 
-**Last updated:** 2026-10-14 (adoption-readiness A0–A3 complete)
-**Updated by:** session `75332b59` (A0 product definition and quick wins, A1 navigation and shell, A2 golden path, A3 Studio)
+**Last updated:** 2026-10-14 (adoption-readiness A0–A4 complete)
+**Updated by:** session `75332b59` (A0 product definition and quick wins, A1 navigation and shell, A2 golden path, A3 Studio, A4 sources and destinations)
 
 ---
 
@@ -66,8 +66,10 @@ session log).
 npm run verify     # ruff + pytest + ESLint + tsc + production build
 ```
 
-Everything must be green before moving on. Current baseline (2026-10-14, after A3): **6,351 Python tests
-passed (573 skipped), 762 web tests, all passing, zero warnings.**
+Everything must be green before moving on. Current baseline (2026-10-14, after A4): **6,407 Python tests
+passed (591 skipped), 770 web tests, all passing, zero warnings.** The
+skips include the real-server delivery and copy tests; see §6 for running
+them.
 
 Other commands: `npm test` (tests only) · `npm run smoke` (end-to-end smoke) ·
 `npm run lint` · `npm run typecheck` · `scripts/backup.sh --verify` (real restore drill).
@@ -111,7 +113,7 @@ was for that push, not a standing one.
 | 06 | Intelligence | `service-intelligence` | PII, join keys, entity resolution — **no model calls** |
 | 07 | Enterprise | `service-enterprise` | Tenancy, row/column security, retention, SSO, `/metrics` |
 
-**Migrations:** `apps/api-gateway/alembic/versions/`, 46 files, head is `0046_notification_grouping`.
+**Migrations:** `apps/api-gateway/alembic/versions/`, 48 files, head is `0048_imports_from_any_connector`.
 
 ### Roadmap v2: in progress
 
@@ -167,6 +169,14 @@ production-readiness P9; the progress ledger in §8 tracks the rest.
 - **Falsy-zero bugs.** `if tile.position` treated position 0 as unset. Prefer `is not None`.
 - **`npm run dev` refuses to start if Postgres is unreachable** — that error is accurate, start
   Docker.
+- **The real-server connector tests skip quietly without their servers.** Start
+  `docker compose -f docker-compose.connectors.yml up -d` and export
+  `CONNECTORS_TEST_POSTGRES_URL`, `CONNECTORS_TEST_MYSQL_URL` and, for S3,
+  `DELIVERY_TEST_S3_ENDPOINT` / `_BUCKET` / `_KEY` / `_SECRET` (the compose
+  file's header lists the values) to run delivery, copy and S3 tests for real.
+- **A connector that fetches URLs refuses 127.0.0.1 by default.** Set
+  `OUTBOUND_ALLOW_LOOPBACK=true` for a local API in development; the connector
+  tests' `conftest.py` sets it for their loopback servers.
 
 ---
 
@@ -201,8 +211,11 @@ honesty; if you verify one, update its status here.
 | Semantic layer has metrics, not data contracts | Phase 19's contracts (producer-published schema/freshness/volume agreements enforced at the pipeline) are not started; metrics resolve everywhere charts, dashboards and the workbench read, with a version history |
 | Optimizer has rewrites, not statistics | `ir/rewrites.py` applies five provable identities before the planner splits a tree. No row/distinct counts are collected, so no join reordering, no cost model, no caching or federation (Phase 22) |
 | 9 engines are declared but undriveable | Cassandra, ScyllaDB, Couchbase, Redis, ArangoDB, HBase, Aerospike, Timestream, HDFS. Each declares only `test`, reports `available: false`, and names the interface this platform *can* read instead |
-| Extraction still creates a dataset per run | Versions are recorded for every producer's output, but repeated extraction does not append versions to one logical dataset — the watermark lives on the job, so head/watermark consistency does not depend on dataset identity. Collapsing runs onto one logical dataset is a deliberate later refinement (`phase-18-decisions.md` §1; adoption-readiness A4). Since A1 the Datasets list folds records with the same name into one row ("12 loads"), which is presentation, not the model change |
-| The v1 source registry is hidden, not removed | `service-sources` (`/api/v1/projects/{id}/sources`, the "Register source" records) is no longer shown anywhere in the web app since A1; its API and tables stay for compatibility. Retiring it is a deliberate decision for A4 |
+| Old duplicate datasets are not merged | Since A4 an import's runs and a recipe's runs add versions to one dataset (`reusable_dataset`, `TransformationPipeline.output_dataset_id`). Datasets created one-per-run before that stay separate records; merging them would rewrite version history, so the Datasets list still folds same-named records into one row ("12 loads") |
+| The v1 source registry is hidden, not removed | `service-sources` (`/api/v1/projects/{id}/sources`, the "Register source" records) is no longer shown anywhere in the web app since A1; its API and tables stay for compatibility. A4 did not retire it: nothing reads it, and deleting the tables needs a decision about existing rows |
+| The dataset preview does not apply row and column policies | Download (A4) is the first read path that applies `visible_frame`; the preview grid, the workbench and charts still show what the policy simulation says they would hide. Enforcing policies on every read path is adoption-readiness A6 work |
+| No warehouse destinations | Datasets deliver to PostgreSQL, MySQL, S3 (or a compatible store) and a server folder. Snowflake, BigQuery and Redshift are not destinations until a customer names one |
+| A database copy runs inside one request | `copy_database.run_copy` streams rows 1,000 at a time but holds the request until it finishes, up to 2,000,000 rows a table. A background copy with progress belongs with A7's scale work |
 | Temporal SQL runs in SQLite over a copy | `AS OF` queries load the version's artifact into an in-memory SQLite table named `dataset`; the dialect is SQLite's, not the source's, and results are capped at 1,000 rows. Customer SQL sent to customer databases is never rewritten (settled decision #8) |
 | No pagination on version history or diff samples | Listings return every version; diff samples are capped at a declared 20 while counts stay exact. A dataset with thousands of versions would want cursors, which do not exist yet |
 | `today()` is the UTC date of the frozen instant | Before P7 it was the host's local date. Recorded in the run's execution context (`timezone: UTC`); a deliberate semantic change, stated rather than hidden |
@@ -246,7 +259,8 @@ increments without declaring P2 complete; later development is outside that snap
 definition, vocabulary, navigation tree, templates, voice guide, plus the
 quick-win defect fixes) and A1 (navigation and shell) are done as of
 2026-10-13, and A2 (golden path and onboarding) and A3 (Studio redesign) as
-of 2026-10-14; A4 (sources, destinations and migration) is next.** Each phase's section in the plan lists what shipped, the
+of 2026-10-14, as is A4 (sources, destinations and migration); A5 (copy,
+design system and consistency) is next.** Each phase's section in the plan lists what shipped, the
 measured cold-user task results and what moved to later phases. Rules for anyone touching the web app now:
 
 - **`apps/web/src/lib/navigation.ts` is the navigation.** A new page goes into
@@ -285,6 +299,31 @@ measured cold-user task results and what moved to later phases. Rules for anyone
   the person to `/login?expired=1&next=…` (`lib/auth/session-end.ts`), and
   `proxy.ts` does the same for a run-out cookie. Only same-site `next`
   paths are followed (`safeNextPath`).
+- **A producer keeps one dataset.** An import reuses `job.target_dataset_id`
+  and a recipe `output_dataset_id` through `reusable_dataset`; each run adds a
+  version. Replays still make their own dataset. Do not create a dataset per
+  run again.
+- **Imports go through `service_extraction/connector_sources.py` for every
+  connector that is not a SQL database.** It checks settings against the
+  connector's fields, encrypts its secret fields, and lists, previews and
+  reads through the SDK; the stream lives in `ExtractionJob.stream_json`. SQL
+  databases keep their own path (`is_sql`).
+- **Tables are written by `service_destinations/sql_writer.py`** for both
+  PostgreSQL and MySQL: `plan_table` (the preview and the write use the same
+  plan) then `write_frame`. Column types come from the values
+  (`column_kind`), not the pandas dtype, because parsed files hold object
+  columns. "Update matching rows" is delete-then-insert in one transaction.
+- **Copy a database plans through the type lattice** (`copy_database.py`,
+  `shared_python.types`): a lossy cast is marked lossy, a type the target
+  lacks gets a note, and what the copy does not carry is counted from the
+  source's inspector. Keep the report honest when adding a target.
+- **Server paths go through `shared_python.server_files.confine`.** Anything
+  that reads or writes a folder on the server stays inside
+  `SERVER_FILES_ROOT` (default `data/server-files`).
+- **URL-fetching connectors install `shared_python.outbound`'s guard.** The
+  cloud metadata address is always refused; loopback and private networks
+  are governed by `OUTBOUND_ALLOW_LOOPBACK` and
+  `OUTBOUND_BLOCK_PRIVATE_NETWORKS`.
 
 **The production-readiness sequence (P0–P9) is complete** as of 2026-09-23 —
 see `docs/plans/production-readiness-workflow.md` for what each phase delivered
@@ -737,3 +776,4 @@ Report honestly. If something is unverified, say so and add it to §7.
 | 2026-10-14 | `75332b59` | **Adoption-readiness A3 complete.** Spec T1–T8 written first (measured: grid ~380×150px at the owner's laptop size, settings a grid-width from the step, 24 sub-12px sizes, header click silently adding a step, a second form editor). Studio rebuilt: header with name/source/saved state/undo/redo/Details/More/Save/Run; steps timeline with inline settings and one-line summaries (`step-summary.ts`); one Add-a-step palette over 20 built-ins and 173 tools (`/`, right-click a column, tools named for the column first); header click sorts the view only (`view-sort.ts`) with "Sort the whole table"; undo/redo (`recipe-history.ts`); browser drafts offered back (`recipe-draft.ts`); Details drawer (columns, where it runs, file, comments); 12px floor tested. One editor: `/studio?recipe=` opens and PATCHes; the form editor and helpers deleted, its three addresses redirect, links use `recipeHref`. Found during the run and fixed: 60-minute sessions with no renewal and raw "Invalid or expired access token" in panels; now `POST /auth/session/renew` (capped by `AUTH_SESSION_MAX_HOURS`), sign-in returns to the same page with a message, proxy keeps the query, sign-in `next` limited to same-site paths (was an open redirect); right-click also sorted a column; step defaults shared arrays with the catalogue. Cold-user task: 8 clicks, 58 s. `npm run verify` green: 6,351 Python passed / 573 skipped, 762 web, ESLint/tsc/build clean. Pushed to `main`. **Next: A4 (sources, destinations and migration).** |
 
 <!-- Add a row above when you finish a session. Keep it to one line. -->
+| 2026-10-14 | `75332b59` | **Adoption-readiness A4 complete.** Spec U1–U6 written first. U1: an import's and a recipe's runs add versions to one dataset (`reusable_dataset`, `output_dataset_id`, migration 0047 with backfill). U2: imports from any connector that can read through `service_extraction/connector_sources.py` (settings validated and secrets encrypted per connector, list/preview/import/resume, `stream_json`, migration 0048); "Connect a source" catalogue with tiers. U3: `sql_writer.py` loads PostgreSQL and MySQL (replace / add rows / update matching rows, keys become the primary key, types inferred from values), S3 and a server folder through the SDK's file connectors, a preview before writing, each delivery a run; Destinations page rebuilt; "Send to → A destination". U4: Copy a database plans through the type lattice (lossy casts marked, not-carried items counted), creates tables with keys and NOT NULL, streams rows, reports per table. U5: download any version as CSV/Parquet with policies applied. Security found on the way: the local-files connector read any server path (now `SERVER_FILES_ROOT`), URL-fetching connectors could reach the metadata service and the server (now `shared_python/outbound.py`). Also fixed: delivered columns all TEXT, TIMESTAMPTZ discovered as TIMESTAMP, "timestamp(3) with time zone" unparsed, REST `//path` became a host. Measured live: REST source (tier 2) imported 3 rows; MySQL update-matching-rows twice gave 20 added then 20 updated / 0 added; PostgreSQL shop schema (3 tables) copied to MySQL with microseconds, JSON, exact decimals, keys and NOT NULL. `npm run verify` green: 6,407 Python passed / 591 skipped, 770 web, ESLint/tsc/build clean. Pushed to `main`. **Next: A5 (copy, design system and consistency).** |

@@ -16,6 +16,10 @@
 #   .venv/bin/python -m pytest services/service-destinations/tests/test_deliver.py -q
 # (the test creates the bucket if it is missing)
 #
+# With the PostgreSQL and MySQL URLs above exported, these also run for real:
+#   .venv/bin/python -m pytest services/service-destinations/tests/test_copy_database.py \
+#          services/service-destinations/tests/test_sql_writer.py -q
+#
 # Deliberately on non-default ports: the platform's own Postgres is already on
 # 5432, and a verification suite that wrote into the application database would
 # be a bad afternoon. Nothing here shares a volume, so `down -v` is free.

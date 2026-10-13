@@ -13,6 +13,32 @@ the test counts at the time — is in the session log in
 
 ---
 
+## A4 — sources, destinations and migration (2026-10-14)
+
+- **One dataset per import and per recipe**: running an import or a recipe
+  again adds a version to the same dataset instead of making a new one.
+- **Import from more places**: "Connect a source" lists every connector
+  that can read (APIs, apps, storage) with how far each is tested; pick
+  what to import from what the source holds, preview it, and import, with
+  "only new rows" where the source can resume.
+- **Destinations that load**: deliver any dataset to PostgreSQL, MySQL, S3
+  (or a compatible store) or a server folder; replace, add rows, or update
+  matching rows by key; see the table that will be written first. Every
+  delivery is a run you can look back at.
+- **Copy a database**: pick tables from a connected database, see how each
+  column's type will arrive and which will lose something, then copy into
+  PostgreSQL or MySQL with keys and NOT NULL; a report lists what was not
+  carried (foreign keys, indexes, defaults, views).
+- **Download** any version as CSV or Parquet, with the project's row and
+  column policies applied.
+- **Safer connectors**: server folders stay inside one folder the
+  deployment chooses (`SERVER_FILES_ROOT`); connectors that fetch web
+  addresses refuse the cloud metadata service and, unless allowed, the
+  server itself.
+- **Fixed**: delivered columns were all text; a "timestamp with time zone"
+  column was reported without its zone; a REST path typed after the default
+  "/" pointed at another host.
+
 ## A3 — the Studio (2026-10-14)
 
 - **Room for the data**: the ribbon, status bar and inspector are gone; a

@@ -46,7 +46,10 @@ and, for administrators, Admin), each with its pages as tabs. A2 (the first
 run) shipped on 2026-10-14: sample data, recipe templates, a welcome, help on
 every page and notification preferences; a CSV reaches a dashboard in nine
 clicks. A3 rebuilt the Studio around the data, with step settings where you
-click, one search for every step, undo, and one recipe editor. The progress
+click, one search for every step, undo, and one recipe editor. A4 widened
+what goes in and out: import from any connector that can read, deliver to
+PostgreSQL, MySQL, S3 or a server folder, download any version, and copy a
+whole database with a report of what did not come across. The progress
 ledger lives in [docs/HANDOFF.md](docs/HANDOFF.md).
 
 At a glance, measured on `main`:
@@ -54,8 +57,8 @@ At a glance, measured on `main`:
 | | |
 |---|---|
 | Python domain services | 24, in `services/` |
-| Database migrations | 45 Alembic revisions, head `0045_stream_sources` |
-| Web pages | 59 Next.js App Router pages |
+| Database migrations | 48 Alembic revisions, head `0048_imports_from_any_connector` |
+| Web pages | 60 Next.js App Router pages |
 | Connectors | 211 — 50 tier 2 ("Tested", run against a container or fixture in CI), 161 tier 4 ("Unverified", written from vendor documentation) |
 | Transformation library | 20 pipeline step types plus a `tool` step over 173 tools in 11 categories |
 | Tests | 6,870 Python tests collected and 692 web tests ([results below](#running-tests)) |
@@ -70,10 +73,13 @@ At a glance, measured on `main`:
   evidence; an ambiguous date blocks the import and asks, rather than
   guessing. Uploads are chunked, resumable and checksummed, and an ingest spec
   is remembered by column fingerprint for next month's file.
-- **Extract** from PostgreSQL, MySQL and SQLite with connection testing, schema
+- **Import** from PostgreSQL, MySQL and SQLite with connection testing, schema
   discovery, bounded preview, and full-refresh, incremental-append or
   key-based merge loads with a watermark per job. A job's transformation steps
-  run at the source as SQL where the dialect can express them.
+  run at the source as SQL where the dialect can express them. Any other
+  connector that can read (REST APIs, apps, object storage) imports through
+  the same jobs, with "only new rows" where the connector can resume. Every
+  run of one import adds a version to one dataset.
 - **Connector catalogue** of 211 connectors (databases, warehouses, object
   stores, SaaS and protocol connectors such as OData and JSON:API), each with a
   tier shown on its card, in its config form and in the warnings of any run
@@ -129,8 +135,14 @@ At a glance, measured on `main`:
   auto-refresh, public share links that can be revoked, reports delivered to
   Slack and email as Excel, CSV, HTML or PDF, dashboard subscriptions, and metrics defined
   once in a semantic layer and resolved everywhere they are used.
-- **Delivery**: publish to PostgreSQL, with Power BI and Tableau connection and
-  publish flows; in-app notifications plus email and Slack targets.
+- **Delivery**: deliver a dataset to PostgreSQL or MySQL (replace, add rows,
+  or update matching rows by key), to S3 or a compatible store, or to a
+  folder on the server, after a preview of what will be written; download
+  any version as CSV or Parquet with the project's row and column policies
+  applied; copy a whole database between PostgreSQL and MySQL with a plan
+  that marks every lossy type and a report of what was not carried. Power BI
+  and Tableau have their own publish flows; in-app notifications plus email
+  and Slack targets.
 - **Identity**: scrypt-hashed passwords, JWTs that one "sign out everywhere"
   invalidates, scoped revocable API tokens, invitations, TOTP two-factor
   authentication, OIDC single sign-on with group-to-role mapping, and a
@@ -302,10 +314,11 @@ first-time user meets soonest:
   the real vendor, and say so; five SaaS connectors (Stripe, HubSpot, Shopify,
   Salesforce, Sheets) have not run live, and Snowflake, BigQuery, Redshift, SQL
   Server and Oracle declare only a connection test until their drivers are
-  installed. Extraction into datasets runs from PostgreSQL, MySQL and SQLite.
-- **PostgreSQL is the only destination that datasets publish to.** S3 and
-  local-export destinations can be saved and tested; Power BI and Tableau have
-  their own first-path publish flows.
+  installed. Imports run from any connector that can read, but only the
+  tested ones have run against a real server here.
+- **No warehouse destinations.** Datasets deliver to PostgreSQL, MySQL, S3
+  and a server folder; Snowflake, BigQuery and Redshift are not destinations.
+  A database copy runs inside one request (up to 2,000,000 rows a table).
 - **Identity**: SAML is absent by design (it needs XML signature verification),
   and the OIDC network legs have not been run against a live identity provider.
 - **Write-back** has run only against SQLite; the PostgreSQL and MySQL paths are

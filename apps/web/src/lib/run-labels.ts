@@ -9,6 +9,7 @@ const RUN_TYPE_LABELS: Record<string, string> = {
   dataset_transformation_replay: "Recipe replay",
   dataset_publish_postgres: "Delivered to PostgreSQL",
   dataset_delivery: "Delivery",
+  database_copy: "Database copy",
   dataset_publish_power_bi: "Sent to Power BI",
   dataset_publish_tableau: "Sent to Tableau",
 };

@@ -9,8 +9,8 @@ read-only audits of the code (information architecture and copy; feature
 coverage against what a data-platform buyer expects). Every number below was
 measured, not estimated.
 
-**Status:** **A0 and A1 done (2026-10-13); A2 (golden path and onboarding) is
-next.** Each phase's "What shipped" note below says what was delivered, what
+**Status:** **A0 and A1 done (2026-10-13); A2, A3 and A4 done (2026-10-14);
+A5 (copy, design system and consistency) is next.** Each phase's "What shipped" note below says what was delivered, what
 was measured, and what moved to a later phase. `docs/HANDOFF.md` records the
 session.
 
@@ -958,7 +958,7 @@ keys) is not there yet.
 
 ---
 
-## A4 — Sources, destinations and migration
+## A4 — Sources, destinations and migration *(done 2026-10-14)*
 
 **Why.** §0 blocker 3, §6. This is the phase that decides whether the product
 can be sold as an integration platform at all.
@@ -1044,6 +1044,59 @@ dataset page and `GET …/datasets/{id}/download`.
 
 **U6. Honest cards.** A connection shows its connector's tier; live feeds
 say change capture is PostgreSQL only.
+
+**What shipped.**
+
+- **U1, one dataset per producer.** An import's runs and a recipe's runs add
+  versions to one dataset (`reusable_dataset`; recipes get
+  `output_dataset_id`, migration 0047, backfilled). Replays stay separate.
+- **U2, import from any readable connector.** `connector_sources.py` connects
+  the import service to the SDK: settings checked against the connector's
+  fields, its secret fields encrypted, list / preview / import / "only new
+  rows" through the connector, the stream stored on the import (migration
+  0048). "Connect a source" is the catalogue with tiers; SQL databases keep
+  their own form and path.
+- **U3, destinations that load.** `sql_writer.py` for PostgreSQL and MySQL
+  (replace, add rows, update matching rows by delete-then-insert, keys as the
+  primary key of a new table, types from the values), files to S3 and
+  compatible stores and to a server folder through the SDK's file
+  connectors, a preview of what will be written, every delivery a run.
+  Destinations page rebuilt; "Send to → A destination" on every dataset.
+- **U4, Copy a database.** Plan through the canonical type lattice with
+  losses marked, not-carried items counted from the source, tables created
+  with keys and NOT NULL, rows streamed, a report per table.
+- **U5, download** of any version as CSV or Parquet, applying the project's
+  row and column policies (the first read path that does).
+- **U6, honest cards.** Every connection shows its tier; live feeds say
+  change capture is PostgreSQL only; the Destinations page says warehouses
+  are not supported.
+- **Security found on the way.** Server folders are confined to
+  `SERVER_FILES_ROOT` (the local-files connector read any path, `/`
+  included); connectors that fetch URLs refuse the cloud metadata address
+  and, unless allowed, the server itself (`OUTBOUND_*`); a download applies
+  policies.
+- **Also fixed.** Delivered columns were all TEXT (the parser's object
+  columns); the PostgreSQL TIMESTAMP WITH TIME ZONE name was lost in column
+  discovery; the type parser missed "timestamp(3) with time zone"; a REST
+  path typed after the default "/" became another host.
+
+**Measured (browser and real servers).**
+
+| Check from the plan | Result |
+|---|---|
+| Connect a REST or SaaS source at tier 2 and land a dataset | REST API (tier 2) connected, previewed and imported: 3 rows into a dataset |
+| Deliver to MySQL with update matching rows twice, no duplicates | 20 added, then 20 updated and 0 added; MySQL holds 20 rows for 20 customers, customer_id the primary key |
+| Copy a database PostgreSQL → MySQL and read the report | Three-table shop, 10 rows; keys, NOT NULLs, microseconds, JSON and exact prices arrived; foreign keys, an index, a unique constraint and defaults reported as not carried |
+
+Connector, destination and copy tests run against the servers in
+`docker-compose.connectors.yml` (PostgreSQL, MySQL, MinIO) and skip with the
+reason without them.
+
+**Moved to later phases.** No warehouse destination (Snowflake, BigQuery)
+until a customer names one. MySQL change capture is not built. A copy runs
+inside one request (2,000,000 rows a table); a background copy with
+progress belongs with A7's scale work. The SaaS connectors remain tier 2
+against recorded vendor contracts, not live accounts.
 
 ---
 

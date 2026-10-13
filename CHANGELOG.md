@@ -13,6 +13,26 @@ the test counts at the time — is in the session log in
 
 ---
 
+## A2 — golden path and onboarding (2026-10-14)
+
+- **Something to start from**: three small, deliberately untidy sample files
+  (orders, customers, invoices) added from one "Add data" dialog alongside
+  upload and connect, and three recipe templates ("Clean a contact list",
+  "Monthly totals", "Remove duplicates and tidy text") that suggest which
+  columns to use and add ordinary steps.
+- **A first run that leads somewhere**: a welcome on an empty workspace, a
+  checklist that lights only the next step, lists instead of forms on Checks,
+  People and Reports, and a next step in the empty states a new project sees.
+- **"About this page"** on every page: what it is for, in a few sentences.
+- **Notifications you can live with**: each kind arrives one by one, as a
+  daily summary or not at all; repeats of an unread failure count up instead
+  of stacking (migration 0046).
+- **A chart to a dashboard in one click**, with charts named in words
+  ("Amount by region") and measures called Total, Average and Count rows.
+- **Plain sentences** without em-dashes across the app, and a name in every
+  browser tab.
+- **Fixed**: a spaced phone number was read as a twelve-digit integer.
+
 ## A0–A1 — product definition and navigation (2026-10-13)
 
 - **The product, defined** in

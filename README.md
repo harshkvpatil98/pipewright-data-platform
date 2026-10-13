@@ -42,7 +42,10 @@ written from a review of all 59 web pages: one navigation vocabulary, a guided
 first run, a canvas-first Studio, and docs for end users. A0 (the product
 definition and vocabulary) and A1 (navigation) shipped on 2026-10-13: the app
 is organised as seven areas (Overview, Data, Build, Automate, Trust, Share
-and, for administrators, Admin), each with its pages as tabs. The progress
+and, for administrators, Admin), each with its pages as tabs. A2 (the first
+run) shipped on 2026-10-14: sample data, recipe templates, a welcome, help on
+every page and notification preferences; a CSV reaches a dashboard in nine
+clicks. The progress
 ledger lives in [docs/HANDOFF.md](docs/HANDOFF.md).
 
 At a glance, measured on `main`:

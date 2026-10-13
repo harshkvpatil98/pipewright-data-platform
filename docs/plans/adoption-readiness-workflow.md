@@ -667,7 +667,7 @@ the data model change is A4.
 
 ---
 
-## A2 — Golden path and onboarding
+## A2 — Golden path and onboarding *(done 2026-10-14)*
 
 **Why.** §0 blocker 6, F-UX-1..3, F-ST-5.
 
@@ -698,6 +698,71 @@ dashboard" — target under 5 minutes, ≤ 15 clicks, zero error banners.
 
 **Exit gate.** Task numbers recorded; no page opens with an error; every empty
 state has an action.
+
+**What shipped.**
+
+- **Sample data.** Three small files for one made-up shop (orders, customers,
+  invoices) ship with the gateway, deliberately untidy. `GET /samples`, and
+  `POST /projects/{id}/samples/{sample}` adds one through the same ingestion
+  as an upload. One "Add data" dialog (upload a file, connect a database, try
+  sample data) is reached from the Overview, its checklist, Datasets, Sources
+  and the Studio's no-data canvas.
+- **Recipe templates.** "Clean a contact list", "Monthly totals" and "Remove
+  duplicates and tidy text" live in `service_transformations/templates.py`.
+  Each matches its roles to the dataset's columns, the person confirms them,
+  and the result is ordinary steps. Offered in the Studio as "Start from a
+  template" on an empty recipe.
+- **Welcome and first-run flow.** A new workspace's Home is a welcome with
+  two ways to begin (new project, open the example) and nothing else. The
+  project checklist lights only the next step.
+- **Lists before forms.** Checks, People (project) and Reports open on their
+  list; "New check", "Add a person" and "New report" open dialogs.
+- **Empty states with a next step** across the pages that are mostly empty
+  for a new project (Metrics, Comparisons, Organisations, audit, find a
+  dataset, all runs, an empty dashboard, Checks, Reports, Incidents, People
+  search). What is left without a button is deliberate: permission notices,
+  the "Select a step" prompt, and short notes inside a panel ("No runs yet").
+- **No errors before input.** The form recipe editor waits for the name to be
+  touched. Crawled every tab page on a project with data and on a brand-new
+  empty project: no error banner, no crash. The one alert is Workflows and
+  Schedules saying no background worker is running, which is true on the
+  dev stack and is the runtime-health check doing its job.
+- **About this page.** A button on every tab strip opens the page's purpose
+  and two to four plain sentences. The words sit beside each tab in
+  `navigation.ts`; the test caps their length. The docs link waits for A6.
+- **Notifications.** Migration 0046: `group_key`/`group_count` and
+  `notification_preferences`. Each kind (failures, routine successes,
+  incidents, mentions, reports, workflow messages) is "Each one", "Daily
+  summary" or "Off"; successes default to the summary; a repeated unread
+  failure about the same thing counts up instead of stacking. Settings has
+  the choices; the Notifications page is a plain list.
+- **Chart to dashboard.** A chart is named in words ("Amount by region"), the
+  measure picker says Total, Average, Count rows, and saving offers "Put it
+  on a new dashboard".
+- **Wording.** Forty-eight sentences that still joined clauses with
+  em-dashes are rewritten (`wording.test.ts` keeps them out), and every page
+  has a browser-tab title (dashboards and datasets use their own name;
+  `navigation.test.ts` checks).
+- **Found on the way.** A spaced phone number ("+44 113 496 1037") was read
+  as a twelve-digit integer; the sniffer now only treats spaces as thousands
+  separators in groups of three. A "date" template role matched the column
+  "notes"; short hints now match whole words only.
+
+**Measured (browser, 1176×525 viewport, admin account, dev stack).**
+
+| Task | Clicks | Error banners | Notes |
+|---|---|---|---|
+| From nothing, get a CSV onto a dashboard | 9 plus typing a project name and picking the file | 0 | New project, Add data, Choose a file, (file), Import as reviewed, Share, Make a chart, Save, Put it on a new dashboard. Target ≤ 15 |
+| Clean a sample contact list with a template | 6 | 0 | Add data, Sample customers, Clean in Studio, Start from a template, Clean a contact list, Add these steps: 21 rows to 19 |
+
+Time is not reported: an automated tester's pace is set by its tools, not
+the product. No step waited on the server for long enough to notice. Same
+caveat as A1: not a fresh profile and not a newcomer; five people outside
+the team remain the A9 gate.
+
+**Moved to later phases.** The Studio's own layout and the second recipe
+editor are A3. Linking "About this page" to documentation is A6. The
+template and sample set is three each; more is A8's adoption pack.
 
 ---
 

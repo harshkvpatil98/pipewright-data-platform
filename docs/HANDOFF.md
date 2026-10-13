@@ -4,8 +4,8 @@
 last one stopped. Keep it current. If you change project state, update the **Progress ledger**
 and **Session log** at the bottom before you finish.
 
-**Last updated:** 2026-10-13 (adoption-readiness A0 and A1 complete)
-**Updated by:** session `75332b59` (A0 product definition and quick wins, A1 navigation and shell)
+**Last updated:** 2026-10-14 (adoption-readiness A0, A1 and A2 complete)
+**Updated by:** session `75332b59` (A0 product definition and quick wins, A1 navigation and shell, A2 golden path)
 
 ---
 
@@ -66,8 +66,8 @@ session log).
 npm run verify     # ruff + pytest + ESLint + tsc + production build
 ```
 
-Everything must be green before moving on. Current baseline (2026-10-13, after A1): **6,307 Python tests
-passed (573 skipped), 735 web tests, all passing, zero warnings.**
+Everything must be green before moving on. Current baseline (2026-10-14, after A2): **6,344 Python tests
+passed (573 skipped), 741 web tests, all passing, zero warnings.**
 
 Other commands: `npm test` (tests only) · `npm run smoke` (end-to-end smoke) ·
 `npm run lint` · `npm run typecheck` · `scripts/backup.sh --verify` (real restore drill).
@@ -111,7 +111,7 @@ was for that push, not a standing one.
 | 06 | Intelligence | `service-intelligence` | PII, join keys, entity resolution — **no model calls** |
 | 07 | Enterprise | `service-enterprise` | Tenancy, row/column security, retention, SSO, `/metrics` |
 
-**Migrations:** `apps/api-gateway/alembic/versions/`, 45 files, head is `0045_stream_sources`.
+**Migrations:** `apps/api-gateway/alembic/versions/`, 46 files, head is `0046_notification_grouping`.
 
 ### Roadmap v2: in progress
 
@@ -245,9 +245,9 @@ increments without declaring P2 complete; later development is outside that snap
 (A0–A9)**, written from the 2026-09-23 adoption review. **A0 (product
 definition, vocabulary, navigation tree, templates, voice guide, plus the
 quick-win defect fixes) and A1 (navigation and shell) are done as of
-2026-10-13; A2 (golden path and onboarding) is next.** The plan's A1 section
-lists what shipped, the measured cold-user task results and what moved to
-later phases. Rules for anyone touching the web app now:
+2026-10-13, and A2 (golden path and onboarding) as of 2026-10-14; A3 (Studio
+redesign) is next.** Each phase's section in the plan lists what shipped, the
+measured cold-user task results and what moved to later phases. Rules for anyone touching the web app now:
 
 - **`apps/web/src/lib/navigation.ts` is the navigation.** A new page goes into
   an area's tabs (or an `also` pattern for something inside a tab) or into
@@ -262,6 +262,15 @@ later phases. Rules for anyone touching the web app now:
   the tabs and breadcrumb from the URL; pass `title` on object pages.
 - **Shared components are styled from `packages/shared-ui`** only because
   `globals.css` has an `@source` line for it; keep it.
+- **On-screen words are tested.** `wording.test.ts` fails an em-dash inside a
+  sentence; `navigation.test.ts` fails a page with no browser-tab title and a
+  tab whose "About this page" help is missing or long. A new page needs a
+  `metadata` title and a `help` entry beside its tab.
+- **Notifications go through `create_user_notification`**, which applies the
+  person's preference for the event's category. `category_for` in
+  `preferences.py` files a new event type by its name and level (`_failed` or
+  a warning is a failure, `_succeeded` a routine success, anything else a
+  workflow message); check a new type lands where you mean.
 
 **The production-readiness sequence (P0–P9) is complete** as of 2026-09-23 —
 see `docs/plans/production-readiness-workflow.md` for what each phase delivered
@@ -710,5 +719,6 @@ Report honestly. If something is unverified, say so and add it to §7.
 | 2026-10-12 | Repository docs | **Documentation and hygiene for the public repository; no product code changed.** `main` fast-forwarded to `pw-dev/orchestrator-maintenance`. Added LICENSE (MIT), SECURITY.md (private advisory reporting), CODE_OF_CONDUCT.md, CHANGELOG.md, issue and PR templates, `.editorconfig`, and `license = "MIT"` in the root and web `package.json` and the gateway and service `pyproject.toml` files (setuptools floor raised to 77, the first that reads an SPDX `license`). README and CONTRIBUTING rewritten against `main`; `docs/security.md` no longer calls TOTP/OIDC planned (D11). `AGENTS.md`, `CLAUDE.md` and `docs/agent-context.md` untracked and ignored, their rules folded into CONTRIBUTING.md. CI diagnosis: the 2026-09-16 failure is the Linux sandbox gap now in §7, and `test_login_returns_bearer_token` also failed on any database without `user_mfa` — fixed by patching the lookup. `npm run verify` green with the connector servers up: 6,302 Python passed / 568 skipped, 692 web; a Linux/Python 3.11 container run of the CI bootstrap and pytest bundle (sandbox file deselected) passed apart from that login test before its fix. |
 
 | 2026-10-13 | `75332b59` | **Adoption-readiness A0 + A1 complete.** A0: spec S1–S6 written into the plan (personas, 18-noun vocabulary, navigation tree, page templates, principles, voice guide) and the quick wins shipped — D1 OpenAPI 500 (function-local `Response` import under postponed annotations; `test_openapi.py`), D4 `[object Object]` parser findings, D5 dates as phones and every date as a birth date, D6/D7/D8 errors before input on Charts/Notebooks/Workflows, D19 21 read-only POSTs no longer audited (route list tested against the gateway), D20 designed not-found/error pages, D14–D17; `/demo`, `/case-study`, 23 dead or retired components and 9 placeholder feature stubs removed. A1: `lib/navigation.ts` read by rail, tabs, breadcrumb, switcher and Search, with a test that walks every `page.tsx`; rail of seven areas with tabs; eyebrows and the Workspace menu gone; new Datasets, Runs and project Settings pages; Overview, Sources, Schedules, Projects, Workflows, Dashboards and the dataset page rebuilt on the templates and vocabulary; renamed routes redirect. Found and fixed: Tailwind never scanned `packages/shared-ui`; the shared Modal could not scroll; tour Enter skipped steps; `humanDuration` "1 minutes"; listing extraction jobs 500'd for any project with a stepless import (P9 regression, `test_job_read.py`). Cold-user tasks in the browser: dashboards in 2 clicks, connect a database in 3. `npm run verify` green: 6,307 Python passed / 573 skipped, ESLint/tsc/build clean; 735 web tests after the last edits. Commits c2d9ce3 … d1ecc13 pushed to `main`. **Next: A2.** |
+| 2026-10-14 | `75332b59` | **Adoption-readiness A2 complete.** Sample data (three untidy shop files, `GET /samples`, `POST /projects/{id}/samples/{sample}` through ordinary ingestion) and three recipe templates (`service_transformations/templates.py`, role matching, ordinary steps; "date" hint matched "notes", short hints now whole-word) behind one "Add data" dialog and the Studio's "Start from a template". Welcome on an empty workspace; checklist lights only the next step; Checks, People and Reports are lists with create dialogs; empty states offer a next step. "About this page" on every tab (help text beside each tab in `navigation.ts`, length tested). Notifications: migration 0046 (`group_key`/`group_count`, `notification_preferences`), each/daily summary/off per category, repeats of an unread failure count up. Charts named in words with "Put it on a new dashboard". 48 em-dash sentences rewritten with `wording.test.ts` guarding; every page has a browser-tab title (tested). Fixed: spaced phone numbers read as integers. Cold-user task "CSV onto a dashboard": 9 clicks plus typing, 0 error banners; every tab crawled on a full and an empty project with no error. `npm run verify` green: 6,344 Python passed / 573 skipped, 741 web, ESLint/tsc/build clean. Commits 7d792af … pushed to `main`. **Next: A3 (Studio redesign).** |
 
 <!-- Add a row above when you finish a session. Keep it to one line. -->

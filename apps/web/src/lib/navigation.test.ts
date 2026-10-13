@@ -85,6 +85,19 @@ describe("the navigation tree", () => {
     }
   });
 
+  it("explains every page in a few short sentences", () => {
+    for (const area of AREAS) {
+      for (const tab of area.tabs) {
+        expect(tab.help.length, `${area.id}/${tab.id}`).toBeGreaterThan(0);
+        expect(tab.help.length, `${area.id}/${tab.id}`).toBeLessThanOrEqual(4);
+        for (const sentence of tab.help) {
+          expect(sentence.split(/\s+/).length, sentence).toBeLessThanOrEqual(20);
+          expect(sentence, sentence).not.toMatch(/—/);
+        }
+      }
+    }
+  });
+
   it("uses a different icon for every rail area", () => {
     const icons = railAreas(true).map((area) => area.icon);
     expect(new Set(icons).size).toBe(icons.length);

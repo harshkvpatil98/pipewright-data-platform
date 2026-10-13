@@ -47,6 +47,11 @@ export type NavTab = {
   description: string;
   /** Extra words the palette should find this by. */
   keywords?: string;
+  /**
+   * What someone can do on this page, two to four short sentences, shown by
+   * "About this page". Written for a person who has never seen it.
+   */
+  help: string[];
   adminOnly?: boolean;
 };
 
@@ -78,6 +83,11 @@ export const AREAS: NavArea[] = [
         path: "",
         persona: "data owner",
         description: "What to do next, recent data and recent runs.",
+        help: [
+          "Follow the checklist to get a project working, one step at a time.",
+          "See the newest data and the last few runs.",
+          "Add data from here at any time.",
+        ],
         keywords: "project home start checklist getting started",
       },
       {
@@ -87,6 +97,11 @@ export const AREAS: NavArea[] = [
         path: "/members",
         persona: "administrator",
         description: "Who can see and change this project.",
+        help: [
+          "Add people who already have an account, and choose what each can do.",
+          "Viewers can look, operators can run things, editors can change them, admins can manage people.",
+          "Removing someone takes away their access to this project only.",
+        ],
         keywords: "members access roles invite team share",
       },
       {
@@ -96,6 +111,11 @@ export const AREAS: NavArea[] = [
         path: "/notification-targets",
         persona: "operator",
         description: "Where failures and reports are sent: email or Slack.",
+        help: [
+          "Send failures and finished reports to an email address or a Slack channel.",
+          "Everything already appears in the bell at the top; this adds other places.",
+          "Use Test to check a channel works before relying on it.",
+        ],
         keywords: "notification targets slack email webhook",
       },
       {
@@ -105,6 +125,11 @@ export const AREAS: NavArea[] = [
         path: "/settings",
         persona: "administrator",
         description: "Rename, archive or delete this project.",
+        help: [
+          "Rename the project or describe what it is for.",
+          "Archive it when it is no longer used; it stays readable.",
+          "Delete it, and everything in it, when you are sure.",
+        ],
         keywords: "project settings rename archive delete",
       },
     ],
@@ -124,6 +149,11 @@ export const AREAS: NavArea[] = [
         path: "/sources",
         persona: "data owner",
         description: "Upload files, connect databases and receive live data.",
+        help: [
+          "Upload a file: Pipewright shows how it will read it before anything is saved.",
+          "Connect a database, browse its tables and import the ones you need.",
+          "Set imports to bring in only new rows, so each run is quick.",
+        ],
         keywords: "connect database connection import extraction upload file stream webhook cdc",
       },
       {
@@ -134,6 +164,11 @@ export const AREAS: NavArea[] = [
         also: ["/datasets/*", "/datasets/*/**"],
         persona: "data owner",
         description: "Every table of data in this project.",
+        help: [
+          "Every table of data in this project, one row per name.",
+          "Open one to see its rows and columns, clean it in Studio, or send it somewhere.",
+          "Filter by where the data came from, or find one by name.",
+        ],
         keywords: "tables data files",
       },
       {
@@ -143,6 +178,11 @@ export const AREAS: NavArea[] = [
         path: "/catalog",
         persona: "data owner",
         description: "Search datasets by name, column or tag, and keep the glossary.",
+        help: [
+          "Search datasets by name, by column or by what someone wrote about them.",
+          "Keep a glossary so a word like “active customer” means one thing.",
+          "Owners and certified datasets show here once people mark them.",
+        ],
         keywords: "catalogue glossary search find tags owner certified",
       },
     ],
@@ -162,6 +202,11 @@ export const AREAS: NavArea[] = [
         path: "/studio",
         persona: "data owner",
         description: "Clean and reshape a dataset step by step, seeing the result as you go.",
+        help: [
+          "Pick a dataset and add steps: filter rows, fix text, add columns and more.",
+          "Every step shows its effect on the data straight away.",
+          "Nothing changes your original data; save the steps as a recipe to reuse them.",
+        ],
         keywords: "transform clean shape recipe grid spreadsheet steps",
       },
       {
@@ -172,6 +217,11 @@ export const AREAS: NavArea[] = [
         also: ["/pipelines/**", "/datasets/*/pipelines/*"],
         persona: "data owner",
         description: "Saved recipes: the steps that turn one dataset into another.",
+        help: [
+          "Recipes are saved sets of steps that turn one dataset into another.",
+          "Run one to make a fresh copy of its result.",
+          "Put a recipe on a schedule so it runs by itself.",
+        ],
         keywords: "pipelines saved transformations",
       },
       {
@@ -181,6 +231,11 @@ export const AREAS: NavArea[] = [
         path: "/workbench",
         persona: "data owner",
         description: "Write SQL against a connected database.",
+        help: [
+          "Write SQL against a connected database and see the results.",
+          "It reads by default; writing needs an administrator.",
+          "Save queries you use often.",
+        ],
         keywords: "workbench query editor sql",
       },
       {
@@ -190,6 +245,11 @@ export const AREAS: NavArea[] = [
         path: "/notebooks",
         persona: "data owner",
         description: "SQL, recipe and note cells that run top to bottom.",
+        help: [
+          "Mix SQL, recipe and text cells that run from top to bottom.",
+          "Each cell can use the result of the cells above it.",
+          "Save a notebook to run it again later.",
+        ],
         keywords: "notebook python cells",
       },
       {
@@ -199,6 +259,11 @@ export const AREAS: NavArea[] = [
         path: "/table-editor",
         persona: "data owner",
         description: "Edit rows in a connected database table, with a preview before saving.",
+        help: [
+          "Change rows in a connected database table directly.",
+          "You see every change, and how many rows it affects, before it is saved.",
+          "Only tables with a clear way to identify each row can be edited.",
+        ],
         keywords: "write back edit rows database table",
       },
     ],
@@ -219,6 +284,11 @@ export const AREAS: NavArea[] = [
         also: ["/workflows/*"],
         persona: "operator",
         description: "Tasks that run in order, by hand or on a schedule.",
+        help: [
+          "Chain tasks in order: import, clean, check, deliver.",
+          "If a check fails, the tasks after it stop, so bad data goes nowhere.",
+          "Run a workflow by hand or on a timetable.",
+        ],
         keywords: "dag orchestration tasks backfill",
       },
       {
@@ -228,6 +298,11 @@ export const AREAS: NavArea[] = [
         path: "/schedules",
         persona: "operator",
         description: "Run recipes and deliveries at set times.",
+        help: [
+          "Run a recipe or a delivery by itself at the times you choose.",
+          "Pause a schedule without losing it.",
+          "Run now tries it straight away without changing its timetable.",
+        ],
         keywords: "cron recurring daily hourly",
       },
       {
@@ -238,6 +313,11 @@ export const AREAS: NavArea[] = [
         also: ["/runs/*/**"],
         persona: "operator",
         description: "Everything that has run in this project, newest first.",
+        help: [
+          "Everything that has run in this project, newest first.",
+          "Filter to failed runs to see what needs attention.",
+          "Open a run to see exactly what it did.",
+        ],
         keywords: "history jobs failures audit",
       },
       {
@@ -247,6 +327,11 @@ export const AREAS: NavArea[] = [
         path: "/destinations",
         persona: "operator",
         description: "Databases and file stores that receive your data.",
+        help: [
+          "Databases and file stores your data can be delivered to.",
+          "Test a destination before sending data to it.",
+          "Deliveries can run by hand, on a schedule or in a workflow.",
+        ],
         keywords: "publish export deliver postgres s3",
       },
       {
@@ -256,6 +341,11 @@ export const AREAS: NavArea[] = [
         path: "/bi-connections",
         persona: "operator",
         description: "Send datasets to Power BI or Tableau.",
+        help: [
+          "Connect Power BI or Tableau.",
+          "Send a dataset to them from the dataset’s Send to menu.",
+          "Test the connection before relying on it.",
+        ],
         keywords: "bi connections power bi tableau publish",
       },
     ],
@@ -275,6 +365,11 @@ export const AREAS: NavArea[] = [
         path: "/checks",
         persona: "data owner",
         description: "Rules your data must pass, and their results.",
+        help: [
+          "Checks are rules your data must pass, such as “every order has an email”.",
+          "Run them on a dataset to see which rows fail.",
+          "Failing rows can be set aside in their own dataset while the rest carries on.",
+        ],
         keywords: "data quality rules tests validation quarantine",
       },
       {
@@ -285,6 +380,10 @@ export const AREAS: NavArea[] = [
         also: ["/tests/saved/*", "/datasets/*/compare/*"],
         persona: "data owner",
         description: "Saved statistical comparisons between two datasets.",
+        help: [
+          "Saved statistical comparisons between two datasets.",
+          "Run one again after the data changes to see if it still holds.",
+        ],
         keywords: "saved tests statistical compare testing",
       },
       {
@@ -295,6 +394,11 @@ export const AREAS: NavArea[] = [
         also: ["/incidents/*"],
         persona: "operator",
         description: "Problems that need a person, from failed checks to late data.",
+        help: [
+          "Problems that need a person: failed checks, late data, unusual numbers.",
+          "Acknowledge one to show someone is on it; resolve it when fixed.",
+          "Incidents close by themselves when the problem clears.",
+        ],
         keywords: "alerts problems freshness anomalies",
       },
       {
@@ -304,6 +408,11 @@ export const AREAS: NavArea[] = [
         path: "/schema-drift",
         persona: "operator",
         description: "Columns added, removed or retyped at a source.",
+        help: [
+          "Columns added, removed or retyped at a source since the last import.",
+          "Breaking changes are marked, because they can stop recipes working.",
+          "Acknowledge a change once you have dealt with it.",
+        ],
         keywords: "drift schema columns breaking",
       },
       {
@@ -313,6 +422,11 @@ export const AREAS: NavArea[] = [
         path: "/governance",
         persona: "administrator",
         description: "Who sees which rows and columns, and how long data is kept.",
+        help: [
+          "Hide rows or columns from some people, or mask sensitive values.",
+          "Decide how long old runs and history are kept.",
+          "Handle requests to correct or erase someone’s personal data.",
+        ],
         keywords: "governance security masking retention erasure gdpr",
       },
       {
@@ -322,6 +436,11 @@ export const AREAS: NavArea[] = [
         path: "/changes",
         persona: "administrator",
         description: "Changes waiting for someone to approve them.",
+        help: [
+          "In projects that need approval, changes wait here for someone to accept them.",
+          "Running things is never blocked; only changing what they are.",
+          "Comment on a change before approving or rejecting it.",
+        ],
         keywords: "change requests review approve",
       },
       {
@@ -331,6 +450,11 @@ export const AREAS: NavArea[] = [
         path: "/audit-log",
         persona: "administrator",
         description: "Who changed what in this project, and when.",
+        help: [
+          "Who changed what in this project, and when.",
+          "Refused attempts are recorded too.",
+          "Filter by person or by what happened.",
+        ],
         keywords: "audit history activity log",
       },
     ],
@@ -351,6 +475,11 @@ export const AREAS: NavArea[] = [
         also: ["/dashboards/*"],
         persona: "data owner",
         description: "Pages of charts you can share by link or by email.",
+        help: [
+          "Pages of charts that answer one question together.",
+          "Share a dashboard by link, or have it emailed on a schedule.",
+          "Filters at the top apply to every chart on it.",
+        ],
         keywords: "dashboard bi share link",
       },
       {
@@ -360,6 +489,11 @@ export const AREAS: NavArea[] = [
         path: "/charts",
         persona: "data owner",
         description: "Ask a question of a dataset and save the answer as a chart.",
+        help: [
+          "Pick a dataset, what to group by and what to add up.",
+          "The preview updates as you change it.",
+          "Save a chart, then put it on a dashboard.",
+        ],
         keywords: "chart graph visualise visualize plot",
       },
       {
@@ -369,6 +503,11 @@ export const AREAS: NavArea[] = [
         path: "/reports",
         persona: "data owner",
         description: "Files sent by email or Slack on a schedule.",
+        help: [
+          "Send a dataset, chart or dashboard as a file on a timetable.",
+          "Excel, CSV, PDF or a web page, by email or Slack.",
+          "Each report keeps a history of what was sent.",
+        ],
         keywords: "scheduled reports export excel pdf csv email",
       },
       {
@@ -378,6 +517,11 @@ export const AREAS: NavArea[] = [
         path: "/metrics",
         persona: "data owner",
         description: "Numbers defined once, so every chart agrees.",
+        help: [
+          "Define an important number once, such as net revenue.",
+          "Charts and reports built on a metric always agree.",
+          "Changing a definition keeps a history of the old ones.",
+        ],
         keywords: "semantic layer measures kpi definitions",
       },
     ],
@@ -401,6 +545,11 @@ export const AREAS: NavArea[] = [
         adminOnly: true,
         persona: "administrator",
         description: "Everyone who can sign in: invite, reset, deactivate.",
+        help: [
+          "Everyone who can sign in to this platform.",
+          "Invite someone, reset a password, or turn an account off.",
+          "Project access is set inside each project, under People.",
+        ],
         keywords: "users people invite admin sign in",
       },
       {
@@ -411,6 +560,10 @@ export const AREAS: NavArea[] = [
         adminOnly: true,
         persona: "administrator",
         description: "Separate groups of people and projects.",
+        help: [
+          "Keep separate groups of people and projects apart.",
+          "A small team usually needs none.",
+        ],
         keywords: "organizations tenants tenancy",
       },
       {
@@ -421,6 +574,10 @@ export const AREAS: NavArea[] = [
         adminOnly: true,
         persona: "administrator",
         description: "Every change across every project, with export.",
+        help: [
+          "Every change in every project, in one place.",
+          "Filter it, and export it for an auditor.",
+        ],
         keywords: "audit center export compliance",
       },
       {
@@ -430,6 +587,10 @@ export const AREAS: NavArea[] = [
         path: "/connectors",
         persona: "administrator",
         description: "Every kind of source the platform can connect to.",
+        help: [
+          "Every kind of source Pipewright can connect to.",
+          "Each shows how well it is tested, so you know what to expect.",
+        ],
         keywords: "connector catalogue integrations saas",
       },
       {
@@ -439,6 +600,10 @@ export const AREAS: NavArea[] = [
         path: "/system-status",
         persona: "administrator",
         description: "Whether the platform and its background work are healthy.",
+        help: [
+          "Whether the platform and its background work are running.",
+          "Check here first when runs or schedules seem stuck.",
+        ],
         keywords: "health status workers uptime",
       },
     ],
@@ -458,6 +623,10 @@ export const AREAS: NavArea[] = [
         path: "/",
         persona: "data owner",
         description: "What needs attention, and where you left off.",
+        help: [
+          "What needs attention across your projects.",
+          "Jump back into a project, or start a new one.",
+        ],
         keywords: "start dashboard welcome",
       },
       {
@@ -467,6 +636,10 @@ export const AREAS: NavArea[] = [
         path: "/projects",
         persona: "data owner",
         description: "All projects you can open, and a new one.",
+        help: [
+          "Every project you can open.",
+          "Start a new project for a new team or subject.",
+        ],
         keywords: "workspaces new project",
       },
       {
@@ -476,6 +649,10 @@ export const AREAS: NavArea[] = [
         path: "/runs",
         persona: "operator",
         description: "Recent runs across every project.",
+        help: [
+          "Recent runs across every project you can open.",
+          "Filter to failures to see what needs attention anywhere.",
+        ],
         keywords: "history failures",
       },
       {
@@ -485,6 +662,9 @@ export const AREAS: NavArea[] = [
         path: "/datasets",
         persona: "data owner",
         description: "Search datasets across every project.",
+        help: [
+          "Find a dataset by name across every project you can open.",
+        ],
         keywords: "search tables",
       },
     ],

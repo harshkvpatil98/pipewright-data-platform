@@ -36,7 +36,7 @@ export const welcomeTour: TourStep[] = [
     target: "area-tabs",
     placement: "bottom",
     title: "Each area has tabs",
-    body: "Related pages sit side by side here, so nothing is more than two clicks away.",
+    body: "Related pages sit side by side here. \"About this page\" on the right explains whichever page you are on.",
   },
   {
     target: "command-trigger",

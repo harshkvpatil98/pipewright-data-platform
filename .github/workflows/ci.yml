@@ -129,3 +129,54 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.name }}
 
+  # Hot read endpoints against their budgets (scripts/perf-baseline.py, A7):
+  # a fresh database migrated from scratch, a gateway, five demo projects of
+  # data, then each endpoint's p95 against its own budget.
+  performance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: perf
+          POSTGRES_USER: platform
+          POSTGRES_PASSWORD: platform
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U platform -d perf"
+          --health-interval 10s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://platform:platform@127.0.0.1:5432/perf
+      AUTH_JWT_SECRET: ci-performance-signing-secret-0123456789abcdef
+      BACKEND_CORS_ORIGINS: '["http://localhost:3000"]'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Bootstrap Python venv
+        run: bash ./scripts/ci-bootstrap-python-venv.sh
+      - name: Migrate a fresh database
+        working-directory: apps/api-gateway
+        run: ../../.venv/bin/alembic -c alembic.ini upgrade head
+      - name: Start the gateway
+        working-directory: apps/api-gateway
+        run: |
+          ../../.venv/bin/platform-bootstrap-user --username perf-runner --password perf-runner-password --role admin
+          nohup ../../.venv/bin/uvicorn api_gateway.main:app --host 127.0.0.1 --port 8000 > gateway.log 2>&1 &
+          for attempt in $(seq 1 60); do
+            curl -sf http://127.0.0.1:8000/api/v1/health/live && break
+            sleep 1
+          done
+      - name: Hot endpoints within budget
+        run: |
+          .venv/bin/python scripts/perf-baseline.py --base-url http://127.0.0.1:8000 \
+            --username perf-runner --password perf-runner-password \
+            --seed 5 --requests 100 --concurrency 4 --budgets
+      - name: Gateway log on failure
+        if: failure()
+        run: tail -100 apps/api-gateway/gateway.log
+

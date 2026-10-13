@@ -24,6 +24,24 @@ import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
+#: p95 budgets in milliseconds, enforced with --budgets (CI does, A7 X7). Set
+#: for a shared CI runner with the workers idle: loose enough not to fail on a
+#: noisy neighbour, tight enough that a query that stops using its index, or
+#: a page that starts loading every row, fails the build. /status fans out to
+#: every service and is scraped, not clicked, so its budget is the widest.
+BUDGETS_MS = {
+    "health": 150,
+    "status": 2500,
+    "metrics": 400,
+    "auth/me": 250,
+    "sso/status": 150,
+    "projects": 1000,
+    "runs": 600,
+    "datasets": 800,
+    "notifications": 500,
+    "people": 250,
+}
+
 # (label, method, path). All reads; the login below supplies the token.
 ENDPOINTS = [
     ("health", "GET", "/api/v1/health/live"),
@@ -112,10 +130,25 @@ def main() -> None:
     parser.add_argument("--requests", type=int, default=200, help="Requests per endpoint.")
     parser.add_argument("--concurrency", type=int, default=8)
     parser.add_argument("--budget-ms", type=float, default=0.0, help="Fail if any p95 exceeds this.")
+    parser.add_argument(
+        "--budgets", action="store_true",
+        help="Fail if an endpoint's p95 passes its own budget (BUDGETS_MS) or any request fails.",
+    )
+    parser.add_argument(
+        "--seed", type=int, default=0,
+        help="Create this many demo projects first, so the lists have something to list.",
+    )
     args = parser.parse_args()
 
     base_url = args.base_url.rstrip("/")
     token = _login(base_url, args.username, args.password)
+    for _ in range(args.seed):
+        req = urllib.request.Request(f"{base_url}/api/v1/projects/demo", method="POST", data=b"")
+        req.add_header("Authorization", f"Bearer {token}")
+        with urllib.request.urlopen(req, timeout=120) as response:
+            response.read()
+    if args.seed:
+        print(f"Seeded {args.seed} demo project{'s' if args.seed != 1 else ''}.")
 
     print(f"Baseline: {args.requests} req x {args.concurrency} conc against {base_url}\n")
     header = f"{'endpoint':<16}{'p50 ms':>9}{'p95 ms':>9}{'max ms':>9}{'req/s':>9}{'fail':>7}"
@@ -131,6 +164,12 @@ def main() -> None:
         )
         if args.budget_ms and stats["p95"] > args.budget_ms:
             breached.append(f"{label} p95 {stats['p95']:.0f}ms > {args.budget_ms:.0f}ms")
+        if args.budgets:
+            budget = BUDGETS_MS.get(label)
+            if budget is not None and stats["p95"] > budget:
+                breached.append(f"{label} p95 {stats['p95']:.0f}ms > its budget of {budget}ms")
+            if stats["failures"]:
+                breached.append(f"{label}: {stats['failures']} requests failed")
 
     if breached:
         print("\nBUDGET EXCEEDED:")

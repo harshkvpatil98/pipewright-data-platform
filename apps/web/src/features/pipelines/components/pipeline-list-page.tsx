@@ -67,7 +67,7 @@ export function PipelineListPageView({ currentUser, project, pipelines, datasets
           />
         ) : (
           <div className="overflow-hidden rounded-[24px] border border-line bg-sunken">
-            <Table>
+            <Table edge="panel">
               <TableHead>
                 <TableRow>
                   <TableHeaderCell>Recipe</TableHeaderCell>

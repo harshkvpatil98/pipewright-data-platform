@@ -133,6 +133,10 @@ export type AuditEntry = {
   correlation_id: string | null;
   duration_ms: number | null;
   created_at: string;
+  /** What it did, in words: "ran a recipe". */
+  summary?: string;
+  /** The name of what it touched, while that still exists. */
+  object_name?: string | null;
 };
 
 export type AuditListResponse = {

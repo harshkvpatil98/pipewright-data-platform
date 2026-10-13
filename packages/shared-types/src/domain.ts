@@ -761,6 +761,10 @@ export type AuditCenterRow = {
   outcome: string;
   status_code: number;
   correlation_id: string | null;
+  /** What it did, in words: "ran a recipe". */
+  summary?: string;
+  /** The name of what it touched, while that still exists. */
+  object_name?: string | null;
 };
 
 export type AuditCenterResponse = {

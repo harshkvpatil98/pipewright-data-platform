@@ -403,7 +403,7 @@ export function DataQualityPageView({
               </div>
 
               <div className="border-line overflow-x-auto rounded-2xl border">
-                <Table className="min-w-max">
+                <Table edge="panel" className="min-w-max">
                   <TableHead>
                     <TableRow>
                       <TableHeaderCell>Check</TableHeaderCell>

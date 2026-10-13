@@ -482,7 +482,7 @@ export function MetricsPageView({ currentUser, projectId, initial, datasets }: M
               <p className="text-[12.5px] text-muted">Computing…</p>
             ) : (
               <div className="overflow-x-auto rounded-2xl border border-line">
-                <Table>
+                <Table edge="panel">
                   <TableHead>
                     <TableRow>{preview.columns.map((column) => <TableHeaderCell key={column}>{column}</TableHeaderCell>)}</TableRow>
                   </TableHead>

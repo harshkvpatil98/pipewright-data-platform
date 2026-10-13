@@ -107,7 +107,7 @@ def test_filters_narrow_the_stream(db: Session, world: dict) -> None:
 def test_export_is_csv_with_a_header(db: Session, world: dict) -> None:
     csv_text = export_csv(db, current_user=_read("admin"), settings=SETTINGS)
     lines = csv_text.strip().splitlines()
-    assert lines[0].startswith("created_at,actor,project,method")
+    assert lines[0].startswith("created_at,actor,project,what,about,method")
     assert len(lines) == 4  # header + 3 rows
 
 
@@ -126,3 +126,33 @@ def test_retention_sweep_prunes_old_entries(db: Session, world: dict) -> None:
     # 365-day window prunes the 400-day-old entry, keeps the rest.
     assert sweep_audit_entries(db, retention_days=365, now=NOW) == 1
     assert total_audit_entries(db) == 3
+
+
+def test_rows_say_what_happened_and_name_what_it_touched(db: Session, world: dict) -> None:
+    from service_datasets.models import Dataset
+
+    project = world["project"]
+    dataset = Dataset(project_id=project.id, name="Weekly sales")
+    db.add(dataset)
+    db.flush()
+    _entry(db, actor="ann", method="DELETE", path=f"/api/v1/projects/{project.id}/datasets/{dataset.id}",
+           action="delete dataset", project=project)
+    db.commit()
+    rows = list_audit_entries(db, current_user=_read("admin"), settings=SETTINGS).items
+    row = next(item for item in rows if item.path.endswith(str(dataset.id)))
+    assert row.summary == "deleted a dataset"
+    assert row.object_name == "Weekly sales"
+    assert next(item for item in rows if item.action == "create user").summary == "created an account"
+
+
+def test_the_outcome_filter_uses_the_stored_outcomes(db: Session, world: dict) -> None:
+    project = world["project"]
+    _entry(db, actor="cy", method="POST", path=f"/api/v1/projects/{project.id}/pipelines/{uuid.uuid4()}/run",
+           action="run pipeline", outcome="succeeded", project=project)
+    db.commit()
+    admin = _read("admin")
+    done = list_audit_entries(db, current_user=admin, settings=SETTINGS, outcome="succeeded").items
+    assert [row.actor_username for row in done] == ["cy"]
+    # A search in the product's words finds the route that uses the engine's.
+    found = list_audit_entries(db, current_user=admin, settings=SETTINGS, query="recipe").items
+    assert [row.summary for row in found] == ["ran a recipe"]

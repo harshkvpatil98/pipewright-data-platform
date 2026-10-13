@@ -138,7 +138,7 @@ function RuntimePanel({ platform }: { platform: PlatformStatusResponse }) {
       </div>
 
       <div className="overflow-hidden rounded-[24px] border border-line bg-sunken">
-        <Table minWidth={560}>
+        <Table edge="panel" minWidth={560}>
           <TableHead>
             <TableRow>
               <TableHeaderCell>Component</TableHeaderCell>
@@ -276,7 +276,7 @@ export function SystemStatusPage({ currentUser }: { currentUser?: AuthUser | nul
           description="Each part and how it is doing, with the counts it reports."
         >
           <div className="overflow-hidden rounded-[24px] border border-line bg-sunken">
-            <Table minWidth={640}>
+            <Table edge="panel" minWidth={640}>
               <TableHead>
                 <TableRow>
                   <TableHeaderCell>Part</TableHeaderCell>

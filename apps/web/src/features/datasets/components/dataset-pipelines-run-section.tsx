@@ -33,7 +33,7 @@ export function DatasetPipelinesRunSection({ projectId, pipelines }: DatasetPipe
       description="Run one to make a fresh copy of its result from this data."
     >
       <div className="overflow-hidden rounded-[24px] border border-line bg-sunken">
-        <Table>
+        <Table edge="panel">
           <TableHead>
             <TableRow>
               <TableHeaderCell>Recipe</TableHeaderCell>

@@ -491,7 +491,7 @@ export function BiConnectionsPageView({ currentUser, projectId, initialItems }: 
             </div>
           ) : null}
           <div className="overflow-x-auto rounded-2xl border border-line">
-            <Table>
+            <Table edge="panel">
               <TableHead>
                 <TableRow>
                   <TableHeaderCell>Name</TableHeaderCell>

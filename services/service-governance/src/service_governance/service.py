@@ -16,6 +16,7 @@ from service_projects.contracts import ensure_owned_project
 from shared_python.errors import BadRequestError, NotFoundError
 
 from service_governance import versions as version_ops
+from service_governance.audit_words import object_names, summarise
 from service_governance.diff import diff_snapshots
 from service_governance.models import AuditEntry, ChangeRequest, Comment
 from service_governance.schemas import (
@@ -406,8 +407,14 @@ def list_audit_entries(
     rows = db.scalars(
         statement.order_by(AuditEntry.created_at.desc()).limit(max(1, min(limit, MAX_AUDIT_ROWS)))
     ).all()
+    names = object_names(db, list(rows))
     return AuditListResponse(
-        items=[AuditEntryRead.model_validate(row, from_attributes=True) for row in rows]
+        items=[
+            AuditEntryRead.model_validate(row, from_attributes=True).model_copy(
+                update={"summary": summarise(row.method, row.path), "object_name": names.get(row.id)}
+            )
+            for row in rows
+        ]
     )
 
 

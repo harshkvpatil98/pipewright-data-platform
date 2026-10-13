@@ -137,7 +137,7 @@ export function IngestReviewPanel({ analysis, spec, onSpecChange }: Props) {
           Every type here is a decision you can change before anything is stored.
         </p>
         <div className="overflow-x-auto rounded-2xl border border-line">
-          <Table>
+          <Table edge="panel">
             <TableHead>
               <TableRow>
                 <TableHeaderCell>Include</TableHeaderCell>
@@ -245,7 +245,7 @@ export function IngestReviewPanel({ analysis, spec, onSpecChange }: Props) {
           {analysis.preview.rows.length === 1 ? "" : "s"}, read the way above
         </h4>
         <div className="max-h-64 overflow-auto rounded-2xl border border-line">
-          <Table>
+          <Table edge="panel">
             <TableHead className="sticky top-0 bg-surface-2">
               <TableRow>
                 {analysis.preview.columns.map((name) => (

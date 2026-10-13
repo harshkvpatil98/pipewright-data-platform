@@ -197,7 +197,7 @@ export function PolicySimulationPanel({
 
           {result.sample_rows.length > 0 ? (
             <div className="overflow-hidden rounded-xl border border-line bg-sunken">
-              <Table>
+              <Table edge="panel">
                 <TableHead>
                   <TableRow>
                     {Object.keys(result.sample_rows[0]).map((key) => (

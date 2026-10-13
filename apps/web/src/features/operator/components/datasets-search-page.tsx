@@ -94,7 +94,7 @@ export function DatasetsSearchPageView({ currentUser, initialDatasets }: Dataset
           />
         ) : (
           <div className="overflow-hidden rounded-[24px] border border-line bg-sunken">
-            <Table minWidth={720}>
+            <Table edge="panel" minWidth={720}>
               <TableHead>
                 <TableRow>
                   <TableHeaderCell>Dataset</TableHeaderCell>

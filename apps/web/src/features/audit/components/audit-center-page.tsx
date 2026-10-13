@@ -3,7 +3,20 @@
 import { useCallback, useEffect, useState } from "react";
 
 import type { AuditCenterResponse, AuditCenterRow, AuthUser } from "@platform/shared-types";
-import { Badge, Button, EmptyState, Input, SectionPanel, Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "@platform/shared-ui";
+import {
+  Badge,
+  type BadgeTone,
+  Button,
+  EmptyState,
+  Input,
+  SectionPanel,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeaderCell,
+  TableRow,
+} from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { OperationalError } from "@/components/operational/operational-messages";
@@ -11,7 +24,7 @@ import { apiFetch } from "@/lib/api/client";
 import { appConfig } from "@/lib/config";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { getAccessToken } from "@/lib/auth/session";
-import { formatDate } from "@/lib/format";
+import { formatDateTime } from "@/lib/format";
 import { cx } from "@/lib/utils";
 import { sentenceLabel } from "@/lib/labels";
 
@@ -22,10 +35,21 @@ type AuditCenterPageProps = {
 };
 
 const OUTCOMES = [
-  { key: "", label: "All" },
-  { key: "success", label: "Success" },
-  { key: "failure", label: "Failure" },
+  { key: "", label: "Everything" },
+  { key: "succeeded", label: "Done" },
+  { key: "denied", label: "Refused" },
+  { key: "failed", label: "Failed" },
 ];
+
+const OUTCOME_BADGE: Record<string, { tone: BadgeTone; label: string }> = {
+  succeeded: { tone: "success", label: "Done" },
+  denied: { tone: "warning", label: "Refused" },
+  failed: { tone: "danger", label: "Failed" },
+};
+
+function capitalise(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
 
 /**
  * Every action across every project, for an admin. The old route redirected
@@ -141,10 +165,10 @@ export function AuditCenterPageView({ currentUser, initial, forbidden }: AuditCe
           ))}
         </div>
         <div className="w-44">
-          <Input value={actor} onChange={(e) => setActor(e.target.value)} placeholder="Actor…" aria-label="Filter by actor" />
+          <Input value={actor} onChange={(e) => setActor(e.target.value)} placeholder="Person…" aria-label="Filter by person" />
         </div>
         <div className="w-64">
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Path or action…" aria-label="Search path or action" />
+          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="What, such as recipe or dashboard…" aria-label="Search what happened" />
         </div>
       </div>
 
@@ -185,31 +209,29 @@ export function AuditCenterPageView({ currentUser, initial, forbidden }: AuditCe
           />
         ) : (
           <div className="overflow-hidden rounded-[24px] border border-line bg-sunken">
-            <Table minWidth={820}>
+            <Table edge="panel" minWidth={820}>
               <TableHead>
                 <TableRow>
                   <TableHeaderCell>When</TableHeaderCell>
-                  <TableHeaderCell>Actor</TableHeaderCell>
+                  <TableHeaderCell>Who</TableHeaderCell>
                   <TableHeaderCell>Project</TableHeaderCell>
-                  <TableHeaderCell>Action</TableHeaderCell>
-                  <TableHeaderCell>Outcome</TableHeaderCell>
+                  <TableHeaderCell>What they did</TableHeaderCell>
+                  <TableHeaderCell>Result</TableHeaderCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {rows.map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell className="text-xs text-ink-3">{formatDate(row.created_at)}</TableCell>
-                    <TableCell className="text-ink-2">{row.actor_username ?? "—"}</TableCell>
-                    <TableCell className="text-ink-3">{row.project_name ?? "—"}</TableCell>
-                    <TableCell className="text-ink-2">
-                      {row.action}
-                      <span className="ml-2 font-mono text-[12px] text-muted">{row.method} {row.path}</span>
+                  <TableRow key={row.id} title={`${row.method} ${row.path} (${row.status_code})`}>
+                    <TableCell className="whitespace-nowrap text-[13px] text-ink-3">{formatDateTime(row.created_at)}</TableCell>
+                    <TableCell className="text-ink-2">{row.actor_username ?? "Someone who has left"}</TableCell>
+                    <TableCell className="text-ink-3">{row.project_name ?? "Whole platform"}</TableCell>
+                    <TableCell>
+                      <div className="text-ink">{capitalise(row.summary || row.action)}</div>
+                      {row.object_name ? <div className="text-[13px] text-ink-3">{row.object_name}</div> : null}
                     </TableCell>
                     <TableCell>
-                      <Badge tone={row.outcome === "success"
-                            ? "success"
-                            : "danger"}>
-                        {sentenceLabel(row.outcome)}
+                      <Badge tone={OUTCOME_BADGE[row.outcome]?.tone ?? "neutral"}>
+                        {OUTCOME_BADGE[row.outcome]?.label ?? sentenceLabel(row.outcome)}
                       </Badge>
                     </TableCell>
                   </TableRow>

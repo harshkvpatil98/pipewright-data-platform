@@ -262,7 +262,7 @@ export function DatasetDetailPageView({
         description={`The first ${formatNumber(preview.rows.length)} of ${formatNumber(dataset.row_count)} rows.`}
       >
         <div className="border-line bg-sunken overflow-hidden rounded-[24px] border">
-          <Table>
+          <Table edge="panel">
             <TableHead>
               <TableRow>
                 {preview.columns.map((column) => (
@@ -304,7 +304,7 @@ export function DatasetDetailPageView({
         }
       >
         <div className="border-line bg-sunken overflow-hidden rounded-[24px] border">
-          <Table>
+          <Table edge="panel">
             <TableHead>
               <TableRow>
                 <TableHeaderCell>Column</TableHeaderCell>

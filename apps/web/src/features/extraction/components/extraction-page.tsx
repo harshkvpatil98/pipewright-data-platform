@@ -767,7 +767,7 @@ export function ExtractionPageView({
                   </Button>
                 </div>
                 <div className="border-line mt-3 overflow-x-auto rounded-2xl border">
-                  <Table className="min-w-max">
+                  <Table edge="panel" className="min-w-max">
                     <TableHead>
                       <TableRow>
                         {preview.columns.map((column) => (

@@ -248,7 +248,7 @@ export function DatasetVersionHistoryPanel({
         </p>
       ) : (
         <div className="overflow-hidden rounded-[24px] border border-line bg-sunken">
-          <Table>
+          <Table edge="panel">
             <TableHead>
               <TableRow>
                 <TableHeaderCell>Version</TableHeaderCell>
@@ -411,7 +411,7 @@ export function DatasetVersionHistoryPanel({
           </p>
         ) : (
           <div className="overflow-x-auto rounded-2xl border border-line">
-            <Table>
+            <Table edge="panel">
               <TableHead>
                 <TableRow>
                   {preview.columns.map((column) => (
@@ -586,7 +586,7 @@ export function DatasetVersionHistoryPanel({
                 <p className="text-[12.5px] text-muted">The statement returned no columns.</p>
               ) : (
                 <div className="max-h-[50vh] overflow-auto rounded-2xl border border-line">
-                  <Table>
+                  <Table edge="panel">
                     <TableHead>
                       <TableRow>
                         {queryResult.columns.map((column) => (

@@ -127,6 +127,9 @@ class AuditEntryRead(BaseModel):
     correlation_id: str | None
     duration_ms: int | None
     created_at: datetime
+    #: What it did, in words, and the name of what it touched while that still exists.
+    summary: str = ""
+    object_name: str | None = None
 
 
 class AuditListResponse(BaseModel):

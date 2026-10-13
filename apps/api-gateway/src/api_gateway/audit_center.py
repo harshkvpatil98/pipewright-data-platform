@@ -24,6 +24,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from service_auth.schemas import UserRead
+from service_governance.audit_words import nouns_matching, object_names, summarise
 from service_governance.models import AuditEntry
 from service_projects.models import Project
 from shared_python.errors import ForbiddenError
@@ -48,6 +49,10 @@ class AuditCenterRow(BaseModel):
     outcome: str
     status_code: int
     correlation_id: str | None
+    #: What it did, in words ("ran a recipe"), and the name of what it touched
+    #: while that still exists ("Weekly sales").
+    summary: str = ""
+    object_name: str | None = None
 
 
 class AuditCenterResponse(BaseModel):
@@ -83,15 +88,18 @@ def _query(
         statement = statement.where(AuditEntry.project_id == project_id)
     if query and query.strip():
         needle = f"%{query.strip()}%"
+        # People search in the product's words ("recipe"), the log stores routes
+        # ("/pipelines/"): a word also matches every route whose noun it names.
+        routes = [AuditEntry.path.ilike(f"%/{noun}%") for noun in nouns_matching(query)]
         statement = statement.where(
-            or_(AuditEntry.path.ilike(needle), AuditEntry.action.ilike(needle))
+            or_(AuditEntry.path.ilike(needle), AuditEntry.action.ilike(needle), *routes)
         )
     if since_days and since_days > 0:
         statement = statement.where(AuditEntry.created_at >= now - timedelta(days=since_days))
     return statement.order_by(AuditEntry.created_at.desc())
 
 
-def _row(entry: AuditEntry, project_name: str | None) -> AuditCenterRow:
+def _row(entry: AuditEntry, project_name: str | None, object_name: str | None = None) -> AuditCenterRow:
     created = entry.created_at
     return AuditCenterRow(
         id=str(entry.id),
@@ -106,6 +114,8 @@ def _row(entry: AuditEntry, project_name: str | None) -> AuditCenterRow:
         outcome=entry.outcome,
         status_code=entry.status_code,
         correlation_id=entry.correlation_id,
+        summary=summarise(entry.method, entry.path),
+        object_name=object_name,
     )
 
 
@@ -131,8 +141,9 @@ def list_audit_entries(
         project_id=project_id, since_days=since_days, now=moment,
     ).limit(limit)
     rows = db.execute(statement).all()
+    names = object_names(db, [entry for entry, _ in rows])
     return AuditCenterResponse(
-        items=[_row(entry, name) for entry, name in rows],
+        items=[_row(entry, name, names.get(entry.id)) for entry, name in rows],
         retention_days=settings.audit_retention_days,
     )
 
@@ -153,14 +164,17 @@ def export_csv(
     buffer = io.StringIO()
     writer = csv.writer(buffer)
     writer.writerow(
-        ["created_at", "actor", "project", "method", "path", "action", "outcome", "status_code", "correlation_id"]
+        ["created_at", "actor", "project", "what", "about", "method", "path", "action", "outcome", "status_code", "correlation_id"]
     )
+    names = object_names(db, [entry for entry, _ in rows])
     for entry, name in rows:
         writer.writerow(
             [
                 entry.created_at.isoformat() if entry.created_at else "",
                 entry.actor_username or "",
                 name or "",
+                summarise(entry.method, entry.path),
+                names.get(entry.id, ""),
                 entry.method,
                 entry.path,
                 entry.action,

@@ -8,7 +8,7 @@ import { Badge, type BadgeTone, SectionPanel, Table, TableBody, TableCell, Table
 import { AppShell } from "@/components/layout/app-shell";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
-import { formatDate } from "@/lib/format";
+import { formatDateTime } from "@/lib/format";
 import { cx } from "@/lib/utils";
 
 type AuditLogPageProps = {
@@ -25,7 +25,7 @@ const OUTCOME_TONE: Record<AuditOutcome, BadgeTone> = {
 
 const FILTERS: { id: AuditOutcome | "all"; label: string }[] = [
   { id: "all", label: "Everything" },
-  { id: "succeeded", label: "Succeeded" },
+  { id: "succeeded", label: "Done" },
   { id: "denied", label: "Refused" },
   { id: "failed", label: "Failed" },
 ];
@@ -82,17 +82,16 @@ export function AuditLogPageView({ currentUser, projectId, initial }: AuditLogPa
 
         {data.items.length === 0 ? (
           <p className="rounded-xl border border-line px-4 py-8 text-center text-[12.5px] text-muted">
-            Nothing recorded yet. Only requests that could change something are recorded, not reads.
+            Nothing recorded yet. Changes are recorded here; looking at things is not.
           </p>
         ) : (
           <Table minWidth={640}>
             <TableHead>
-              <TableRow className="text-[12px] text-muted">
+              <TableRow>
                 <TableHeaderCell>When</TableHeaderCell>
                 <TableHeaderCell>Who</TableHeaderCell>
-                <TableHeaderCell>Did what</TableHeaderCell>
-                <TableHeaderCell>Outcome</TableHeaderCell>
-                <TableHeaderCell>Took</TableHeaderCell>
+                <TableHeaderCell>What they did</TableHeaderCell>
+                <TableHeaderCell>Result</TableHeaderCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -107,27 +106,25 @@ export function AuditLogPageView({ currentUser, projectId, initial }: AuditLogPa
   );
 }
 
+const OUTCOME_LABEL: Record<AuditOutcome, string> = {
+  succeeded: "Done",
+  denied: "Refused",
+  failed: "Failed",
+};
+
+/** One entry as a sentence; the request it came from is on hover for whoever needs it. */
 function AuditRow({ entry }: { entry: AuditEntry }) {
+  const summary = entry.summary || entry.action;
   return (
-    <TableRow>
-      <TableCell className="text-[12px] text-muted">{formatDate(entry.created_at)}</TableCell>
-      <TableCell className="text-[12.5px] text-ink">
-        {entry.actor_username ?? "unknown"}
+    <TableRow title={`${entry.method} ${entry.path} (${entry.status_code})`}>
+      <TableCell className="whitespace-nowrap text-[13px] text-ink-3">{formatDateTime(entry.created_at)}</TableCell>
+      <TableCell className="text-[14px] text-ink">{entry.actor_username ?? "Someone who has left"}</TableCell>
+      <TableCell>
+        <div className="text-[14px] text-ink">{summary.charAt(0).toUpperCase() + summary.slice(1)}</div>
+        {entry.object_name ? <div className="text-[13px] text-ink-3">{entry.object_name}</div> : null}
       </TableCell>
       <TableCell>
-        <div className="text-[12.5px] capitalize text-ink">{entry.action}</div>
-        <div className="truncate font-mono text-[12px] text-muted">
-          {entry.method} {entry.path}
-        </div>
-      </TableCell>
-      <TableCell>
-        <Badge tone={OUTCOME_TONE[entry.outcome]}>
-          {entry.outcome === "denied" ? "refused" : entry.outcome}
-        </Badge>
-        <span className="ml-1.5 text-[12px] text-muted">{entry.status_code}</span>
-      </TableCell>
-      <TableCell className="tabular text-[12px] text-muted">
-        {entry.duration_ms !== null ? `${entry.duration_ms} ms` : "—"}
+        <Badge tone={OUTCOME_TONE[entry.outcome]}>{OUTCOME_LABEL[entry.outcome] ?? entry.outcome}</Badge>
       </TableCell>
     </TableRow>
   );

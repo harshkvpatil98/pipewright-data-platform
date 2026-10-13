@@ -392,14 +392,16 @@ export const AREAS: NavArea[] = [
     description: "People, organisations and the platform itself.",
     tabs: [
       {
-        id: "people",
-        label: "People",
+        // "Accounts", not "People": the project's own People tab is who can
+        // open one project; this is everyone who can sign in at all.
+        id: "accounts",
+        label: "Accounts",
         icon: "users",
         path: "/people",
         adminOnly: true,
         persona: "administrator",
-        description: "Every account on this platform: invite, reset, deactivate.",
-        keywords: "users accounts invite admin",
+        description: "Everyone who can sign in: invite, reset, deactivate.",
+        keywords: "users people invite admin sign in",
       },
       {
         id: "organisations",

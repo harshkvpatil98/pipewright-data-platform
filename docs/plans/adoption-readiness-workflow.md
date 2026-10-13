@@ -513,7 +513,7 @@ an area link opens the project chooser rather than a dead page.
 | **Automate** | Workflows · Schedules · Runs · Destinations · BI tools | Workflows, Schedules, Destinations, BI connections (Workspace-menu only before) and the overview's runs tab |
 | **Trust** | Checks · Comparisons · Incidents · Schema changes · Policies · Approvals · Audit log | Data quality, Saved tests (Workspace-menu only before), Incidents, Schema drift, Governance, Changes, Audit log |
 | **Share** | Dashboards · Charts · Reports · Metrics | Charts, Metrics, Reports and Dashboards (not in the rail before) |
-| **Admin** *(platform admins only)* | People · Organisations · Audit (all projects) · Connectors · System status | the Administration and Platform rail sections |
+| **Admin** *(platform admins only)* | Accounts · Organisations · Audit (all projects) · Connectors · System status | the Administration and Platform rail sections ("Accounts" so it is not a second "People") |
 
 **Workspace pages** sit outside the rail, reached from the mark, the switcher
 and Search: Home `/` with tabs Home · Projects · Runs · Datasets (the

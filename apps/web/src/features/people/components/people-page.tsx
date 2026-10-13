@@ -133,11 +133,11 @@ export function PeoplePageView({ currentUser, users: initialUsers }: PeoplePageV
     <>
       <AppShell
         currentUser={currentUser}
-        title="People"
-        subtitle="Every account on this platform: invite, reset and deactivate."
+        title="Accounts"
+        subtitle="Everyone who can sign in to this platform: invite, reset and deactivate."
         meta={
-          <span className="rounded-full border border-line bg-surface px-3 py-1 text-xs uppercase tracking-[0.18em] text-ink-2">
-            {isPlatformAdmin ? "Signed in as a platform admin" : "Read only — platform admins can make changes"}
+          <span className="rounded-full border border-line bg-surface px-3 py-1 text-[13px] text-ink-2">
+            {isPlatformAdmin ? "You can make changes here" : "Read only: platform administrators can make changes"}
           </span>
         }
       >

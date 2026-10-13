@@ -74,14 +74,13 @@ const STREAM_LOAD_MODE_LABELS: Partial<Record<LoadMode, string>> = {
  *
  * The catalogue page shows this on every card, but the catalogue is not where
  * somebody decides to trust a source — this page is, and a run's numbers are
- * read long after either. Same glyph and same word as the catalogue, so the
+ * read long after either. Same word and colour as the catalogue, so the
  * badge means one thing across the product.
  */
 function TierBadge({ spec }: { spec: ConnectorSpec | undefined }) {
   if (!spec) return null;
   return (
     <Badge tone={tierTone(spec.tier)} title={spec.tier_explanation}>
-      <span aria-hidden="true">{spec.tier_badge}</span>
       {spec.tier_label}
     </Badge>
   );

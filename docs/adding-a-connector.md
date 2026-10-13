@@ -164,10 +164,10 @@ and in the output of any run that used it.
 
 | Tier | Badge | Meaning |
 |---|---|---|
-| 1 — Verified | ✅ | Runs against a real instance in CI on every merge. |
-| 2 — Tested | ◑ | Runs against a container or local fixture in CI on every merge. |
-| 3 — Recorded | ◔ | Tested by replaying a captured real session. Never run live here. |
-| 4 — Unverified | ○ | Never executed against a real instance here. The configuration is as the vendor documents it; treat your first run as the real test. |
+| 1 — Tested live | ✅ | Tested against a real account with the vendor every time Pipewright changes. |
+| 2 — Tested | ◑ | Tested every time Pipewright changes, against a real server or a test server that answers the way the vendor documents. |
+| 3 — Tested on a recording | ◔ | Tested every time Pipewright changes, by replaying a real session. |
+| 4 — Not yet tested | ○ | Written from the vendor's documentation and not yet run in Pipewright's tests. It can be used now; look over the rows its first import brings in. |
 
 The default is 4, deliberately: a connector that forgets to say is described
 as unverified rather than silently promoted.

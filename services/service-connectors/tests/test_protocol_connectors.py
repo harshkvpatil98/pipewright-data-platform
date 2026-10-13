@@ -232,7 +232,7 @@ class TestOData:
 
     def test_a_verified_read_carries_no_tier_caveat(self, server: str) -> None:
         result = ODataConnector().read(self._config(server), StreamRef(name="Products"))
-        assert not any("unverified" in warning.lower() for warning in result.warnings)
+        assert not any("not yet tested" in warning.lower() for warning in result.warnings)
 
 
 class TestJsonApi:

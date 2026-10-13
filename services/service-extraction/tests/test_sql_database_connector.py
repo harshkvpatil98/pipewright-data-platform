@@ -185,8 +185,8 @@ def test_the_connector_tier_reaches_a_run_and_a_test(tmp_path: Path) -> None:
     # A database nothing has run against here says so, once, in plain words.
     note = note_for("teradata")
     assert note is not None
-    assert "unverified" in note.lower()
-    assert "never executed" in note.lower()
+    assert "not yet tested" in note.lower()
+    assert "vendor's documentation" in note.lower()
 
 
 def test_an_unknown_connector_type_is_simply_not_annotated() -> None:

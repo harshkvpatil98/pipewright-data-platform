@@ -194,11 +194,14 @@ export function triggerLabel(raw: string | null | undefined): string {
   return TRIGGER_LABELS[raw] ?? sentenceLabel(raw);
 }
 
-/** How a connector tier reads: tested ones in green, unverified in amber (A6 owns the wording). */
+/**
+ * How a connector's tier looks: tested ones in green, the rest plain. Not
+ * amber: a connector not yet tested is not a fault (A6, W4), and its label
+ * already says what is known.
+ */
 export function tierTone(tier: number | undefined): BadgeTone {
-  if (tier === 1 || tier === 2) return "success";
-  if (tier === 3) return "neutral";
-  return "warning";
+  if (tier === 1 || tier === 2 || tier === 3) return "success";
+  return "neutral";
 }
 
 const COMPARISON_TEST_LABELS: Record<string, string> = {

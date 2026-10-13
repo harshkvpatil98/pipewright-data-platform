@@ -233,7 +233,7 @@ class TestPostgresThroughTheDialectTable:
     def test_a_verified_connection_carries_no_tier_caveat(self, postgres) -> None:
         url, _ = postgres
         result = _dialect("postgresql").test(_config_from(url))
-        assert not any("unverified" in warning.lower() for warning in result.warnings)
+        assert not any("not yet tested" in warning.lower() for warning in result.warnings)
 
 
 class TestPostgresThroughTheHandwrittenConnector:

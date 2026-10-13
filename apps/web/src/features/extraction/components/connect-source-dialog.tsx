@@ -19,6 +19,7 @@ import {
   splitFields,
 } from "@/features/extraction/connector-form";
 import { apiFetch } from "@/lib/api/client";
+import { countOf } from "@/lib/format";
 import { tierTone } from "@/lib/labels";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { cx } from "@/lib/utils";
@@ -152,7 +153,7 @@ export function ConnectSourceDialog({
             </p>
           ) : null}
           {!chosen.verified ? (
-            <p className="border-warning-line bg-warning-soft text-warning rounded-xl border px-3 py-2 text-[13px] leading-5">
+            <p className="border-line bg-surface text-ink-2 rounded-xl border px-3 py-2 text-[13px] leading-5">
               <span className="font-medium">{chosen.tier_label}. </span>
               {chosen.tier_explanation}
             </p>
@@ -298,10 +299,10 @@ export function ConnectSourceDialog({
               </button>
             ))}
           </div>
-          <p className="text-muted mt-3 text-[12px]">
-            {visible.length} source{visible.length === 1 ? "" : "s"}. “Tested”
-            ones run against a real server in our checks; “Unverified” ones are
-            built from the vendor’s documentation.
+          <p className="text-muted mt-3 text-[13px]">
+            {countOf(visible.length, "source")}, tested ones first. “Tested”
+            ones run in Pipewright’s tests on every change; “Not yet tested”
+            ones are written from the vendor’s documentation.
           </p>
           <ul className="mt-2 max-h-[46vh] space-y-1.5 overflow-y-auto pr-1">
             {visible.map((spec) => (

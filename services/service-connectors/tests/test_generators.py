@@ -116,9 +116,9 @@ class TestTiersAreHonest:
         # still describes most of the catalogue.
         rendered = registry.get("workday").spec.to_dict()
         assert rendered["tier"] == 4
-        assert rendered["tier_label"] == "Unverified"
+        assert rendered["tier_label"] == "Not yet tested"
         assert rendered["verified"] is False
-        assert "Never executed" in rendered["tier_explanation"]
+        assert "not yet run in Pipewright's tests" in rendered["tier_explanation"]
 
     def test_verified_means_something_actually_ran_it(self) -> None:
         assert Tier.SPEC_ONLY.verified is False
@@ -153,8 +153,8 @@ class TestTiersAreHonest:
             {"auth_secret": "x", "tenant_host": "acme", "tenant_name": "acme"},
             connector.discover({})[0],
         )
-        assert any("unverified" in warning.lower() for warning in result.warnings)
-        assert any("Never executed" in warning for warning in result.warnings)
+        assert any("not yet tested" in warning.lower() for warning in result.warnings)
+        assert any("not yet run in Pipewright's tests" in warning for warning in result.warnings)
 
     def test_a_verified_read_carries_no_such_warning(self, monkeypatch) -> None:
         # The warning has to mean something, which it stops doing if it is on
@@ -180,7 +180,7 @@ class TestTiersAreHonest:
             replace(connector.spec, tier=Tier.CONTAINER, verified_by="test_generators.py"),
         )
         result = connector.read({"auth_secret": "x"}, connector.discover({})[0])
-        assert not any("unverified" in warning.lower() for warning in result.warnings)
+        assert not any("not yet tested" in warning.lower() for warning in result.warnings)
 
 
 class TestManifestValidation:
@@ -615,7 +615,7 @@ class TestTierClaimsAreAuditable:
         assert len(unverified) > len(specs) / 2
         for spec in unverified:
             assert spec.tier is Tier.SPEC_ONLY
-            assert "Never executed" in spec.tier.explanation
+            assert "not yet run in Pipewright's tests" in spec.tier.explanation
 
 
 class TestHealthOverview:
@@ -799,7 +799,7 @@ class TestTheS3FamilyIsGenuinelyExercised:
         every read regardless of tier."""
         streams = connector.discover(self._config(store_key))
         result = connector.read(self._config(store_key), streams[0], limit=10)
-        unverified = any("unverified" in warning.lower() for warning in result.warnings)
+        unverified = any("not yet tested" in warning.lower() for warning in result.warnings)
         assert unverified is not connector.spec.tier.verified
 
     def test_a_missing_endpoint_setting_is_refused_before_any_call(
@@ -910,7 +910,7 @@ class TestTheTierCaveatCannotBeForgotten:
         spec = registry.spec_for("workday")
         assert spec.tier is Tier.SPEC_ONLY
         assert spec.tier_caveat is not None
-        assert "unverified" in spec.tier_caveat.lower()
+        assert "not yet tested" in spec.tier_caveat.lower()
 
     def test_a_verified_connector_has_nothing_to_say(self) -> None:
         assert registry.spec_for("sqlite").tier_caveat is None

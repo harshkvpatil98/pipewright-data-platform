@@ -69,11 +69,13 @@ class Tier(int, Enum):
 
     @property
     def label(self) -> str:
+        # Said as what was done, not as a warning (A6, W4): "Not yet tested" is
+        # as honest as "Unverified" and tells someone what would change it.
         return {
-            Tier.LIVE: "Verified",
+            Tier.LIVE: "Tested live",
             Tier.CONTAINER: "Tested",
-            Tier.RECORDED: "Recorded",
-            Tier.SPEC_ONLY: "Unverified",
+            Tier.RECORDED: "Tested on a recording",
+            Tier.SPEC_ONLY: "Not yet tested",
         }[self]
 
     @property
@@ -83,12 +85,15 @@ class Tier(int, Enum):
     @property
     def explanation(self) -> str:
         return {
-            Tier.LIVE: "Runs against a real instance in CI on every merge.",
-            Tier.CONTAINER: "Runs against a container or local fixture in CI on every merge.",
-            Tier.RECORDED: "Tested by replaying a captured real session. Never run live here.",
+            Tier.LIVE: "Tested against a real account with the vendor every time Pipewright changes.",
+            Tier.CONTAINER: (
+                "Tested every time Pipewright changes, against a real server or a test server "
+                "that answers the way the vendor documents."
+            ),
+            Tier.RECORDED: "Tested every time Pipewright changes, by replaying a real session.",
             Tier.SPEC_ONLY: (
-                "Never executed against a real instance here. The configuration is as "
-                "the vendor documents it; treat your first run as the real test."
+                "Written from the vendor's documentation and not yet run in Pipewright's tests. "
+                "It can be used now; look over the rows its first import brings in."
             ),
         }[self]
 
@@ -191,7 +196,7 @@ class ConnectorSpec:
         """
         if self.tier.verified:
             return None
-        return f"{self.label} is {self.tier.label.lower()}: {self.tier.explanation}"
+        return f"{self.label} is {self.tier.label.lower()}. {self.tier.explanation}"
 
     @property
     def secret_fields(self) -> tuple[str, ...]:

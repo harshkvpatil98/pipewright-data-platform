@@ -30,5 +30,5 @@ def note_for(connector_type: str) -> str | None:
     if spec.tier.verified:
         return None
     return (
-        f"{spec.label} is {spec.tier.label.lower()}: {spec.tier.explanation}"
+        f"{spec.label} is {spec.tier.label.lower()}. {spec.tier.explanation}"
     )

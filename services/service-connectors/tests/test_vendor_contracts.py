@@ -25,7 +25,7 @@ the records are found, renames land, and the declared schema matches what comes
 back. It does not prove the vendor's live API matches its own documentation --
 nothing short of a credential does, which is what `Tier.LIVE` means and why
 these stop at `Tier.CONTAINER`. That distinction is the whole tier system:
-"◑ Tested" and "✅ Verified" are different claims and are not run together.
+"Tested" and "Tested live" are different claims and are not run together.
 """
 
 from __future__ import annotations
@@ -760,7 +760,7 @@ class TestTheConnectorRunsAgainstThatResponse:
         result = _connector(contract, server).read(
             _config(contract), StreamRef(name=contract.stream)
         )
-        assert not any("unverified" in warning.lower() for warning in result.warnings)
+        assert not any("not yet tested" in warning.lower() for warning in result.warnings)
 
 
 # --------------------------------------------------------------- the harness

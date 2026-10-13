@@ -35,6 +35,7 @@ from service_connectors.protocol import (
     Tier,
     with_tier_note,
 )
+from shared_python.outbound import OutboundBlocked, check_host
 
 PAGINATION_STRATEGIES = ("none", "page", "offset", "cursor", "next_url", "link_header")
 AUTH_METHODS = ("none", "bearer", "api_key_header", "api_key_query", "basic")
@@ -301,6 +302,15 @@ def retry_delay_seconds(headers: dict[str, str], attempt: int) -> float:
     return min(2.0**attempt, MAX_RETRY_WAIT_SECONDS)
 
 
+def _guard_request(request) -> None:
+    """Refuse addresses the platform must not call (shared_python.outbound),
+    on every request including redirects, as an error people can read."""
+    try:
+        check_host(request.url.host)
+    except OutboundBlocked as exc:
+        raise ConnectorError(str(exc)) from exc
+
+
 class RestConnector:
     """A JSON API, read as a table."""
 
@@ -413,6 +423,7 @@ class RestConnector:
             headers=_headers(config),
             timeout=DEFAULT_TIMEOUT_SECONDS,
             follow_redirects=True,
+            event_hooks={"request": [_guard_request]},
         )
 
     def test(self, config: dict[str, Any]) -> TestResult:
@@ -618,7 +629,11 @@ class GraphQlConnector(RestConnector):
     def _post(self, config: dict[str, Any]) -> Any:
         import httpx
 
-        with httpx.Client(timeout=DEFAULT_TIMEOUT_SECONDS, follow_redirects=True) as client:
+        with httpx.Client(
+            timeout=DEFAULT_TIMEOUT_SECONDS,
+            follow_redirects=True,
+            event_hooks={"request": [_guard_request]},
+        ) as client:
             response = client.post(
                 str(config["base_url"]),
                 json={"query": str(config.get("query") or "")},

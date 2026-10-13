@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from api_gateway.config import settings
 from api_gateway.dependencies import get_db
-from api_gateway.status import collect_service_statuses, platform_status, security_snapshot
+from api_gateway.status import ceilings, collect_service_statuses, platform_status, security_snapshot
 from shared_python.status import PlatformStatus, ServiceStatus, SupportContact, support_contact
 
 router = APIRouter(prefix="/status", tags=["status"])
@@ -24,6 +24,7 @@ def get_platform_status(db: DbSession) -> PlatformStatus:
             (settings.scheduler_runtime_id or "").strip()
         ),
         security=security_snapshot(db, settings),
+        ceilings=ceilings(settings),
     )
 
 

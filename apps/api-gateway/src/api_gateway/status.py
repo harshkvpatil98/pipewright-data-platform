@@ -38,6 +38,7 @@ from service_workbench.status import get_service_status as get_workbench_status
 from service_writeback.status import get_service_status as get_writeback_status
 from shared_python.db.health import is_database_ready
 from shared_python.status import (
+    Ceiling,
     PlatformStatus,
     RuntimeComponentHeartbeat,
     RuntimeSnapshot,
@@ -151,6 +152,7 @@ def platform_status(
     scheduler_internal_api_configured: bool,
     scheduler_runtime_id_configured: bool,
     security: SecuritySnapshot | None = None,
+    ceilings: list[Ceiling] | None = None,
 ) -> PlatformStatus:
     services_raw = collect_service_statuses(db)
     database_status = "healthy" if is_database_ready(db) else "unhealthy"
@@ -175,6 +177,7 @@ def platform_status(
         scheduler=scheduler,
         runtime=_runtime_snapshot(db),
         security=security or SecuritySnapshot(),
+        ceilings=ceilings or [],
     )
 
 
@@ -194,4 +197,81 @@ def security_snapshot(db: Session, settings) -> SecuritySnapshot:
         organisations_with_network_lists=restricted,
         sso_configured=bool(getattr(settings, "oidc_issuer", None) and getattr(settings, "oidc_client_id", None)),
         trusted_proxy_hops=int(getattr(settings, "trusted_proxy_hops", 0) or 0),
+        storage_backend=str(getattr(settings, "storage_backend", "local") or "local"),
     )
+
+
+def _size(size_bytes: int) -> str:
+    megabytes = size_bytes / (1024 * 1024)
+    if megabytes >= 1024:
+        return f"{megabytes / 1024:g} GB"
+    return f"{megabytes:g} MB"
+
+
+def ceilings(settings) -> list[Ceiling]:
+    """The limits this server enforces, read from where each one is enforced (A7, X9).
+
+    Each value comes from the setting or constant the code checks, never a
+    copy of it, so this list cannot drift from what actually happens.
+    """
+    from service_destinations.copy_database import MAX_ROWS_PER_TABLE
+    from service_ingestion.service import IN_REQUEST_BYTES
+    from service_extraction.schemas import ExtractionJobBase
+    from service_workbench import sandbox
+    from service_workbench.notebook import MAX_RUN_SECONDS
+    from service_workbench.temporal import MAX_ROWS as SQL_ROWS
+    from service_workflows.executor import MAX_RETRY_WAIT_SECONDS
+    from service_workflows.schemas import MAX_RETRIES
+    from shared_python import rate_limit
+    from shared_python.words import count_of
+
+    import_rows = next(
+        (meta.le for meta in ExtractionJobBase.model_fields["max_rows"].metadata if getattr(meta, "le", None)),
+        None,
+    )
+    sign_in = rate_limit.SIGN_IN_PER_ACCOUNT
+    items = [
+        Ceiling(
+            name="Largest file you can upload",
+            value=_size(int(settings.max_upload_size_bytes)),
+            detail=(
+                f"Files over {IN_REQUEST_BYTES // (1024 * 1024)} MB are read by the background worker, and the "
+                "dataset page shows them being read. Bigger files can come in through a database or storage import."
+            ),
+            setting="MAX_UPLOAD_SIZE_BYTES",
+        ),
+        Ceiling(name="Rows shown in a preview", value=f"{int(settings.preview_row_limit):,}", setting="PREVIEW_ROW_LIMIT"),
+        Ceiling(
+            name="Rows one import brings in",
+            value=f"Up to {import_rows:,}" if import_rows else "No fixed limit",
+            detail="Each import sets its own limit below this.",
+        ),
+        Ceiling(name="Rows a database copy takes from each table", value=f"{MAX_ROWS_PER_TABLE:,}"),
+        Ceiling(name="Rows a SQL query over a version returns", value=f"{SQL_ROWS:,}"),
+        Ceiling(
+            name="Workflow runs of one project at the same time",
+            value=str(int(getattr(settings, "workflow_max_runs_per_project", 3))),
+            detail="The others wait their turn.",
+            setting="WORKFLOW_MAX_RUNS_PER_PROJECT",
+        ),
+        Ceiling(
+            name="Tries for a failing workflow task",
+            value=f"Up to {MAX_RETRIES + 1}",
+            detail=f"Waits double between tries, up to {MAX_RETRY_WAIT_SECONDS // 60} minutes; set on each task.",
+        ),
+        Ceiling(
+            name="A notebook's Python cell",
+            value=f"{sandbox.DEFAULT_TIMEOUT_SECONDS} seconds, {sandbox.DEFAULT_MEMORY_MB} MB",
+            detail=f"A whole notebook runs for at most {MAX_RUN_SECONDS} seconds.",
+        ),
+        Ceiling(
+            name="Sign-in attempts",
+            value=f"{count_of(sign_in.count, 'attempt')} in {sign_in.seconds // 60} minutes",
+            detail="Per account and address; then the sign-in page says when to try again.",
+        ),
+        Ceiling(
+            name="A shared dashboard link",
+            value=f"{rate_limit.PUBLIC_DASHBOARD_PER_ADDRESS.count} loads a minute per address",
+        ),
+    ]
+    return items

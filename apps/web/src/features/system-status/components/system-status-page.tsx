@@ -250,6 +250,32 @@ function RuntimePanel({ platform }: { platform: PlatformStatusResponse }) {
 }
 
 /** The controls a security review asks about, as this server is set up (A6, W5). */
+/** The limits this server enforces, read from where each is enforced (A7, X9). */
+function LimitsPanel({ ceilings }: { ceilings: NonNullable<PlatformStatusResponse["ceilings"]> }) {
+  return (
+    <SectionPanel title="Limits" description="What this server allows, so nobody has to find out by hitting one.">
+      <dl className="divide-y divide-line">
+        {ceilings.map((ceiling) => (
+          <div key={ceiling.name} className="flex flex-wrap items-start justify-between gap-3 py-2.5">
+            <dt className="text-[14px] text-ink-2">
+              {ceiling.name}
+              {ceiling.detail ? <div className="mt-0.5 max-w-md text-[13px] text-ink-3">{ceiling.detail}</div> : null}
+            </dt>
+            <dd className="text-right">
+              <div className="text-[14px] font-medium text-ink">{ceiling.value}</div>
+              {ceiling.setting ? (
+                <div className="mt-0.5 text-[13px] text-ink-3">
+                  Changed with <code className="font-mono">{ceiling.setting}</code>
+                </div>
+              ) : null}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </SectionPanel>
+  );
+}
+
 function SecurityPanel({ security }: { security: NonNullable<PlatformStatusResponse["security"]> }) {
   const rows: { label: string; value: string; ok: boolean; how?: string }[] = [
     {
@@ -276,6 +302,15 @@ function SecurityPanel({ security }: { security: NonNullable<PlatformStatusRespo
       value: security.sso_configured ? "Configured" : "Not configured",
       ok: security.sso_configured,
       how: security.sso_configured ? undefined : "See the admin guide for connecting an identity provider.",
+    },
+    {
+      label: "Stored files kept in",
+      value: security.storage_backend === "s3" ? "A bucket (S3-compatible)" : "This server's disk",
+      ok: true,
+      how:
+        security.storage_backend === "s3"
+          ? undefined
+          : "With more than one server, use a bucket (STORAGE_BACKEND=s3) or a volume they all mount.",
     },
     {
       label: "Addresses read from a proxy",
@@ -390,6 +425,7 @@ export function SystemStatusPage({ currentUser }: { currentUser?: AuthUser | nul
       ) : null}
 
       {platform?.security ? <SecurityPanel security={platform.security} /> : null}
+      {platform?.ceilings?.length ? <LimitsPanel ceilings={platform.ceilings} /> : null}
 
       {platform ? <RuntimePanel platform={platform} /> : null}
 

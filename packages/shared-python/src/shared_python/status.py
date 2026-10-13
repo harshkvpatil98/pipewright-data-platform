@@ -80,6 +80,18 @@ class SecuritySnapshot(BaseModel):
     organisations_with_network_lists: int = 0
     sso_configured: bool = False
     trusted_proxy_hops: int = 0
+    #: Where stored files are kept: "local" (this server's disk) or "s3" (a bucket).
+    storage_backend: str = "local"
+
+
+class Ceiling(BaseModel):
+    """One limit this platform enforces, written for the person reading System status (A7, X9)."""
+
+    name: str
+    value: str
+    detail: str = ""
+    #: The setting that changes it, when a setting does.
+    setting: str | None = None
 
 
 class PlatformStatus(BaseModel):
@@ -92,6 +104,7 @@ class PlatformStatus(BaseModel):
     scheduler: SchedulerOperationalSnapshot
     runtime: RuntimeSnapshot = Field(default_factory=RuntimeSnapshot)
     security: SecuritySnapshot = Field(default_factory=SecuritySnapshot)
+    ceilings: list[Ceiling] = Field(default_factory=list)
 
 
 class SupportContact(BaseModel):

@@ -1287,6 +1287,7 @@ export type PlatformStatusResponse = {
   scheduler: SchedulerOperationalSnapshot;
   runtime: RuntimeSnapshot;
   security?: SecuritySnapshot;
+  ceilings?: Ceiling[];
 };
 
 /** The controls a security review asks about, as configured (A6). */
@@ -1297,6 +1298,16 @@ export type SecuritySnapshot = {
   organisations_with_network_lists: number;
   sso_configured: boolean;
   trusted_proxy_hops: number;
+  /** "local" (this server's disk) or "s3" (a bucket). */
+  storage_backend?: string;
+};
+
+/** One limit the platform enforces, as System status states it (A7). */
+export type Ceiling = {
+  name: string;
+  value: string;
+  detail: string;
+  setting: string | null;
 };
 
 /** The session rules in force, and the address the platform sees. */

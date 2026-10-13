@@ -108,7 +108,18 @@ def _get_dataset(db: Session, project_id: uuid.UUID, dataset_id: uuid.UUID) -> D
     return dataset
 
 
-def _load_frame(db: Session, project_id: uuid.UUID, dataset_id: uuid.UUID, storage_backend) -> pd.DataFrame:
+def _reader(db: Session, project_id: uuid.UUID, current_user: UserRead):
+    """Whose eyes a chart's numbers are for: row and column policies apply by role (A6, W1)."""
+    from service_enterprise.policy_view import Reader
+
+    return Reader.for_user(db, project_id, current_user)
+
+
+def _load_frame(db: Session, project_id: uuid.UUID, dataset_id: uuid.UUID, storage_backend, *, reader) -> pd.DataFrame:
+    """A dataset's rows, narrowed to what `reader` may see. Every chart, pivot,
+    metric, dashboard, report and public link reads through here, so a policy
+    that hides a column or rows from a role hides them from its numbers too."""
+    from service_enterprise.policy_view import narrow_frame
     from service_ingestion.parsers import parse_tabular_file
 
     dataset = _get_dataset(db, project_id, dataset_id)
@@ -126,7 +137,7 @@ def _load_frame(db: Session, project_id: uuid.UUID, dataset_id: uuid.UUID, stora
             f"'{dataset.name}' has {len(frame):,} rows, above the {MAX_SOURCE_ROWS:,} "
             "limit for charting. Summarise it in a recipe first."
         )
-    return frame
+    return narrow_frame(db, project_id, dataset_id, reader, frame)
 
 
 def _to_query(payload: QueryInput) -> Query:
@@ -181,7 +192,7 @@ def _resolve_metric(db: Session, project_id: uuid.UUID, metric_id: uuid.UUID | N
 
 
 def _chart_frame_and_query(db: Session, project_id: uuid.UUID, dataset_id: uuid.UUID, metric_id: uuid.UUID | None,
-                           stored: QueryInput, storage_backend, frames: dict | None = None):
+                           stored: QueryInput, storage_backend, frames: dict | None = None, *, reader):
     """The frame and query a chart computes over. A metric-backed chart gets
     the metric's filters applied and its formula evaluated (prepare_frame) and
     its measure substituted (effective_query); a plain chart gets its own."""
@@ -190,7 +201,7 @@ def _chart_frame_and_query(db: Session, project_id: uuid.UUID, dataset_id: uuid.
     if frames is not None and dataset_id in frames:
         frame = frames[dataset_id]
     else:
-        frame = _load_frame(db, project_id, dataset_id, storage_backend)
+        frame = _load_frame(db, project_id, dataset_id, storage_backend, reader=reader)
         if frames is not None:
             frames[dataset_id] = frame
     metric = _resolve_metric(db, project_id, metric_id, dataset_id)
@@ -223,7 +234,8 @@ def preview_chart(
     """Compute a chart without saving it, so the builder is interactive."""
     ensure_owned_project(db, project_id, current_user.id)
     frame, stored = _chart_frame_and_query(
-        db, project_id, payload.dataset_id, payload.metric_id, payload.query, storage_backend
+        db, project_id, payload.dataset_id, payload.metric_id, payload.query, storage_backend,
+        reader=_reader(db, project_id, current_user),
     )
     query = _to_query(stored)
     warnings = validate_chart(payload.chart_type, query)
@@ -363,7 +375,10 @@ def get_chart_with_data(
     if extra_filters:
         stored = stored.model_copy(update={"filters": [*stored.filters, *extra_filters]})
 
-    frame, stored = _chart_frame_and_query(db, project_id, chart.dataset_id, chart.metric_id, stored, storage_backend)
+    frame, stored = _chart_frame_and_query(
+        db, project_id, chart.dataset_id, chart.metric_id, stored, storage_backend,
+        reader=_reader(db, project_id, current_user),
+    )
     query = _to_query(stored)
     data = _compute_chart(chart.chart_type, query, frame, chart.options_json)
 
@@ -405,7 +420,7 @@ def run_pivot(
 ) -> PivotResponse:
     """An ad-hoc question, with no pipeline in the way."""
     ensure_owned_project(db, project_id, current_user.id)
-    frame = _load_frame(db, project_id, payload.dataset_id, storage_backend)
+    frame = _load_frame(db, project_id, payload.dataset_id, storage_backend, reader=_reader(db, project_id, current_user))
 
     result = pivot(
         frame,
@@ -594,6 +609,7 @@ def compute_dashboard_data(
         else [FilterInput.model_validate(item) for item in (dashboard.filters_json or [])]
     )
     frames: dict[uuid.UUID, pd.DataFrame] = {}
+    reader = _reader(db, project_id, current_user)
 
     out: list[DashboardTileData] = []
     for tile in tiles:
@@ -610,7 +626,7 @@ def compute_dashboard_data(
             if filters:
                 stored = stored.model_copy(update={"filters": [*stored.filters, *filters]})
             frame, stored = _chart_frame_and_query(
-                db, project_id, chart.dataset_id, chart.metric_id, stored, storage_backend, frames
+                db, project_id, chart.dataset_id, chart.metric_id, stored, storage_backend, frames, reader=reader
             )
             data = _compute_chart(chart.chart_type, _to_query(stored), frame, chart.options_json)
             out.append(
@@ -790,7 +806,13 @@ def _shared_tile_data(
         stored = _from_query(chart.query_json)
         if dashboard_filters:
             stored = stored.model_copy(update={"filters": [*stored.filters, *dashboard_filters]})
-        frame, stored = _chart_frame_and_query(db, project_id, chart.dataset_id, chart.metric_id, stored, storage_backend)
+        from service_enterprise.policy_view import PUBLIC
+
+        # Someone holding a link reads as a viewer: whatever a policy hides
+        # from viewers stays hidden from the public too.
+        frame, stored = _chart_frame_and_query(
+            db, project_id, chart.dataset_id, chart.metric_id, stored, storage_backend, reader=PUBLIC
+        )
         data = _compute_chart(chart.chart_type, _to_query(stored), frame, chart.options_json)
         return ChartDataResponse(**data.to_dict())
     except Exception:  # noqa: BLE001 - one bad tile must not fail the page
@@ -996,14 +1018,15 @@ def build_report_frame(
     storage_backend,
 ) -> tuple[pd.DataFrame, str]:
     """The numbers that go in the file, and what to call it."""
+    reader = _reader(db, project_id, current_user)
     if report.source_kind == "dataset":
         dataset = _get_dataset(db, project_id, report.source_id)
-        return _load_frame(db, project_id, report.source_id, storage_backend), dataset.name
+        return _load_frame(db, project_id, report.source_id, storage_backend, reader=reader), dataset.name
 
     if report.source_kind == "chart":
         chart = _get_chart(db, project_id, report.source_id)
         query = _to_query(_from_query(chart.query_json))
-        frame = _load_frame(db, project_id, chart.dataset_id, storage_backend)
+        frame = _load_frame(db, project_id, chart.dataset_id, storage_backend, reader=reader)
         return run_query(frame, query).frame, chart.name
 
     dashboard = _get_dashboard(db, project_id, report.source_id)
@@ -1025,7 +1048,7 @@ def build_report_frame(
         if chart is None:
             continue
         query = _to_query(_from_query(chart.query_json))
-        source = _load_frame(db, project_id, chart.dataset_id, storage_backend)
+        source = _load_frame(db, project_id, chart.dataset_id, storage_backend, reader=reader)
         piece = run_query(source, query).frame.copy()
         piece.insert(0, "_chart", chart.name)
         frames.append(piece)

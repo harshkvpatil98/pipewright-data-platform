@@ -27,11 +27,16 @@ def build_step_context(
     max_bytes: int | None = None,
     pins: list | None = None,
     version_overrides: dict[str, tuple[str, str]] | None = None,
+    reader: Any | None = None,
 ) -> StepContext:
     """`pins`, when given, collects a `VersionPin` for every dataset a step reads
     (the run records them in its execution context). `version_overrides` maps a
     dataset id to the `(file_path, file_type)` of a pinned version, so a replay
-    reads the version the original run read rather than the current head."""
+    reads the version the original run read rather than the current head.
+
+    `reader`, when given, is whose eyes the result is for (a preview): each
+    dataset a step reads is narrowed by the row and column policies for that
+    reader's role, so a join cannot pull in what a policy hides (A6, W1)."""
     # Datasets are re-read per step; caching avoids paying storage + parse twice
     # when the same dataset is joined more than once in a pipeline.
     cache: dict[str, pd.DataFrame] = {}
@@ -70,6 +75,10 @@ def build_step_context(
             )
 
         frame = parse_tabular_file(file_bytes=file_bytes, file_type=file_type).dataframe
+        if reader is not None:
+            from service_enterprise.policy_view import narrow_frame
+
+            frame = narrow_frame(db, project_id, dataset.id, reader, frame)
         cache[key] = frame
         return frame.copy()
 

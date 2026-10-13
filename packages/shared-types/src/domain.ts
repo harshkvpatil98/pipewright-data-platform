@@ -57,6 +57,8 @@ export type DatasetProfileSummary = {
   completeness_score: number;
   columns: DatasetProfileColumn[];
   quality_flags: DatasetQualityFlags;
+  /** Set when a row or column policy narrowed this profile for the reader. */
+  restricted_by_policy?: boolean;
 };
 
 export type DatasetIngestionRunSummary = {

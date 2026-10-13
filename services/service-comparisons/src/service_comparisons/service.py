@@ -25,9 +25,25 @@ def get_dataset_comparison_summary(
     ensure_owned_project(db, project_id, current_user.id)
     if left_dataset_id == right_dataset_id:
         raise BadRequestError("Cannot compare a dataset with itself.")
-    left = get_dataset_model_for_project(db, project_id, left_dataset_id)
-    right = get_dataset_model_for_project(db, project_id, right_dataset_id)
+    from service_enterprise.policy_view import Reader, view_for
+
+    reader = Reader.for_user(db, project_id, current_user)
+    left = _AsSeenBy(get_dataset_model_for_project(db, project_id, left_dataset_id), view_for(db, project_id, left_dataset_id, reader))
+    right = _AsSeenBy(get_dataset_model_for_project(db, project_id, right_dataset_id), view_for(db, project_id, right_dataset_id, reader))
     return build_dataset_comparison_summary(left=left, right=right)
+
+
+class _AsSeenBy:
+    """A dataset whose stored schema and profile are narrowed to what one
+    reader may see; every other attribute is the dataset's own (A6, W1)."""
+
+    def __init__(self, dataset, view) -> None:
+        self._dataset = dataset
+        self.schema_json = view.schema(dataset.schema_json)
+        self.profile_json = view.profile(dataset.profile_json)
+
+    def __getattr__(self, name: str):
+        return getattr(self._dataset, name)
 
 
 def get_run_comparison_summary(

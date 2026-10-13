@@ -30,7 +30,8 @@ import { AppShell } from "@/components/layout/app-shell";
 import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
-import { formatDate, titleCase } from "@/lib/format";
+import { formatDate } from "@/lib/format";
+import { channelLabel } from "@/lib/labels";
 
 const EVENT_LABELS: Record<string, string> = {
   schedule_run_failed: "A scheduled run failed",
@@ -254,7 +255,7 @@ export function NotificationTargetsPageView({
                 {items.map((row) => (
                   <TableRow key={row.id}>
                     <TableCell className="font-medium text-ink">{row.name}</TableCell>
-                    <TableCell className="text-ink-3">{titleCase(row.target_type.replace(/_/g, " "))}</TableCell>
+                    <TableCell className="text-ink-3">{channelLabel(row.target_type)}</TableCell>
                     <TableCell className="text-ink-3">{row.enabled ? "Yes" : "No"}</TableCell>
                     <TableCell className="text-ink-3">{row.subscribed_event_types.length}</TableCell>
                     <TableCell className="text-xs text-muted">{formatDate(row.updated_at)}</TableCell>

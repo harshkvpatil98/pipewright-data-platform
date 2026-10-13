@@ -96,8 +96,12 @@ def run_dataset_statistical_test(
 
     _validate_column_declared(left, right, payload.column_name.strip())
 
-    left_df = _load_dataframe(left, storage_backend)
-    right_df = _load_dataframe(right, storage_backend)
+    from service_enterprise.policy_view import Reader, narrow_frame
+
+    # The test reads values, so it reads only what this person may see (A6, W1).
+    reader = Reader.for_user(db, project_id, current_user)
+    left_df = narrow_frame(db, project_id, left.id, reader, _load_dataframe(left, storage_backend))
+    right_df = narrow_frame(db, project_id, right.id, reader, _load_dataframe(right, storage_backend))
 
     col_left = _resolve_column(left_df, payload.column_name.strip())
     col_right = _resolve_column(right_df, payload.column_name.strip())

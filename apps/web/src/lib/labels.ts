@@ -200,3 +200,23 @@ export function tierTone(tier: number | undefined): BadgeTone {
   if (tier === 3) return "neutral";
   return "warning";
 }
+
+const COMPARISON_TEST_LABELS: Record<string, string> = {
+  welch_t_test: "Averages compared",
+  proportion_z_test: "Shares compared",
+  chi_square_distribution: "Categories compared",
+};
+
+/** A saved comparison's kind of test, in words. */
+export function comparisonTestLabel(raw: string | null | undefined): string {
+  if (!raw) return "";
+  return COMPARISON_TEST_LABELS[raw] ?? sentenceLabel(raw);
+}
+
+const CHANNEL_LABELS: Record<string, string> = { email: "Email", slack_webhook: "Slack" };
+
+/** Where an alert goes, in words. */
+export function channelLabel(raw: string | null | undefined): string {
+  if (!raw) return "";
+  return CHANNEL_LABELS[raw] ?? sentenceLabel(raw);
+}

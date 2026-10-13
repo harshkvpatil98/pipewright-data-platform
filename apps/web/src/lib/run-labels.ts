@@ -4,7 +4,7 @@ const RUN_TYPE_LABELS: Record<string, string> = {
   sample_orchestration: "Sample run",
   dataset_ingestion: "File upload",
   dataset_upload: "File upload",
-  database_extraction: "Database import",
+  database_extraction: "Import",
   dataset_transformation: "Recipe run",
   dataset_transformation_replay: "Recipe replay",
   dataset_publish_postgres: "Delivered to PostgreSQL",

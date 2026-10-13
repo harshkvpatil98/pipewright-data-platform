@@ -6,7 +6,7 @@ describe("formatRunTypeLabel", () => {
   it("maps known run types", () => {
     // A0 vocabulary: "deliver" and "recipe", not "publish" and "transformation".
     expect(formatRunTypeLabel("dataset_publish_postgres")).toBe("Delivered to PostgreSQL");
-    expect(formatRunTypeLabel("database_extraction")).toBe("Database import");
+    expect(formatRunTypeLabel("database_extraction")).toBe("Import");
   });
 
   it("falls back for unknown types", () => {

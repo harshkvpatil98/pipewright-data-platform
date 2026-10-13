@@ -31,7 +31,8 @@ import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { OperationalError } from "@/components/operational/operational-messages";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
-import { formatDate, titleCase } from "@/lib/format";
+import { formatDate } from "@/lib/format";
+import { sentenceLabel } from "@/lib/labels";
 
 type BiConnectionsPageViewProps = {
   currentUser: AuthUser;
@@ -513,7 +514,7 @@ export function BiConnectionsPageView({ currentUser, projectId, initialItems }: 
                     <TableRow key={row.id}>
                       <TableCell className="font-medium text-ink">{row.name}</TableCell>
                       <TableCell>{integrationLabel(row.integration_type)}</TableCell>
-                      <TableCell>{titleCase(row.status)}</TableCell>
+                      <TableCell>{sentenceLabel(row.status)}</TableCell>
                       <TableCell className="text-ink-3">{formatDate(row.created_at)}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex flex-wrap justify-end gap-2">

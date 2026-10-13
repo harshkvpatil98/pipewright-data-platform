@@ -47,8 +47,12 @@ def preview_dataset_transformations(
     except OSError as exc:
         raise BadRequestError(f"Unable to read dataset file: {exc}") from exc
 
+    from service_enterprise.policy_view import Reader, narrow_frame
+
+    # A preview hands rows to a person, so it starts from what they may see.
+    reader = Reader.for_user(db, project_id, current_user)
     parsed = parse_tabular_file(file_bytes=file_bytes, file_type=dataset.file_type)
-    source_frame = parsed.dataframe.copy()
+    source_frame = narrow_frame(db, project_id, dataset.id, reader, parsed.dataframe.copy())
 
     limit = getattr(settings, "preview_row_limit", 50) if settings is not None else 50
     if not isinstance(limit, int) or limit < 1:
@@ -60,6 +64,7 @@ def preview_dataset_transformations(
         project_id=project_id,
         storage_backend=storage_backend,
         max_bytes=getattr(settings, "max_upload_size_bytes", None) if settings is not None else None,
+        reader=reader,
     )
     transformed, warnings, outcomes = apply_transformation_steps_with_outcomes(
         source_frame, payload.steps, context

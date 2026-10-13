@@ -41,7 +41,7 @@ type DatasetsListPageProps = {
 const FILTERS: { id: DatasetOrigin | "all"; label: string }[] = [
   { id: "all", label: "All" },
   { id: "upload", label: "Uploaded files" },
-  { id: "database", label: "Database imports" },
+  { id: "database", label: "Imported" },
   { id: "recipe", label: "Made by recipes" },
   { id: "feed", label: "Live feeds" },
 ];

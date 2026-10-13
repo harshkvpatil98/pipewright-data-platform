@@ -10,7 +10,8 @@ import { Button, SectionPanel } from "@platform/shared-ui";
 import { AppShell } from "@/components/layout/app-shell";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
-import { formatDate, titleCase } from "@/lib/format";
+import { formatDate } from "@/lib/format";
+import { comparisonTestLabel } from "@/lib/labels";
 
 type SavedTestDetailPageViewProps = {
   currentUser: AuthUser;
@@ -59,7 +60,7 @@ export function SavedTestDetailPageView({ currentUser, projectId, detail }: Save
       }
       meta={
         <span className="rounded-full border border-line bg-surface px-3 py-1 text-xs text-ink-2">
-          {titleCase(saved_test.test_type.replace(/_/g, " "))} · {saved_test.column_name}
+          {comparisonTestLabel(saved_test.test_type)} · {saved_test.column_name}
         </span>
       }
     >

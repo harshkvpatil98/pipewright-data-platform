@@ -121,7 +121,14 @@ def temporal_query(
             "table editor, which stages a reviewed change set."
         )
 
-    frame = _load_frame(storage, version, fallback_type=dataset.file_type)
+    from service_enterprise.policy_view import Reader, narrow_frame
+
+    # The SQL runs over only what this person may see (A6, W1): a query cannot
+    # select a denied column or count rows a row policy hides.
+    frame = narrow_frame(
+        db, project_id, dataset.id, Reader.for_user(db, project_id, user),
+        _load_frame(storage, version, fallback_type=dataset.file_type),
+    )
     engine = create_engine("sqlite://")
     try:
         _sqlite_safe(frame).to_sql(TABLE_NAME, engine, index=False, if_exists="replace")

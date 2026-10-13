@@ -160,7 +160,9 @@ def publish_dataset_to_postgres(
         log_events.append(_log_event("load_dataset", "Reading the dataset."))
         mark_pipeline_run_running(db, run=run, logs_json=_build_log_events(log_events))
 
-        df = _load_dataframe(dataset, storage_backend)
+        from service_destinations.deliver import _visible
+
+        df = _visible(db, project_id, dataset, current_user, _load_dataframe(dataset, storage_backend))
         row_attempted = int(len(df))
         if row_attempted == 0:
             raise BadRequestError("Dataset has no rows to publish.")

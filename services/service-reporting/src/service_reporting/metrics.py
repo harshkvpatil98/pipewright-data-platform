@@ -361,12 +361,14 @@ def preview_metric(db: Session, project_id: uuid.UUID, metric_id: uuid.UUID, pay
                    current_user: UserRead, storage_backend) -> MetricPreviewResponse:
     """Compute the metric now, cut by the requested dimensions. A read (viewer):
     `preview` is a read-only segment in the central matrix."""
-    from service_reporting.service import _load_frame, _records
+    from service_reporting.service import _load_frame, _reader, _records
 
     ensure_owned_project(db, project_id, current_user.id)
     metric = _get_metric(db, project_id, metric_id)
     query = effective_query(metric, QueryInput(dimensions=payload.dimensions, filters=payload.filters, limit=payload.limit))
-    frame = prepare_frame(metric, _load_frame(db, project_id, metric.dataset_id, storage_backend))
+    frame = prepare_frame(
+        metric, _load_frame(db, project_id, metric.dataset_id, storage_backend, reader=_reader(db, project_id, current_user))
+    )
     result = run_query(
         frame,
         Query(

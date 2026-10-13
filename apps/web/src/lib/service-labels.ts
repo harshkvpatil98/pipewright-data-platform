@@ -19,7 +19,7 @@ const SERVICE_LABELS: Record<string, string> = {
   "service-datasets": "Datasets",
   "service-destinations": "Destinations",
   "service-ingestion": "File uploads",
-  "service-extraction": "Database imports",
+  "service-extraction": "Imports",
   "service-quality": "Checks",
   "service-pipeline-runs": "Runs",
   "service-transformations": "Recipes",

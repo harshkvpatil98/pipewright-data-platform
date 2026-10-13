@@ -2,8 +2,8 @@
  * Where a dataset came from, in words, and the same name collapsed to one row.
  *
  * A dataset record does not say how it arrived; the run that produced it
- * does. Every database import and every recipe run currently writes a new
- * dataset (HANDOFF section 7), so a list of records shows "Orders" five times.
+ * does. Imports and recipe runs once wrote a new dataset each time (A4 made
+ * them add versions instead), so older projects list "Orders" several times.
  * Grouping by name shows it once, with how many times it has been loaded and a
  * link to the newest, which is what a person means by "the Orders dataset".
  */
@@ -14,7 +14,7 @@ export type DatasetOrigin = "upload" | "database" | "recipe" | "feed" | "other";
 
 export const ORIGIN_LABELS: Record<DatasetOrigin, string> = {
   upload: "Uploaded file",
-  database: "Database import",
+  database: "Imported",
   recipe: "Made by a recipe",
   feed: "Live feed",
   other: "Other",

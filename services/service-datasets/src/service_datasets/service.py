@@ -47,6 +47,16 @@ def _to_detail(dataset: Dataset) -> DatasetDetailRead:
     return DatasetDetailRead.model_validate(dataset)
 
 
+def _policy_view(db: Session, project_id: uuid.UUID, dataset_id: uuid.UUID, current_user: UserRead):
+    """The row and column policies that apply to this person on this dataset (A6, W1).
+
+    Function-level import: service_enterprise imports this service's models.
+    """
+    from service_enterprise.policy_view import Reader, view_for
+
+    return view_for(db, project_id, dataset_id, Reader.for_user(db, project_id, current_user))
+
+
 def list_datasets_by_project(
     db: Session, project_id: uuid.UUID, current_user: UserRead
 ) -> DatasetListResponse:
@@ -84,7 +94,15 @@ def get_dataset_by_project(
     db: Session, project_id: uuid.UUID, dataset_id: uuid.UUID, current_user: UserRead
 ) -> DatasetDetailRead:
     ensure_owned_project(db, project_id, current_user.id)
-    return _to_detail(get_dataset_model_for_project(db, project_id, dataset_id))
+    detail = _to_detail(get_dataset_model_for_project(db, project_id, dataset_id))
+    view = _policy_view(db, project_id, dataset_id, current_user)
+    if not view.restricted:
+        return detail
+    return detail.model_copy(update={
+        "preview_json": view.preview(detail.preview_json),
+        "profile_json": view.profile(detail.profile_json),
+        "schema_json": view.schema(detail.schema_json),
+    })
 
 
 def list_dataset_versions(
@@ -167,7 +185,9 @@ def get_dataset_version_preview(
     # A pruned version answers with why, not with an empty table that looks
     # like a dataset with no rows.
     require_readable(version)
-    preview = version.preview_json or {"columns": [], "rows": []}
+    preview = _policy_view(db, project_id, dataset_id, current_user).preview(
+        version.preview_json or {"columns": [], "rows": []}
+    )
     return DatasetPreviewResponse(
         dataset_id=dataset_id,
         columns=list(preview.get("columns", [])),
@@ -227,8 +247,9 @@ def diff_dataset_versions(
             method="content digests are equal; the artifacts were not read",
         )
 
-    before = _read_version_frame(storage_backend, v_from, dataset.file_type)
-    after = _read_version_frame(storage_backend, v_to, dataset.file_type)
+    view = _policy_view(db, project_id, dataset_id, current_user)
+    before = view.frame(_read_version_frame(storage_backend, v_from, dataset.file_type))
+    after = view.frame(_read_version_frame(storage_backend, v_to, dataset.file_type))
     computed = diff_frames(before, after, payload.identity_columns)
     return DatasetVersionDiff(
         dataset_id=dataset_id,
@@ -463,6 +484,18 @@ def get_dataset_audit_summary(
     if dataset.created_from_pipeline_id is not None:
         recipe = db.get(TransformationPipeline, dataset.created_from_pipeline_id)
         summary.created_from_pipeline_name = recipe.name if recipe else None
+    view = _policy_view(db, project_id, dataset_id, current_user)
+    if view.restricted:
+        highlights = summary.profile_highlights
+        summary.schema_summary.sample_column_names = view.visible_columns(summary.schema_summary.sample_column_names)
+        highlights.high_null_columns = view.visible_columns(highlights.high_null_columns)
+        highlights.constant_value_columns = view.visible_columns(highlights.constant_value_columns)
+        highlights.potential_id_columns = view.visible_columns(highlights.potential_id_columns)
+        if view.filters_rows:
+            # Figures over every row would describe rows this person cannot see.
+            highlights.duplicate_row_count = None
+            highlights.duplicate_row_percentage = None
+            highlights.completeness_score = None
     return summary
 
 

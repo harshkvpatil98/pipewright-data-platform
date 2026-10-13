@@ -130,6 +130,13 @@ def _plan(destination: DestinationConfig, frame: pd.DataFrame, payload: Delivery
     raise BadRequestError("This destination does not receive datasets.")
 
 
+def _visible(db: Session, project_id: uuid.UUID, dataset: Any, current_user: UserRead, frame: pd.DataFrame) -> pd.DataFrame:
+    """What leaves for a destination is no more than the sender may see (A6, W1)."""
+    from service_enterprise.policy_view import Reader, narrow_frame
+
+    return narrow_frame(db, project_id, dataset.id, Reader.for_user(db, project_id, current_user), frame)
+
+
 def preview_delivery(
     db: Session, project_id: uuid.UUID, dataset_id: uuid.UUID, payload: DeliveryRequest,
     current_user: UserRead, storage: Any,
@@ -137,7 +144,7 @@ def preview_delivery(
     ensure_owned_project(db, project_id, current_user.id)
     destination = get_destination_model(db, project_id, payload.destination_id)
     dataset = get_dataset_model_for_project(db, project_id, dataset_id)
-    frame = _load_frame(dataset, storage)
+    frame = _visible(db, project_id, dataset, current_user, _load_frame(dataset, storage))
     kind, target, columns, notes, _ = _plan(destination, frame, payload, dataset.name)
     return DeliveryPreview(
         destination_id=destination.id, destination_name=destination.name, destination_label=_label(destination),
@@ -179,7 +186,7 @@ def deliver_dataset(
     ensure_owned_project(db, project_id, current_user.id)
     destination = get_destination_model(db, project_id, payload.destination_id)
     dataset = get_dataset_model_for_project(db, project_id, dataset_id)
-    frame = _load_frame(dataset, storage)
+    frame = _visible(db, project_id, dataset, current_user, _load_frame(dataset, storage))
     kind, target, _columns, _notes, plan_or_file = _plan(destination, frame, payload, dataset.name)
 
     events: list[dict[str, Any]] = [{

@@ -52,7 +52,10 @@ def _get_dataset(db: Session, project_id: uuid.UUID, dataset_id: uuid.UUID) -> D
     return dataset
 
 
-def _load_frame(db: Session, project_id: uuid.UUID, dataset_id: uuid.UUID, storage) -> pd.DataFrame:
+def _load_frame(db: Session, project_id: uuid.UUID, dataset_id: uuid.UUID, storage, current_user: UserRead) -> pd.DataFrame:
+    """A dataset's rows, narrowed to what this person may see: the assistant
+    shows sample values, so it must not show what a policy hides (A6, W1)."""
+    from service_enterprise.policy_view import Reader, narrow_frame
     from service_ingestion.parsers import parse_tabular_file
 
     dataset = _get_dataset(db, project_id, dataset_id)
@@ -70,7 +73,14 @@ def _load_frame(db: Session, project_id: uuid.UUID, dataset_id: uuid.UUID, stora
             f"'{dataset.name}' has {len(frame):,} rows, above the {MAX_ANALYSED_ROWS:,} "
             "limit for this analysis."
         )
-    return frame
+    return narrow_frame(db, project_id, dataset_id, Reader.for_user(db, project_id, current_user), frame)
+
+
+def _visible_profile(db: Session, project_id: uuid.UUID, dataset: Dataset, current_user: UserRead) -> dict:
+    from service_enterprise.policy_view import Reader, view_for
+
+    profile = dataset.profile_json if isinstance(dataset.profile_json, dict) else {}
+    return view_for(db, project_id, dataset.id, Reader.for_user(db, project_id, current_user)).profile(profile) or {}
 
 
 def _columns(dataset: Dataset) -> list[str]:
@@ -92,7 +102,7 @@ def scan_pii(
 ) -> PiiScanResponse:
     ensure_owned_project(db, project_id, current_user.id)
     dataset = _get_dataset(db, project_id, dataset_id)
-    frame = _load_frame(db, project_id, dataset_id, storage).head(SAMPLE_ROWS)
+    frame = _load_frame(db, project_id, dataset_id, storage, current_user).head(SAMPLE_ROWS)
 
     samples = {
         str(column): frame[column].dropna().tolist() for column in frame.columns
@@ -186,8 +196,8 @@ def suggest_joins(
     left_name = _get_dataset(db, project_id, dataset_id).name
     right_name = _get_dataset(db, project_id, payload.right_dataset_id).name
 
-    left_frame = _load_frame(db, project_id, dataset_id, storage).head(SAMPLE_ROWS)
-    right_frame = _load_frame(db, project_id, payload.right_dataset_id, storage).head(SAMPLE_ROWS)
+    left_frame = _load_frame(db, project_id, dataset_id, storage, current_user).head(SAMPLE_ROWS)
+    right_frame = _load_frame(db, project_id, payload.right_dataset_id, storage, current_user).head(SAMPLE_ROWS)
 
     candidates = joins.suggest_join_keys(
         [joins.ColumnProfile(str(column), left_frame[column].tolist()) for column in left_frame.columns],
@@ -237,7 +247,7 @@ def find_duplicates(
     storage,
 ) -> DuplicateResponse:
     ensure_owned_project(db, project_id, current_user.id)
-    frame = _load_frame(db, project_id, dataset_id, storage).head(SAMPLE_ROWS)
+    frame = _load_frame(db, project_id, dataset_id, storage, current_user).head(SAMPLE_ROWS)
 
     if payload.column not in frame.columns:
         raise BadRequestError(
@@ -445,14 +455,20 @@ def draft_documentation(
 ) -> DocumentationResponse:
     ensure_owned_project(db, project_id, current_user.id)
     dataset = _get_dataset(db, project_id, dataset_id)
-    profile = dataset.profile_json if isinstance(dataset.profile_json, dict) else {}
+    profile = _visible_profile(db, project_id, dataset, current_user)
     flags = profile.get("quality_flags") if isinstance(profile.get("quality_flags"), dict) else {}
+    # A policy that denies a column leaves it out of the profile; the draft must not name it either.
+    visible_columns = (
+        [entry["name"] for entry in profile.get("columns", []) if isinstance(entry, dict) and entry.get("name")]
+        if profile.get("restricted_by_policy")
+        else _columns(dataset)
+    )
 
     facts = documenting.DatasetFacts(
         name=dataset.name,
         row_count=dataset.row_count,
         column_count=dataset.column_count,
-        columns=_columns(dataset),
+        columns=visible_columns,
         completeness=profile.get("completeness_score"),
         duplicate_percentage=profile.get("duplicate_row_percentage"),
         is_derived=bool(dataset.is_derived),
@@ -542,7 +558,7 @@ def suggest_quality_rules(
     ensure_owned_project(db, project_id, current_user.id)
     dataset = _get_dataset(db, project_id, dataset_id)
 
-    suggestions = rules.suggest_rules(dataset.profile_json)
+    suggestions = rules.suggest_rules(_visible_profile(db, project_id, dataset, current_user))
     return RuleSuggestionResponse(
         dataset_id=dataset_id,
         items=[RuleSuggestionRead(**item.to_dict()) for item in suggestions],

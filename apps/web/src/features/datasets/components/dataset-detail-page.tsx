@@ -31,7 +31,7 @@ import {
 
 import { AppShell } from "@/components/layout/app-shell";
 import { ActionMenu } from "@/components/ui/action-menu";
-import { typeLabel } from "@/lib/labels";
+import { sentenceLabel, typeLabel } from "@/lib/labels";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { apiFetch } from "@/lib/api/client";
 import { downloadFromApi } from "@/lib/api/download";
@@ -50,8 +50,8 @@ import {
   isDatasetTransformationRunSummary,
 } from "@/features/datasets/run-summary";
 import { describeParserMetadata } from "@/features/datasets/parser-metadata";
-import { formatDate, formatNumber, titleCase } from "@/lib/format";
-import { formatRunTypeLabel } from "@/lib/run-labels";
+import { formatDate, formatNumber } from "@/lib/format";
+import { formatRunTypeLabel, formatStageLabel } from "@/lib/run-labels";
 import { recipeHref } from "@/lib/navigation";
 
 type DatasetDetailPageViewProps = {
@@ -65,6 +65,13 @@ type DatasetDetailPageViewProps = {
   lineageParent: DatasetRecord | null;
   lineagePipeline: TransformationPipelineRecord | null;
   transformationSuggestions: TransformationSuggestion[];
+};
+
+const QUALITY_FLAG_LABELS: Record<string, string> = {
+  high_null_columns: "Mostly empty",
+  constant_value_columns: "The same value in every row",
+  potential_id_columns: "Look like identifiers",
+  mixed_type_suspicions: "Mixed kinds of value",
 };
 
 export function DatasetDetailPageView({
@@ -257,9 +264,20 @@ export function DatasetDetailPageView({
         datasetId={dataset.id}
       />
 
+      {profile?.restricted_by_policy ? (
+        <p className="border-info-line bg-info-soft text-info rounded-xl border px-4 py-3 text-[14px]">
+          A policy limits what your role sees in this dataset: some rows or columns are hidden from you here, in
+          charts, downloads and everywhere else it appears.
+        </p>
+      ) : null}
+
       <SectionPanel
         title="Rows"
-        description={`The first ${formatNumber(preview.rows.length)} of ${formatNumber(dataset.row_count)} rows.`}
+        description={
+          profile?.restricted_by_policy
+            ? `The first ${formatNumber(preview.rows.length)} rows you can see.`
+            : `The first ${formatNumber(preview.rows.length)} of ${formatNumber(dataset.row_count)} rows.`
+        }
       >
         <div className="border-line bg-sunken overflow-hidden rounded-[24px] border">
           <Table edge="panel">
@@ -298,7 +316,7 @@ export function DatasetDetailPageView({
       <SectionPanel
         title="Columns"
         description={
-          profile
+          typeof profile?.completeness_score === "number"
             ? `${profile.completeness_score}% of cells have a value. Empty and distinct are shares of the rows.`
             : "Each column's type, how often it is empty and how varied it is."
         }
@@ -326,10 +344,10 @@ export function DatasetDetailPageView({
                       : "--"}
                   </TableCell>
                   <TableCell className="text-ink-2">
-                    {column.null_percentage}%
+                    {typeof column.null_percentage === "number" ? `${column.null_percentage}%` : "Not shown"}
                   </TableCell>
                   <TableCell className="text-ink-2">
-                    {column.unique_percentage}%
+                    {typeof column.unique_percentage === "number" ? `${column.unique_percentage}%` : "Not shown"}
                   </TableCell>
                   <TableCell className="text-ink-3">
                     {Array.isArray(column.sample_values)
@@ -524,23 +542,21 @@ export function DatasetDetailPageView({
           >
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               <div className="border-line bg-sunken rounded-2xl border px-4 py-4">
-                <div className="text-ink-3 text-[13px]">Duplicate rows</div>
+                <div className="text-ink-3 text-[13px]">Repeated rows</div>
                 <div className="text-ink mt-2 text-2xl font-semibold">
-                  {formatNumber(Number(profile?.duplicate_row_count ?? 0))}
+                  {typeof profile?.duplicate_row_count === "number" ? formatNumber(profile.duplicate_row_count) : "Not shown"}
                 </div>
               </div>
               <div className="border-line bg-sunken rounded-2xl border px-4 py-4">
-                <div className="text-ink-3 text-[13px]">Completeness score</div>
+                <div className="text-ink-3 text-[13px]">Filled in</div>
                 <div className="text-ink mt-2 text-2xl font-semibold">
-                  {profile?.completeness_score
-                    ? `${profile.completeness_score}%`
-                    : "--"}
+                  {typeof profile?.completeness_score === "number" ? `${profile.completeness_score}%` : "Not shown"}
                 </div>
               </div>
               <div className="border-line bg-sunken rounded-2xl border px-4 py-4">
-                <div className="text-ink-3 text-[13px]">Total null cells</div>
+                <div className="text-ink-3 text-[13px]">Empty cells</div>
                 <div className="text-ink mt-2 text-2xl font-semibold">
-                  {formatNumber(Number(profile?.total_null_cells ?? 0))}
+                  {typeof profile?.total_null_cells === "number" ? formatNumber(profile.total_null_cells) : "Not shown"}
                 </div>
               </div>
             </div>
@@ -550,7 +566,7 @@ export function DatasetDetailPageView({
                   key={key}
                   className="border-line bg-sunken rounded-2xl border px-4 py-4"
                 >
-                  <div className="text-ink-3 text-[13px]">{titleCase(key)}</div>
+                  <div className="text-ink-3 text-[13px]">{QUALITY_FLAG_LABELS[key] ?? sentenceLabel(key)}</div>
                   <div className="text-ink mt-2 text-sm">
                     {values.length ? values.join(", ") : "None"}
                   </div>
@@ -610,7 +626,7 @@ export function DatasetDetailPageView({
                           </div>
                           <div className="text-ink mt-2 text-sm">
                             {runSummary.failure_stage
-                              ? titleCase(runSummary.failure_stage)
+                              ? formatStageLabel(runSummary.failure_stage)
                               : "None"}
                           </div>
                         </div>
@@ -670,7 +686,7 @@ export function DatasetDetailPageView({
                               Failure stage
                             </div>
                             <div className="text-danger mt-2 text-sm">
-                              {titleCase(runSummary.failure_stage)}
+                              {formatStageLabel(runSummary.failure_stage)}
                             </div>
                           </div>
                         ) : null}

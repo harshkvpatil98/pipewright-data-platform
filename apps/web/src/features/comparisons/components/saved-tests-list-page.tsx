@@ -12,7 +12,8 @@ import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { OperationalError } from "@/components/operational/operational-messages";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
-import { formatDate, titleCase } from "@/lib/format";
+import { formatDate } from "@/lib/format";
+import { comparisonTestLabel } from "@/lib/labels";
 
 type SavedTestsListPageViewProps = {
   currentUser: AuthUser;
@@ -85,7 +86,7 @@ export function SavedTestsListPageView({
               {items.map((row) => (
                 <TableRow key={row.id}>
                   <TableCell className="font-medium text-ink">{row.name}</TableCell>
-                  <TableCell className="font-mono text-xs text-ink-2">{titleCase(row.test_type.replace(/_/g, " "))}</TableCell>
+                  <TableCell className="text-ink-2">{comparisonTestLabel(row.test_type)}</TableCell>
                   <TableCell className="font-mono text-xs text-ink-2">{row.column_name}</TableCell>
                   <TableCell className="text-xs text-ink-3">
                     <span className="text-ink-2">{row.left_dataset_name}</span>

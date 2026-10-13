@@ -63,7 +63,7 @@ export function getPipelineRunSecondaryText(run: PipelineRunRecord): string {
   }
 
   if (isSamplePipelineRunSummary(run.summary_json)) {
-    return `Project status snapshot: ${run.summary_json.project_status}`;
+    return `Project check: ${run.summary_json.project_status}`;
   }
 
   const sj = run.summary_json;

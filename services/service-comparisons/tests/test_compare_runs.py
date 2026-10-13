@@ -48,8 +48,8 @@ def test_transformation_run_partial_summary_notes() -> None:
     )
     out = build_run_comparison_summary(run=run)
     assert out.summary_available is False
-    assert any("full before/after" in n.lower() for n in out.comparison_notes)
-    assert any("successfully" in n.lower() for n in out.comparison_notes)
+    assert "This run did not record full before and after counts." in out.comparison_notes
+    assert "The run failed, so these counts may be incomplete." in out.comparison_notes
 
 
 def test_ingestion_run_graceful() -> None:
@@ -64,4 +64,4 @@ def test_ingestion_run_graceful() -> None:
     )
     out = build_run_comparison_summary(run=run)
     assert out.summary_available is False
-    assert any("ingestion" in n.lower() for n in out.comparison_notes)
+    assert any("uploaded a file" in n for n in out.comparison_notes)

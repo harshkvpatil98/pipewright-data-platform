@@ -43,6 +43,20 @@ from shared_python.storage import content_digest
 logger = get_logger(__name__)
 
 
+def _stage_words(stage: str) -> str:
+    """The step a run was on, as the person reading its history would say it."""
+    if stage.startswith("apply_step_"):
+        return f"applying step {stage.rsplit('_', 1)[1]}"
+    return {
+        "queued": "starting",
+        "load_artifact": "reading the input dataset",
+        "parse": "reading its rows",
+        "materialize_profile": "working out the columns",
+        "persist_artifact": "saving the result",
+        "finalize": "recording the new version",
+    }.get(stage, "running")
+
+
 def _log_event(stage: str, message: str, *, details: dict[str, object] | None = None) -> dict[str, object]:
     event: dict[str, object] = {
         "stage": stage,
@@ -134,7 +148,7 @@ def run_saved_transformation_pipeline(
     log_events: list[dict[str, object]] = [
         _log_event(
             "queued",
-            "Transformation run accepted.",
+            "Waiting to start.",
             details={"pipeline_id": str(pipeline.id), "base_dataset_id": str(base_dataset.id)},
         )
     ]
@@ -156,7 +170,7 @@ def run_saved_transformation_pipeline(
 
     try:
         current_stage = "load_artifact"
-        log_events.append(_log_event("load_artifact", "Reading base dataset from storage."))
+        log_events.append(_log_event("load_artifact", "Reading the input dataset."))
         mark_pipeline_run_running(db, run=run, logs_json=_build_log_events(log_events))
         try:
             file_bytes = storage_backend.read_bytes(base_file_path)
@@ -169,7 +183,7 @@ def run_saved_transformation_pipeline(
             raise BadRequestError("Base dataset file exceeds the configured maximum size.")
 
         current_stage = "parse"
-        log_events.append(_log_event("parse", "Parsing tabular file."))
+        log_events.append(_log_event("parse", "Reading its rows."))
         mark_pipeline_run_running(db, run=run, logs_json=_build_log_events(log_events))
         parsed = parse_tabular_file(file_bytes=file_bytes, file_type=base_file_type)
         source_frame = parsed.dataframe.copy()
@@ -197,7 +211,7 @@ def run_saved_transformation_pipeline(
                 log_events.append(
                     _log_event(
                         current_stage,
-                        f"Applying step {index} ({step.step_type}).",
+                        f"Applying step {index}.",
                         details={"step_type": step.step_type},
                     )
                 )
@@ -234,7 +248,7 @@ def run_saved_transformation_pipeline(
         original_filename = "transformed.csv"
 
         current_stage = "persist_artifact"
-        log_events.append(_log_event("persist_artifact", "Persisting derived dataset artifact."))
+        log_events.append(_log_event("persist_artifact", "Saving the result."))
         mark_pipeline_run_running(db, run=run, logs_json=_build_log_events(log_events))
 
         # One dataset per recipe: a run adds a version to the dataset the
@@ -283,7 +297,7 @@ def run_saved_transformation_pipeline(
             raise BadRequestError(f"Unable to store transformed file: {exc}") from exc
 
         current_stage = "finalize"
-        log_events.append(_log_event("finalize", "Finalizing derived dataset record."))
+        log_events.append(_log_event("finalize", "Recording the new version."))
         mark_pipeline_run_running(db, run=run, logs_json=_build_log_events(log_events))
 
         dataset_detail = finalize_dataset_materialization_success(
@@ -350,7 +364,7 @@ def run_saved_transformation_pipeline(
             },
         }
 
-        log_events.append(_log_event("succeeded", "Transformation run completed successfully."))
+        log_events.append(_log_event("succeeded", "Finished."))
         run_read = mark_pipeline_run_succeeded(
             db,
             run=run,
@@ -366,7 +380,7 @@ def run_saved_transformation_pipeline(
         log_events.append(
             _log_event(
                 "failed",
-                f"Transformation failed during {current_stage}.",
+                f"Stopped while {_stage_words(current_stage)}.",
                 details={"error": exc.detail, "failure_stage": current_stage},
             )
         )
@@ -399,7 +413,7 @@ def run_saved_transformation_pipeline(
         log_events.append(
             _log_event(
                 "failed",
-                f"Transformation failed during {current_stage}.",
+                f"Stopped while {_stage_words(current_stage)}.",
                 details={"error": str(exc), "failure_stage": current_stage},
             )
         )

@@ -5,11 +5,11 @@
 export const brand = {
   name: "Pipewright",
   /** Kept short so it sits on one line beside the mark in the sidebar. */
-  tagline: "Data Pipelines",
+  tagline: "Data, made ready",
   /** Used for page titles and meta description. */
   description:
-    "Pipewright is a production data pipeline platform: database and file extraction, incremental loading, joins and aggregations, data quality rules, schema drift detection, scheduling, and BI publishing.",
-  shortDescription: "Extract, transform, validate, and publish data with full run lineage.",
+    "Pipewright brings data in from files, databases and apps, cleans it with recipes, checks it, and delivers it where it is needed, on a schedule or by hand.",
+  shortDescription: "Bring data in, clean it, check it and deliver it, with every run recorded.",
 } as const;
 
 export const appName = process.env.NEXT_PUBLIC_APP_NAME ?? brand.name;

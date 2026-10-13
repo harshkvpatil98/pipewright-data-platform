@@ -78,7 +78,7 @@ def publish_dataset_to_tableau(
         logs_json=_build_log_events(log_events),
     )
 
-    log_events.append(_log_event("running", "Tableau publish started."))
+    log_events.append(_log_event("running", "Sending to Tableau."))
     mark_pipeline_run_running(db, run=run, logs_json=_build_log_events(log_events))
 
     conn_summary = BiConnectionPublishSummary(id=conn.id, name=conn.name, integration_type="tableau")
@@ -132,7 +132,7 @@ def publish_dataset_to_tableau(
 
     try:
         current_stage = "load_dataset"
-        log_events.append(_log_event("load_dataset", "Loading dataset artifact from storage."))
+        log_events.append(_log_event("load_dataset", "Reading the dataset."))
         mark_pipeline_run_running(db, run=run, logs_json=_build_log_events(log_events))
 
         df: pd.DataFrame = _load_dataframe(dataset, storage_backend)
@@ -141,23 +141,23 @@ def publish_dataset_to_tableau(
             raise BadRequestError("Dataset has no rows to publish.")
 
         current_stage = "parse"
-        log_events.append(_log_event("parse", f"Parsed {row_attempted} rows for Tableau Hyper publish."))
+        log_events.append(_log_event("parse", f"Read {row_attempted} rows to send to Tableau."))
         mark_pipeline_run_running(db, run=run, logs_json=_build_log_events(log_events))
 
         current_stage = "authenticate_tableau"
-        log_events.append(_log_event("authenticate_tableau", "Signing in to Tableau REST API."))
+        log_events.append(_log_event("authenticate_tableau", "Signing in to Tableau."))
         mark_pipeline_run_running(db, run=run, logs_json=_build_log_events(log_events))
 
         current_stage = "resolve_project"
-        log_events.append(_log_event("resolve_project", "Validating target Tableau project."))
+        log_events.append(_log_event("resolve_project", "Checking the Tableau project."))
         mark_pipeline_run_running(db, run=run, logs_json=_build_log_events(log_events))
 
         current_stage = "prepare_publish_artifact"
-        log_events.append(_log_event("prepare_publish_artifact", "Building Hyper extract from dataframe."))
+        log_events.append(_log_event("prepare_publish_artifact", "Building the Tableau file."))
         mark_pipeline_run_running(db, run=run, logs_json=_build_log_events(log_events))
 
         current_stage = "publish_datasource"
-        log_events.append(_log_event("publish_datasource", "Uploading datasource to Tableau Server."))
+        log_events.append(_log_event("publish_datasource", "Sending it to Tableau."))
         mark_pipeline_run_running(db, run=run, logs_json=_build_log_events(log_events))
 
         outcome = publish_dataframe_to_tableau_datasource(

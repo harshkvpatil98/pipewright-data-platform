@@ -590,7 +590,7 @@ export function DashboardViewPage({
       <Modal
         open={filterModal}
         title="Dashboard filters"
-        description="Applied on top of every chart's own query. Apply to look; save as default to make them part of the dashboard for everyone, share link included."
+        description="These apply to every chart. Apply to look; save them as the default to show them to everyone."
         onClose={() => setFilterModal(false)}
         widthClassName="max-w-2xl"
         footer={

@@ -110,7 +110,7 @@ export function ApiTokensPanel() {
               id="token-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="CI pipeline"
+              placeholder="Nightly export script"
             />
           </FormField>
         </div>

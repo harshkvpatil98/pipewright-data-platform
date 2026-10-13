@@ -226,3 +226,7 @@ class DatasetAuditSummary(BaseModel):
     lineage: DatasetAuditLineage
     schema_summary: DatasetAuditSchemaSummary
     warnings: list[str]
+    #: Names for the ids above, so the page says who and what.
+    uploaded_by_name: str | None = None
+    parent_dataset_name: str | None = None
+    created_from_pipeline_name: str | None = None

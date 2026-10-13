@@ -318,9 +318,9 @@ export function GovernancePageView({
           </Button>
         </div>
         <p className="mt-2 text-[12px] text-muted">
-          Correction clears the live data and keeps history readable. Destructive also removes the
-          person from historical artifacts; anything it cannot yet purge (a derived dataset, an
-          unreadable file) is reported as blocked, not silently skipped.
+          Correction clears the current data and keeps history readable. Destructive also removes the
+          person from past versions; anything it cannot remove yet (a dataset made from another, a
+          file it cannot read) is reported as blocked, never skipped quietly.
         </p>
 
         {erasureState.length === 0 ? (

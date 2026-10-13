@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { AuthUser, HealthLiveResponse, PlatformStatusResponse } from "@platform/shared-types";
 import {
   Badge,
+  Button,
   SectionPanel,
   Table,
   TableBody,
@@ -22,6 +23,8 @@ import { OperationalError, OperationalLoading } from "@/components/operational/o
 import { appConfig } from "@/lib/config";
 import { parseApiResponse } from "@/lib/api/errors";
 import { serviceHealthTone, toneClasses } from "@/features/system-status/system-status-helpers";
+import { formatDateTime } from "@/lib/format";
+import { sentenceLabel } from "@/lib/labels";
 
 /**
  * Counters rendered as sentences, not payloads. The person on this page is
@@ -29,6 +32,8 @@ import { serviceHealthTone, toneClasses } from "@/features/system-status/system-
  * them. Known keys become labelled chips, long arrays collapse to a count,
  * and the untouched payload stays one click away for operators.
  */
+const TONE_TO_BADGE = { success: "success", warning: "warning", danger: "danger", neutral: "neutral" } as const;
+
 function ModuleDetails({ details }: { details: Record<string, unknown> }) {
   const [showRaw, setShowRaw] = useState(false);
   const entries = Object.entries(details);
@@ -66,7 +71,7 @@ function ModuleDetails({ details }: { details: Record<string, unknown> }) {
           onClick={() => setShowRaw((v) => !v)}
           className="rounded-md px-1.5 py-0.5 font-sans text-[12px] text-muted underline-offset-2 hover:underline"
         >
-          {showRaw ? "hide raw" : "raw"}
+          {showRaw ? "Hide the details" : "Details"}
         </button>
       </div>
       {showRaw ? (
@@ -114,8 +119,8 @@ function RuntimePanel({ platform }: { platform: PlatformStatusResponse }) {
 
   return (
     <SectionPanel
-      title="Runtime"
-      description="Background workers report a heartbeat each loop. A component with no fresh beat is not running, and queued work waits until it comes back."
+      title="Background work"
+      description="The parts that run schedules and workflows check in every few seconds. Silence means they have stopped."
     >
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
         <div className="rounded-xl border border-line bg-surface px-3 py-2.5 text-sm">
@@ -138,8 +143,8 @@ function RuntimePanel({ platform }: { platform: PlatformStatusResponse }) {
             <TableRow>
               <TableHeaderCell>Component</TableHeaderCell>
               <TableHeaderCell>State</TableHeaderCell>
-              <TableHeaderCell>Last heartbeat</TableHeaderCell>
-              <TableHeaderCell>Host</TableHeaderCell>
+              <TableHeaderCell>Last checked in</TableHeaderCell>
+              <TableHeaderCell>Server</TableHeaderCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -159,18 +164,7 @@ function RuntimePanel({ platform }: { platform: PlatformStatusResponse }) {
                     {COMPONENT_LABELS[component.component] ?? component.component}
                   </TableCell>
                   <TableCell>
-                    <span
-                      className={`inline-flex items-center gap-1.5 rounded-lg border px-2 py-0.5 text-[12px] font-semibold ${toneClasses(
-                        component.healthy ? "success" : "danger",
-                      )}`}
-                    >
-                      <span
-                        className={`h-1.5 w-1.5 rounded-full ${
-                          component.healthy ? "bg-success" : "bg-danger"
-                        }`}
-                      />
-                      {stateLabel}
-                    </span>
+                    <Badge tone={component.healthy ? "success" : "danger"}>{sentenceLabel(stateLabel)}</Badge>
                   </TableCell>
                   <TableCell className="text-xs text-ink-3">
                     {formatAge(component.age_seconds)}
@@ -220,13 +214,9 @@ export function SystemStatusPage({ currentUser }: { currentUser?: AuthUser | nul
       title="System status"
       subtitle="Whether the platform and its background work are healthy."
       actions={
-        <button
-          type="button"
-          onClick={() => void load()}
-          className="rounded-xl border border-line-strong bg-surface px-4 py-2 text-sm font-medium text-ink hover:bg-surface-2"
-        >
+        <Button variant="secondary" onClick={() => void load()}>
           Refresh
-        </button>
+        </Button>
       }
     >
       {error ? (
@@ -248,41 +238,31 @@ export function SystemStatusPage({ currentUser }: { currentUser?: AuthUser | nul
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <div className={`h-full rounded-2xl border px-4 py-4 ${toneClasses(overallTone)}`}>
             <div className="text-[12px] opacity-80">Overall</div>
-            <div className="mt-2 text-lg font-semibold capitalize">{platform.status}</div>
-            <div className="mt-1 text-xs opacity-90">{platform.service}</div>
+            <div className="mt-2 text-lg font-semibold">{sentenceLabel(platform.status)}</div>
+            <div className="mt-1 text-[13px] opacity-90">Checked {formatDateTime(platform.checked_at)}</div>
           </div>
           <div className="h-full rounded-2xl border border-line bg-surface px-4 py-4 text-sm text-ink">
-            <div className="text-[12px] text-muted">Environment</div>
-            <div className="mt-2 font-medium text-ink">{platform.environment}</div>
-            <div className="mt-1 text-xs text-ink-3">
-              API bundle <span className="font-mono text-ink-2">v{platform.version}</span>
-            </div>
+            <div className="text-[12px] text-muted">Running as</div>
+            <div className="mt-2 font-medium text-ink">{sentenceLabel(platform.environment)}</div>
+            <div className="mt-1 text-[13px] text-ink-3">Version {platform.version}</div>
+            {live ? <div className="mt-1 text-[13px] text-ink-3">Answering requests</div> : null}
           </div>
           <div className="h-full rounded-2xl border border-line bg-surface px-4 py-4 text-sm text-ink">
-            <div className="text-[12px] text-muted">Snapshot time</div>
-            <div className="mt-2 font-mono text-xs text-ink-2">{platform.checked_at}</div>
-            {live ? (
-              <div className="mt-2 text-xs text-muted">Liveness probe: {live.timestamp}</div>
-            ) : null}
-          </div>
-          <div className="h-full rounded-2xl border border-line bg-surface px-4 py-4 text-sm text-ink">
-            <div className="text-[12px] text-muted">Scheduler</div>
+            <div className="text-[12px] text-muted">Schedules</div>
             <div className="mt-2 text-ink">
-              Due now: <span className="font-mono">{platform.scheduler.due_now_count}</span>
+              {platform.scheduler.due_now_count} due now, {platform.scheduler.total_schedules} in all
             </div>
-            <div className="text-ink">
-              Total schedules: <span className="font-mono">{platform.scheduler.total_schedules}</span>
+            <div className="mt-1 text-[13px] text-ink-3">
+              {platform.scheduler.lease_active_count} running, {platform.scheduler.stale_lease_count} stuck
             </div>
-            <div className="mt-2 text-xs text-muted">
-              Internal API token: {platform.scheduler.internal_api_configured ? "configured" : "not set"}
+          </div>
+          <div className="h-full rounded-2xl border border-line bg-surface px-4 py-4 text-sm text-ink">
+            <div className="text-[12px] text-muted">Set up</div>
+            <div className="mt-2 text-[13px] text-ink">
+              Schedules can start runs: {platform.scheduler.internal_api_configured ? "yes" : "no, the scheduler key is missing"}
             </div>
-            <div className="mt-2 text-xs text-muted">
-              Runtime id env: {platform.scheduler.scheduler_runtime_id_configured ? "set" : "not set"}
-            </div>
-            <div className="mt-1 text-xs text-muted">
-              Active leases: <span className="font-mono text-ink-3">{platform.scheduler.lease_active_count}</span>
-              {" · "}
-              Stale: <span className="font-mono text-ink-3">{platform.scheduler.stale_lease_count}</span>
+            <div className="mt-1 text-[13px] text-ink-3">
+              Scheduler named: {platform.scheduler.scheduler_runtime_id_configured ? "yes" : "no (needed only when running more than one)"}
             </div>
           </div>
         </div>
@@ -292,14 +272,14 @@ export function SystemStatusPage({ currentUser }: { currentUser?: AuthUser | nul
 
       {platform ? (
         <SectionPanel
-          title="Modules"
-          description="Per-domain health signals and safe counters. Readiness still requires POST /health/ready for orchestrators."
+          title="Parts of the platform"
+          description="Each part and how it is doing, with the counts it reports."
         >
           <div className="overflow-hidden rounded-[24px] border border-line bg-sunken">
             <Table minWidth={640}>
               <TableHead>
                 <TableRow>
-                  <TableHeaderCell>Module</TableHeaderCell>
+                  <TableHeaderCell>Part</TableHeaderCell>
                   <TableHeaderCell>Status</TableHeaderCell>
                   <TableHeaderCell>Details</TableHeaderCell>
                 </TableRow>
@@ -308,15 +288,12 @@ export function SystemStatusPage({ currentUser }: { currentUser?: AuthUser | nul
                 {platform.services.map((s) => (
                   <TableRow key={s.name}>
                     <TableCell>
-                      <div className="text-[13px] text-ink">{serviceLabel(s.name)}</div>
-                      <div className="font-mono text-[12px] text-muted">{s.name}</div>
+                      <div className="text-[13px] text-ink" title={s.name}>
+                        {serviceLabel(s.name)}
+                      </div>
                     </TableCell>
                     <TableCell>
-                      <span
-                        className={`rounded-lg border px-2 py-0.5 text-[12px] font-semibold ${toneClasses(serviceHealthTone(s.status))}`}
-                      >
-                        {s.status}
-                      </span>
+                      <Badge tone={TONE_TO_BADGE[serviceHealthTone(s.status)]}>{sentenceLabel(s.status)}</Badge>
                     </TableCell>
                     <TableCell className="text-xs text-ink-3">
                       <ModuleDetails details={s.details} />
@@ -329,16 +306,10 @@ export function SystemStatusPage({ currentUser }: { currentUser?: AuthUser | nul
         </SectionPanel>
       ) : null}
 
-      {platform ? (
-        <SectionPanel title="Scheduler note" description="Operational context only.">
-          <p className="text-sm leading-6 text-ink-2">{platform.scheduler.note}</p>
-        </SectionPanel>
-      ) : null}
-
-      <SectionPanel title="Related" description="Handy links for operators.">
+      <SectionPanel title="For whoever runs the server">
         <ul className="space-y-2 text-sm text-accent">
           <li className="text-ink-3">
-            Deploy, env templates, and CI: see repository file{" "}
+            Installing, settings and running more than one scheduler:{" "}
             <code className="rounded bg-sunken px-1 text-ink-2">docs/deployment-guide.md</code>
           </li>
           <li>
@@ -348,12 +319,12 @@ export function SystemStatusPage({ currentUser }: { currentUser?: AuthUser | nul
           </li>
           <li>
             <a href={`${appConfig.apiBaseUrl.replace(/\/api\/v1$/, "")}/docs`} className="underline" target="_blank" rel="noreferrer">
-              OpenAPI docs
+              API reference
             </a>
           </li>
           <li>
-            <span className="text-muted">Readiness: </span>
-            <code className="text-ink-2">GET /api/v1/health/ready</code>
+            <span className="text-muted">Readiness check for a load balancer: </span>
+            <code className="text-ink-2">/api/v1/health/ready</code>
           </li>
           <li className="text-ink-3">
             Release checklist: <code className="rounded bg-sunken px-1 text-ink-2">docs/release-checklist.md</code> · Acceptance:{" "}

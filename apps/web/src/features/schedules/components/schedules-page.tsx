@@ -556,7 +556,7 @@ export function SchedulesPageView({
             <FormField
               label="Timetable"
               htmlFor="sched-cron"
-              description={`Reads as: ${describeCron(cronExpression)}. Written as minute, hour, day of month, month and day of week (cron).`}
+              description={`Reads as: ${describeCron(cronExpression)}. Five parts: minute, hour, day of month, month, day of week.`}
             >
               <Input
                 id="sched-cron"

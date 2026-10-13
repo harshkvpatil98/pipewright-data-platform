@@ -45,7 +45,7 @@ def test_build_dataset_audit_summary_without_profile_notes() -> None:
     dataset = _ds(profile_json=None)
     summary = build_dataset_audit_summary(dataset=dataset, project_id=pid, project_name="P1")
     assert summary.metrics.row_count == 10
-    assert "Dataset profile has not been generated." in summary.warnings
+    assert "Its columns have not been profiled yet." in summary.warnings
     assert summary.profile_highlights.duplicate_row_count is None
 
 
@@ -64,7 +64,7 @@ def test_build_dataset_audit_summary_with_profile_quality() -> None:
     dataset = _ds(profile_json=profile)
     summary = build_dataset_audit_summary(dataset=dataset, project_id=pid, project_name="P1")
     assert summary.profile_highlights.duplicate_row_count == 2
-    assert "duplicate rows" in " ".join(summary.warnings).lower()
+    assert "Some rows appear more than once." in summary.warnings
     assert summary.profile_highlights.high_null_columns == ["x"]
 
 
@@ -82,5 +82,7 @@ def test_build_dataset_audit_summary_derived_lineage() -> None:
     )
     summary = build_dataset_audit_summary(dataset=dataset, project_id=pid, project_name="P1")
     assert summary.is_derived is True
-    assert str(pipe) in " ".join(summary.warnings)
+    # The note says a recipe made it; the recipe itself is named on the page, never by id.
+    assert "A recipe made it from another dataset." in summary.warnings
+    assert summary.lineage.created_from_pipeline_id == pipe
     assert summary.lineage.parent_dataset_id == parent

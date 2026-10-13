@@ -54,6 +54,26 @@ logger = get_logger(__name__)
 RUN_TYPE = "database_extraction"
 
 
+_LOAD_WORDS = {
+    "full_refresh": "replacing everything",
+    "incremental_append": "adding new rows",
+    "incremental_merge": "updating matching rows",
+}
+
+
+def _stage_words(stage: str) -> str:
+    """The step an import was on, as the person reading its history would say it."""
+    return {
+        "queued": "starting",
+        "extract": "reading the source",
+        "shape": "cleaning at the source",
+        "merge": "combining with earlier rows",
+        "profile": "working out the columns",
+        "schema_drift": "checking for schema changes",
+        "persist": "saving the rows",
+    }.get(stage, "running")
+
+
 def _log_event(stage: str, message: str, *, details: dict[str, Any] | None = None) -> dict[str, Any]:
     event: dict[str, Any] = {
         "stage": stage,
@@ -107,7 +127,7 @@ def run_extraction_job(
     log_events = [
         _log_event(
             "queued",
-            "Extraction run accepted.",
+            "Waiting to start.",
             details={"job_id": str(job.id), "connection": connection.name, "load_mode": job.load_mode},
         )
     ]
@@ -206,7 +226,7 @@ def run_extraction_job(
                 # own query; the rest runs here on what comes back.
                 current_stage = "shape"
                 log_events.append(
-                    _log_event("shape", f"Applying {len(steps)} step(s), pushing what the source can run.")
+                    _log_event("shape", f"Applying {len(steps)} cleaning step{'' if len(steps) == 1 else 's'}, at the source where it can.")
                 )
                 mark_pipeline_run_running(db, run=run, logs_json={"events": log_events})
                 plain_result: list[Any] = []
@@ -243,7 +263,7 @@ def run_extraction_job(
 
         current_stage = "merge"
         log_events.append(
-            _log_event("merge", f"Applying {job.load_mode} load strategy.", details={"rows_extracted": result.row_count})
+            _log_event("merge", f"Combining with what was loaded before ({_LOAD_WORDS.get(job.load_mode, job.load_mode)}).", details={"rows_extracted": result.row_count})
         )
         mark_pipeline_run_running(db, run=run, logs_json={"events": log_events})
 
@@ -265,7 +285,7 @@ def run_extraction_job(
             )
 
         current_stage = "profile"
-        log_events.append(_log_event("profile", "Inferring schema, preview, and profile."))
+        log_events.append(_log_event("profile", "Working out the columns and a preview."))
         mark_pipeline_run_running(db, run=run, logs_json={"events": log_events})
         schema_json = infer_schema(dataframe=working)
         preview_json = build_preview(dataframe=working, limit=settings.preview_row_limit)
@@ -299,7 +319,7 @@ def run_extraction_job(
             warnings.append(f"Schema drift ({drift_report.severity}): {drift_report.summary}")
 
         current_stage = "persist"
-        log_events.append(_log_event("persist", "Writing dataset artifact."))
+        log_events.append(_log_event("persist", "Saving the rows."))
         mark_pipeline_run_running(db, run=run, logs_json={"events": log_events})
 
         # One dataset per import: the first run creates it and every later run
@@ -402,7 +422,7 @@ def run_extraction_job(
             "shaping": shaping_plan,
         }
 
-        log_events.append(_log_event("succeeded", "Extraction completed successfully."))
+        log_events.append(_log_event("succeeded", "Finished."))
         run_read = mark_pipeline_run_succeeded(
             db, run=run, summary_json=summary_json, logs_json={"events": log_events}
         )
@@ -452,7 +472,7 @@ def _record_failure(
     message: str,
 ) -> None:
     log_events.append(
-        _log_event("failed", f"Extraction failed during {stage}.", details={"error": message, "failure_stage": stage})
+        _log_event("failed", f"Stopped while {_stage_words(stage)}.", details={"error": message, "failure_stage": stage})
     )
     job.last_run_at = datetime.now(UTC)
     job.last_run_status = "failed"

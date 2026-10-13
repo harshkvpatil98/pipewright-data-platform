@@ -85,6 +85,6 @@ describe("suggestion pipeline helpers", () => {
         selectedIds: [],
         pipelineName: "Draft",
       }),
-    ).toThrow("Select at least one suggestion");
+    ).toThrow("Choose at least one suggestion");
   });
 });

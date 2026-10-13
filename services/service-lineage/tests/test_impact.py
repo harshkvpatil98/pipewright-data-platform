@@ -216,4 +216,4 @@ def test_the_summary_leads_with_the_worst_outcome():
     assert "safe to drop" in summarise([], ["region"])
 
     changes = _impact([{"step_type": "remove_duplicates", "config": {}}], "notes")
-    assert "quietly produces different results" in summarise(changes, ["notes"])
+    assert "quietly gives different results" in summarise(changes, ["notes"])

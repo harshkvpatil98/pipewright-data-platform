@@ -377,8 +377,8 @@ def summarise(findings: Sequence[ImpactFinding], columns: Sequence[str]) -> str:
             f"silently changes {_plural(len(changes), 'other')}."
         )
     if breaks:
-        return f"Dropping {subject} breaks {_plural(len(breaks), 'downstream artifact')} on its next run."
+        return f"Dropping {subject} breaks {_plural(len(breaks), 'thing')} that use{'s' if len(breaks) == 1 else ''} it, on the next run."
     return (
-        f"Dropping {subject} raises no errors, but {_plural(len(changes), 'downstream artifact')} "
-        "quietly produces different results."
+        f"Dropping {subject} raises no errors, but {_plural(len(changes), 'thing')} that "
+        f"use{'s' if len(changes) == 1 else ''} it quietly give{'s' if len(changes) == 1 else ''} different results."
     )

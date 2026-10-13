@@ -33,12 +33,12 @@ import { extractErrorMessage } from "@/lib/api/errors";
 import { formatDate, titleCase } from "@/lib/format";
 
 const EVENT_LABELS: Record<string, string> = {
-  schedule_run_failed: "Scheduled run failed",
-  schedule_run_succeeded: "Scheduled run succeeded",
-  dataset_publish_failed: "Dataset publish failed",
-  dataset_publish_succeeded: "Dataset publish succeeded",
-  transformation_run_failed: "Transformation failed",
-  transformation_run_succeeded: "Transformation succeeded",
+  schedule_run_failed: "A scheduled run failed",
+  schedule_run_succeeded: "A scheduled run finished",
+  dataset_publish_failed: "A delivery failed",
+  dataset_publish_succeeded: "A delivery finished",
+  transformation_run_failed: "A recipe run failed",
+  transformation_run_succeeded: "A recipe run finished",
 };
 
 type NotificationTargetsPageViewProps = {

@@ -9,12 +9,14 @@ import type {
   DatasetStatisticalTestResult,
   SavedStatisticalTestRead,
 } from "@platform/shared-types";
-import { Button, Modal, SectionPanel, StatTile } from "@platform/shared-ui";
+import { Button, buttonClassName, Modal, SectionPanel, StatTile } from "@platform/shared-ui";
 
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { AppShell } from "@/components/layout/app-shell";
-import { formatNumber, titleCase } from "@/lib/format";
+import { formatNumber } from "@/lib/format";
+import { typeLabel } from "@/lib/labels";
+import { recipeHref } from "@/lib/navigation";
 
 type DatasetComparePageProps = {
   currentUser: AuthUser;
@@ -31,6 +33,12 @@ function formatDelta(value: number | null): string {
   }
   return formatNumber(value);
 }
+
+const TEST_LABELS: Record<string, string> = {
+  welch_t_test: "Averages compared",
+  proportion_z_test: "Shares compared",
+  chi_square_distribution: "Categories compared",
+};
 
 export function DatasetComparePageView({ currentUser, projectId, comparison }: DatasetComparePageProps) {
   const { left_dataset, right_dataset, schema_delta, profile_delta, lineage_context } = comparison;
@@ -109,68 +117,57 @@ export function DatasetComparePageView({ currentUser, projectId, comparison }: D
   return (
     <AppShell
       currentUser={currentUser}
-      title="Dataset comparison"
-      subtitle="Before/after style comparison using persisted row counts, schema_json, profile_json, and lineage fields only."
+      title="Compare two datasets"
+      subtitle="Two datasets side by side: their rows, their columns and how complete they are."
       actions={
-        <div className="flex flex-wrap gap-2">
-          <Link
-            href={`/projects/${projectId}/tests/saved?left=${left_dataset.id}&right=${right_dataset.id}`}
-            className="rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium text-ink hover:border-line-strong"
-          >
-            Saved tests
-          </Link>
-          <Link
-            href={`/projects/${projectId}/datasets/${left_dataset.id}`}
-            className="rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium text-ink hover:border-line-strong"
-          >
-            Left dataset
-          </Link>
-          <Link
-            href={`/projects/${projectId}/datasets/${right_dataset.id}`}
-            className="rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium text-ink hover:border-line-strong"
-          >
-            Right dataset
-          </Link>
-        </div>
+        <Link
+          href={`/projects/${projectId}/tests/saved?left=${left_dataset.id}&right=${right_dataset.id}`}
+          className={buttonClassName("secondary", "md")}
+        >
+          Saved comparisons
+        </Link>
       }
       meta={
-        <>
-          <span className="rounded-full border border-line bg-surface px-3 py-1 text-xs text-ink-2">
-            {left_dataset.name} → {right_dataset.name}
-          </span>
-        </>
+        <span className="text-[14px] text-ink-2">
+          <Link href={`/projects/${projectId}/datasets/${left_dataset.id}`} className="text-accent hover:underline">
+            {left_dataset.name}
+          </Link>{" "}
+          on the left,{" "}
+          <Link href={`/projects/${projectId}/datasets/${right_dataset.id}`} className="text-accent hover:underline">
+            {right_dataset.name}
+          </Link>{" "}
+          on the right
+        </span>
       }
     >
       <section className="grid gap-4 md:grid-cols-4">
         <StatTile
-          label="Row delta (right − left)"
+          label="Rows, right minus left"
           value={formatDelta(comparison.row_count_delta)}
-          caption="From dataset row_count fields."
         />
         <StatTile
-          label="Column delta"
+          label="Columns, right minus left"
           value={formatDelta(comparison.column_count_delta)}
-          caption="From dataset column_count fields."
         />
         <StatTile
-          label="Left rows"
+          label="Rows on the left"
           value={formatNumber(left_dataset.row_count)}
           caption={left_dataset.name}
         />
         <StatTile
-          label="Right rows"
+          label="Rows on the right"
           value={formatNumber(right_dataset.row_count)}
           caption={right_dataset.name}
         />
       </section>
 
       <SectionPanel
-        title="Statistical test"
-        description="Ad hoc Welch t-test, two-proportion z-test, or chi-square on this column pair. Save successful runs as reusable definitions; not causal inference."
+        title="Is the difference real?"
+        description="Test whether a column differs between the two beyond chance. A test shows a difference, not its cause."
       >
         <div className="flex flex-col gap-4 md:flex-row md:flex-wrap md:items-end">
           <label className="flex min-w-[200px] flex-col gap-1 text-xs text-muted">
-            Test type
+            What to compare
             <select
               className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
               value={testType}
@@ -178,13 +175,13 @@ export function DatasetComparePageView({ currentUser, projectId, comparison }: D
                 setTestType(e.target.value as "welch_t_test" | "proportion_z_test" | "chi_square_distribution")
               }
             >
-              <option value="welch_t_test">Welch t-test (numeric)</option>
-              <option value="proportion_z_test">Two-proportion z (binary)</option>
-              <option value="chi_square_distribution">Chi-square (categorical)</option>
+              <option value="welch_t_test">Averages of a number column (Welch t-test)</option>
+              <option value="proportion_z_test">Share of yes and no (two-proportion test)</option>
+              <option value="chi_square_distribution">Mix of categories (chi-square test)</option>
             </select>
           </label>
           <label className="flex min-w-[200px] flex-1 flex-col gap-1 text-xs text-muted">
-            Column name
+            Column
             <input
               className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
               value={columnName}
@@ -194,11 +191,11 @@ export function DatasetComparePageView({ currentUser, projectId, comparison }: D
             />
           </label>
           <Button variant="secondary" disabled={testLoading} onClick={() => void onRunTest()}>
-            {testLoading ? "Running…" : "Run test"}
+            {testLoading ? "Testing…" : "Run the test"}
           </Button>
           {testResult ? (
             <Button variant="secondary" disabled={saveBusy} onClick={() => setSaveOpen(true)}>
-              Save test
+              Save this test
             </Button>
           ) : null}
         </div>
@@ -210,13 +207,13 @@ export function DatasetComparePageView({ currentUser, projectId, comparison }: D
         {testResult ? (
           <div className="mt-5 space-y-3 rounded-2xl border border-line bg-surface px-4 py-4 text-sm text-ink">
             <div className="flex flex-wrap gap-2 text-xs text-muted">
-              <span>{titleCase(testResult.test_type.replace(/_/g, " "))}</span>
+              <span>{TEST_LABELS[testResult.test_type] ?? testResult.test_type}</span>
               <span>·</span>
               <span className="font-mono text-ink-2">{testResult.column_name}</span>
             </div>
             <dl className="grid gap-2 md:grid-cols-2">
               <div>
-                <dt className="text-xs text-muted">Statistic</dt>
+                <dt className="text-xs text-muted">Test statistic</dt>
                 <dd className="font-mono text-ink">
                   {testResult.statistic != null && Number.isFinite(testResult.statistic)
                     ? String(testResult.statistic)
@@ -230,9 +227,9 @@ export function DatasetComparePageView({ currentUser, projectId, comparison }: D
                 </dd>
               </div>
               <div>
-                <dt className="text-xs text-muted">Sample sizes</dt>
+                <dt className="text-xs text-muted">Rows compared</dt>
                 <dd>
-                  {testResult.left_dataset.sample_size} (left) · {testResult.right_dataset.sample_size} (right)
+                  {testResult.left_dataset.sample_size} on the left, {testResult.right_dataset.sample_size} on the right
                 </dd>
               </div>
             </dl>
@@ -250,8 +247,8 @@ export function DatasetComparePageView({ currentUser, projectId, comparison }: D
 
       <Modal
         open={saveOpen}
-        title="Save statistical test"
-        description="Store this configuration to rerun later from the saved tests list. Reruns use the current dataset files."
+        title="Save this test"
+        description="Run it again later from Comparisons. It always tests the datasets as they are then."
         onClose={() => {
           setSaveOpen(false);
           setSaveError(null);
@@ -301,9 +298,9 @@ export function DatasetComparePageView({ currentUser, projectId, comparison }: D
         </div>
       </Modal>
 
-      <SectionPanel title="Comparison notes" description="Deterministic notes from metadata deltas.">
+      <SectionPanel title="What differs">
         {comparison.comparison_notes.length === 0 ? (
-          <p className="text-sm text-ink-3">No notes generated.</p>
+          <p className="text-sm text-ink-3">Nothing worth pointing out.</p>
         ) : (
           <ul className="list-inside list-disc space-y-1 text-sm text-ink">
             {comparison.comparison_notes.map((n) => (
@@ -314,29 +311,29 @@ export function DatasetComparePageView({ currentUser, projectId, comparison }: D
       </SectionPanel>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <SectionPanel title="Schema changes" description="Diff of schema_json column names and inferred types.">
+        <SectionPanel title="Columns">
           <dl className="space-y-3 text-sm">
             <div>
-              <dt className="text-xs text-muted">Added columns</dt>
+              <dt className="text-xs text-muted">Only on the right</dt>
               <dd className="mt-1 text-ink">
                 {schema_delta.added_columns.length ? schema_delta.added_columns.join(", ") : "—"}
               </dd>
             </div>
             <div>
-              <dt className="text-xs text-muted">Removed columns</dt>
+              <dt className="text-xs text-muted">Only on the left</dt>
               <dd className="mt-1 text-ink">
                 {schema_delta.removed_columns.length ? schema_delta.removed_columns.join(", ") : "—"}
               </dd>
             </div>
             <div>
-              <dt className="text-xs text-muted">Inferred type changes</dt>
+              <dt className="text-xs text-muted">A different kind of value</dt>
               <dd className="mt-1 space-y-1">
                 {schema_delta.changed_type_columns.length === 0 ? (
                   <span className="text-ink-3">—</span>
                 ) : (
                   schema_delta.changed_type_columns.map((c) => (
                     <div key={c.column_name} className="font-mono text-xs text-ink-2">
-                      {c.column_name}: {titleCase(c.before_type)} → {titleCase(c.after_type)}
+                      {c.column_name}: {typeLabel(c.before_type)} on the left, {typeLabel(c.after_type)} on the right
                     </div>
                   ))
                 )}
@@ -345,18 +342,18 @@ export function DatasetComparePageView({ currentUser, projectId, comparison }: D
           </dl>
         </SectionPanel>
 
-        <SectionPanel title="Profile / quality delta" description="From profile_json when present.">
+        <SectionPanel title="How complete">
           <dl className="grid gap-3 text-sm md:grid-cols-2">
             <div>
-              <dt className="text-xs text-muted">Duplicate rows (left)</dt>
+              <dt className="text-xs text-muted">Repeated rows on the left</dt>
               <dd className="mt-1 text-ink">{formatNumber(profile_delta.duplicate_row_count_before)}</dd>
             </div>
             <div>
-              <dt className="text-xs text-muted">Duplicate rows (right)</dt>
+              <dt className="text-xs text-muted">Repeated rows on the right</dt>
               <dd className="mt-1 text-ink">{formatNumber(profile_delta.duplicate_row_count_after)}</dd>
             </div>
             <div>
-              <dt className="text-xs text-muted">Completeness (left)</dt>
+              <dt className="text-xs text-muted">Filled in on the left</dt>
               <dd className="mt-1 text-ink">
                 {profile_delta.completeness_score_before != null
                   ? `${profile_delta.completeness_score_before}%`
@@ -364,7 +361,7 @@ export function DatasetComparePageView({ currentUser, projectId, comparison }: D
               </dd>
             </div>
             <div>
-              <dt className="text-xs text-muted">Completeness (right)</dt>
+              <dt className="text-xs text-muted">Filled in on the right</dt>
               <dd className="mt-1 text-ink">
                 {profile_delta.completeness_score_after != null
                   ? `${profile_delta.completeness_score_after}%`
@@ -375,28 +372,42 @@ export function DatasetComparePageView({ currentUser, projectId, comparison }: D
         </SectionPanel>
       </div>
 
-      <SectionPanel title="Lineage context" description="Parent/child and pipeline links when detectable from dataset rows.">
+      <SectionPanel title="How they are related">
         <dl className="grid gap-3 text-sm md:grid-cols-2">
           <div>
-            <dt className="text-xs text-muted">Parent/child relationship</dt>
+            <dt className="text-xs text-muted">One was made from the other</dt>
             <dd className="mt-1 text-ink">{lineage_context.related_by_parent_child ? "Yes" : "No"}</dd>
           </div>
-          <div>
-            <dt className="text-xs text-muted">Parent dataset id</dt>
-            <dd className="mt-1 font-mono text-xs text-ink-2">
-              {lineage_context.parent_dataset_id ?? "—"}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-xs text-muted">Created from pipeline</dt>
-            <dd className="mt-1 font-mono text-xs text-ink-2">
-              {lineage_context.created_from_pipeline_id ?? "—"}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-xs text-muted">Related run id</dt>
-            <dd className="mt-1 font-mono text-xs text-ink-2">{lineage_context.related_run_id ?? "—"}</dd>
-          </div>
+          {lineage_context.parent_dataset_id ? (
+            <div>
+              <dt className="text-xs text-muted">Made from</dt>
+              <dd className="mt-1">
+                <Link href={`/projects/${projectId}/datasets/${lineage_context.parent_dataset_id}`} className="text-accent hover:underline">
+                  Open that dataset
+                </Link>
+              </dd>
+            </div>
+          ) : null}
+          {lineage_context.created_from_pipeline_id ? (
+            <div>
+              <dt className="text-xs text-muted">Made by a recipe</dt>
+              <dd className="mt-1">
+                <Link href={recipeHref(projectId, lineage_context.created_from_pipeline_id)} className="text-accent hover:underline">
+                  Open the recipe
+                </Link>
+              </dd>
+            </div>
+          ) : null}
+          {lineage_context.related_run_id ? (
+            <div>
+              <dt className="text-xs text-muted">The run that made it</dt>
+              <dd className="mt-1">
+                <Link href={`/projects/${projectId}/runs/${lineage_context.related_run_id}/audit`} className="text-accent hover:underline">
+                  Open the run
+                </Link>
+              </dd>
+            </div>
+          ) : null}
         </dl>
       </SectionPanel>
     </AppShell>

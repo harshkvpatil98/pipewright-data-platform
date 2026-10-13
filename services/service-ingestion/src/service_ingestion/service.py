@@ -28,6 +28,18 @@ from shared_python.storage import content_digest
 logger = get_logger(__name__)
 
 
+def _stage_words(stage: str) -> str:
+    """The step an upload was on, as the person reading its history would say it."""
+    return {
+        "queued": "starting",
+        "running": "starting",
+        "upload": "saving the file",
+        "parse": "reading the file",
+        "profile": "working out the columns",
+        "persist": "saving the dataset",
+    }.get(stage, "running")
+
+
 def _log_event(stage: str, message: str, *, details: dict[str, object] | None = None) -> dict[str, object]:
     event: dict[str, object] = {
         'stage': stage,
@@ -142,7 +154,7 @@ def ingest_project_file(
         # The request performs ingestion synchronously today, but this lifecycle mirrors a future
         # background worker so runs and datasets already expose durable queued/running terminal states.
         current_stage = 'running'
-        log_events.append(_log_event('running', 'Preparing storage and parsing pipeline.'))
+        log_events.append(_log_event('running', 'Getting ready to read the file.'))
         mark_pipeline_run_running(
             db,
             run=pipeline_run,
@@ -151,7 +163,7 @@ def ingest_project_file(
         mark_dataset_ingestion_running(db, dataset=dataset)
 
         current_stage = 'upload'
-        log_events.append(_log_event('upload', 'Saving uploaded file to configured storage.'))
+        log_events.append(_log_event('upload', 'Saving the file.'))
         stored_artifact = storage_backend.save_upload(relative_path=relative_path, file_bytes=file_bytes)
 
         log_events.append(
@@ -231,7 +243,7 @@ def ingest_project_file(
                 },
             )
         )
-        log_events.append(_log_event('succeeded', 'Dataset ingestion completed successfully.'))
+        log_events.append(_log_event('succeeded', 'Finished.'))
         run_detail = mark_pipeline_run_succeeded(
             db,
             run=pipeline_run,
@@ -273,7 +285,7 @@ def ingest_project_file(
         log_events.append(
             _log_event(
                 'failed',
-                f'Ingestion failed during {current_stage}.',
+                f"Stopped while {_stage_words(current_stage)}.",
                 details={'error': safe_error, 'failure_stage': current_stage},
             )
         )
@@ -313,7 +325,7 @@ def ingest_project_file(
         log_events.append(
             _log_event(
                 'failed',
-                f'Ingestion failed during {current_stage}.',
+                f"Stopped while {_stage_words(current_stage)}.",
                 details={'error': safe_error, 'failure_stage': current_stage},
             )
         )

@@ -155,48 +155,48 @@ def _dataset_comparison_notes(
 
     if row_delta is not None:
         if row_delta < 0:
-            notes.append("Right dataset has fewer rows than the left dataset.")
+            notes.append("The right one has fewer rows.")
         elif row_delta > 0:
-            notes.append("Right dataset has more rows than the left dataset.")
+            notes.append("The right one has more rows.")
         else:
-            notes.append("Row counts match between the two datasets.")
+            notes.append("Both have the same number of rows.")
 
     if col_delta is not None:
         if col_delta < 0:
-            notes.append("Right dataset has fewer columns than the left dataset.")
+            notes.append("The right one has fewer columns.")
         elif col_delta > 0:
-            notes.append("Right dataset has more columns than the left dataset.")
+            notes.append("The right one has more columns.")
         else:
-            notes.append("Column counts match between the two datasets.")
+            notes.append("Both have the same number of columns.")
 
     if added:
-        notes.append("New columns were introduced on the right dataset relative to the left.")
+        notes.append("The right one has columns the left does not.")
     if removed:
-        notes.append("Some columns present on the left are absent on the right.")
+        notes.append("Some columns on the left are missing on the right.")
     if changed:
-        notes.append("One or more columns changed inferred type between the two datasets.")
+        notes.append("Some columns hold a different kind of value on each side.")
 
     db, da = profile_delta.duplicate_row_count_before, profile_delta.duplicate_row_count_after
     if db is not None and da is not None:
         if da < db:
-            notes.append("Duplicate rows were reduced on the right dataset relative to the left.")
+            notes.append("The right one has fewer repeated rows.")
         elif da > db:
-            notes.append("Duplicate row count is higher on the right dataset than on the left.")
+            notes.append("The right one has more repeated rows.")
 
     cb, ca = profile_delta.completeness_score_before, profile_delta.completeness_score_after
     if cb is not None and ca is not None:
         if ca > cb:
-            notes.append("Completeness score improved on the right dataset.")
+            notes.append("The right one is more filled in.")
         elif ca < cb:
-            notes.append("Completeness score is lower on the right dataset than on the left.")
+            notes.append("The right one is less filled in.")
 
     if left.profile_json is None or right.profile_json is None:
-        notes.append("Profile metadata is missing for one or both datasets; some deltas may be unavailable.")
+        notes.append("One or both have not been profiled, so some comparisons are missing.")
 
     if right.is_derived and not left.is_derived:
-        notes.append("Right dataset is marked as derived while the left is not.")
+        notes.append("A recipe made the right one; the left is original data.")
     elif left.is_derived and right.is_derived:
-        notes.append("Both datasets are marked as derived; confirm lineage when interpreting changes.")
+        notes.append("Recipes made both, so check where each came from before reading the difference.")
 
     # Deterministic de-dupe preserving order
     seen: set[str] = set()

@@ -216,7 +216,7 @@ export function DatasetCatalogPanel({ projectId, datasetId, columns }: DatasetCa
   return (
     <SectionPanel
       title="Catalog"
-      description="Who owns this dataset, whether it is certified, and the business words tied to it. This lets someone who did not build it decide whether to trust it."
+      description="Who owns this dataset, whether it is certified, and which business words it holds."
     >
       {loadError ? (
         <div className="rounded-2xl border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger">
@@ -349,7 +349,7 @@ export function DatasetCatalogPanel({ projectId, datasetId, columns }: DatasetCa
                   onClick={() => void save()}
                   disabled={saving || !dirty}
                 >
-                  {saving ? "Saving…" : "Save catalog"}
+                  {saving ? "Saving…" : "Save"}
                 </Button>
               </div>
             </div>
@@ -457,7 +457,7 @@ export function DatasetCatalogPanel({ projectId, datasetId, columns }: DatasetCa
           </div>
         </div>
       ) : loadError ? null : (
-        <p className="text-[12.5px] text-muted">Loading catalog…</p>
+        <p className="text-[12.5px] text-muted">Loading…</p>
       )}
     </SectionPanel>
   );

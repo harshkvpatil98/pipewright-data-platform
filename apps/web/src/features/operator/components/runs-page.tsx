@@ -119,7 +119,7 @@ export function RunsPageView({ currentUser, initialRuns }: RunsPageProps) {
                 <TableRow>
                   <TableHeaderCell>Project</TableHeaderCell>
                   <TableHeaderCell>Type</TableHeaderCell>
-                  <TableHeaderCell>Pipeline</TableHeaderCell>
+                  <TableHeaderCell>Recipe</TableHeaderCell>
                   <TableHeaderCell>Status</TableHeaderCell>
                   <TableHeaderCell>Started</TableHeaderCell>
                 </TableRow>

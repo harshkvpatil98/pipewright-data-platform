@@ -77,14 +77,14 @@ export function NodeInspector({
       </Field>
 
       {node.node_type === "extraction" ? (
-        <Field label="Extraction job" htmlFor={`${fieldId}-job`}>
+        <Field label="Import" htmlFor={`${fieldId}-job`}>
           <select
             id={`${fieldId}-job`}
             className={inputClass}
             value={String(node.config.extraction_job_id ?? "")}
             onChange={(event) => setConfig("extraction_job_id", event.target.value)}
           >
-            <option value="">Choose a job…</option>
+            <option value="">Choose an import…</option>
             {options.extractionJobs.map((job) => (
               <option key={job.id} value={job.id}>
                 {job.name}
@@ -95,14 +95,14 @@ export function NodeInspector({
       ) : null}
 
       {node.node_type === "transformation" ? (
-        <Field label="Pipeline" htmlFor={`${fieldId}-pipeline`}>
+        <Field label="Recipe" htmlFor={`${fieldId}-pipeline`}>
           <select
             id={`${fieldId}-pipeline`}
             className={inputClass}
             value={String(node.config.pipeline_id ?? "")}
             onChange={(event) => setConfig("pipeline_id", event.target.value)}
           >
-            <option value="">Choose a pipeline…</option>
+            <option value="">Choose a recipe…</option>
             {options.pipelines.map((pipeline) => (
               <option key={pipeline.id} value={pipeline.id}>
                 {pipeline.name}

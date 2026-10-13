@@ -195,7 +195,7 @@ export function OrganisationsPageView({
         subtitle="Separate groups of people and projects."
       >
         {restricted ? (
-          <SectionPanel title="Organisations" description="Tenant administration.">
+          <SectionPanel title="Organisations">
             <EmptyState title="Platform admins only" description={restricted} />
           </SectionPanel>
         ) : (
@@ -204,23 +204,23 @@ export function OrganisationsPageView({
               <StatTile
                 label="Organisations"
                 value={String(organisations.length)}
-                caption="Tenant boundaries on this platform."
+                caption="Separate groups on this server."
               />
               <StatTile
                 label="Assigned members"
                 value={String(totalMembers)}
-                caption="Accounts that belong to a tenant."
+                caption="Accounts in an organisation."
               />
               <StatTile
                 label="Unassigned"
                 value={String(unassigned.length)}
-                caption="Accounts in no tenant; they see only tenant-less projects."
+                caption="Accounts in none; they see only projects outside every organisation."
               />
             </section>
 
             <SectionPanel
-              title="Tenants"
-              description="Removing somebody from an organisation cuts their access to every project in it, without touching any project membership row."
+              title="Your organisations"
+              description="Removing someone from an organisation removes their access to its projects. Their project roles stay as they were."
               actions={<Button onClick={() => setCreating(true)}>New organisation</Button>}
             >
               {feedback ? <p className="mb-3 text-sm text-accent">{feedback}</p> : null}
@@ -358,7 +358,7 @@ export function OrganisationsPageView({
         open={creating}
         onClose={() => setCreating(false)}
         title="New organisation"
-        description="A tenant boundary. Projects and people assigned to it see each other; nobody outside does."
+        description="People and projects in it see each other; nobody outside does."
         widthClassName="max-w-md"
         footer={
           <div className="flex justify-end gap-2">
@@ -400,7 +400,7 @@ export function OrganisationsPageView({
         requireTypedName
         consequences={[
           "Not allowed while it still holds a project or member. Move them first.",
-          "Nothing in the database enforces this: `organisation_id` has no foreign key, so leftover rows would point at a tenant that no longer exists and match nothing.",
+          "Anything left in it would point at an organisation that no longer exists, so it is refused rather than allowed.",
         ]}
         confirmLabel="Delete organisation"
         onConfirm={() => apiFetch(`/organisations/${deleting?.id}`, { method: "DELETE" })}

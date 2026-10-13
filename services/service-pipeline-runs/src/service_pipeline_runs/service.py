@@ -142,7 +142,36 @@ def get_run_audit_summary(
     summary.output_versions = _output_versions(db, run.id)
     summary.execution_context = _execution_context(run)
     summary.replayable, summary.replay_reason = _replayability(run)
+    _name_things(db, run, summary)
     return summary
+
+
+def _name_things(db: Session, run: PipelineRun, summary: RunAuditSummary) -> None:
+    """Fill in names for the ids the page shows: who, which recipe, which datasets."""
+    from service_auth.models import User
+    from service_datasets.models import Dataset
+    from service_transformations.models import TransformationPipeline
+
+    user = db.get(User, run.triggered_by_user_id)
+    if user is not None:
+        summary.triggered_by_name = user.display_name or user.username
+    if run.pipeline_id is not None:
+        pipeline = db.get(TransformationPipeline, run.pipeline_id)
+        summary.pipeline_name = pipeline.name if pipeline is not None else None
+
+    ids: set[uuid.UUID] = set(summary.related_dataset_ids)
+    ids.update(version.dataset_id for version in summary.output_versions)
+    context = summary.execution_context or {}
+    pins = list(context.get("inputs") or []) + list(context.get("outputs") or [])
+    for pin in pins:
+        if isinstance(pin, dict) and pin.get("dataset_id"):
+            try:
+                ids.add(uuid.UUID(str(pin["dataset_id"])))
+            except ValueError:
+                continue
+    if ids:
+        rows = db.execute(select(Dataset.id, Dataset.name).where(Dataset.id.in_(ids))).all()
+        summary.dataset_names = {str(row.id): row.name for row in rows}
 
 
 def _output_versions(db: Session, run_id: uuid.UUID) -> list[RunOutputVersion]:
@@ -192,14 +221,14 @@ def create_sample_pipeline_run(
         project_id=project.id,
         current_user=current_user,
         run_type="sample_orchestration",
-        logs_json={"events": [{"stage": "queued", "message": "Run accepted by the gateway."}]},
+        logs_json={"events": [{"stage": "queued", "message": "Waiting to start."}]},
     )
     mark_pipeline_run_running(
         db,
         run=run,
         logs_json={
             "events": [
-                {"stage": "queued", "message": "Run accepted by the gateway."},
+                {"stage": "queued", "message": "Waiting to start."},
                 {"stage": "running", "message": "Collecting project-scoped platform counts."},
             ]
         },
@@ -217,7 +246,7 @@ def create_sample_pipeline_run(
         },
         logs_json={
             "events": [
-                {"stage": "queued", "message": "Run accepted by the gateway."},
+                {"stage": "queued", "message": "Waiting to start."},
                 {"stage": "running", "message": "Collecting project-scoped platform counts."},
                 {"stage": "succeeded", "message": "Sample run completed successfully."},
             ]

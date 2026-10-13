@@ -41,7 +41,6 @@ import { DatasetVersionHistoryPanel } from "@/features/datasets/components/datas
 import { DiscussionPanel } from "@/features/team/components/discussion-panel";
 import { DatasetPipelinesRunSection } from "@/features/datasets/components/dataset-pipelines-run-section";
 import { DatasetSuggestedTransformations } from "@/features/datasets/components/dataset-suggested-transformations";
-import { PreviewTransformModal } from "@/features/datasets/components/preview-transform-modal";
 import { DeliverDatasetModal } from "@/features/datasets/components/deliver-dataset-modal";
 import { PublishPowerBiModal } from "@/features/datasets/components/publish-power-bi-modal";
 import { PublishTableauModal } from "@/features/datasets/components/publish-tableau-modal";
@@ -85,7 +84,6 @@ export function DatasetDetailPageView({
   const [renameValue, setRenameValue] = useState(dataset.name);
   const [renameBusy, setRenameBusy] = useState(false);
   const [renameError, setRenameError] = useState<string | null>(null);
-  const [isPreviewTransformOpen, setIsPreviewTransformOpen] = useState(false);
   const [isPublishOpen, setIsPublishOpen] = useState(false);
   const [isPublishPowerBiOpen, setIsPublishPowerBiOpen] = useState(false);
   const [isPublishTableauOpen, setIsPublishTableauOpen] = useState(false);
@@ -116,8 +114,8 @@ export function DatasetDetailPageView({
       title={dataset.name}
       subtitle={
         dataset.is_derived
-          ? "Made by a recipe. A preview of its rows, its columns and how complete it is."
-          : "A preview of its rows, its columns and how complete it is."
+          ? "Made by a recipe. Its rows, its columns and how complete it is."
+          : "Its rows, its columns and how complete it is."
       }
       actions={
         <div className="flex flex-wrap items-center gap-2">
@@ -203,14 +201,6 @@ export function DatasetDetailPageView({
                 href: `/projects/${projectId}/datasets/${dataset.id}/assistant`,
               },
               {
-                id: "try",
-                label: "Try a change",
-                icon: "filter",
-                description:
-                  "See the result of a step without saving anything.",
-                onSelect: () => setIsPreviewTransformOpen(true),
-              },
-              {
                 id: "rename",
                 label: "Rename",
                 icon: "settings",
@@ -246,12 +236,6 @@ export function DatasetDetailPageView({
         </>
       }
     >
-      <PreviewTransformModal
-        open={isPreviewTransformOpen}
-        onClose={() => setIsPreviewTransformOpen(false)}
-        projectId={projectId}
-        datasetId={dataset.id}
-      />
       <DeliverDatasetModal
         open={isPublishOpen}
         onClose={() => setIsPublishOpen(false)}
@@ -484,7 +468,7 @@ export function DatasetDetailPageView({
                 </dd>
               </div>
               <div className="border-line bg-sunken rounded-2xl border px-4 py-4">
-                <dt className="text-ink-3 text-[13px]">Ingestion status</dt>
+                <dt className="text-ink-3 text-[13px]">Loading</dt>
                 <dd className="mt-2">
                   <StatusBadge value={dataset.ingestion_status} />
                 </dd>
@@ -614,7 +598,7 @@ export function DatasetDetailPageView({
                     {isDatasetIngestionRunSummary(runSummary) ? (
                       <div className="mt-4 grid gap-4 md:grid-cols-2">
                         <div>
-                          <div className="text-muted text-sm">Artifact</div>
+                          <div className="text-muted text-sm">File</div>
                           <div className="text-ink mt-2 text-sm">
                             {runSummary.artifact.original_filename} ·{" "}
                             {runSummary.artifact.file_type.toUpperCase()}

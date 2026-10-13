@@ -505,7 +505,7 @@ export function BiConnectionsPageView({ currentUser, projectId, initialItems }: 
                 {items.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={5} className="text-center text-muted">
-                      No BI connections yet. Create one to publish datasets to Power BI or Tableau from dataset detail.
+                      No BI tools connected yet. Add one, then send any dataset to it from the dataset's page.
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -540,7 +540,7 @@ export function BiConnectionsPageView({ currentUser, projectId, initialItems }: 
                             path={`/projects/${projectId}/bi-connections/${row.id}`}
                             name={row.name}
                             kind="BI connection"
-                            consequences={["Its stored credentials go with it. Published content is not removed."]}
+                            consequences={["Its saved sign-in details go with it. Anything already sent stays in Power BI or Tableau."]}
                             onDeleted={() =>
                               setItems((current) => current.filter((item) => item.id !== row.id))
                             }

@@ -63,7 +63,7 @@ describe("run summary helpers", () => {
     });
 
     expect(isSamplePipelineRunSummary(run.summary_json)).toBe(true);
-    expect(getPipelineRunSecondaryText(run)).toBe("Project status snapshot: active");
+    expect(getPipelineRunSecondaryText(run)).toBe("Project check: active");
   });
 
   it("falls back cleanly for unknown summaries", () => {

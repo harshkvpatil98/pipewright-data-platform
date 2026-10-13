@@ -98,13 +98,13 @@ export function SchemaDriftPageView({
       </div>
 
       <SectionPanel
-        title="Drift events"
-        description="Newest first. Acknowledging an event keeps it in history but clears it from the outstanding count."
+        title="Changes found"
+        description="Newest first. Marking one as seen keeps it in the history but takes it off the to-do count."
       >
         {events.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-line px-4 py-10 text-center text-sm text-muted">
-            No schema drift detected yet. Events appear here after an extraction job runs a second
-            time with a changed source schema.
+            No schema changes yet. They appear when an import runs again and finds its source's
+            columns have changed.
           </p>
         ) : (
           <div className="space-y-3">
@@ -245,7 +245,7 @@ function ConnectorWatchPanel({ projectId }: { projectId: string }) {
   return (
     <SectionPanel
       title="Connector schema watch"
-      description="Re-reads each connection's schema and compares it with the last one seen. Put it on a “Connector schema watch” schedule and a vendor changing an API becomes an incident, not a recipe failing overnight."
+      description="Reads each connection's columns again and compares them with last time. Schedule it to hear about vendor changes."
     >
       {error ? (
         <div className="mb-3 rounded-2xl border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger">

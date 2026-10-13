@@ -59,7 +59,7 @@ export function LineagePageView({
     <AppShell
       currentUser={currentUser}
       title={`Lineage · ${initial.dataset_name}`}
-      subtitle="Where every column came from, and what would break if it changed. Derived from the pipeline definitions rather than stored, so it cannot go stale."
+      subtitle="Where every column came from, and what would break if it changed."
     >
       {error ? (
         <div className="rounded-2xl border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger">

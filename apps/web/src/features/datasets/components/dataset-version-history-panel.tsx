@@ -202,7 +202,7 @@ export function DatasetVersionHistoryPanel({
   return (
     <SectionPanel
       title="Version history"
-      description="Every materialisation appends an immutable snapshot. The newest is the current data; older versions stay readable, and rolling back will append a new version rather than rewrite the past."
+      description="Every run saves a new version and keeps the old ones. Restoring one adds a newer copy of it."
       actions={
         history && history.items.length > 0 ? (
           <form
@@ -243,8 +243,8 @@ export function DatasetVersionHistoryPanel({
         <p className="text-[12.5px] text-muted">Loading history…</p>
       ) : history.items.length === 0 ? (
         <p className="text-[12.5px] text-muted">
-          No recorded versions yet. A dataset materialised before versioning shows its history
-          from its next run onward.
+          No versions yet. A dataset made before versions were kept starts its history at its
+          next run.
         </p>
       ) : (
         <div className="overflow-hidden rounded-[24px] border border-line bg-sunken">
@@ -252,7 +252,7 @@ export function DatasetVersionHistoryPanel({
             <TableHead>
               <TableRow>
                 <TableHeaderCell>Version</TableHeaderCell>
-                <TableHeaderCell>Published</TableHeaderCell>
+                <TableHeaderCell>Saved</TableHeaderCell>
                 <TableHeaderCell>Rows</TableHeaderCell>
                 <TableHeaderCell>Columns</TableHeaderCell>
                 <TableHeaderCell>Fingerprint</TableHeaderCell>
@@ -390,7 +390,7 @@ export function DatasetVersionHistoryPanel({
       <Modal
         open={viewing !== null}
         title={viewing ? `Version ${viewing.version_number}` : "Version"}
-        description="The data as it was in this version. This is a snapshot, not the latest data."
+        description="The data as it was in this version, not as it is now."
         onClose={() => setViewing(null)}
         widthClassName="max-w-4xl"
         footer={
@@ -444,7 +444,7 @@ export function DatasetVersionHistoryPanel({
             ? `v${diffing.version_number} → v${history?.current_version ?? "?"}`
             : "Diff"
         }
-        description="What changed between this version and the current data. Supplying identity columns lets rows be matched; without them the diff reports duplicate-aware added/removed counts and says why."
+        description="What changed between this version and now. Name the columns that identify a row to match rows up."
         onClose={() => setDiffing(null)}
         widthClassName="max-w-3xl"
         footer={
@@ -526,7 +526,7 @@ export function DatasetVersionHistoryPanel({
             ? `Query version ${queryTarget.version_number}`
             : "Query as of a time"
         }
-        description="SQL runs against a private copy of the snapshot, exposed as a table named dataset. Only a SELECT can run; nothing is written, and the current data is untouched."
+        description="Ask this version a question in SQL; it is the table named dataset. Only reading is allowed, so nothing changes."
         onClose={() => setQueryTarget(null)}
         widthClassName="max-w-4xl"
         footer={
@@ -571,7 +571,7 @@ export function DatasetVersionHistoryPanel({
           ) : (
             <div className="space-y-2">
               <p className="text-[12px] text-ink-3">
-                Resolved to <span className="text-ink">version {queryResult.version_number}</span>, published{" "}
+                Answered from <span className="text-ink">version {queryResult.version_number}</span>, saved{" "}
                 {formatDateTime(queryResult.version_published_at)}
                 {queryResult.requested_as_of
                   ? ` (the newest at ${formatDateTime(queryResult.requested_as_of)})`
@@ -618,7 +618,7 @@ export function DatasetVersionHistoryPanel({
       <Modal
         open={restoring !== null}
         title={restoring ? `Restore version ${restoring.version_number}` : "Restore"}
-        description="Restoring appends a new version whose data is this snapshot's. Nothing is rewritten or lost. The versions after it stay in the history."
+        description="Adds a new version with this version's data. Nothing is lost; later versions stay in the history."
         onClose={() => setRestoring(null)}
         footer={
           <div className="flex items-center gap-2">

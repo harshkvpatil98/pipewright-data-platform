@@ -29,6 +29,16 @@ const SEVERITY_BADGE: Record<ImpactSeverity, BadgeTone> = {
   informational: "neutral",
 };
 
+const KIND_LABEL: Record<string, string> = {
+  pipeline: "Recipe",
+  quality_rule: "Check",
+  workflow: "Workflow",
+  dataset: "Dataset",
+  chart: "Chart",
+  dashboard: "Dashboard",
+  metric: "Metric",
+};
+
 const SEVERITY_LABEL: Record<ImpactSeverity, string> = {
   breaks: "Breaks",
   changes: "Changes results",
@@ -111,7 +121,7 @@ export function ImpactDialog({ projectId, datasetId, columns, onClose }: ImpactD
                     </Badge>
                   </div>
                   <div className="mt-1.5 text-[12px] text-muted">
-                    {sentenceLabel(finding.kind)}
+                    {KIND_LABEL[finding.kind] ?? sentenceLabel(finding.kind)}
                   </div>
                 </li>
               ))}

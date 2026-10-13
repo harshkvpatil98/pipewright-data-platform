@@ -11,7 +11,7 @@ import type {
   DatasetPublishPowerBiPayload,
   DatasetPublishPowerBiResponse,
 } from "@platform/shared-types";
-import { Button, Modal } from "@platform/shared-ui";
+import { Button, FormField, Input, Modal, Select } from "@platform/shared-ui";
 
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
@@ -32,7 +32,7 @@ export function PublishPowerBiModal({ open, onClose, projectId, datasetId }: Pub
   const [workspaces, setWorkspaces] = useState<{ id: string; name: string }[]>([]);
   const [loadingMeta, setLoadingMeta] = useState(false);
   const [targetDatasetName, setTargetDatasetName] = useState("");
-  const [targetTableName, setTargetTableName] = useState("PublishedData");
+  const [targetTableName, setTargetTableName] = useState("Data");
   const [writeMode, setWriteMode] = useState<"replace" | "append">("replace");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +47,7 @@ export function PublishPowerBiModal({ open, onClose, projectId, datasetId }: Pub
     setWorkspaces([]);
     setWorkspaceId("");
     setTargetDatasetName("");
-    setTargetTableName("PublishedData");
+    setTargetTableName("Data");
     setWriteMode("replace");
     let cancelled = false;
     (async () => {
@@ -77,7 +77,7 @@ export function PublishPowerBiModal({ open, onClose, projectId, datasetId }: Pub
 
   async function loadWorkspaces() {
     if (!connectionId) {
-      setError("Select a Power BI connection first.");
+      setError("Choose a Power BI connection first.");
       return;
     }
     setError(null);
@@ -88,7 +88,7 @@ export function PublishPowerBiModal({ open, onClose, projectId, datasetId }: Pub
       );
       if (meta.metadata_kind !== "power_bi_workspaces") {
         setWorkspaces([]);
-        setError("This connection did not return workspace metadata.");
+        setError("Power BI did not list any workspaces for this connection.");
         return;
       }
       const items = meta.items.map((i) => ({ id: i.id, name: i.name }));
@@ -107,19 +107,19 @@ export function PublishPowerBiModal({ open, onClose, projectId, datasetId }: Pub
     setError(null);
     setResult(null);
     if (!connectionId) {
-      setError("Select a Power BI connection.");
+      setError("Choose a Power BI connection.");
       return;
     }
     if (!workspaceId.trim()) {
-      setError("Enter or select a workspace ID.");
+      setError("Choose a workspace, or paste its ID.");
       return;
     }
     if (!targetDatasetName.trim()) {
-      setError("Enter a target dataset name.");
+      setError("Name the dataset in Power BI.");
       return;
     }
     if (!targetTableName.trim()) {
-      setError("Enter a target table name.");
+      setError("Name the table in Power BI.");
       return;
     }
     setSubmitting(true);
@@ -155,8 +155,8 @@ export function PublishPowerBiModal({ open, onClose, projectId, datasetId }: Pub
   return (
     <Modal
       open={open}
-      title="Publish to Power BI"
-      description="Creates or updates a Power BI push dataset in the chosen workspace and uploads this dataset as a single table. Replace deletes an existing dataset with the same name, then recreates it. Append adds rows when the dataset already exists."
+      title="Send to Power BI"
+      description="Puts this dataset into a Power BI workspace as one table, ready for reports."
       onClose={onClose}
       footer={
         <div className="flex flex-wrap justify-end gap-2">
@@ -164,32 +164,26 @@ export function PublishPowerBiModal({ open, onClose, projectId, datasetId }: Pub
             Close
           </Button>
           <Button disabled={submitting || loadingList || connections.length === 0} onClick={() => void onSubmit()}>
-            {submitting ? "Publishing…" : "Publish"}
+            {submitting ? "Sending…" : "Send"}
           </Button>
         </div>
       }
     >
       <div className="flex flex-col gap-4">
-        {writeMode === "replace" ? (
-          <p className="rounded-xl border border-warning-line bg-warning-soft px-3 py-2 text-xs text-warning">
-            Replace removes an existing push dataset with the same name in that workspace, then recreates it. Consumers of the old dataset id may need updates in Power BI.
-          </p>
-        ) : null}
         {loadingList ? (
-          <p className="text-sm text-ink-3">Loading Power BI connections…</p>
+          <p className="text-sm text-ink-3">Loading your Power BI connections…</p>
         ) : connections.length === 0 ? (
           <p className="text-sm text-ink-3">
-            No active Power BI connections.{" "}
+            No Power BI connection yet.{" "}
             <Link href={`/projects/${projectId}/bi-connections`} className="text-accent underline">
-              Create one
+              Add one
             </Link>{" "}
             first.
           </p>
         ) : (
-          <label className="flex flex-col gap-1 text-xs text-muted">
-            Power BI connection
-            <select
-              className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
+          <FormField label="Connection" htmlFor="pbi-connection">
+            <Select
+              id="pbi-connection"
               value={connectionId}
               onChange={(e) => {
                 setConnectionId(e.target.value);
@@ -202,71 +196,65 @@ export function PublishPowerBiModal({ open, onClose, projectId, datasetId }: Pub
                   {c.name}
                 </option>
               ))}
-            </select>
-          </label>
+            </Select>
+          </FormField>
         )}
-        <div className="flex flex-wrap items-end gap-2">
-          <Button variant="secondary" size="sm" disabled={!connectionId || loadingMeta} onClick={() => void loadWorkspaces()}>
-            {loadingMeta ? "Loading…" : "Load workspaces"}
-          </Button>
-        </div>
         {workspaces.length > 0 ? (
-          <label className="flex flex-col gap-1 text-xs text-muted">
-            Workspace (from discovery)
-            <select
-              className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
-              value={workspaceId}
-              onChange={(e) => setWorkspaceId(e.target.value)}
-            >
+          <FormField label="Workspace" htmlFor="pbi-workspace">
+            <Select id="pbi-workspace" value={workspaceId} onChange={(e) => setWorkspaceId(e.target.value)}>
               {workspaces.map((w) => (
                 <option key={w.id} value={w.id}>
                   {w.name}
                 </option>
               ))}
-            </select>
-          </label>
-        ) : null}
-        <label className="flex flex-col gap-1 text-xs text-muted">
-          Workspace ID (paste UUID if not using discovery)
-          <input
-            className="rounded-xl border border-line bg-surface px-3 py-2 font-mono text-sm text-ink"
-            value={workspaceId}
-            onChange={(e) => setWorkspaceId(e.target.value)}
-            placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-            autoComplete="off"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-muted">
-          Target dataset name
-          <input
-            className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
+            </Select>
+          </FormField>
+        ) : (
+          <div className="flex flex-wrap items-end gap-2">
+            <FormField
+              label="Workspace"
+              htmlFor="pbi-workspace-id"
+              description="List the workspaces this connection can reach, or paste a workspace ID from Power BI."
+            >
+              <Input
+                id="pbi-workspace-id"
+                className="font-mono"
+                value={workspaceId}
+                onChange={(e) => setWorkspaceId(e.target.value)}
+                autoComplete="off"
+              />
+            </FormField>
+            <Button variant="secondary" size="sm" disabled={!connectionId || loadingMeta} onClick={() => void loadWorkspaces()}>
+              {loadingMeta ? "Listing…" : "List workspaces"}
+            </Button>
+          </div>
+        )}
+        <FormField label="Dataset name in Power BI" htmlFor="pbi-dataset">
+          <Input
+            id="pbi-dataset"
             value={targetDatasetName}
             onChange={(e) => setTargetDatasetName(e.target.value)}
-            placeholder="e.g. Sales from ETL"
+            placeholder="Sales"
             autoComplete="off"
           />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-muted">
-          Target table name
-          <input
-            className="rounded-xl border border-line bg-surface px-3 py-2 font-mono text-sm text-ink"
-            value={targetTableName}
-            onChange={(e) => setTargetTableName(e.target.value)}
-            placeholder="PublishedData"
-            autoComplete="off"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-muted">
-          Write mode
-          <select
-            className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
-            value={writeMode}
-            onChange={(e) => setWriteMode(e.target.value as "replace" | "append")}
-          >
-            <option value="replace">Replace (delete same-named push dataset, then recreate)</option>
-            <option value="append">Append (add rows to existing push dataset if present)</option>
-          </select>
-        </label>
+        </FormField>
+        <FormField label="Table name" htmlFor="pbi-table">
+          <Input id="pbi-table" value={targetTableName} onChange={(e) => setTargetTableName(e.target.value)} autoComplete="off" />
+        </FormField>
+        <FormField
+          label="If it is already there"
+          htmlFor="pbi-mode"
+          description={
+            writeMode === "replace"
+              ? "Power BI reports built on the old dataset may need reconnecting afterwards."
+              : undefined
+          }
+        >
+          <Select id="pbi-mode" value={writeMode} onChange={(e) => setWriteMode(e.target.value as "replace" | "append")}>
+            <option value="replace">Replace it with this data</option>
+            <option value="append">Add these rows to it</option>
+          </Select>
+        </FormField>
         {error ? (
           <p className="text-sm text-danger" role="alert">
             {error}
@@ -276,16 +264,10 @@ export function PublishPowerBiModal({ open, onClose, projectId, datasetId }: Pub
           <div className="rounded-xl border border-line bg-surface px-3 py-3 text-sm text-ink">
             <p className={result.success ? "text-success" : "text-danger"}>{result.message}</p>
             {result.row_count_published != null ? (
-              <p className="mt-1 text-xs text-ink-3">Rows published: {result.row_count_published}</p>
+              <p className="mt-1 text-[13px] text-ink-3">{result.row_count_published} rows sent.</p>
             ) : null}
-            {result.power_bi_dataset_id ? (
-              <p className="mt-1 text-xs text-muted">Power BI dataset id: {result.power_bi_dataset_id}</p>
-            ) : null}
-            <Link
-              href={`/projects/${projectId}/runs/${result.run.id}/audit`}
-              className="mt-2 inline-block text-xs text-accent underline"
-            >
-              View run audit
+            <Link href={`/projects/${projectId}/runs/${result.run.id}/audit`} className="mt-2 inline-block text-[13px] text-accent underline">
+              Open the run
             </Link>
           </div>
         ) : null}

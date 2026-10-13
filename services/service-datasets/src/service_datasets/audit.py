@@ -57,29 +57,29 @@ def _build_dataset_audit_notes(dataset: Dataset, profile: dict[str, Any] | None)
     notes: list[str] = []
 
     if dataset.ingestion_status == "succeeded":
-        notes.append("Dataset ingestion completed successfully.")
+        notes.append("It was read without problems.")
     elif dataset.ingestion_status == "failed":
-        notes.append("Dataset ingestion did not complete successfully.")
+        notes.append("It could not be read.")
     elif dataset.ingestion_status in {"pending", "queued", "running"}:
-        notes.append("Dataset ingestion is not finished yet.")
+        notes.append("It is still being read.")
 
-    if dataset.is_derived:
-        notes.append("Dataset is derived from another dataset.")
     if dataset.created_from_pipeline_id:
-        notes.append(f"Dataset was created by transformation pipeline {dataset.created_from_pipeline_id}.")
+        notes.append("A recipe made it from another dataset.")
+    elif dataset.is_derived:
+        notes.append("It was made from another dataset.")
 
     if profile is None:
-        notes.append("Dataset profile has not been generated.")
+        notes.append("Its columns have not been profiled yet.")
     else:
         dup = int(profile.get("duplicate_row_count") or 0)
         if dup > 0:
-            notes.append("Dataset has duplicate rows according to latest profile.")
+            notes.append("Some rows appear more than once.")
         qf = _profile_quality_flags(profile)
         if qf["high_null_columns"]:
-            notes.append("One or more columns have high null percentages.")
+            notes.append("Some columns are mostly empty.")
 
     if dataset.ingestion_error:
-        notes.append("Dataset has a recorded ingestion error message.")
+        notes.append("An error was recorded while reading it.")
 
     # De-duplicate while preserving order
     seen: set[str] = set()

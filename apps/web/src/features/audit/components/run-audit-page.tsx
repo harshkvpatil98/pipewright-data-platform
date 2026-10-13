@@ -9,16 +9,24 @@ import type {
   ReplayResult,
   RunAuditSummary,
 } from "@platform/shared-types";
-import { Badge, Button, Modal, SectionPanel, StatusBadge } from "@platform/shared-ui";
+import {
+  Badge,
+  type BadgeTone,
+  Button,
+  buttonClassName,
+  Modal,
+  SectionPanel,
+  StatusBadge,
+} from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { apiFetch } from "@/lib/api/client";
 import { downloadFromApi } from "@/lib/api/download";
 import { extractErrorMessage } from "@/lib/api/errors";
-import { formatDate, formatDateTime } from "@/lib/format";
-import { formatRunTypeLabel } from "@/lib/run-labels";
+import { formatDateTime, formatDurationMs } from "@/lib/format";
 import { recipeHref } from "@/lib/navigation";
-import { sentenceLabel } from "@/lib/labels";
+import { formatRunTypeLabel, formatStageLabel } from "@/lib/run-labels";
+import { STEP_BY_TYPE } from "@/features/studio/step-catalog";
 
 type RunAuditPageProps = {
   currentUser: AuthUser;
@@ -26,15 +34,47 @@ type RunAuditPageProps = {
   audit: RunAuditSummary;
 };
 
+/** Runs whose output lands in another system, so "what it made" is not a dataset version. */
+const WRITES_OUTSIDE = new Set([
+  "database_copy",
+  "dataset_delivery",
+  "dataset_publish_postgres",
+  "dataset_publish_power_bi",
+  "dataset_publish_tableau",
+]);
+
+type LogEvent = { stage?: string; message?: string; details?: { error?: unknown; step_type?: unknown } };
+
+/**
+ * One run, told in words: who started it, what it read, what it made, and
+ * each step it went through. The stored record is still here, behind
+ * "Technical details", for whoever has to debug it.
+ */
 export function RunAuditPageView({ currentUser, projectId, audit }: RunAuditPageProps) {
-  const [rawOpen, setRawOpen] = useState(false);
-  const [exportingHtml, setExportingHtml] = useState(false);
+  const [technicalOpen, setTechnicalOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   const [replayOpen, setReplayOpen] = useState(false);
   const [replayBusy, setReplayBusy] = useState(false);
   const [replayResult, setReplayResult] = useState<ReplayResult | null>(null);
   const [replayError, setReplayError] = useState<string | null>(null);
-  const h = audit.highlights;
   const context = audit.execution_context;
+  const names = audit.dataset_names ?? {};
+  const datasetName = (id: string) => names[id] ?? "A dataset that has since been deleted";
+
+  const events: LogEvent[] =
+    audit.logs_json && Array.isArray((audit.logs_json as { events?: unknown }).events)
+      ? (audit.logs_json as { events: LogEvent[] }).events
+      : [];
+  const who =
+    audit.triggered_by_user_id === currentUser.id ? "You" : (audit.triggered_by_name ?? "Someone who has left");
+  const took =
+    audit.started_at && audit.completed_at
+      ? formatDurationMs(new Date(audit.completed_at).getTime() - new Date(audit.started_at).getTime())
+      : null;
+  const relatedOnly = audit.output_versions.length === 0 ? audit.related_dataset_ids : [];
+  const writesOutside = WRITES_OUTSIDE.has(audit.run_type);
+  const hasBeforeAfter = audit.run_type === "dataset_transformation" || audit.run_type === "dataset_ingestion";
 
   async function onReplay() {
     setReplayBusy(true);
@@ -42,9 +82,7 @@ export function RunAuditPageView({ currentUser, projectId, audit }: RunAuditPage
     setReplayResult(null);
     try {
       setReplayResult(
-        await apiFetch<ReplayResult>(`/projects/${projectId}/runs/${audit.id}/replay`, {
-          method: "POST",
-        }),
+        await apiFetch<ReplayResult>(`/projects/${projectId}/runs/${audit.id}/replay`, { method: "POST" }),
       );
     } catch (error) {
       setReplayError(extractErrorMessage(error));
@@ -52,35 +90,28 @@ export function RunAuditPageView({ currentUser, projectId, audit }: RunAuditPage
       setReplayBusy(false);
     }
   }
-  const events =
-    audit.logs_json && Array.isArray((audit.logs_json as { events?: unknown }).events)
-      ? ((audit.logs_json as { events: { stage?: string; message?: string }[] }).events)
-      : [];
 
-  async function onDownloadHtml() {
+  async function onDownload() {
+    setExporting(true);
+    setExportError(null);
     try {
-      setExportingHtml(true);
-      await downloadFromApi(
-        `/projects/${projectId}/runs/${audit.id}/audit/export?format=html`,
-        `run-audit-${audit.id}.html`,
-      );
+      await downloadFromApi(`/projects/${projectId}/runs/${audit.id}/audit/export?format=html`, `run-${audit.id}.html`);
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : "Download failed.");
+      setExportError(extractErrorMessage(error));
     } finally {
-      setExportingHtml(false);
+      setExporting(false);
     }
   }
 
   return (
     <AppShell
       currentUser={currentUser}
-      title={`Run ${audit.id.slice(0, 8)}…`}
-      subtitle="Read-only summary from persisted run, summary_json, and logs_json."
+      title={formatRunTypeLabel(audit.run_type)}
+      subtitle="What this run did, what it made, and how to check it again."
       actions={
-        <div className="flex flex-wrap items-center gap-2">
+        <>
           {audit.replayable ? (
             <Button
-              variant="primary"
               onClick={() => {
                 setReplayOpen(true);
                 setReplayResult(null);
@@ -89,294 +120,200 @@ export function RunAuditPageView({ currentUser, projectId, audit }: RunAuditPage
             >
               Replay
             </Button>
-          ) : audit.replay_reason && audit.execution_context ? (
-            <span
-              className="rounded-full border border-line bg-surface px-3 py-2 text-xs text-muted"
-              title={audit.replay_reason}
-            >
-              Not replayable
-            </span>
           ) : null}
-          <Button variant="secondary" disabled={exportingHtml} onClick={() => void onDownloadHtml()}>
-            {exportingHtml ? "Preparing…" : "Download HTML"}
+          <Button variant="secondary" disabled={exporting} onClick={() => void onDownload()}>
+            {exporting ? "Preparing…" : "Download a report"}
           </Button>
-          <Link
-            href={`/projects/${projectId}/runs/${audit.id}/comparison`}
-            className="rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium text-ink hover:border-line-strong"
-          >
-            View comparison
-          </Link>
-          <Link
-            href={`/projects/${projectId}`}
-            className="rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium text-ink hover:border-line-strong"
-          >
-            Project
-          </Link>
-        </div>
+          {hasBeforeAfter ? (
+            <Link href={`/projects/${projectId}/runs/${audit.id}/comparison`} className={buttonClassName("secondary", "md")}>
+              Before and after
+            </Link>
+          ) : null}
+        </>
       }
       meta={
         <>
           <StatusBadge value={audit.status} />
-          <span className="rounded-full border border-line bg-surface px-3 py-1 text-xs text-ink-2">
-            {formatRunTypeLabel(audit.run_type)}
-          </span>
+          <span className="text-[13px] text-ink-3">{formatDateTime(audit.created_at)}</span>
         </>
       }
     >
-      <SectionPanel title="Audit notes" description="Derived from run status, summary, and logs.">
-        <ul className="list-inside list-disc space-y-1 text-sm text-ink">
-          {audit.warnings.map((w) => (
-            <li key={w}>{w}</li>
+      {exportError ? (
+        <p role="alert" className="rounded-xl border border-danger-line bg-danger-soft px-3 py-2 text-[13px] text-danger">
+          {exportError}
+        </p>
+      ) : null}
+
+      <SectionPanel title="What happened">
+        <ul className="list-inside list-disc space-y-1 text-[14px] text-ink">
+          {audit.warnings.map((note) => (
+            <li key={note}>{note}</li>
           ))}
         </ul>
+        <dl className="mt-4 grid gap-3 text-[14px] sm:grid-cols-2 lg:grid-cols-3">
+          <Fact label="Started by">{who}</Fact>
+          {audit.pipeline_id ? (
+            <Fact label="Recipe">
+              <Link href={recipeHref(projectId, audit.pipeline_id)} className="text-accent hover:underline">
+                {audit.pipeline_name ?? "A recipe that has since been deleted"}
+              </Link>
+            </Fact>
+          ) : null}
+          <Fact label="Started">{audit.started_at ? formatDateTime(audit.started_at) : "Did not start"}</Fact>
+          <Fact label="Finished">{audit.completed_at ? formatDateTime(audit.completed_at) : "Not yet"}</Fact>
+          {took ? <Fact label="Took">{took}</Fact> : null}
+        </dl>
+        {!audit.replayable && audit.replay_reason && context ? (
+          <p className="mt-4 text-[13px] text-ink-3">It cannot be replayed: {audit.replay_reason}</p>
+        ) : null}
       </SectionPanel>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <SectionPanel title="Run identity" description="Core fields from pipeline_runs.">
-          <dl className="grid gap-3 text-sm">
-            <div>
-              <dt className="text-xs text-muted">Run id</dt>
-              <dd className="mt-1 font-mono text-xs text-ink-2 break-all">{audit.id}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-muted">Triggered by</dt>
-              <dd className="mt-1 font-mono text-xs text-ink-2">
-                {audit.triggered_by_user_id}
-                {audit.triggered_by_user_id === currentUser.id ? " (you)" : ""}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs text-muted">Pipeline id</dt>
-              <dd className="mt-1 text-ink">
-                {audit.pipeline_id ? (
-                  <Link
-                    href={recipeHref(projectId, audit.pipeline_id)}
-                    className="text-accent hover:text-accent"
-                  >
-                    {audit.pipeline_id}
+      <div className="grid gap-5 lg:grid-cols-2">
+        <SectionPanel title="What it made">
+          {audit.output_versions.length > 0 ? (
+            <ul className="space-y-2 text-[14px]">
+              {audit.output_versions.map((version) => (
+                <li key={`${version.dataset_id}-${version.version_number}`} className="flex flex-wrap items-center gap-2">
+                  <Link href={`/projects/${projectId}/datasets/${version.dataset_id}`} className="text-accent hover:underline">
+                    {version.dataset_name ?? datasetName(version.dataset_id)}
                   </Link>
-                ) : (
-                  "—"
-                )}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs text-muted">Created</dt>
-              <dd className="mt-1 text-ink">{formatDate(audit.created_at)}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-muted">Started / completed</dt>
-              <dd className="mt-1 text-ink">
-                {audit.started_at ? formatDate(audit.started_at) : "—"} →{" "}
-                {audit.completed_at ? formatDate(audit.completed_at) : "—"}
-              </dd>
-            </div>
-          </dl>
+                  <span className="text-ink-3">version {version.version_number}</span>
+                  {version.retention_state === "pruned" ? (
+                    <Badge title="The rows were removed by the retention policy; the record of the version stays.">
+                      Data removed
+                    </Badge>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          ) : relatedOnly.length > 0 ? (
+            <ul className="space-y-2 text-[14px]">
+              {relatedOnly.map((id) => (
+                <li key={id}>
+                  <Link href={`/projects/${projectId}/datasets/${id}`} className="text-accent hover:underline">
+                    {datasetName(id)}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-[14px] text-ink-3">
+              {writesOutside
+                ? "It wrote outside Pipewright, not to a dataset. The steps below say where."
+                : audit.status === "failed"
+                  ? "Nothing. It stopped before saving."
+                  : "No dataset versions were recorded for it."}
+            </p>
+          )}
         </SectionPanel>
 
-        <SectionPanel title="Audit highlights" description="Inferred from summary_json and logs.">
-          <dl className="grid gap-3 text-sm">
-            <div>
-              <dt className="text-xs text-muted">Logged stages</dt>
-              <dd className="mt-1 text-ink">{h.stage_count}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-muted">Failed stage</dt>
-              <dd className="mt-1 text-ink">{h.failed_stage ?? "—"}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-muted">Derived dataset created</dt>
-              <dd className="mt-1 text-ink">{h.derived_dataset_created ? "Yes" : "No"}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-muted">Ingestion / transformation</dt>
-              <dd className="mt-1 text-ink">
-                {[h.ingestion_type, h.transformation_type].filter(Boolean).join(" · ") || "—"}
-              </dd>
-            </div>
-          </dl>
+        <SectionPanel title="What it read">
+          {context && context.inputs.length > 0 ? (
+            <ul className="space-y-2 text-[14px]">
+              {context.inputs.map((pin, index) => (
+                <li key={`${pin.dataset_id}-${index}`}>
+                  <PinLine projectId={projectId} pin={pin} name={datasetName(pin.dataset_id)} />
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-[14px] text-ink-3">This kind of run does not record what it read.</p>
+          )}
         </SectionPanel>
       </div>
 
-      <SectionPanel
-        title="Published versions"
-        description="The output pin: the exact version this run produced. A later run on the same dataset advances the head, not this."
-      >
-        {audit.output_versions.length === 0 ? (
-          <p className="text-sm text-ink-3">
-            This run published no dataset version (it failed, or predates version history).
-          </p>
-        ) : (
-          <ul className="space-y-2 text-sm">
-            {audit.output_versions.map((version) => (
-              <li key={`${version.dataset_id}-${version.version_number}`} className="flex flex-wrap items-center gap-2">
-                <Link
-                  href={`/projects/${projectId}/datasets/${version.dataset_id}`}
-                  className="text-accent hover:text-accent"
-                >
-                  {version.dataset_name ?? `Dataset ${version.dataset_id.slice(0, 8)}…`}
-                </Link>
-                <span className="text-ink-2">version {version.version_number}</span>
-                <span className="font-mono text-[12px] text-muted">{shortDigest(version.content_hash)}</span>
-                {version.retention_state === "pruned" ? (
-                  <Badge>
-                    pruned
-                  </Badge>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        )}
-      </SectionPanel>
-
-      {context ? (
-        <SectionPanel
-          title="Execution context"
-          description="Recorded so this run can be replayed the same way: the instant every clock-dependent function saw, the engine's semantic version, the exact steps, and the input versions read."
-        >
-          <dl className="grid gap-3 text-sm sm:grid-cols-2">
-            <div>
-              <dt className="text-xs text-muted">Evaluated at</dt>
-              <dd className="mt-1 text-ink">{formatDateTime(context.evaluated_at)}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-muted">Engine semantics</dt>
-              <dd className="mt-1 font-mono text-xs text-ink-2">{context.semantic_version}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-muted">Steps</dt>
-              <dd className="mt-1 text-ink">
-                {context.steps.length} step{context.steps.length === 1 ? "" : "s"}{" "}
-                <span className="font-mono text-[12px] text-muted">{shortDigest(context.steps_digest)}</span>
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs text-muted">Clock-dependent functions</dt>
-              <dd className="mt-1 text-ink-2">{context.clock_functions.join(", ")}</dd>
-            </div>
-            {context.replay_of ? (
-              <div className="sm:col-span-2">
-                <dt className="text-xs text-muted">Replay of</dt>
-                <dd className="mt-1">
-                  <Link
-                    href={`/projects/${projectId}/runs/${context.replay_of}/audit`}
-                    className="font-mono text-xs text-accent hover:text-accent"
-                  >
-                    {context.replay_of}
-                  </Link>
-                </dd>
-              </div>
-            ) : null}
-          </dl>
-          <div className="mt-4">
-            <div className="text-xs text-muted">Input pins</div>
-            {context.inputs.length === 0 ? (
-              <p className="mt-1 text-sm text-ink-3">No inputs were recorded.</p>
-            ) : (
-              <ul className="mt-1 space-y-1 text-sm">
-                {context.inputs.map((pin, index) => (
-                  <li key={`${pin.dataset_id}-${index}`}>
-                    <PinLine projectId={projectId} pin={pin} />
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </SectionPanel>
-      ) : null}
-
-      <SectionPanel
-        title="Related datasets"
-        description="Ids extracted from summary_json when present (ingestion or transformation runs)."
-      >
-        {audit.related_dataset_ids.length === 0 ? (
-          <p className="text-sm text-ink-3">No related dataset ids found in summary metadata.</p>
-        ) : (
-          <ul className="space-y-2 text-sm">
-            {audit.related_dataset_ids.map((id) => (
-              <li key={id}>
-                <Link href={`/projects/${projectId}/datasets/${id}/audit`} className="text-accent hover:text-accent">
-                  Dataset {id}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </SectionPanel>
-
-      <SectionPanel title="Stage / log overview" description="Latest persisted log events (stage + message).">
+      <SectionPanel title="Steps">
         {events.length === 0 ? (
-          <p className="text-sm text-ink-3">No log events in logs_json.</p>
+          <p className="text-[14px] text-ink-3">No steps were recorded.</p>
         ) : (
-          <ol className="space-y-2 text-sm">
-            {events.map((ev, idx) => (
-              <li key={`${ev.stage}-${idx}`} className="rounded-xl border border-line bg-surface px-3 py-2">
-                <span className="text-xs text-muted">{ev.stage ?? "event"}</span>
-                <p className="mt-1 text-ink">{ev.message ?? "—"}</p>
+          <ol className="space-y-2 text-[14px]">
+            {events.map((event, index) => (
+              <li key={`${event.stage}-${index}`} className="rounded-xl border border-line bg-surface px-3 py-2">
+                <span className="text-[13px] font-medium text-ink-2">{formatStageLabel(event.stage)}</span>
+                <p className="mt-0.5 text-ink">{eventText(event)}</p>
+                {typeof event.details?.error === "string" ? (
+                  <p className="mt-1 text-danger">{event.details.error}</p>
+                ) : null}
               </li>
             ))}
           </ol>
         )}
       </SectionPanel>
 
-      <SectionPanel title="Technical details" description="Raw summary and logs for debugging (secondary).">
-        <button
-          type="button"
-          onClick={() => setRawOpen(!rawOpen)}
-          className="text-sm text-accent hover:text-accent"
-        >
-          {rawOpen ? "Hide raw metadata" : "Show raw metadata"}
-        </button>
-        {rawOpen ? (
-          <div className="mt-4 space-y-4">
-            <div>
-              <h4 className="text-xs text-muted">summary_json</h4>
-              <pre className="mt-2 max-h-64 overflow-auto rounded-xl border border-line bg-sunken p-3 text-xs text-ink-2">
-                {audit.summary_json ? JSON.stringify(audit.summary_json, null, 2) : "null"}
-              </pre>
-            </div>
-            <div>
-              <h4 className="text-xs text-muted">logs_json</h4>
-              <pre className="mt-2 max-h-64 overflow-auto rounded-xl border border-line bg-sunken p-3 text-xs text-ink-2">
-                {audit.logs_json ? JSON.stringify(audit.logs_json, null, 2) : "null"}
-              </pre>
-            </div>
+      <SectionPanel
+        title="Technical details"
+        description="Identifiers and the stored record, for whoever has to look deeper."
+        actions={
+          <Button variant="ghost" size="sm" onClick={() => setTechnicalOpen((open) => !open)}>
+            {technicalOpen ? "Hide" : "Show"}
+          </Button>
+        }
+      >
+        {technicalOpen ? (
+          <div className="space-y-4">
+            <dl className="grid gap-3 text-[13px] sm:grid-cols-2">
+              <Fact label="Run ID" mono>
+                {audit.id}
+              </Fact>
+              {audit.pipeline_id ? (
+                <Fact label="Recipe ID" mono>
+                  {audit.pipeline_id}
+                </Fact>
+              ) : null}
+              {context ? (
+                <>
+                  <Fact label="Clock fixed at">{formatDateTime(context.evaluated_at)}</Fact>
+                  <Fact label="Engine version" mono>
+                    {context.semantic_version}
+                  </Fact>
+                  <Fact label="Steps fingerprint" mono>
+                    {shortDigest(context.steps_digest)}
+                  </Fact>
+                  {context.replay_of ? (
+                    <Fact label="Replay of">
+                      <Link href={`/projects/${projectId}/runs/${context.replay_of}/audit`} className="text-accent hover:underline">
+                        The original run
+                      </Link>
+                    </Fact>
+                  ) : null}
+                </>
+              ) : null}
+            </dl>
+            <Record title="Run record" value={audit.summary_json} />
+            <Record title="Step log" value={audit.logs_json} />
           </div>
-        ) : null}
+        ) : (
+          <p className="text-[13px] text-ink-3">Hidden until you need it.</p>
+        )}
       </SectionPanel>
+
       <Modal
         open={replayOpen}
         title="Replay this run"
-        description="Re-executes the recorded steps against the input versions this run pinned, at the moment it froze, then compares the result with the version it published. The replay is a new run and publishes a new dataset; nothing here is rewritten."
+        description="Runs the same steps on the same input versions and checks the result matches. It makes a new run; nothing is changed."
         onClose={() => setReplayOpen(false)}
-        widthClassName="max-w-2xl"
         footer={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-end gap-2">
             <Button variant="ghost" size="sm" onClick={() => setReplayOpen(false)}>
               Close
             </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              disabled={replayBusy}
-              onClick={() => void onReplay()}
-            >
+            <Button size="sm" disabled={replayBusy} onClick={() => void onReplay()}>
               {replayBusy ? "Replaying…" : replayResult ? "Replay again" : "Run the replay"}
             </Button>
           </div>
         }
       >
         {replayError ? (
-          <div className="rounded-2xl border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger">
+          <p role="alert" className="rounded-2xl border border-danger-line bg-danger-soft px-4 py-3 text-[14px] text-danger">
             {replayError}
-          </div>
+          </p>
         ) : replayResult ? (
-          <ReplayOutcome projectId={projectId} result={replayResult} />
+          <ReplayOutcome projectId={projectId} result={replayResult} datasetName={datasetName} />
         ) : (
-          <p className="text-[12.5px] text-ink-2">
+          <p className="text-[14px] text-ink-2">
             {context
-              ? `Evaluated at ${formatDateTime(context.evaluated_at)} against ${context.inputs.length} pinned input${context.inputs.length === 1 ? "" : "s"}.`
-              : "No execution context is recorded for this run."}
+              ? `It will use the clock as it was at ${formatDateTime(context.evaluated_at)} and the ${context.inputs.length} input version${context.inputs.length === 1 ? "" : "s"} this run read.`
+              : "This run did not record enough to replay it."}
           </p>
         )}
       </Modal>
@@ -384,37 +321,66 @@ export function RunAuditPageView({ currentUser, projectId, audit }: RunAuditPage
   );
 }
 
-const REPLAY_STATUS_COPY: Record<ReplayResult["status"], { label: string; tone: string }> = {
-  equivalent: { label: "Equivalent", tone: "border-success-line bg-success-soft text-success" },
-  divergent: { label: "Divergent", tone: "border-danger-line bg-danger-soft text-danger" },
-  incompatible: { label: "Incompatible", tone: "border-warning-line bg-warning-soft text-warning" },
-  unavailable: { label: "Unavailable", tone: "border-warning-line bg-warning-soft text-warning" },
-  failed: { label: "Failed", tone: "border-danger-line bg-danger-soft text-danger" },
-  unverifiable: { label: "Unverifiable", tone: "border-warning-line bg-warning-soft text-warning" },
+/** What a step did. A recipe step is named the way the Studio names it, whatever the log stored. */
+function eventText(event: LogEvent): string {
+  const stepType = typeof event.details?.step_type === "string" ? event.details.step_type : null;
+  if (stepType) {
+    return stepType === "tool" ? "A tool from the library." : (STEP_BY_TYPE.get(stepType)?.label ?? "A recipe step.");
+  }
+  return event.message ?? "";
+}
+
+function Fact({ label, mono = false, children }: { label: string; mono?: boolean; children: React.ReactNode }) {
+  return (
+    <div>
+      <dt className="text-[12px] text-muted">{label}</dt>
+      <dd className={mono ? "mt-0.5 break-all font-mono text-[12px] text-ink-2" : "mt-0.5 text-ink"}>{children}</dd>
+    </div>
+  );
+}
+
+function Record({ title, value }: { title: string; value: unknown }) {
+  return (
+    <div>
+      <h3 className="text-[13px] font-medium text-ink-2">{title}</h3>
+      <pre className="mt-1.5 max-h-64 overflow-auto rounded-xl border border-line bg-sunken p-3 text-[12px] text-ink-2">
+        {value ? JSON.stringify(value, null, 2) : "Nothing recorded"}
+      </pre>
+    </div>
+  );
+}
+
+const REPLAY_OUTCOMES: Record<ReplayResult["status"], { label: string; tone: BadgeTone }> = {
+  equivalent: { label: "Same result", tone: "success" },
+  divergent: { label: "Different result", tone: "danger" },
+  incompatible: { label: "Cannot be compared", tone: "warning" },
+  unavailable: { label: "Inputs no longer kept", tone: "warning" },
+  failed: { label: "The replay failed", tone: "danger" },
+  unverifiable: { label: "Cannot be checked", tone: "warning" },
 };
 
-function ReplayOutcome({ projectId, result }: { projectId: string; result: ReplayResult }) {
-  const copy = REPLAY_STATUS_COPY[result.status];
+function ReplayOutcome({
+  projectId,
+  result,
+  datasetName,
+}: {
+  projectId: string;
+  result: ReplayResult;
+  datasetName: (id: string) => string;
+}) {
+  const outcome = REPLAY_OUTCOMES[result.status];
   return (
-    <div className="space-y-3 text-sm">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${copy.tone}`}>
-          {copy.label}
-        </span>
+    <div className="space-y-3 text-[14px]">
+      <div className="flex flex-wrap items-center gap-3">
+        <Badge tone={outcome.tone}>{outcome.label}</Badge>
         {result.replay_run_id ? (
-          <Link
-            href={`/projects/${projectId}/runs/${result.replay_run_id}/audit`}
-            className="text-xs text-accent hover:text-accent"
-          >
-            Open the replay run
+          <Link href={`/projects/${projectId}/runs/${result.replay_run_id}/audit`} className="text-[13px] text-accent hover:underline">
+            Open the replay
           </Link>
         ) : null}
         {result.replay_dataset_id ? (
-          <Link
-            href={`/projects/${projectId}/datasets/${result.replay_dataset_id}`}
-            className="text-xs text-accent hover:text-accent"
-          >
-            Open the replayed dataset
+          <Link href={`/projects/${projectId}/datasets/${result.replay_dataset_id}`} className="text-[13px] text-accent hover:underline">
+            Open what it made
           </Link>
         ) : null}
       </div>
@@ -422,37 +388,44 @@ function ReplayOutcome({ projectId, result }: { projectId: string; result: Repla
       {result.comparison ? (
         <div className="rounded-xl border border-line bg-sunken px-3 py-2.5">
           <div className="grid gap-2 sm:grid-cols-3">
-            <Check label="Columns" ok={result.comparison.columns_equal} />
-            <Check label="Types" ok={result.comparison.types_equal} />
-            <Check
+            <Same label="Columns" same={result.comparison.columns_equal} />
+            <Same label="Types" same={result.comparison.types_equal} />
+            <Same
               label="Rows"
-              ok={result.comparison.rows_equal}
+              same={result.comparison.rows_equal}
               note={
                 result.comparison.rows_original !== null && result.comparison.rows_replay !== null
-                  ? `${result.comparison.rows_original} → ${result.comparison.rows_replay}`
+                  ? `${result.comparison.rows_original} then ${result.comparison.rows_replay}`
                   : undefined
               }
             />
           </div>
           {result.comparison.differences.length > 0 ? (
-            <ul className="mt-2 list-inside list-disc text-[12px] text-ink-2">
+            <ul className="mt-2 list-inside list-disc text-[13px] text-ink-2">
               {result.comparison.differences.map((difference) => (
                 <li key={difference}>{difference}</li>
               ))}
             </ul>
           ) : null}
-          <p className="mt-2 text-[12px] text-muted">{result.comparison.method}.</p>
         </div>
       ) : null}
       {result.original_output || result.replay_output ? (
-        <div className="grid gap-2 text-[12px] sm:grid-cols-2">
+        <div className="grid gap-2 text-[13px] sm:grid-cols-2">
           <div>
-            <div className="text-[12px] text-muted">Original output</div>
-            {result.original_output ? <PinLine projectId={projectId} pin={result.original_output} /> : "—"}
+            <div className="text-muted">The original made</div>
+            {result.original_output ? (
+              <PinLine projectId={projectId} pin={result.original_output} name={datasetName(result.original_output.dataset_id)} />
+            ) : (
+              "Nothing"
+            )}
           </div>
           <div>
-            <div className="text-[12px] text-muted">Replay output</div>
-            {result.replay_output ? <PinLine projectId={projectId} pin={result.replay_output} /> : "—"}
+            <div className="text-muted">The replay made</div>
+            {result.replay_output ? (
+              <PinLine projectId={projectId} pin={result.replay_output} name={datasetName(result.replay_output.dataset_id)} />
+            ) : (
+              "Nothing"
+            )}
           </div>
         </div>
       ) : null}
@@ -460,42 +433,36 @@ function ReplayOutcome({ projectId, result }: { projectId: string; result: Repla
   );
 }
 
-function Check({ label, ok, note }: { label: string; ok: boolean; note?: string }) {
+function Same({ label, same, note }: { label: string; same: boolean; note?: string }) {
   return (
     <div>
       <div className="text-[12px] text-muted">{label}</div>
-      <div className={ok ? "text-success" : "text-danger"}>
-        {ok ? "same" : "differ"}
+      <div className={same ? "text-success" : "text-danger"}>
+        {same ? "Same" : "Different"}
         {note ? <span className="ml-1 text-muted">({note})</span> : null}
       </div>
     </div>
   );
 }
 
-function PinLine({ projectId, pin }: { projectId: string; pin: ExecutionVersionPin }) {
+const PIN_ROLES: Record<string, string> = { base: "Input", step: "Joined in" };
+
+function PinLine({ projectId, pin, name }: { projectId: string; pin: ExecutionVersionPin; name: string }) {
   return (
     <span className="inline-flex flex-wrap items-center gap-1.5">
-      {pin.role && pin.role !== "output" ? (
-        <Badge>
-          {sentenceLabel(pin.role)}
-        </Badge>
-      ) : null}
-      <Link
-        href={`/projects/${projectId}/datasets/${pin.dataset_id}`}
-        className="font-mono text-xs text-accent hover:text-accent"
-      >
-        {pin.dataset_id.slice(0, 8)}…
+      {pin.role && PIN_ROLES[pin.role] ? <Badge>{PIN_ROLES[pin.role]}</Badge> : null}
+      <Link href={`/projects/${projectId}/datasets/${pin.dataset_id}`} className="text-accent hover:underline">
+        {name}
       </Link>
-      <span className="text-ink-2">
-        {pin.version_number === null ? "no recorded version" : `version ${pin.version_number}`}
+      <span className="text-ink-3">
+        {pin.version_number === null ? "(no version recorded)" : `version ${pin.version_number}`}
       </span>
-      <span className="font-mono text-[12px] text-muted">{shortDigest(pin.content_hash)}</span>
     </span>
   );
 }
 
 function shortDigest(hash: string | null | undefined): string {
-  if (!hash) return "--";
+  if (!hash) return "None";
   const hex = hash.includes(":") ? hash.split(":")[1] : hash;
   return hex.slice(0, 12);
 }

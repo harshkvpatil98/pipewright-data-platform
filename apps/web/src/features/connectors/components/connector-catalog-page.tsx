@@ -277,7 +277,7 @@ function VerificationPanel({ health }: { health: ConnectorHealth }) {
   return (
     <SectionPanel
       title="How much is known"
-      description="A catalogue this size that did not say which connectors have actually been run would be a list nobody could act on. Every connector carries a tier, and the tier travels into the run that uses it."
+      description="Every connector says how far it has been tested, and that carries into every run that uses it."
     >
       <ul className="flex flex-col gap-2">
         {health.tiers.map((tier) => (

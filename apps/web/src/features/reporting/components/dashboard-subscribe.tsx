@@ -124,7 +124,7 @@ export function DashboardSubscribe({
       <Modal
         open={open}
         title="Email me this dashboard"
-        description="Creates a scheduled report of this dashboard addressed to you. It runs on the worker and appears under Reports with its delivery history; if the server cannot send mail, the history says so rather than pretending."
+        description="A scheduled report of this dashboard, sent to you. It appears under Reports with what was sent."
         onClose={() => setOpen(false)}
         widthClassName="max-w-lg"
         footer={

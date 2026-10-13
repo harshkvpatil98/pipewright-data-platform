@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useState } from "react";
 
 import type {
@@ -12,7 +11,7 @@ import type {
   PiiScanResponse,
   RuleSuggestionResponse,
 } from "@platform/shared-types";
-import { Badge, type BadgeTone, Button, Icon, SectionPanel } from "@platform/shared-ui";
+import { Badge, type BadgeTone, Button, SectionPanel } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { apiFetch } from "@/lib/api/client";
@@ -97,7 +96,7 @@ export function AssistantPageView({
     <AppShell
       currentUser={currentUser}
       title={`Assistant · ${datasetName}`}
-      subtitle="Everything here is worked out from the data itself: patterns, overlap, similarity and timing. There are no model calls, and each panel says what produced its answer."
+      subtitle="Personal data, duplicates, joins and fixes, worked out from the data itself."
     >
       {error ? (
         <div className="rounded-2xl border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger">
@@ -105,19 +104,13 @@ export function AssistantPageView({
         </div>
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-2">
-        <Link
-          href={`/projects/${projectId}/datasets/${datasetId}`}
-          className="inline-flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-[12px] text-ink-2 transition hover:bg-surface-2"
-        >
-          <Icon name="chevronLeft" size={12} />
-          Dataset
-        </Link>
-      </div>
+      <p className="text-[13px] text-ink-3">
+        No AI model is involved: each finding comes from rules applied to the data, and says what it is based on.
+      </p>
 
       <SectionPanel
         title="Describe what you want"
-        description="Type the change in words. It recognises a fixed set of phrasings and says plainly what it could not read, rather than guessing."
+        description="Type the change in words. It knows a fixed set of phrasings and says plainly what it could not read."
       >
         <div className="flex gap-2">
           <input
@@ -300,7 +293,7 @@ export function AssistantPageView({
       {documentation ? (
         <SectionPanel
           title="A description, drafted"
-          description="Assembled from facts already recorded. Edit it before accepting. A generated description presented as fact is how a catalog fills with confidently wrong text."
+          description="Put together from what is already recorded. Read and edit it before you accept it."
         >
           <p className="rounded-lg border border-line bg-surface px-3 py-2.5 text-[12.5px] leading-5 text-ink">
             {documentation.dataset.text}

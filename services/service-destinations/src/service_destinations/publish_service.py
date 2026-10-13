@@ -104,7 +104,7 @@ def publish_dataset_to_postgres(
         logs_json=_build_log_events(log_events),
     )
 
-    log_events.append(_log_event("running", "Publish started."))
+    log_events.append(_log_event("running", "Sending started."))
     mark_pipeline_run_running(db, run=run, logs_json=_build_log_events(log_events))
 
     try:
@@ -157,7 +157,7 @@ def publish_dataset_to_postgres(
 
     try:
         current_stage = "load_dataset"
-        log_events.append(_log_event("load_dataset", "Loading dataset artifact from storage."))
+        log_events.append(_log_event("load_dataset", "Reading the dataset."))
         mark_pipeline_run_running(db, run=run, logs_json=_build_log_events(log_events))
 
         df = _load_dataframe(dataset, storage_backend)
@@ -166,11 +166,11 @@ def publish_dataset_to_postgres(
             raise BadRequestError("Dataset has no rows to publish.")
 
         current_stage = "parse"
-        log_events.append(_log_event("parse", f"Parsed {row_attempted} rows for publishing."))
+        log_events.append(_log_event("parse", f"Read {row_attempted} rows to send."))
         mark_pipeline_run_running(db, run=run, logs_json=_build_log_events(log_events))
 
         current_stage = "connect_destination"
-        log_events.append(_log_event("connect_destination", "Connecting to PostgreSQL destination."))
+        log_events.append(_log_event("connect_destination", "Connecting to the database."))
         mark_pipeline_run_running(db, run=run, logs_json=_build_log_events(log_events))
 
         current_stage = "write_table"
@@ -210,7 +210,7 @@ def publish_dataset_to_postgres(
         }
 
         log_events.append(
-            _log_event("finalize", f"Published {rows_written} rows to {table_name}."),
+            _log_event("finalize", f"Wrote {rows_written} rows to {table_name}."),
         )
 
         run_read = mark_pipeline_run_succeeded(
@@ -224,7 +224,7 @@ def publish_dataset_to_postgres(
 
         return DatasetPublishPostgresResponse(
             success=True,
-            message=f"Published {rows_written} rows to {table_name}.",
+            message=f"Wrote {rows_written} rows to {table_name}.",
             run=run_read,
             target_table=table_name,
             target_schema=target_schema,

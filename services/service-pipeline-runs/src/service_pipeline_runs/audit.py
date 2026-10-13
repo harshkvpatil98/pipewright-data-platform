@@ -78,6 +78,30 @@ def _ingestion_transformation_labels(summary: dict[str, Any] | None) -> tuple[st
     return ing_out, tr_out
 
 
+_STAGE_WORDS = {
+    "upload": "saving the file",
+    "parse": "reading the rows",
+    "profile": "working out the columns",
+    "materialize_profile": "working out the columns",
+    "persist": "saving the rows",
+    "persist_artifact": "saving the result",
+    "extract": "reading the source",
+    "shape": "cleaning at the source",
+    "merge": "combining with earlier rows",
+    "schema_drift": "checking for schema changes",
+    "load_artifact": "reading the input dataset",
+    "load_dataset": "reading the dataset",
+    "finalize": "recording the new version",
+}
+
+
+def stage_words(stage: str) -> str:
+    """A run's stage code as a person would say it: "parse" reads "reading the rows"."""
+    if stage.startswith("apply_step_"):
+        return f"applying step {stage.rsplit('_', 1)[1]}"
+    return _STAGE_WORDS.get(stage, stage.replace("_", " "))
+
+
 def _run_audit_notes(
     *,
     run: PipelineRun,
@@ -88,23 +112,24 @@ def _run_audit_notes(
     notes: list[str] = []
 
     if run.status == "succeeded":
-        notes.append("Run completed successfully.")
+        notes.append("It finished without problems.")
     elif run.status == "failed":
         stage = highlights.failed_stage
         if stage:
-            notes.append(f"Run failed during {stage} stage.")
+            notes.append(f"It stopped while {stage_words(stage)}.")
         else:
-            notes.append("Run failed.")
+            notes.append("It stopped with an error.")
     else:
-        notes.append(f"Run status is {run.status}.")
+        notes.append(f"It is {str(run.status).replace('_', ' ')}.")
 
     if highlights.derived_dataset_created:
-        notes.append("Run created a derived dataset.")
+        notes.append("It made a new dataset.")
 
-    notes.append(f"Run has {highlights.stage_count} logged stages.")
+    count = highlights.stage_count
+    notes.append(f"It recorded {count} step{'' if count == 1 else 's'}.")
 
     if summary is None or (isinstance(summary, dict) and len(summary) == 0):
-        notes.append("Run summary metadata is incomplete.")
+        notes.append("Some details of this run were not recorded.")
 
     seen: set[str] = set()
     ordered: list[str] = []

@@ -125,7 +125,7 @@ export function LiveSourcesPanel({ projectId, connections, initial }: LiveSource
     <>
       <SectionPanel
         title="Live feeds"
-        description="Data that arrives by itself: events sent to a web address, or changes followed in a PostgreSQL table. Following changes works for PostgreSQL only; other databases are imported on a schedule."
+        description="Data that arrives by itself: events sent to a web address, or changes in a PostgreSQL table."
         actions={
           <Button variant="secondary" size="sm" onClick={() => setFormOpen((open) => !open)}>
             {formOpen ? "Cancel" : "Set up a live feed"}
@@ -221,8 +221,8 @@ export function LiveSourcesPanel({ projectId, connections, initial }: LiveSource
                         kind="live feed"
                         consequences={[
                           "Its stored events go with it.",
-                          ...(source.kind === "postgres_cdc" ? ["Its replication slot is dropped, so the database stops keeping change log for it."] : []),
-                          ...(source.dataset_id ? ["The dataset it materialised stays, with its versions."] : []),
+                          ...(source.kind === "postgres_cdc" ? ["The database stops keeping a log of changes for it."] : []),
+                          ...(source.dataset_id ? ["The dataset it filled stays, with its versions."] : []),
                         ]}
                         onDeleted={() => setSources((current) => current.filter((item) => item.id !== source.id))}
                       />

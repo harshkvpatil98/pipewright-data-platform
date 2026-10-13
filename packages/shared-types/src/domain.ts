@@ -261,6 +261,9 @@ export type DatasetAuditSummary = {
     sample_column_names: string[];
   };
   warnings: string[];
+  uploaded_by_name?: string | null;
+  parent_dataset_name?: string | null;
+  created_from_pipeline_name?: string | null;
 };
 
 export type RunAuditHighlights = {
@@ -324,6 +327,11 @@ export type RunAuditSummary = {
   execution_context: ExecutionContext | null;
   replayable: boolean;
   replay_reason: string | null;
+  /** Who started the run, by name. */
+  triggered_by_name?: string | null;
+  pipeline_name?: string | null;
+  /** Dataset names for every id the audit mentions. */
+  dataset_names?: Record<string, string>;
 };
 
 export type ReplayComparison = {

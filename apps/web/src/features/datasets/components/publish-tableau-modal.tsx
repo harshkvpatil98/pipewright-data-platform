@@ -11,7 +11,7 @@ import type {
   DatasetPublishTableauPayload,
   DatasetPublishTableauResponse,
 } from "@platform/shared-types";
-import { Button, Modal } from "@platform/shared-ui";
+import { Button, FormField, Input, Modal, Select } from "@platform/shared-ui";
 
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
@@ -105,15 +105,15 @@ export function PublishTableauModal({ open, onClose, projectId, datasetId }: Pub
     setError(null);
     setResult(null);
     if (!connectionId) {
-      setError("Select a Tableau connection.");
+      setError("Choose a Tableau connection.");
       return;
     }
     if (!tableauProjectId.trim()) {
-      setError("Enter or select a Tableau project ID.");
+      setError("Choose a Tableau project, or paste its ID.");
       return;
     }
     if (!datasourceName.trim()) {
-      setError("Enter a datasource name.");
+      setError("Name the data source in Tableau.");
       return;
     }
     setSubmitting(true);
@@ -145,8 +145,8 @@ export function PublishTableauModal({ open, onClose, projectId, datasetId }: Pub
   return (
     <Modal
       open={open}
-      title="Publish to Tableau"
-      description="Builds a single-table Hyper extract from this dataset and publishes it as a datasource in the selected Tableau project. Replace overwrites an existing datasource with the same name; create-only fails if the name already exists."
+      title="Send to Tableau"
+      description="Puts this dataset into a Tableau project as a data source, ready for workbooks."
       onClose={onClose}
       footer={
         <div className="flex flex-wrap justify-end gap-2">
@@ -154,33 +154,26 @@ export function PublishTableauModal({ open, onClose, projectId, datasetId }: Pub
             Close
           </Button>
           <Button disabled={submitting || loadingList || connections.length === 0} onClick={() => void onSubmit()}>
-            {submitting ? "Publishing…" : "Publish"}
+            {submitting ? "Sending…" : "Send"}
           </Button>
         </div>
       }
     >
       <div className="flex flex-col gap-4">
-        {writeMode === "replace" ? (
-          <p className="rounded-xl border border-warning-line bg-warning-soft px-3 py-2 text-xs text-warning">
-            Replace overwrites the published datasource if Tableau accepts the overwrite flag. Use with care on shared
-            projects.
-          </p>
-        ) : null}
         {loadingList ? (
-          <p className="text-sm text-ink-3">Loading Tableau connections…</p>
+          <p className="text-sm text-ink-3">Loading your Tableau connections…</p>
         ) : connections.length === 0 ? (
           <p className="text-sm text-ink-3">
-            No active Tableau connections.{" "}
+            No Tableau connection yet.{" "}
             <Link href={`/projects/${projectId}/bi-connections`} className="text-accent underline">
-              Create one
+              Add one
             </Link>{" "}
             first.
           </p>
         ) : (
-          <label className="flex flex-col gap-1 text-xs text-muted">
-            Tableau connection
-            <select
-              className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
+          <FormField label="Connection" htmlFor="tableau-connection">
+            <Select
+              id="tableau-connection"
               value={connectionId}
               onChange={(e) => {
                 setConnectionId(e.target.value);
@@ -193,61 +186,58 @@ export function PublishTableauModal({ open, onClose, projectId, datasetId }: Pub
                   {c.name}
                 </option>
               ))}
-            </select>
-          </label>
+            </Select>
+          </FormField>
         )}
-        <div className="flex flex-wrap items-end gap-2">
-          <Button variant="secondary" size="sm" disabled={!connectionId || loadingMeta} onClick={() => void loadProjects()}>
-            {loadingMeta ? "Loading…" : "Load projects"}
-          </Button>
-        </div>
         {projects.length > 0 ? (
-          <label className="flex flex-col gap-1 text-xs text-muted">
-            Project (from discovery)
-            <select
-              className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
-              value={tableauProjectId}
-              onChange={(e) => setTableauProjectId(e.target.value)}
-            >
+          <FormField label="Tableau project" htmlFor="tableau-project">
+            <Select id="tableau-project" value={tableauProjectId} onChange={(e) => setTableauProjectId(e.target.value)}>
               {projects.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
                 </option>
               ))}
-            </select>
-          </label>
-        ) : null}
-        <label className="flex flex-col gap-1 text-xs text-muted">
-          Tableau project ID (UUID)
-          <input
-            className="rounded-xl border border-line bg-surface px-3 py-2 font-mono text-sm text-ink"
-            value={tableauProjectId}
-            onChange={(e) => setTableauProjectId(e.target.value)}
-            placeholder="From Tableau REST / discovery"
-            autoComplete="off"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-muted">
-          Datasource name
-          <input
-            className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
+            </Select>
+          </FormField>
+        ) : (
+          <div className="flex flex-wrap items-end gap-2">
+            <FormField
+              label="Tableau project"
+              htmlFor="tableau-project-id"
+              description="List the projects this connection can reach, or paste a project ID from Tableau."
+            >
+              <Input
+                id="tableau-project-id"
+                className="font-mono"
+                value={tableauProjectId}
+                onChange={(e) => setTableauProjectId(e.target.value)}
+                autoComplete="off"
+              />
+            </FormField>
+            <Button variant="secondary" size="sm" disabled={!connectionId || loadingMeta} onClick={() => void loadProjects()}>
+              {loadingMeta ? "Listing…" : "List projects"}
+            </Button>
+          </div>
+        )}
+        <FormField label="Data source name in Tableau" htmlFor="tableau-name">
+          <Input
+            id="tableau-name"
             value={datasourceName}
             onChange={(e) => setDatasourceName(e.target.value)}
-            placeholder="e.g. ETL Customers"
+            placeholder="Customers"
             autoComplete="off"
           />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-muted">
-          Write mode
-          <select
-            className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink"
-            value={writeMode}
-            onChange={(e) => setWriteMode(e.target.value as "replace" | "create_only")}
-          >
-            <option value="create_only">Create only (fail if datasource name exists)</option>
-            <option value="replace">Replace (overwrite if server allows)</option>
-          </select>
-        </label>
+        </FormField>
+        <FormField
+          label="If it is already there"
+          htmlFor="tableau-mode"
+          description={writeMode === "replace" ? "Workbooks using the old data source see the new data." : undefined}
+        >
+          <Select id="tableau-mode" value={writeMode} onChange={(e) => setWriteMode(e.target.value as "replace" | "create_only")}>
+            <option value="create_only">Stop, and leave it as it is</option>
+            <option value="replace">Replace it with this data</option>
+          </Select>
+        </FormField>
         {error ? (
           <p className="text-sm text-danger" role="alert">
             {error}
@@ -257,16 +247,10 @@ export function PublishTableauModal({ open, onClose, projectId, datasetId }: Pub
           <div className="rounded-xl border border-line bg-surface px-3 py-3 text-sm text-ink">
             <p className={result.success ? "text-success" : "text-danger"}>{result.message}</p>
             {result.row_count_published != null ? (
-              <p className="mt-1 text-xs text-ink-3">Rows published: {result.row_count_published}</p>
+              <p className="mt-1 text-[13px] text-ink-3">{result.row_count_published} rows sent.</p>
             ) : null}
-            {result.tableau_datasource_id ? (
-              <p className="mt-1 text-xs text-muted">Datasource id: {result.tableau_datasource_id}</p>
-            ) : null}
-            <Link
-              href={`/projects/${projectId}/runs/${result.run.id}/audit`}
-              className="mt-2 inline-block text-xs text-accent underline"
-            >
-              View run audit
+            <Link href={`/projects/${projectId}/runs/${result.run.id}/audit`} className="mt-2 inline-block text-[13px] text-accent underline">
+              Open the run
             </Link>
           </div>
         ) : null}

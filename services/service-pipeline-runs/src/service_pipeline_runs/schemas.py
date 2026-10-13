@@ -72,3 +72,9 @@ class RunAuditSummary(BaseModel):
     execution_context: dict[str, Any] | None = None
     replayable: bool = False
     replay_reason: str | None = None
+    #: Names for the ids above, so the page can say who and what rather than
+    #: print identifiers: the person who started the run, its recipe, and
+    #: every dataset it mentions (related, read, written).
+    triggered_by_name: str | None = None
+    pipeline_name: str | None = None
+    dataset_names: dict[str, str] = Field(default_factory=dict)

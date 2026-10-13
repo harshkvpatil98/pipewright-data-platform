@@ -43,7 +43,7 @@ export function PipelineNameCell({ projectId, pipelineId, name }: PipelineNameCe
       });
       setCurrent(next);
       setEditing(false);
-      toast.success("Pipeline renamed", `Now “${next}”.`);
+      toast.success("Recipe renamed", `Now “${next}”.`);
     } catch (caught) {
       toast.error("Could not rename", extractErrorMessage(caught));
       setDraft(current);
@@ -68,7 +68,7 @@ export function PipelineNameCell({ projectId, pipelineId, name }: PipelineNameCe
             }
           }}
           className="h-7 w-56 rounded-lg border border-line bg-sunken px-2 text-[13px] text-ink outline-none focus:border-accent"
-          aria-label="Pipeline name"
+          aria-label="Recipe name"
         />
         <button
           type="button"

@@ -336,7 +336,7 @@ export function MetricsPageView({ currentUser, projectId, initial, datasets }: M
       <Modal
         open={draft !== null}
         title={draft?.id ? `Edit ${draft.name || "metric"}` : "Define a metric"}
-        description="Say what the number means once. A chart that names this metric takes the measure and these filters from it; it may add filters of its own but cannot loosen these."
+        description="Say once what the number means. Charts that use it take its measure and filters, and may add filters."
         onClose={() => setDraft(null)}
         widthClassName="max-w-2xl"
         footer={

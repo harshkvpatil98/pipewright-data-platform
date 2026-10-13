@@ -77,7 +77,7 @@ def publish_dataset_to_power_bi(
         logs_json=_build_log_events(log_events),
     )
 
-    log_events.append(_log_event("running", "Power BI publish started."))
+    log_events.append(_log_event("running", "Sending to Power BI."))
     mark_pipeline_run_running(db, run=run, logs_json=_build_log_events(log_events))
 
     conn_summary = BiConnectionPublishSummary(id=conn.id, name=conn.name, integration_type="power_bi")
@@ -132,7 +132,7 @@ def publish_dataset_to_power_bi(
 
     try:
         current_stage = "load_dataset"
-        log_events.append(_log_event("load_dataset", "Loading dataset artifact from storage."))
+        log_events.append(_log_event("load_dataset", "Reading the dataset."))
         mark_pipeline_run_running(db, run=run, logs_json=_build_log_events(log_events))
 
         df: pd.DataFrame = _load_dataframe(dataset, storage_backend)
@@ -141,15 +141,15 @@ def publish_dataset_to_power_bi(
             raise BadRequestError("Dataset has no rows to publish.")
 
         current_stage = "parse"
-        log_events.append(_log_event("parse", f"Parsed {row_attempted} rows for Power BI push."))
+        log_events.append(_log_event("parse", f"Read {row_attempted} rows to send to Power BI."))
         mark_pipeline_run_running(db, run=run, logs_json=_build_log_events(log_events))
 
         current_stage = "authenticate_power_bi"
-        log_events.append(_log_event("authenticate_power_bi", "Obtaining access token for Power BI."))
+        log_events.append(_log_event("authenticate_power_bi", "Signing in to Power BI."))
         mark_pipeline_run_running(db, run=run, logs_json=_build_log_events(log_events))
 
         current_stage = "validate_workspace"
-        log_events.append(_log_event("validate_workspace", "Validating workspace and push dataset target."))
+        log_events.append(_log_event("validate_workspace", "Checking the Power BI workspace."))
         mark_pipeline_run_running(db, run=run, logs_json=_build_log_events(log_events))
 
         current_stage = "create_or_resolve_target"
@@ -162,7 +162,7 @@ def publish_dataset_to_power_bi(
         mark_pipeline_run_running(db, run=run, logs_json=_build_log_events(log_events))
 
         current_stage = "push_rows"
-        log_events.append(_log_event("push_rows", "Uploading rows to Power BI in batches."))
+        log_events.append(_log_event("push_rows", "Sending the rows to Power BI."))
         mark_pipeline_run_running(db, run=run, logs_json=_build_log_events(log_events))
 
         schema_hint = dataset.schema_json if isinstance(dataset.schema_json, dict) else None

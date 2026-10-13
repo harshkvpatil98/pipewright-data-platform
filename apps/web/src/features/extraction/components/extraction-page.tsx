@@ -601,7 +601,7 @@ export function ExtractionPageView({
           {connections.length === 0 ? (
             <EmptyState
               title="Nothing connected yet"
-              description="Connect a database, an app such as GitHub or HubSpot, an API or a storage bucket to import from it and keep it up to date."
+              description="Connect a database, an app, an API or a storage bucket, then import from it."
               action={
                 <Button size="sm" onClick={() => setSourcePickerOpen(true)}>
                   Connect a source

@@ -67,12 +67,12 @@ def build_run_comparison_summary(*, run: PipelineRun) -> RunComparisonSummary:
 
     if not transformation and not ingestion and raw_summary_present:
         notes.append(
-            "This run is not a dataset transformation; before/after row and column metrics apply when summary_json describes a transformation."
+            "Before and after counts are kept for recipe runs; this run is a different kind."
         )
 
     if ingestion:
         notes.append(
-            "This run is a dataset ingestion upload; use dataset-vs-dataset comparison for two artifacts."
+            "This run uploaded a file. To compare two datasets, open one and choose Compare."
         )
         ds = summary.get("dataset")
         if isinstance(ds, dict) and row_a is None:
@@ -82,23 +82,23 @@ def build_run_comparison_summary(*, run: PipelineRun) -> RunComparisonSummary:
 
     if transformation:
         if not summary_available:
-            notes.append("Run summary does not contain full before/after metadata.")
+            notes.append("This run did not record full before and after counts.")
         if base and derived:
             if row_b is not None and row_a is not None:
                 if row_a < row_b:
-                    notes.append("Derived dataset has fewer rows than the base dataset.")
+                    notes.append("The result has fewer rows than the input.")
                 elif row_a > row_b:
-                    notes.append("Derived dataset has more rows than the base dataset.")
+                    notes.append("The result has more rows than the input.")
             if col_b is not None and col_a is not None and col_a != col_b:
-                notes.append("Column count changed between base and derived datasets.")
+                notes.append("The number of columns changed.")
         elif transformation and base and not derived:
-            notes.append("Transformation run summary references a base dataset but not a derived dataset.")
+            notes.append("It recorded its input but not its result.")
 
     if run.status == "failed":
-        notes.append("Run did not complete successfully; summary may be partial.")
+        notes.append("The run failed, so these counts may be incomplete.")
 
     if not raw_summary_present:
-        notes.append("No persisted summary_json for this run.")
+        notes.append("Nothing was recorded about this run's data.")
 
     # Dedupe
     seen: set[str] = set()

@@ -27,11 +27,11 @@ export const NODE_META: Record<
   WorkflowNodeType,
   { label: string; icon: IconName; accent: string }
 > = {
-  extraction: { label: "Extract", icon: "database", accent: "var(--flow-extract)" },
-  transformation: { label: "Transform", icon: "transform", accent: "var(--flow-transform)" },
-  quality_gate: { label: "Quality gate", icon: "shield", accent: "var(--flow-quality)" },
-  drift_gate: { label: "Drift gate", icon: "drift", accent: "var(--flow-quality)" },
-  publish: { label: "Publish", icon: "send", accent: "var(--flow-publish)" },
+  extraction: { label: "Import", icon: "database", accent: "var(--flow-extract)" },
+  transformation: { label: "Recipe", icon: "transform", accent: "var(--flow-transform)" },
+  quality_gate: { label: "Checks", icon: "shield", accent: "var(--flow-quality)" },
+  drift_gate: { label: "Schema check", icon: "drift", accent: "var(--flow-quality)" },
+  publish: { label: "Deliver", icon: "send", accent: "var(--flow-publish)" },
   reverse_etl: { label: "Send back", icon: "download", accent: "var(--flow-publish)" },
   notify: { label: "Notify", icon: "bell", accent: "var(--flow-notify)" },
 };

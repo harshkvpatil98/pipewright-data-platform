@@ -148,11 +148,11 @@ def test_dataset_audit_route_returns_summary(get_dataset_audit_summary) -> None:
             "parent_dataset_id": None,
         },
         "schema_summary": {"column_count": 2, "sample_column_names": ["a"]},
-        "warnings": ["Dataset profile has not been generated."],
+        "warnings": ["Its columns have not been profiled yet."],
     }
     client = _build_test_client()
     response = client.get(f"/projects/{project_id}/datasets/{dataset_id}/audit")
     assert response.status_code == 200
     body = response.json()
-    assert body["warnings"][0] == "Dataset profile has not been generated."
+    assert body["warnings"][0] == "Its columns have not been profiled yet."
     assert body["project"]["name"] == "Demo"

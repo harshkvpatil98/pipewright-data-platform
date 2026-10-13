@@ -151,7 +151,7 @@ export function DatasetMetricsPageView({
     <AppShell
       currentUser={currentUser}
       title={`Metrics · ${scan.dataset_name}`}
-      subtitle="Row counts, null rates, and completeness tracked across every run, with a baseline learned from the dataset's own history rather than a threshold somebody guessed."
+      subtitle="How many rows, how complete, run by run, and when that looks unusual."
     >
       {error ? (
         <div className="rounded-2xl border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger">

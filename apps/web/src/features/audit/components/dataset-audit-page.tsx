@@ -4,11 +4,14 @@ import Link from "next/link";
 import { useState } from "react";
 
 import type { AuthUser, DatasetAuditSummary } from "@platform/shared-types";
-import { Button, SectionPanel, StatTile, StatusBadge } from "@platform/shared-ui";
+import { Badge, Button, buttonClassName, SectionPanel, StatTile, StatusBadge } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { downloadFromApi } from "@/lib/api/download";
-import { formatDate, formatNumber, titleCase } from "@/lib/format";
+import { extractErrorMessage } from "@/lib/api/errors";
+import { formatDate, formatNumber } from "@/lib/format";
+import { fileFormatLabel } from "@/lib/labels";
+import { recipeHref } from "@/lib/navigation";
 
 type DatasetAuditPageProps = {
   currentUser: AuthUser;
@@ -16,224 +19,152 @@ type DatasetAuditPageProps = {
   audit: DatasetAuditSummary;
 };
 
+/** A dataset's record in one page: where it came from, who added it, and how healthy it looked. */
 export function DatasetAuditPageView({ currentUser, projectId, audit }: DatasetAuditPageProps) {
-  const ph = audit.profile_highlights;
-  const [exportingHtml, setExportingHtml] = useState(false);
+  const highlights = audit.profile_highlights;
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const addedBy =
+    audit.ownership.uploaded_by_user_id === currentUser.id ? "You" : (audit.uploaded_by_name ?? "Not recorded");
 
-  async function onDownloadHtml() {
+  async function onDownload() {
+    setExporting(true);
+    setExportError(null);
     try {
-      setExportingHtml(true);
-      await downloadFromApi(
-        `/projects/${projectId}/datasets/${audit.id}/audit/export?format=html`,
-        `dataset-audit-${audit.id}.html`,
-      );
+      await downloadFromApi(`/projects/${projectId}/datasets/${audit.id}/audit/export?format=html`, `dataset-${audit.id}.html`);
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : "Download failed.");
+      setExportError(extractErrorMessage(error));
     } finally {
-      setExportingHtml(false);
+      setExporting(false);
     }
   }
+
+  const noHighlights =
+    highlights.high_null_columns.length === 0 &&
+    highlights.constant_value_columns.length === 0 &&
+    highlights.potential_id_columns.length === 0 &&
+    highlights.duplicate_row_count == null &&
+    highlights.completeness_score == null;
 
   return (
     <AppShell
       currentUser={currentUser}
       title={audit.name}
-      subtitle="Read-only summary assembled from persisted dataset metadata, schema, profile, and lineage."
+      subtitle="This dataset's record: where it came from, who added it, how healthy it is."
       actions={
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="secondary" disabled={exportingHtml} onClick={() => void onDownloadHtml()}>
-            {exportingHtml ? "Preparing…" : "Download HTML"}
+        <>
+          <Button variant="secondary" disabled={exporting} onClick={() => void onDownload()}>
+            {exporting ? "Preparing…" : "Download a report"}
           </Button>
-          <Link
-            href={`/projects/${projectId}/datasets/${audit.id}`}
-            className="rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium text-ink hover:border-line-strong"
-          >
-            Dataset detail
+          <Link href={`/projects/${projectId}/datasets/${audit.id}`} className={buttonClassName("secondary", "md")}>
+            Open the dataset
           </Link>
-        </div>
+        </>
       }
       meta={
         <>
           <StatusBadge value={audit.metrics.ingestion_status} />
-          {audit.is_derived ? (
-            <span className="rounded-full border border-accent-line bg-accent-soft px-3 py-1 text-xs text-accent">
-              Derived
-            </span>
-          ) : null}
-          <span className="rounded-full border border-line bg-surface px-3 py-1 text-xs text-ink-2">
-            Project: {audit.project.name}
-          </span>
+          {audit.is_derived ? <Badge tone="accent">Made by a recipe</Badge> : <Badge>Original data</Badge>}
         </>
       }
     >
-      <SectionPanel title="Audit notes" description="Deterministic highlights derived from stored metadata.">
-        <ul className="list-inside list-disc space-y-1 text-sm text-ink">
-          {audit.warnings.map((w) => (
-            <li key={w}>{w}</li>
+      {exportError ? (
+        <p role="alert" className="rounded-xl border border-danger-line bg-danger-soft px-3 py-2 text-[13px] text-danger">
+          {exportError}
+        </p>
+      ) : null}
+
+      <SectionPanel title="In short">
+        <ul className="list-inside list-disc space-y-1 text-[14px] text-ink">
+          {audit.warnings.map((note) => (
+            <li key={note}>{note}</li>
           ))}
         </ul>
       </SectionPanel>
 
       <section className="grid gap-4 md:grid-cols-4">
-        <StatTile label="Rows" value={formatNumber(audit.metrics.row_count)} caption="From dataset record." />
-        <StatTile label="Columns" value={formatNumber(audit.metrics.column_count)} caption="From dataset record." />
+        <StatTile label="Rows" value={formatNumber(audit.metrics.row_count)} />
+        <StatTile label="Columns" value={formatNumber(audit.metrics.column_count)} />
         <StatTile
-          label="Completeness"
-          value={ph.completeness_score != null ? `${ph.completeness_score}%` : "--"}
-          caption="From latest profile when available."
+          label="Filled in"
+          value={highlights.completeness_score != null ? `${highlights.completeness_score}%` : "Not profiled"}
         />
         <StatTile
-          label="Duplicate rows"
-          value={ph.duplicate_row_count != null ? formatNumber(ph.duplicate_row_count) : "--"}
-          caption={
-            ph.duplicate_row_percentage != null ? `${ph.duplicate_row_percentage}% of rows` : "Profile metric"
-          }
+          label="Repeated rows"
+          value={highlights.duplicate_row_count != null ? formatNumber(highlights.duplicate_row_count) : "Not profiled"}
+          caption={highlights.duplicate_row_percentage != null ? `${highlights.duplicate_row_percentage}% of rows` : undefined}
         />
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <SectionPanel title="Artifact" description="File names and storage hints safe to display.">
-          <dl className="grid gap-3 text-sm">
-            <div>
-              <dt className="text-xs text-muted">Original filename</dt>
-              <dd className="mt-1 text-ink">{audit.artifact.original_filename ?? "—"}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-muted">Stored file name</dt>
-              <dd className="mt-1 text-ink">{audit.artifact.file_name ?? "—"}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-muted">Type / size</dt>
-              <dd className="mt-1 text-ink">
-                {audit.artifact.file_type ? titleCase(audit.artifact.file_type) : "—"}
-                {audit.artifact.file_size_bytes != null
-                  ? ` · ${Math.round(audit.artifact.file_size_bytes / 1024)} KB`
-                  : ""}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs text-muted">Storage path</dt>
-              <dd className="mt-1 font-mono text-xs text-ink-2 break-all">
-                {audit.artifact.file_path ?? "Not shown (absolute or unsafe paths are hidden)."}
-              </dd>
-            </div>
+      <div className="grid gap-5 lg:grid-cols-2">
+        <SectionPanel title="Where it came from">
+          <dl className="grid gap-3 text-[14px]">
+            <Fact label="Added by">{addedBy}</Fact>
+            {audit.lineage.created_from_pipeline_id ? (
+              <Fact label="Made by the recipe">
+                <Link href={recipeHref(projectId, audit.lineage.created_from_pipeline_id)} className="text-accent hover:underline">
+                  {audit.created_from_pipeline_name ?? "A recipe that has since been deleted"}
+                </Link>
+              </Fact>
+            ) : null}
+            {audit.lineage.parent_dataset_id ? (
+              <Fact label="Made from">
+                <Link href={`/projects/${projectId}/datasets/${audit.lineage.parent_dataset_id}`} className="text-accent hover:underline">
+                  {audit.parent_dataset_name ?? "A dataset that has since been deleted"}
+                </Link>
+              </Fact>
+            ) : null}
+            {audit.artifact.original_filename ? <Fact label="From the file">{audit.artifact.original_filename}</Fact> : null}
+            {audit.lineage.pipeline_run_id ? (
+              <Fact label="The run that made it">
+                <Link href={`/projects/${projectId}/runs/${audit.lineage.pipeline_run_id}/audit`} className="text-accent hover:underline">
+                  Open the run
+                </Link>
+              </Fact>
+            ) : null}
           </dl>
         </SectionPanel>
 
-        <SectionPanel title="Ownership & lifecycle" description="Project context and timestamps.">
-          <dl className="grid gap-3 text-sm">
-            <div>
-              <dt className="text-xs text-muted">Uploaded by (user id)</dt>
-              <dd className="mt-1 font-mono text-xs text-ink-2">
-                {audit.ownership.uploaded_by_user_id ?? "—"}
-                {audit.ownership.uploaded_by_user_id === currentUser.id ? " (you)" : ""}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs text-muted">Created</dt>
-              <dd className="mt-1 text-ink">{formatDate(audit.metrics.created_at)}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-muted">Updated</dt>
-              <dd className="mt-1 text-ink">{formatDate(audit.metrics.updated_at)}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-muted">Last profiled</dt>
-              <dd className="mt-1 text-ink">
-                {audit.metrics.last_profiled_at ? formatDate(audit.metrics.last_profiled_at) : "Not yet"}
-              </dd>
-            </div>
+        <SectionPanel title="When">
+          <dl className="grid gap-3 text-[14px]">
+            <Fact label="Added">{formatDate(audit.metrics.created_at)}</Fact>
+            <Fact label="Last changed">{formatDate(audit.metrics.updated_at)}</Fact>
+            <Fact label="Last profiled">
+              {audit.metrics.last_profiled_at ? formatDate(audit.metrics.last_profiled_at) : "Not yet"}
+            </Fact>
+            <Fact label="Stored as">
+              {audit.artifact.file_type ? fileFormatLabel(audit.artifact.file_type) : "Not recorded"}
+              {audit.artifact.file_size_bytes != null ? `, ${Math.max(1, Math.round(audit.artifact.file_size_bytes / 1024))} KB` : ""}
+            </Fact>
           </dl>
         </SectionPanel>
       </div>
 
-      <SectionPanel title="Quality / profile highlights" description="From persisted profile_json when present.">
-        {ph.high_null_columns.length === 0 &&
-        ph.constant_value_columns.length === 0 &&
-        ph.potential_id_columns.length === 0 &&
-        ph.duplicate_row_count == null &&
-        ph.completeness_score == null ? (
-          <p className="text-sm text-ink-3">
-            No profile highlights available. The dataset may not have been profiled yet, or profile metadata is empty.
-          </p>
+      <SectionPanel title="Columns worth a look">
+        {noHighlights ? (
+          <p className="text-[14px] text-ink-3">Nothing stands out, or the columns have not been profiled yet.</p>
         ) : (
-          <dl className="grid gap-4 md:grid-cols-2 text-sm">
-            <div>
-              <dt className="text-xs text-muted">High-null columns</dt>
-              <dd className="mt-1 text-ink">
-                {ph.high_null_columns.length ? ph.high_null_columns.join(", ") : "—"}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs text-muted">Constant columns</dt>
-              <dd className="mt-1 text-ink">
-                {ph.constant_value_columns.length ? ph.constant_value_columns.join(", ") : "—"}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs text-muted">Potential identifier columns</dt>
-              <dd className="mt-1 text-ink">
-                {ph.potential_id_columns.length ? ph.potential_id_columns.join(", ") : "—"}
-              </dd>
-            </div>
+          <dl className="grid gap-4 text-[14px] md:grid-cols-3">
+            <Fact label="Mostly empty">{highlights.high_null_columns.join(", ") || "None"}</Fact>
+            <Fact label="The same value in every row">{highlights.constant_value_columns.join(", ") || "None"}</Fact>
+            <Fact label="Look like identifiers">{highlights.potential_id_columns.join(", ") || "None"}</Fact>
           </dl>
         )}
-      </SectionPanel>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <SectionPanel title="Schema summary" description="Lightweight view of stored schema_json.">
-          <p className="text-sm text-ink-2">
-            Column count: {audit.schema_summary.column_count ?? "—"}
+        {audit.schema_summary.sample_column_names.length > 0 ? (
+          <p className="mt-4 text-[13px] text-ink-3">
+            First columns: <span className="text-ink-2">{audit.schema_summary.sample_column_names.join(", ")}</span>
           </p>
-          {audit.schema_summary.sample_column_names.length > 0 ? (
-            <p className="mt-2 text-xs text-muted">
-              Sample columns:{" "}
-              <span className="text-ink-2">{audit.schema_summary.sample_column_names.join(", ")}</span>
-            </p>
-          ) : null}
-        </SectionPanel>
-
-        <SectionPanel title="Lineage & related runs" description="Foreign keys stored on the dataset row.">
-          <dl className="grid gap-3 text-sm">
-            <div>
-              <dt className="text-xs text-muted">Parent dataset</dt>
-              <dd className="mt-1 text-ink">
-                {audit.lineage.parent_dataset_id ? (
-                  <Link
-                    href={`/projects/${projectId}/datasets/${audit.lineage.parent_dataset_id}/audit`}
-                    className="text-accent hover:text-accent"
-                  >
-                    {audit.lineage.parent_dataset_id}
-                  </Link>
-                ) : (
-                  "—"
-                )}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs text-muted">Created from pipeline</dt>
-              <dd className="mt-1 font-mono text-xs text-ink-2">
-                {audit.lineage.created_from_pipeline_id ?? "—"}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs text-muted">Ingestion / materialization run</dt>
-              <dd className="mt-1 text-ink">
-                {audit.lineage.pipeline_run_id ? (
-                  <Link
-                    href={`/projects/${projectId}/runs/${audit.lineage.pipeline_run_id}/audit`}
-                    className="text-accent hover:text-accent"
-                  >
-                    View run audit
-                  </Link>
-                ) : (
-                  "—"
-                )}
-              </dd>
-            </div>
-          </dl>
-        </SectionPanel>
-      </div>
+        ) : null}
+      </SectionPanel>
     </AppShell>
+  );
+}
+
+function Fact({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <dt className="text-[12px] text-muted">{label}</dt>
+      <dd className="mt-0.5 text-ink">{children}</dd>
+    </div>
   );
 }

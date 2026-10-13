@@ -59,3 +59,39 @@ export function formatNotificationEventLabel(type: string | null | undefined): s
   }
   return NOTIFICATION_EVENT_LABELS[type] ?? type.replace(/_/g, " ");
 }
+
+const STAGE_LABELS: Record<string, string> = {
+  queued: "Waiting to start",
+  running: "Started",
+  upload: "Saving the file",
+  parse: "Reading the rows",
+  profile: "Working out the columns",
+  materialize_profile: "Working out the columns",
+  persist: "Saving",
+  persist_artifact: "Saving the result",
+  extract: "Reading the source",
+  shape: "Cleaning at the source",
+  merge: "Combining with earlier rows",
+  schema_drift: "Checking for schema changes",
+  load_artifact: "Reading the input dataset",
+  load_dataset: "Reading the dataset",
+  finalize: "Recording the version",
+  connect_destination: "Connecting",
+  authenticate_power_bi: "Signing in to Power BI",
+  authenticate_tableau: "Signing in to Tableau",
+  validate_workspace: "Checking the workspace",
+  resolve_project: "Checking the project",
+  prepare_publish_artifact: "Preparing the file",
+  push_rows: "Sending the rows",
+  publish_datasource: "Sending the file",
+  succeeded: "Finished",
+  failed: "Stopped",
+};
+
+/** A step in a run's history, in words: "parse" reads "Reading the rows". */
+export function formatStageLabel(stage: string | null | undefined): string {
+  if (!stage) return "Step";
+  const step = /^apply_step_(\d+)$/.exec(stage);
+  if (step) return `Step ${step[1]}`;
+  return STAGE_LABELS[stage] ?? stage.replace(/_/g, " ").replace(/^./, (first) => first.toUpperCase());
+}

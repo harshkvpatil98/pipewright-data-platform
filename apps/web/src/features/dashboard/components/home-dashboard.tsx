@@ -126,7 +126,7 @@ export function HomeDashboard({
       });
       toast.success(
         "Demo project created",
-        "A worked example: data, a pipeline, a rule, a schedule.",
+        "A worked example with data, a recipe, a check and a schedule.",
       );
       router.push(`/projects/${demo.id}`);
     } catch (caught) {

@@ -269,7 +269,7 @@ export function WorkflowListPage({
         {workflows.length === 0 ? (
           <EmptyState
             title="No workflows yet"
-            description="A workflow runs several things in order: import a table, clean it, check it, then deliver it. If a check fails, the steps after it stop."
+            description="A workflow runs things in order: import, clean, check, deliver. If a check fails, the rest stop."
             action={
               <Button onClick={() => setShowForm(true)}>New workflow</Button>
             }

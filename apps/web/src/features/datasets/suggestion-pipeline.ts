@@ -39,7 +39,7 @@ export function buildSuggestionPipelinePayload(args: {
 
   const selectedSuggestions = getSelectedSuggestionsInOrder(args.suggestions, args.selectedIds);
   if (selectedSuggestions.length === 0) {
-    throw new Error("Select at least one suggestion to create a draft pipeline.");
+    throw new Error("Choose at least one suggestion to make a recipe from.");
   }
 
   const steps_json: TransformationStep[] = selectedSuggestions.map((suggestion) => ({

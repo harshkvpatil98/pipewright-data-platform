@@ -446,11 +446,24 @@ def get_dataset_audit_summary(
 ) -> DatasetAuditSummary:
     project = ensure_owned_project(db, project_id, current_user.id)
     dataset = get_dataset_model_for_project(db, project_id, dataset_id)
-    return build_dataset_audit_summary(
+    summary = build_dataset_audit_summary(
         dataset=dataset,
         project_id=project.id,
         project_name=project.name,
     )
+    from service_auth.models import User
+    from service_transformations.models import TransformationPipeline
+
+    if dataset.uploaded_by_user_id is not None:
+        person = db.get(User, dataset.uploaded_by_user_id)
+        summary.uploaded_by_name = (person.display_name or person.username) if person else None
+    if dataset.parent_dataset_id is not None:
+        parent = db.get(Dataset, dataset.parent_dataset_id)
+        summary.parent_dataset_name = parent.name if parent else None
+    if dataset.created_from_pipeline_id is not None:
+        recipe = db.get(TransformationPipeline, dataset.created_from_pipeline_id)
+        summary.created_from_pipeline_name = recipe.name if recipe else None
+    return summary
 
 
 def create_dataset(

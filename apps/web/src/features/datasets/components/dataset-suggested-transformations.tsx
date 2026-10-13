@@ -266,7 +266,7 @@ export function DatasetSuggestedTransformations({
           <FormField
             label="Recipe name"
             htmlFor="suggestion-pipeline-name"
-            description="This draft pipeline will be saved immediately, then opened in the editor."
+            description="Saved as a draft straight away, then opened in the Studio."
           >
             <Input
               id="suggestion-pipeline-name"
@@ -280,18 +280,18 @@ export function DatasetSuggestedTransformations({
           <FormField
             label="Description"
             htmlFor="suggestion-pipeline-description"
-            description="Optional context about why these suggestions were selected."
+            description="Why these steps, for whoever opens it next. Optional."
           >
             <Textarea
               id="suggestion-pipeline-description"
               value={description}
               onChange={(event) => setDescription(event.target.value)}
-              placeholder="Draft pipeline created from suggested cleanup steps."
+              placeholder="Cleanup steps the suggestions found."
             />
           </FormField>
 
           <div className="rounded-2xl border border-line bg-sunken px-4 py-4 text-sm text-ink-2">
-            Creating a draft pipeline with <span className="font-medium text-ink">{selectedCount}</span>{" "}
+            The recipe gets <span className="font-medium text-ink">{selectedCount}</span>{" "}
             step{selectedCount === 1 ? "" : "s"}, in the same order shown above.
           </div>
 
@@ -306,7 +306,7 @@ export function DatasetSuggestedTransformations({
       <Modal
         open={jsonModal !== null}
         title={jsonModal ? jsonModal.title : "Suggested step"}
-        description="Review the exact pipeline step payload generated from this suggestion."
+        description="The step this suggestion adds, as the recipe stores it."
         onClose={() => setJsonModal(null)}
         footer={
           <Button variant="secondary" onClick={() => setJsonModal(null)}>

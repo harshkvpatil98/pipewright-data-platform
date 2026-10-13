@@ -1128,6 +1128,65 @@ log; lint green with zero allowlist entries except the grid canvas.
 **Exit gate.** Language lint in `npm run verify`; shared-ui is the only source
 of the nine components; no UI string names a table or column.
 
+
+### A5 specification (written 2026-10-14)
+
+**Measured before starting.** A script reading every on-screen string from
+the source (JSX text, labels, titles, descriptions and sentence-like
+literals: 3,786 strings) and a browser script run on 41 pages (text under
+12px, uppercase text, raw identifiers, retired words, purpose-line length).
+
+| | Count |
+|---|---|
+| Strings naming code (`summary_json`, `logs_json`, `schema_json`, `profile_json`, `step_type`) | 14 |
+| Retired words on screen (pipeline 29, publish 18, tenant 8, persisted 7, snapshot 6, drift 5, extraction 5, materialise 5, artifact 3, cron 3, lease, payload, "semantic version", "Hyper extract") | 100 |
+| Purpose lines over 15 words / descriptions over 25 words | 3 / 21 |
+| `text-[9px]`–`text-[11.5px]` uses | 343 in 60 files |
+| `uppercase` uses / distinct letter-spacings | 200 / 10 |
+| Hand-rolled `<table>`s / `role="dialog"` outside shared-ui / inline pills | 33 in 27 files / 7 / 58 |
+| Pages (of 41) with text under 12px / uppercase text / raw ids | 17 / 16 / 4 |
+
+Worst pages in the browser: Audit (all projects) 200 tiny, 105 uppercase,
+131 raw ids; project Audit log 115 tiny, 34 raw ids; System status 99 tiny,
+41 uppercase, nine retired words; Connectors 1,662 tiny; Run audit and
+Dataset audit name `summary_json`, `logs_json`, `profile_json` and show ids.
+
+**V1. A language lint that keeps it.** `lib/language.test.ts` reads the
+same on-screen strings through the TypeScript parser and fails on: a
+retired word (S2) or a code name; an HTTP verb with a path; an em-dash; a
+purpose line over 15 words or a description over 25; a Title Case button or
+heading; US spelling of the words the product uses (organize, catalog in
+prose, -ize). One allowlist, each entry with its reason, empty except where
+the word is the user's own (SQL keywords in the SQL editor). It replaces
+`wording.test.ts`. A second test fails `uppercase` and any text size under
+12px anywhere in the app.
+
+**V2. Words.** Every flagged string rewritten to the A0 voice. Run audit,
+Dataset audit and Run comparison rebuilt in words: names instead of ids,
+"what it recorded" instead of `summary_json`, the raw record behind a
+"Technical details" disclosure. System status in words and readable times.
+
+**V3. The audit trail in words** (F-UX-7, unassigned until now). An audit
+entry reads "Ann created a chart" with the object named, not
+`POST /api/v1/projects/…/charts`; the request stays available behind
+"Details" for the administrator who needs it.
+
+**V4. Type and case.** Nothing under 12px; no uppercase text; one
+letter-spacing (none). Mechanical, then checked page by page.
+
+**V5. One component per job in `packages/shared-ui`.** Button, Modal (with
+a drawer side), Badge, Table (header, rows, sortable header cell, two
+densities), PageHeader (the AppShell header), EmptyState, StatTile, Tabs,
+Toast. The 33 tables, the 58 inline pills and the hand-rolled modals move
+onto them; a test fails a `<table>` or a `role="dialog"` outside shared-ui
+(the command palette, step palette and tour are palettes and a coach mark,
+built on a shared `Overlay`).
+
+**V6. The design-system doc.** `docs/design-system.md`: tokens, the nine
+components and when to use each, the voice rules the lint enforces, and
+light as the recommended theme for screenshots and demos (dark stays
+first-class; "system" stays the default).
+
 ---
 
 ## A6 — Trust, help and support for buyers

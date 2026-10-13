@@ -213,6 +213,10 @@ def map_identity(claims: dict[str, Any], config: ProviderConfig) -> MappedIdenti
     )
 
 
+#: The signatures an RSA key in a provider's JWKS can make.
+RSA_ALGORITHMS = frozenset({"RS256", "RS384", "RS512", "PS256", "PS384", "PS512"})
+
+
 def verify_id_token(
     token: str,
     *,
@@ -235,15 +239,22 @@ def verify_id_token(
     except Exception as exc:  # noqa: BLE001 - a malformed token is a failed sign-in
         raise UnauthorizedError("That token could not be read.") from exc
 
+    # The token names its own algorithm, so it is checked against the ones
+    # an RSA key can sign with rather than trusted: "none", or HMAC keyed with
+    # the public key, would otherwise be a way in.
+    algorithm = header.get("alg", "RS256")
+    if algorithm not in RSA_ALGORITHMS:
+        raise UnauthorizedError("That sign-in was signed in a way this platform does not accept.")
+
     key = _find_key(jwks, header.get("kid"))
     if key is None:
         raise UnauthorizedError("The token was signed with a key this provider does not publish.")
 
     try:
-        return jwt.decode(
+        claims = jwt.decode(
             token,
             key=jwt.algorithms.RSAAlgorithm.from_jwk(key),
-            algorithms=[header.get("alg", "RS256")],
+            algorithms=[algorithm],
             audience=config.client_id,
             issuer=config.issuer,
             leeway=leeway_seconds,
@@ -251,6 +262,12 @@ def verify_id_token(
         )
     except Exception as exc:  # noqa: BLE001
         raise UnauthorizedError(f"That sign-in could not be verified: {exc}") from exc
+
+    # The nonce ties the token to the sign-in this browser started. Without
+    # the comparison, a token captured from another sign-in would be accepted.
+    if nonce is not None and not secrets.compare_digest(str(claims.get("nonce") or ""), nonce):
+        raise UnauthorizedError("That sign-in does not match the one started here. Start again.")
+    return claims
 
 
 def _find_key(jwks: dict[str, Any], kid: str | None) -> dict[str, Any] | None:

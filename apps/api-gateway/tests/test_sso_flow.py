@@ -239,3 +239,40 @@ def test_sweep_removes_expired_states(db: Session) -> None:
     future = datetime.now(UTC).replace(year=2099)
     assert sso_flow.sweep_expired_states(db, now=future) == 1
     assert db.scalars(select(SsoLoginState)).first() is None
+
+
+# ---- the token belongs to this sign-in (A6, W7) ----
+
+def _complete_with(db: Session, token_for) -> None:
+    """Start a sign-in, then finish it with the token `token_for(nonce)` makes."""
+    settings = _settings()
+    sso_flow.begin_login(db, settings=settings, discovery_fetcher=lambda _i: _DISCOVERY)
+    row = db.scalars(select(SsoLoginState)).one()
+    sso_flow.complete_login(
+        db, settings=settings, code="auth-code", state=row.state,
+        discovery_fetcher=lambda _i: _DISCOVERY,
+        code_exchanger=lambda **_k: {"id_token": token_for(row.nonce)},
+        jwks_fetcher=lambda _u: _jwks(),
+    )
+
+
+def test_a_token_from_another_sign_in_is_refused(db: Session) -> None:
+    with pytest.raises(UnauthorizedError, match="does not match the one started here"):
+        _complete_with(db, lambda _nonce: _id_token(nonce="someone-elses-nonce"))
+
+
+def test_a_token_without_the_nonce_is_refused(db: Session) -> None:
+    with pytest.raises(UnauthorizedError, match="does not match the one started here"):
+        _complete_with(db, lambda _nonce: _id_token())
+
+
+@pytest.mark.parametrize("algorithm", ["none", "HS256"])
+def test_a_token_that_names_a_weak_algorithm_is_refused(db: Session, algorithm: str) -> None:
+    def forged(nonce: str) -> str:
+        claims = {"iss": ISSUER, "aud": CLIENT_ID, "sub": "x", "iat": int(time.time()),
+                  "exp": int(time.time()) + 300, "nonce": nonce}
+        key = None if algorithm == "none" else "public-key-used-as-a-secret-padded-to-32b"
+        return jwt.encode(claims, key, algorithm=algorithm, headers={"kid": KID})
+
+    with pytest.raises(UnauthorizedError, match="does not accept"):
+        _complete_with(db, forged)

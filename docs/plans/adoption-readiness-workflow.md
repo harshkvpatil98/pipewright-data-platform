@@ -996,6 +996,55 @@ schema and read the report.
 **Exit gate.** A buyer can answer "where can I pull from and push to" from
 the Sources and Destinations pages alone, and the answer is true.
 
+### A4 specification (written 2026-10-14)
+
+Measured before the work. Imports reach three SQL engines through
+`service_extraction` and nothing else, although the connector SDK has 155
+connectors that declare `read` (50 tested in CI at tier 2, 105 never run).
+Every import run creates a new dataset, so a nightly import makes 365 a
+year. Destinations: PostgreSQL replace or append; S3 and "local directory"
+destinations can be saved and tested but nothing writes to them; no MySQL,
+no update-matching-rows, no file formats, no record of what a delivery
+wrote beyond the run. No way to download a dataset. No database copy.
+
+**U1. One dataset per import.** An import's first run creates its dataset,
+named after the import; every later run adds a version to that same
+dataset. Datasets made by earlier runs are left as they are (not merged:
+they may have been edited, charted or shared since).
+
+**U2. Import from any readable connector.** "Connect a source" opens the
+connector catalogue: search, category, the tier on every card with its
+explanation, unavailable connectors greyed with the reason. The form is
+generated from the connector's own fields; secret fields are encrypted at
+rest like database passwords. The connection lists what can be imported
+(tables, endpoints, files) and "Import this" creates and runs an import.
+Full refresh everywhere; "only new rows" where the connector declares
+`incremental` and hands back a cursor. Shaping steps at import stay for
+databases (pushdown needs SQL); other sources are cleaned in the Studio.
+
+**U3. Destinations that load.** PostgreSQL and MySQL: replace the table,
+add the rows, or update matching rows on chosen key columns (a new table
+gets those columns as its primary key). S3 and S3-compatible storage
+(custom endpoint: MinIO, R2, Wasabi) and a folder on the server: a CSV or
+Parquet file. Each destination has a connection test; delivering shows
+what will be written before it is written (columns and their types, or the
+file path and format); every delivery is a run with the rows, mode and
+target. Warehouses (Snowflake, BigQuery) are not built; the page says so.
+
+**U4. Copy a database.** From a connected database (PostgreSQL, MySQL,
+SQLite) to a PostgreSQL or MySQL destination: pick tables, see each
+column's type there and here with conversions that lose detail flagged,
+carry primary keys and not-null, run, and read a report per table (rows
+copied, what was carried) plus what is never carried (views, other
+indexes, foreign keys, defaults and auto-increment, check constraints,
+triggers, procedures). Data and basic schema only, said on the page.
+
+**U5. Download.** Any version of a dataset as CSV or Parquet, from the
+dataset page and `GET …/datasets/{id}/download`.
+
+**U6. Honest cards.** A connection shows its connector's tier; live feeds
+say change capture is PostgreSQL only.
+
 ---
 
 ## A5 — Copy, design system and consistency

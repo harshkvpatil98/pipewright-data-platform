@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type {
@@ -23,7 +24,7 @@ import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { cx } from "@/lib/utils";
 
-import { chooseChartDefaults } from "@/features/reporting/chart-defaults";
+import { AGGREGATION_LABELS, chartTitle, chooseChartDefaults } from "@/features/reporting/chart-defaults";
 
 import { ChartView } from "./chart-view";
 
@@ -165,15 +166,46 @@ export function ChartBuilderPageView({
     return () => clearTimeout(timer);
   }, [preview]);
 
+  const suggestedName = metric
+    ? `${metric.name} by ${dimension}`
+    : chartTitle(aggregation, measureColumn, spec && spec.max_dimensions === 0 ? null : dimension);
+  // The chart just saved, offered straight onto a dashboard: going to
+  // Dashboards, starting one and ticking this chart was four more clicks.
+  const [justSaved, setJustSaved] = useState<{ id: string; name: string } | null>(null);
+  const [placing, setPlacing] = useState(false);
+  const router = useRouter();
+
+  const putOnNewDashboard = useCallback(async () => {
+    if (!justSaved) return;
+    setPlacing(true);
+    setError(null);
+    try {
+      const created = await apiFetch<{ id: string }>(`/projects/${projectId}/dashboards`, {
+        method: "POST",
+        body: JSON.stringify({
+          name: justSaved.name,
+          description: null,
+          tiles: [{ chart_id: justSaved.id, position: 0 }],
+        }),
+      });
+      router.push(`/projects/${projectId}/dashboards/${created.id}`);
+    } catch (caught) {
+      setError(extractErrorMessage(caught));
+      setPlacing(false);
+    }
+  }, [justSaved, projectId, router]);
+
   const save = useCallback(async () => {
     setBusy(true);
     setError(null);
+    setJustSaved(null);
     try {
-      await apiFetch(`/projects/${projectId}/charts`, {
+      const chartName = name.trim() || suggestedName;
+      const created = await apiFetch<{ id: string; name: string }>(`/projects/${projectId}/charts`, {
         method: "POST",
         body: JSON.stringify({
           dataset_id: datasetId,
-          name: name.trim() || (metric ? `${metric.name} by ${dimension}` : `${aggregation} of ${measureColumn}`),
+          name: chartName,
           chart_type: chartType,
           query: {
             dimensions: spec && spec.max_dimensions === 0 ? [] : [dimension],
@@ -184,13 +216,14 @@ export function ChartBuilderPageView({
         }),
       });
       setName("");
+      setJustSaved({ id: created.id, name: created.name ?? chartName });
       setSaved((await apiFetch<ChartListResponse>(`/projects/${projectId}/charts`)).items);
     } catch (caught) {
       setError(extractErrorMessage(caught));
     } finally {
       setBusy(false);
     }
-  }, [projectId, datasetId, name, chartType, dimension, measureColumn, aggregation, spec]);
+  }, [projectId, datasetId, name, suggestedName, chartType, dimension, measureColumn, aggregation, spec, options, metric]);
 
   if (datasets.length === 0) {
     return (
@@ -297,7 +330,7 @@ export function ChartBuilderPageView({
                   }}
                   className={inputClass}
                 >
-                  <option value="">None — measure a column directly</option>
+                  <option value="">None (measure a column directly)</option>
                   {metrics.map((item) => (
                     <option key={item.id} value={item.id}>
                       {item.name} · v{item.version_number}
@@ -314,15 +347,15 @@ export function ChartBuilderPageView({
 
             {metric ? null : (
             <Field label="Measure">
-              <div className="flex gap-1.5">
+              <div className="grid grid-cols-[minmax(0,110px)_minmax(0,1fr)] gap-1.5">
                 <select
                   value={aggregation}
                   onChange={(event) => setAggregation(event.target.value as AggregationName)}
-                  className={cx(inputClass, "w-[110px] shrink-0")}
+                  className={inputClass}
                 >
                   {(types?.aggregations ?? ["sum"]).map((item) => (
                     <option key={item} value={item}>
-                      {item.replace("_", " ")}
+                      {AGGREGATION_LABELS[item] ?? item.replace("_", " ")}
                     </option>
                   ))}
                 </select>
@@ -343,7 +376,7 @@ export function ChartBuilderPageView({
 
             {chartType === "kpi" ? (
               <Field label="Compare with the previous period">
-                <div className="flex gap-1.5">
+                <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,110px)] gap-1.5">
                   <select
                     value={compareColumn}
                     onChange={(event) => setCompareColumn(event.target.value)}
@@ -360,7 +393,7 @@ export function ChartBuilderPageView({
                     value={comparePeriod}
                     onChange={(event) => setComparePeriod(event.target.value as typeof comparePeriod)}
                     disabled={!compareColumn}
-                    className={cx(inputClass, "w-[110px] shrink-0")}
+                    className={inputClass}
                   >
                     {(["day", "week", "month", "quarter", "year"] as const).map((period) => (
                       <option key={period} value={period}>
@@ -383,14 +416,36 @@ export function ChartBuilderPageView({
                   <input
                     value={name}
                     onChange={(event) => setName(event.target.value)}
-                    placeholder={`${aggregation} of ${measureColumn}`}
+                    placeholder={suggestedName}
                     className={inputClass}
                   />
                   <Button onClick={save} disabled={busy || !data}>
-                    Save
+                    {busy ? "Saving…" : "Save"}
                   </Button>
                 </div>
               </Field>
+              {justSaved ? (
+                <div
+                  role="status"
+                  className="mt-3 rounded-xl border border-success-line bg-success-soft p-3"
+                >
+                  <p className="flex items-center gap-1.5 text-[13px] font-medium text-success">
+                    <Icon name="check" size={14} className="shrink-0" />
+                    Saved as “{justSaved.name}”
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <Button size="sm" onClick={() => void putOnNewDashboard()} disabled={placing}>
+                      {placing ? "Making the dashboard…" : "Put it on a new dashboard"}
+                    </Button>
+                    <Link
+                      href={`/projects/${projectId}/dashboards`}
+                      className={buttonClassName("ghost", "sm")}
+                    >
+                      Add to an existing one
+                    </Link>
+                  </div>
+                </div>
+              ) : null}
             </div>
           </div>
         </SectionPanel>

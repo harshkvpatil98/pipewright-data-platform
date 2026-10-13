@@ -62,6 +62,13 @@ describe("describeParserMetadata", () => {
     expect(notes[0]).toMatchObject({ needsReview: true, reason: "A day above 12 settles the order." });
   });
 
+  it("says nothing about packaging when the file was not packaged", () => {
+    const labels = describeParserMetadata({ format: "csv", container: "none" }).facts.map(
+      (fact) => fact.label,
+    );
+    expect(labels).not.toContain("Packaged as");
+  });
+
   it("copes with missing metadata", () => {
     expect(describeParserMetadata(null)).toEqual({ facts: [], notes: [] });
   });

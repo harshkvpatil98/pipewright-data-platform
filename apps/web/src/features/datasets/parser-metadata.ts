@@ -92,6 +92,8 @@ function formatValue(key: string, value: unknown): string | null {
     return String(value);
   }
   if (typeof value === "string") {
+    // "none" is the reader saying there was no archive, not a container name.
+    if (key === "container" && value.toLowerCase() === "none") return null;
     if (key === "delimiter") {
       const name = SEPARATOR_NAMES[value];
       return name ? `${name} (${value === "\t" ? "\\t" : value})` : value;

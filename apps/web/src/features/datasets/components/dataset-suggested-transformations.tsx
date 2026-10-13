@@ -107,7 +107,7 @@ export function DatasetSuggestedTransformations({
         description="Rule-based recommendations from your dataset profile and schema. None apply for this dataset yet."
       >
         <p className="text-sm text-ink-3">
-          No suggestions right now. After ingestion profiles the columns, refresh this page to re-evaluate.
+          Nothing to suggest: no column looks like it needs fixing.
         </p>
       </SectionPanel>
     );
@@ -116,8 +116,8 @@ export function DatasetSuggestedTransformations({
   return (
     <>
       <SectionPanel
-        title="Suggested transformations"
-        description="Deterministic, explainable steps derived from schema, profile, and preview metadata. Suggestions are not applied automatically."
+        title="Suggested fixes"
+        description="Worked out from the columns and their values. Nothing changes until you choose some and save them as a recipe."
       >
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-sunken px-4 py-3">
           <div className="text-sm text-ink-2">
@@ -125,7 +125,7 @@ export function DatasetSuggestedTransformations({
             {selectedSuggestions.length > 0 ? (
               <span className="text-ink-3">
                 {" "}
-                · {selectedSuggestions.map((suggestion) => suggestion.step_type).join(", ")}
+                · {selectedSuggestions.map((suggestion) => suggestion.title).join(", ")}
               </span>
             ) : null}
           </div>
@@ -146,7 +146,7 @@ export function DatasetSuggestedTransformations({
               disabled={selectedCount === 0}
               onClick={() => setCreateModalOpen(true)}
             >
-              Create draft pipeline
+              Save as a recipe
             </Button>
           </div>
         </div>
@@ -191,19 +191,17 @@ export function DatasetSuggestedTransformations({
                       ✓
                     </span>
                     <span className="font-medium text-ink">{s.title}</span>
-                    <span className="rounded-full border border-line px-2 py-0.5 font-mono text-[11px] uppercase tracking-wide text-ink-3">
-                      {s.step_type}
-                    </span>
                     <span
-                      className={`rounded-full border px-2 py-0.5 text-[11px] uppercase tracking-wide ${confidenceClass(s.confidence)}`}
+                      className={`rounded-full border px-2 py-0.5 text-[12px] ${confidenceClass(s.confidence)}`}
                     >
-                      {s.confidence} confidence
+                      {s.confidence === "high"
+                        ? "Very likely helpful"
+                        : s.confidence === "medium"
+                          ? "Probably helpful"
+                          : "Worth a look"}
                     </span>
                   </div>
                   <p className="text-sm leading-6 text-ink-3">{s.explanation}</p>
-                  <pre className="max-h-28 overflow-auto rounded-xl border border-line bg-sunken p-3 font-mono text-[11px] text-ink-2">
-                    {JSON.stringify(s.config, null, 2)}
-                  </pre>
                 </div>
                 <div className="flex shrink-0 flex-col gap-2 md:items-end">
                   <Button
@@ -228,7 +226,7 @@ export function DatasetSuggestedTransformations({
                       setJsonModal(s);
                     }}
                   >
-                    View step JSON
+                    Show the step
                   </Button>
                 </div>
               </div>
@@ -239,8 +237,8 @@ export function DatasetSuggestedTransformations({
 
       <Modal
         open={createModalOpen}
-        title="Create draft pipeline"
-        description="Create a real draft pipeline from the selected suggested transformations. Nothing runs automatically."
+        title="Save as a recipe"
+        description="The chosen fixes become the steps of a new recipe, saved as a draft. Nothing runs until you run it."
         onClose={() => setCreateModalOpen(false)}
         footer={
           <div className="flex items-center justify-end gap-3">
@@ -256,7 +254,7 @@ export function DatasetSuggestedTransformations({
               form="create-suggestion-pipeline-form"
               disabled={creating || selectedCount === 0 || pipelineName.trim().length < 2}
             >
-              {creating ? "Creating..." : "Create draft pipeline"}
+              {creating ? "Saving…" : "Save recipe"}
             </Button>
           </div>
         }
@@ -267,7 +265,7 @@ export function DatasetSuggestedTransformations({
           onSubmit={handleCreateDraftPipeline}
         >
           <FormField
-            label="Pipeline name"
+            label="Recipe name"
             htmlFor="suggestion-pipeline-name"
             description="This draft pipeline will be saved immediately, then opened in the editor."
           >

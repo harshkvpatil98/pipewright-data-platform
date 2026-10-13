@@ -3,7 +3,7 @@
 import Link from "next/link";
 
 import type { TransformationPipelineRecord } from "@platform/shared-types";
-import { SectionPanel } from "@platform/shared-ui";
+import { SectionPanel, StatusBadge } from "@platform/shared-ui";
 
 import { RunPipelineButton } from "@/features/pipelines/components/run-pipeline-button";
 
@@ -19,19 +19,23 @@ export function DatasetPipelinesRunSection({ projectId, pipelines }: DatasetPipe
 
   return (
     <SectionPanel
-      title="Saved pipelines"
-      description="Open the structured editor or run a saved pipeline against this dataset."
+      title="Recipes that start here"
+      description="Run one to make a fresh copy of its result from this data."
     >
       <div className="overflow-hidden rounded-[24px] border border-line bg-sunken">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-line text-left text-sm">
             <thead className="bg-surface text-ink-3">
               <tr>
-                <th className="cell-pad font-medium">Pipeline</th>
+                <th className="cell-pad font-medium">Recipe</th>
                 <th className="cell-pad font-medium">Status</th>
                 <th className="cell-pad font-medium">Steps</th>
-                <th className="cell-pad font-medium text-right">Edit</th>
-                <th className="cell-pad font-medium text-right">Run</th>
+                <th className="cell-pad font-medium text-right">
+                  <span className="sr-only">Open</span>
+                </th>
+                <th className="cell-pad font-medium text-right">
+                  <span className="sr-only">Run</span>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
@@ -45,10 +49,12 @@ export function DatasetPipelinesRunSection({ projectId, pipelines }: DatasetPipe
                       {pipeline.name}
                     </Link>
                     <div className="mt-1 text-sm leading-6 text-ink-3">
-                      {pipeline.description ?? "No pipeline description provided."}
+                      {pipeline.description ?? `${pipeline.step_count} step${pipeline.step_count === 1 ? "" : "s"}`}
                     </div>
                   </td>
-                  <td className="cell-pad align-top text-ink-2">{pipeline.status}</td>
+                  <td className="cell-pad align-top">
+                    <StatusBadge value={pipeline.status} />
+                  </td>
                   <td className="cell-pad align-top text-ink-3">{pipeline.step_count}</td>
                   <td className="cell-pad align-top">
                     <div className="flex justify-end">
@@ -56,7 +62,7 @@ export function DatasetPipelinesRunSection({ projectId, pipelines }: DatasetPipe
                         href={`/projects/${projectId}/datasets/${pipeline.base_dataset_id}/pipelines/${pipeline.id}`}
                         className="text-sm text-accent hover:text-accent"
                       >
-                        Open editor
+                        Open
                       </Link>
                     </div>
                   </td>

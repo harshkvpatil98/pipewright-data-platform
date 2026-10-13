@@ -13,9 +13,17 @@ import type {
   TransformationPipelineRecord,
   TransformationSuggestion,
 } from "@platform/shared-types";
-import { Button, Modal, SectionPanel, StatCard, StatusBadge } from "@platform/shared-ui";
+import {
+  Button,
+  Modal,
+  SectionPanel,
+  StatusBadge,
+  buttonClassName,
+} from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
+import { ActionMenu } from "@/components/ui/action-menu";
+import { Icon } from "@/components/ui/icon";
 import { typeLabel } from "@/lib/labels";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { apiFetch } from "@/lib/api/client";
@@ -86,72 +94,130 @@ export function DatasetDetailPageView({
     <AppShell
       currentUser={currentUser}
       title={dataset.name}
-      subtitle="Inspect file metadata, inferred schema, quality profile, and a stable preview of ingested rows."
+      subtitle={
+        dataset.is_derived
+          ? "Made by a recipe. A preview of its rows, its columns and how complete it is."
+          : "A preview of its rows, its columns and how complete it is."
+      }
       actions={
         <div className="flex flex-wrap items-center gap-2">
-          <Link href={`/projects/${projectId}/datasets/${dataset.id}/audit`}>
-            <Button variant="secondary" size="sm">View Audit</Button>
-          </Link>
-          <Link href={`/projects/${projectId}/datasets/${dataset.id}/lineage`}>
-            <Button variant="secondary" size="sm">Lineage</Button>
-          </Link>
-          <Link href={`/projects/${projectId}/datasets/${dataset.id}/metrics`}>
-            <Button variant="secondary" size="sm">Metrics</Button>
-          </Link>
-          <Link href={`/projects/${projectId}/datasets/${dataset.id}/assistant`}>
-            <Button variant="secondary" size="sm">Assistant</Button>
-          </Link>
-          <Button variant="secondary" size="sm" onClick={() => setIsPreviewTransformOpen(true)}>
-            Preview Transform
-          </Button>
-          {dataset.ingestion_status === "succeeded" && dataset.file_type ? (
-            <>
-              <Button variant="secondary" size="sm" onClick={() => setIsPublishOpen(true)}>
-                Publish to PostgreSQL
-              </Button>
-              <Button variant="secondary" size="sm" onClick={() => setIsPublishPowerBiOpen(true)}>
-                Publish to Power BI
-              </Button>
-              <Button variant="secondary" size="sm" onClick={() => setIsPublishTableauOpen(true)}>
-                Publish to Tableau
-              </Button>
-            </>
-          ) : null}
-          {!dataset.is_derived ? (
-            <Link href={`/projects/${projectId}/pipelines/new?sourceDatasetId=${dataset.id}`}>
-              <Button size="sm">Create Pipeline</Button>
+          {dataset.ingestion_status === "succeeded" ? (
+            <Link
+              href={`/projects/${projectId}/studio?dataset=${dataset.id}`}
+              className={buttonClassName("primary", "sm")}
+            >
+              <Icon name="transform" size={15} />
+              Clean in Studio
             </Link>
           ) : null}
-          <Button variant="secondary" size="sm" onClick={() => setIsRenaming(true)}>
-            Rename
-          </Button>
+          {dataset.ingestion_status === "succeeded" && dataset.file_type ? (
+            <ActionMenu
+              label="Send to"
+              icon="send"
+              items={[
+                {
+                  id: "postgres",
+                  label: "A PostgreSQL table",
+                  description: "Copy it into a database you own.",
+                  onSelect: () => setIsPublishOpen(true),
+                },
+                {
+                  id: "power-bi",
+                  label: "Power BI",
+                  description: "Push it as a Power BI dataset.",
+                  onSelect: () => setIsPublishPowerBiOpen(true),
+                },
+                {
+                  id: "tableau",
+                  label: "Tableau",
+                  description: "Make a Tableau extract.",
+                  onSelect: () => setIsPublishTableauOpen(true),
+                },
+              ]}
+            />
+          ) : null}
+          <ActionMenu
+            label="More"
+            items={[
+              {
+                id: "audit",
+                label: "History",
+                icon: "clock",
+                description: "Every version, who made it and when.",
+                href: `/projects/${projectId}/datasets/${dataset.id}/audit`,
+              },
+              {
+                id: "lineage",
+                label: "Where it comes from",
+                icon: "merge",
+                description: "Each column traced back to its source.",
+                href: `/projects/${projectId}/datasets/${dataset.id}/lineage`,
+              },
+              {
+                id: "health",
+                label: "Data health over time",
+                icon: "activity",
+                description: "Row counts and completeness, run by run.",
+                href: `/projects/${projectId}/datasets/${dataset.id}/metrics`,
+              },
+              {
+                id: "assistant",
+                label: "Find problems",
+                icon: "sparkles",
+                description: "Personal data, duplicates and join suggestions.",
+                href: `/projects/${projectId}/datasets/${dataset.id}/assistant`,
+              },
+              {
+                id: "try",
+                label: "Try a change",
+                icon: "filter",
+                description:
+                  "See the result of a step without saving anything.",
+                onSelect: () => setIsPreviewTransformOpen(true),
+              },
+              ...(!dataset.is_derived
+                ? [
+                    {
+                      id: "recipe-form",
+                      label: "Write a recipe in a form",
+                      icon: "book" as const,
+                      description: "For people who prefer forms to the Studio.",
+                      href: `/projects/${projectId}/pipelines/new?sourceDatasetId=${dataset.id}`,
+                    },
+                  ]
+                : []),
+              {
+                id: "rename",
+                label: "Rename",
+                icon: "settings",
+                onSelect: () => setIsRenaming(true),
+              },
+            ]}
+          />
           <DeleteRowButton
             path={`/projects/${projectId}/datasets/${dataset.id}`}
             name={dataset.name}
             kind="dataset"
             requireTypedName
             consequences={[
-              "Its stored file, profile, schema and preview go with it.",
-              "Pipelines and rules built on it will no longer have a source.",
+              "Its stored file, profile, columns and preview go with it.",
+              "Recipes and checks built on it will no longer have anything to read.",
             ]}
-            onDeleted={() => router.push(`/projects/${projectId}`)}
+            onDeleted={() => router.push(`/projects/${projectId}/datasets`)}
           />
         </div>
       }
       meta={
         <>
-          <StatusBadge value={dataset.ingestion_status} />
-          {dataset.is_derived ? (
-            <span className="rounded-full border border-accent-line bg-accent-soft px-3 py-1 text-xs uppercase tracking-[0.18em] text-accent">
-              Derived dataset
-            </span>
-          ) : (
-            <span className="rounded-full border border-line bg-surface-2 px-3 py-1 text-xs uppercase tracking-[0.18em] text-ink-2">
-              Source dataset
-            </span>
-          )}
-          <span className="rounded-full border border-line bg-surface px-3 py-1 text-xs uppercase tracking-[0.18em] text-ink-2">
-            {dataset.file_type ? titleCase(dataset.file_type) : "Unknown type"}
+          {dataset.ingestion_status !== "succeeded" ? (
+            <StatusBadge value={dataset.ingestion_status} />
+          ) : null}
+          <span className="border-line bg-surface text-ink-2 rounded-full border px-3 py-1 text-[13px]">
+            {dataset.is_derived ? "Made by a recipe" : "Original data"}
+          </span>
+          <span className="border-line bg-surface text-ink-2 rounded-full border px-3 py-1 text-[13px]">
+            {formatNumber(dataset.row_count)} rows ·{" "}
+            {formatNumber(dataset.column_count)} columns
           </span>
         </>
       }
@@ -181,318 +247,37 @@ export function DatasetDetailPageView({
         datasetId={dataset.id}
       />
 
-      {!dataset.is_derived && pipelinesForDataset.length > 0 ? (
-        <DatasetPipelinesRunSection projectId={projectId} pipelines={pipelinesForDataset} />
-      ) : null}
-
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Rows" value={formatNumber(dataset.row_count)} caption="Parsed row count from the uploaded file." />
-        <StatCard label="Columns" value={formatNumber(dataset.column_count)} caption="Detected structural columns after parsing." />
-        <StatCard label="File size" value={dataset.file_size_bytes ? `${Math.round(dataset.file_size_bytes / 1024)} KB` : "--"} caption="Stored artifact size in local development storage." />
-        <StatCard label="Completeness" value={profile ? `${profile.completeness_score}%` : "--"} caption="Overall non-null cell coverage across the persisted preview profile." />
-      </section>
-
-      {!dataset.is_derived ? (
-        <DatasetSuggestedTransformations
-          projectId={projectId}
-          datasetId={dataset.id}
-          datasetName={dataset.name}
-          suggestions={transformationSuggestions}
-        />
-      ) : null}
-
-      {dataset.is_derived ? (
-        <SectionPanel
-          title="Lineage"
-          description="This dataset was produced by a transformation pipeline from another dataset in this project."
-        >
-          <dl className="grid gap-4 md:grid-cols-2">
-            <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Parent dataset</dt>
-              <dd className="mt-2 text-sm text-ink">
-                {lineageParent ? (
-                  <Link href={`/projects/${projectId}/datasets/${lineageParent.id}`} className="text-accent hover:text-accent">
-                    {lineageParent.name}
-                  </Link>
-                ) : dataset.parent_dataset_id ? (
-                  <span className="font-mono text-xs text-ink-3">{dataset.parent_dataset_id}</span>
-                ) : (
-                  "--"
-                )}
-                {dataset.parent_dataset_id ? (
-                  <div className="mt-2">
-                    <Link
-                      href={`/projects/${projectId}/datasets/${dataset.id}/compare/${dataset.parent_dataset_id}`}
-                      className="text-xs font-medium uppercase tracking-[0.14em] text-accent hover:text-accent"
-                    >
-                      Compare with parent
-                    </Link>
-                  </div>
-                ) : null}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Transformation pipeline</dt>
-              <dd className="mt-2 text-sm text-ink">
-                {lineagePipeline ? (
-                  <Link
-                    href={`/projects/${projectId}/datasets/${lineagePipeline.base_dataset_id}/pipelines/${lineagePipeline.id}`}
-                    className="text-accent hover:text-accent"
-                  >
-                    {lineagePipeline.name}
-                  </Link>
-                ) : dataset.created_from_pipeline_id ? (
-                  <span className="font-mono text-xs text-ink-3">{dataset.created_from_pipeline_id}</span>
-                ) : (
-                  "--"
-                )}
-              </dd>
-            </div>
-          </dl>
-        </SectionPanel>
-      ) : null}
-
-      <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-        <SectionPanel title="Dataset metadata" description="Stored file and lineage information for this dataset artifact.">
-          <dl className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-2xl border border-line bg-sunken px-4 py-4">
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Original file</dt>
-              <dd className="mt-2 text-sm text-ink">{dataset.original_filename ?? "--"}</dd>
-            </div>
-            <div className="rounded-2xl border border-line bg-sunken px-4 py-4">
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Stored file</dt>
-              <dd className="mt-2 text-sm text-ink">{dataset.file_name ?? "--"}</dd>
-            </div>
-            <div className="rounded-2xl border border-line bg-sunken px-4 py-4">
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Dataset status</dt>
-              <dd className="mt-2"><StatusBadge value={dataset.status} /></dd>
-            </div>
-            <div className="rounded-2xl border border-line bg-sunken px-4 py-4">
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Ingestion status</dt>
-              <dd className="mt-2"><StatusBadge value={dataset.ingestion_status} /></dd>
-            </div>
-            <div className="rounded-2xl border border-line bg-sunken px-4 py-4">
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Related run</dt>
-              <dd className="mt-2 text-sm text-ink">
-                {dataset.pipeline_run_id ? (
-                  <Link
-                    href={`/projects/${projectId}/runs/${dataset.pipeline_run_id}/audit`}
-                    className="text-accent hover:text-accent"
-                  >
-                    View run audit
-                  </Link>
-                ) : (
-                  "--"
-                )}
-              </dd>
-            </div>
-            <div className="rounded-2xl border border-line bg-sunken px-4 py-4">
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Created</dt>
-              <dd className="mt-2 text-sm text-ink">{formatDate(dataset.created_at)}</dd>
-            </div>
-            <div className="rounded-2xl border border-line bg-sunken px-4 py-4">
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Profile refreshed</dt>
-              <dd className="mt-2 text-sm text-ink">
-                {dataset.last_profiled_at ? formatDate(dataset.last_profiled_at) : "Not yet"}
-              </dd>
-            </div>
-            <div className="rounded-2xl border border-line bg-sunken px-4 py-4">
-              <dt className="text-xs uppercase tracking-[0.18em] text-muted">Uploaded by</dt>
-              <dd className="mt-2 text-sm text-ink">
-                {dataset.uploaded_by_user_id === currentUser.id ? currentUser.username : dataset.uploaded_by_user_id ?? "--"}
-              </dd>
-            </div>
-          </dl>
-          {dataset.ingestion_error ? (
-            <div className="mt-5 rounded-2xl border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger">
-              {dataset.ingestion_error}
-            </div>
-          ) : null}
-        </SectionPanel>
-
-        <SectionPanel title="Schema overview" description="Ordered columns and inferred types persisted during ingestion.">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-2xl border border-line bg-sunken px-4 py-4">
-              <div className="text-xs uppercase tracking-[0.18em] text-muted">Ordered columns</div>
-              <div className="mt-2 text-2xl font-semibold text-ink">{formatNumber(schemaColumns.length)}</div>
-            </div>
-            <div className="rounded-2xl border border-line bg-sunken px-4 py-4">
-              <div className="text-xs uppercase tracking-[0.18em] text-muted">Preview rows stored</div>
-              <div className="mt-2 text-2xl font-semibold text-ink">{formatNumber(preview.rows.length)}</div>
-            </div>
-          </div>
-          <div className="mt-5 overflow-hidden rounded-[24px] border border-line bg-sunken">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-line text-left text-sm">
-                <thead className="bg-surface text-ink-3">
-                  <tr>
-                    <th className="cell-pad font-medium">Column</th>
-                    <th className="cell-pad font-medium">Inferred type</th>
-                    <th className="cell-pad font-medium">Nullable</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-line">
-                  {schemaColumns.map((column) => (
-                    <tr key={String(column.name)} className="transition hover:bg-surface">
-                      <td className="cell-pad align-top text-ink">{String(column.name)}</td>
-                      <td className="cell-pad align-top text-ink-2">{column.inferred_type ? typeLabel(column.canonical_type ?? column.inferred_type) : "--"}</td>
-                      <td className="cell-pad align-top text-ink-2">{column.nullable ? "Yes" : "No"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </SectionPanel>
-
-        <DatasetCatalogPanel
-          projectId={projectId}
-          datasetId={dataset.id}
-          columns={schemaColumns.map((column) => String(column.name))}
-        />
-
-        <DatasetVersionHistoryPanel projectId={projectId} datasetId={dataset.id} />
-
-        <SectionPanel title="Profile summary" description="Initial data quality and structure metrics generated at ingestion time.">
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            <div className="rounded-2xl border border-line bg-sunken px-4 py-4">
-              <div className="text-xs uppercase tracking-[0.18em] text-muted">Duplicate rows</div>
-              <div className="mt-2 text-2xl font-semibold text-ink">{formatNumber(Number(profile?.duplicate_row_count ?? 0))}</div>
-            </div>
-            <div className="rounded-2xl border border-line bg-sunken px-4 py-4">
-              <div className="text-xs uppercase tracking-[0.18em] text-muted">Completeness score</div>
-              <div className="mt-2 text-2xl font-semibold text-ink">{profile?.completeness_score ? `${profile.completeness_score}%` : "--"}</div>
-            </div>
-            <div className="rounded-2xl border border-line bg-sunken px-4 py-4">
-              <div className="text-xs uppercase tracking-[0.18em] text-muted">Total null cells</div>
-              <div className="mt-2 text-2xl font-semibold text-ink">{formatNumber(Number(profile?.total_null_cells ?? 0))}</div>
-            </div>
-          </div>
-          <div className="mt-5 grid gap-3 md:grid-cols-3">
-            {Object.entries(qualityFlags).map(([key, values]) => (
-              <div key={key} className="rounded-2xl border border-line bg-sunken px-4 py-4">
-                <div className="text-xs uppercase tracking-[0.18em] text-muted">{titleCase(key)}</div>
-                <div className="mt-2 text-sm text-ink">{values.length ? values.join(", ") : "None"}</div>
-              </div>
-            ))}
-          </div>
-        </SectionPanel>
-      </div>
-
       <SectionPanel
-        title="Related run"
-        description="Persisted pipeline run linked to this dataset (ingestion, transformation, or publish when applicable)."
+        title="Rows"
+        description={`The first ${formatNumber(preview.rows.length)} of ${formatNumber(dataset.row_count)} rows.`}
       >
-        {relatedRun ? (
-          <div className="space-y-4">
-            <div className="grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
-              <div className="rounded-[24px] border border-line bg-sunken p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-xs uppercase tracking-[0.18em] text-muted">Run type</div>
-                    <div className="mt-2 text-lg font-semibold text-ink">{formatRunTypeLabel(relatedRun.run_type)}</div>
-                  </div>
-                  <StatusBadge value={relatedRun.status} />
-                </div>
-                <div className="mt-4 space-y-2 text-sm text-ink-2">
-                  <div>Triggered by {relatedRun.triggered_by_username ?? currentUser.username}</div>
-                  <div>{getPipelineRunSecondaryText(relatedRun)}</div>
-                  <div>Created {formatDate(relatedRun.created_at)}</div>
-                  <div>{relatedRun.completed_at ? `Completed ${formatDate(relatedRun.completed_at)}` : "Run still in progress"}</div>
-                </div>
-              </div>
-
-              <div className="rounded-[24px] border border-line bg-sunken p-5">
-                <div className="text-xs uppercase tracking-[0.18em] text-muted">Execution summary</div>
-                {isDatasetIngestionRunSummary(runSummary) ? (
-                  <div className="mt-4 grid gap-4 md:grid-cols-2">
-                    <div>
-                      <div className="text-sm text-muted">Artifact</div>
-                      <div className="mt-2 text-sm text-ink">
-                        {runSummary.artifact.original_filename} · {runSummary.artifact.file_type.toUpperCase()}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-sm text-muted">Failure stage</div>
-                      <div className="mt-2 text-sm text-ink">
-                        {runSummary.failure_stage ? titleCase(runSummary.failure_stage) : "None"}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-sm text-muted">Duplicate rows</div>
-                      <div className="mt-2 text-sm text-ink">
-                        {runSummary.profile ? formatNumber(runSummary.profile.duplicate_row_count) : "--"}
-                      </div>
-                    </div>
-                    <ParserMetadataSummary metadata={runSummary.parser_metadata} />
-                  </div>
-                ) : isDatasetTransformationRunSummary(runSummary) ? (
-                  <div className="mt-4 grid gap-4 md:grid-cols-2">
-                    <div>
-                      <div className="text-sm text-muted">Rows before → after</div>
-                      <div className="mt-2 text-sm text-ink">
-                        {runSummary.row_count_before != null && runSummary.row_count_after != null
-                          ? `${formatNumber(runSummary.row_count_before)} → ${formatNumber(runSummary.row_count_after)}`
-                          : "--"}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-sm text-muted">Columns before → after</div>
-                      <div className="mt-2 text-sm text-ink">
-                        {runSummary.column_count_before != null && runSummary.column_count_after != null
-                          ? `${formatNumber(runSummary.column_count_before)} → ${formatNumber(runSummary.column_count_after)}`
-                          : "--"}
-                      </div>
-                    </div>
-                    {runSummary.derived_dataset ? (
-                      <div>
-                        <div className="text-sm text-muted">Derived output</div>
-                        <div className="mt-2 text-sm text-ink">{runSummary.derived_dataset.name}</div>
-                      </div>
-                    ) : null}
-                    {runSummary.failure_stage ? (
-                      <div>
-                        <div className="text-sm text-muted">Failure stage</div>
-                        <div className="mt-2 text-sm text-danger">{titleCase(runSummary.failure_stage)}</div>
-                      </div>
-                    ) : null}
-                  </div>
-                ) : (
-                  <div className="mt-4 text-sm text-ink-2">Stored orchestration summary available on the run record.</div>
-                )}
-              </div>
-            </div>
-            <Link
-              href={`/projects/${projectId}/runs/${relatedRun.id}/audit`}
-              className="inline-block text-sm font-medium text-accent underline hover:text-accent"
-            >
-              View full run audit
-            </Link>
-          </div>
-        ) : (
-          <div className="rounded-2xl border border-line bg-sunken px-4 py-4 text-sm text-ink-2">
-            No persisted pipeline run is linked to this dataset yet.
-          </div>
-        )}
-      </SectionPanel>
-
-      <SectionPanel title="Preview" description="The first 50 ingested rows stored as a JSON-safe preview snapshot.">
-        <div className="overflow-hidden rounded-[24px] border border-line bg-sunken">
+        <div className="border-line bg-sunken overflow-hidden rounded-[24px] border">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-line text-left text-sm">
+            <table className="divide-line min-w-full divide-y text-left text-sm">
               <thead className="bg-surface text-ink-3">
                 <tr>
                   {preview.columns.map((column) => (
-                    <th key={column} className="cell-pad font-medium">{column}</th>
+                    <th key={column} className="cell-pad font-medium">
+                      {column}
+                    </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-line">
+              <tbody className="divide-line divide-y">
                 {preview.rows.map((row, index) => (
-                  <tr key={index} className="transition hover:bg-surface">
+                  <tr key={index} className="hover:bg-surface transition">
                     {preview.columns.map((column) => (
-                      <td key={`${index}-${column}`} className="cell-pad align-top text-ink">
-                        {String(row[column] ?? "")}
+                      <td
+                        key={`${index}-${column}`}
+                        className="cell-pad text-ink align-top"
+                      >
+                        {row[column] === null ||
+                        row[column] === undefined ||
+                        row[column] === "" ? (
+                          <span className="text-muted">—</span>
+                        ) : (
+                          String(row[column])
+                        )}
                       </td>
                     ))}
                   </tr>
@@ -503,36 +288,47 @@ export function DatasetDetailPageView({
         </div>
       </SectionPanel>
 
-      <DiscussionPanel
-        projectId={projectId}
-        targetType="dataset"
-        targetId={dataset.id}
-        currentUsername={currentUser.username}
-        description="Questions about this data, decisions about how to read it, caveats for the next person. Mention someone with @ and they are notified."
-      />
-
-      <SectionPanel title="Column insights" description="Column-level null, uniqueness, and inferred type metrics derived from profiling.">
-        <div className="overflow-hidden rounded-[24px] border border-line bg-sunken">
+      <SectionPanel
+        title="Columns"
+        description={
+          profile
+            ? `${profile.completeness_score}% of cells have a value. Empty and distinct are shares of the rows.`
+            : "Each column's type, how often it is empty and how varied it is."
+        }
+      >
+        <div className="border-line bg-sunken overflow-hidden rounded-[24px] border">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-line text-left text-sm">
+            <table className="divide-line min-w-full divide-y text-left text-sm">
               <thead className="bg-surface text-ink-3">
                 <tr>
                   <th className="cell-pad font-medium">Column</th>
                   <th className="cell-pad font-medium">Type</th>
-                  <th className="cell-pad font-medium">Null %</th>
-                  <th className="cell-pad font-medium">Unique %</th>
-                  <th className="cell-pad font-medium">Sample values</th>
+                  <th className="cell-pad font-medium">Empty</th>
+                  <th className="cell-pad font-medium">Distinct</th>
+                  <th className="cell-pad font-medium">Examples</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-line">
+              <tbody className="divide-line divide-y">
                 {profileColumns.map((column) => (
-                  <tr key={column.name} className="transition hover:bg-surface">
-                    <td className="cell-pad align-top text-ink">{column.name}</td>
-                    <td className="cell-pad align-top text-ink-2">{column.inferred_type ? typeLabel(column.inferred_type) : "--"}</td>
-                    <td className="cell-pad align-top text-ink-2">{column.null_percentage}%</td>
-                    <td className="cell-pad align-top text-ink-2">{column.unique_percentage}%</td>
-                    <td className="cell-pad align-top text-ink-3">
-                      {Array.isArray(column.sample_values) ? column.sample_values.map(String).join(", ") : "--"}
+                  <tr key={column.name} className="hover:bg-surface transition">
+                    <td className="cell-pad text-ink align-top">
+                      {column.name}
+                    </td>
+                    <td className="cell-pad text-ink-2 align-top">
+                      {column.inferred_type
+                        ? typeLabel(column.inferred_type)
+                        : "--"}
+                    </td>
+                    <td className="cell-pad text-ink-2 align-top">
+                      {column.null_percentage}%
+                    </td>
+                    <td className="cell-pad text-ink-2 align-top">
+                      {column.unique_percentage}%
+                    </td>
+                    <td className="cell-pad text-ink-3 align-top">
+                      {Array.isArray(column.sample_values)
+                        ? column.sample_values.map(String).join(", ")
+                        : "--"}
                     </td>
                   </tr>
                 ))}
@@ -541,6 +337,363 @@ export function DatasetDetailPageView({
           </div>
         </div>
       </SectionPanel>
+
+      {dataset.is_derived ? (
+        <SectionPanel
+          title="Lineage"
+          description="A recipe made this dataset from another one in this project."
+        >
+          <dl className="grid gap-4 md:grid-cols-2">
+            <div>
+              <dt className="text-ink-3 text-[13px]">Made from</dt>
+              <dd className="text-ink mt-2 text-sm">
+                {lineageParent ? (
+                  <Link
+                    href={`/projects/${projectId}/datasets/${lineageParent.id}`}
+                    className="text-accent hover:text-accent"
+                  >
+                    {lineageParent.name}
+                  </Link>
+                ) : dataset.parent_dataset_id ? (
+                  <span className="text-ink-3 font-mono text-xs">
+                    {dataset.parent_dataset_id}
+                  </span>
+                ) : (
+                  "--"
+                )}
+                {dataset.parent_dataset_id ? (
+                  <div className="mt-2">
+                    <Link
+                      href={`/projects/${projectId}/datasets/${dataset.id}/compare/${dataset.parent_dataset_id}`}
+                      className="text-accent text-[13px] font-medium hover:underline"
+                    >
+                      Compare the two
+                    </Link>
+                  </div>
+                ) : null}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-ink-3 text-[13px]">By the recipe</dt>
+              <dd className="text-ink mt-2 text-sm">
+                {lineagePipeline ? (
+                  <Link
+                    href={`/projects/${projectId}/datasets/${lineagePipeline.base_dataset_id}/pipelines/${lineagePipeline.id}`}
+                    className="text-accent hover:text-accent"
+                  >
+                    {lineagePipeline.name}
+                  </Link>
+                ) : dataset.created_from_pipeline_id ? (
+                  <span className="text-ink-3 font-mono text-xs">
+                    {dataset.created_from_pipeline_id}
+                  </span>
+                ) : (
+                  "--"
+                )}
+              </dd>
+            </div>
+          </dl>
+        </SectionPanel>
+      ) : null}
+
+      {!dataset.is_derived ? (
+        <DatasetSuggestedTransformations
+          projectId={projectId}
+          datasetId={dataset.id}
+          datasetName={dataset.name}
+          suggestions={transformationSuggestions}
+        />
+      ) : null}
+
+      {!dataset.is_derived && pipelinesForDataset.length > 0 ? (
+        <DatasetPipelinesRunSection
+          projectId={projectId}
+          pipelines={pipelinesForDataset}
+        />
+      ) : null}
+
+      <DatasetVersionHistoryPanel
+        projectId={projectId}
+        datasetId={dataset.id}
+      />
+
+      <DatasetCatalogPanel
+        projectId={projectId}
+        datasetId={dataset.id}
+        columns={schemaColumns.map((column) => String(column.name))}
+      />
+
+      <DiscussionPanel
+        projectId={projectId}
+        targetType="dataset"
+        targetId={dataset.id}
+        currentUsername={currentUser.username}
+        description="Questions about this data, decisions about how to read it, caveats for the next person. Mention someone with @ and they are notified."
+      />
+
+      <details className="group border-line rounded-[28px] border bg-[color:var(--panel)] px-5 py-4 lg:px-6">
+        <summary className="text-ink cursor-pointer text-[15px] font-semibold">
+          Technical details
+          <span className="text-muted ml-2 text-[13px] font-normal">
+            The stored file, the load profile and the run that made it
+          </span>
+        </summary>
+        <div className="mt-5 space-y-5">
+          <SectionPanel
+            title="File and status"
+            description="Where this data is stored, and when it was last checked."
+          >
+            <dl className="grid gap-4 md:grid-cols-2">
+              <div className="border-line bg-sunken rounded-2xl border px-4 py-4">
+                <dt className="text-ink-3 text-[13px]">Original file</dt>
+                <dd className="text-ink mt-2 text-sm">
+                  {dataset.original_filename ?? "--"}
+                </dd>
+              </div>
+              <div className="border-line bg-sunken rounded-2xl border px-4 py-4">
+                <dt className="text-ink-3 text-[13px]">Stored file</dt>
+                <dd className="text-ink mt-2 text-sm">
+                  {dataset.file_name ?? "--"}
+                </dd>
+              </div>
+              <div className="border-line bg-sunken rounded-2xl border px-4 py-4">
+                <dt className="text-ink-3 text-[13px]">Dataset status</dt>
+                <dd className="mt-2">
+                  <StatusBadge value={dataset.status} />
+                </dd>
+              </div>
+              <div className="border-line bg-sunken rounded-2xl border px-4 py-4">
+                <dt className="text-ink-3 text-[13px]">Ingestion status</dt>
+                <dd className="mt-2">
+                  <StatusBadge value={dataset.ingestion_status} />
+                </dd>
+              </div>
+              <div className="border-line bg-sunken rounded-2xl border px-4 py-4">
+                <dt className="text-ink-3 text-[13px]">Related run</dt>
+                <dd className="text-ink mt-2 text-sm">
+                  {dataset.pipeline_run_id ? (
+                    <Link
+                      href={`/projects/${projectId}/runs/${dataset.pipeline_run_id}/audit`}
+                      className="text-accent hover:text-accent"
+                    >
+                      View run audit
+                    </Link>
+                  ) : (
+                    "--"
+                  )}
+                </dd>
+              </div>
+              <div className="border-line bg-sunken rounded-2xl border px-4 py-4">
+                <dt className="text-ink-3 text-[13px]">Created</dt>
+                <dd className="text-ink mt-2 text-sm">
+                  {formatDate(dataset.created_at)}
+                </dd>
+              </div>
+              <div className="border-line bg-sunken rounded-2xl border px-4 py-4">
+                <dt className="text-ink-3 text-[13px]">Profile refreshed</dt>
+                <dd className="text-ink mt-2 text-sm">
+                  {dataset.last_profiled_at
+                    ? formatDate(dataset.last_profiled_at)
+                    : "Not yet"}
+                </dd>
+              </div>
+              <div className="border-line bg-sunken rounded-2xl border px-4 py-4">
+                <dt className="text-ink-3 text-[13px]">Uploaded by</dt>
+                <dd className="text-ink mt-2 text-sm">
+                  {dataset.uploaded_by_user_id === currentUser.id
+                    ? currentUser.username
+                    : (dataset.uploaded_by_user_id ?? "--")}
+                </dd>
+              </div>
+            </dl>
+            {dataset.ingestion_error ? (
+              <div className="border-danger-line bg-danger-soft text-danger mt-5 rounded-2xl border px-4 py-3 text-sm">
+                {dataset.ingestion_error}
+              </div>
+            ) : null}
+          </SectionPanel>
+
+          <SectionPanel
+            title="Profile"
+            description="Measured when the data was loaded."
+          >
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <div className="border-line bg-sunken rounded-2xl border px-4 py-4">
+                <div className="text-ink-3 text-[13px]">Duplicate rows</div>
+                <div className="text-ink mt-2 text-2xl font-semibold">
+                  {formatNumber(Number(profile?.duplicate_row_count ?? 0))}
+                </div>
+              </div>
+              <div className="border-line bg-sunken rounded-2xl border px-4 py-4">
+                <div className="text-ink-3 text-[13px]">Completeness score</div>
+                <div className="text-ink mt-2 text-2xl font-semibold">
+                  {profile?.completeness_score
+                    ? `${profile.completeness_score}%`
+                    : "--"}
+                </div>
+              </div>
+              <div className="border-line bg-sunken rounded-2xl border px-4 py-4">
+                <div className="text-ink-3 text-[13px]">Total null cells</div>
+                <div className="text-ink mt-2 text-2xl font-semibold">
+                  {formatNumber(Number(profile?.total_null_cells ?? 0))}
+                </div>
+              </div>
+            </div>
+            <div className="mt-5 grid gap-3 md:grid-cols-3">
+              {Object.entries(qualityFlags).map(([key, values]) => (
+                <div
+                  key={key}
+                  className="border-line bg-sunken rounded-2xl border px-4 py-4"
+                >
+                  <div className="text-ink-3 text-[13px]">{titleCase(key)}</div>
+                  <div className="text-ink mt-2 text-sm">
+                    {values.length ? values.join(", ") : "None"}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </SectionPanel>
+          <SectionPanel
+            title="The run that made it"
+            description="How this data was loaded or produced."
+          >
+            {relatedRun ? (
+              <div className="space-y-4">
+                <div className="grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
+                  <div className="border-line bg-sunken rounded-[24px] border p-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-ink-3 text-[13px]">Run type</div>
+                        <div className="text-ink mt-2 text-lg font-semibold">
+                          {formatRunTypeLabel(relatedRun.run_type)}
+                        </div>
+                      </div>
+                      <StatusBadge value={relatedRun.status} />
+                    </div>
+                    <div className="text-ink-2 mt-4 space-y-2 text-sm">
+                      <div>
+                        Triggered by{" "}
+                        {relatedRun.triggered_by_username ??
+                          currentUser.username}
+                      </div>
+                      <div>{getPipelineRunSecondaryText(relatedRun)}</div>
+                      <div>Created {formatDate(relatedRun.created_at)}</div>
+                      <div>
+                        {relatedRun.completed_at
+                          ? `Completed ${formatDate(relatedRun.completed_at)}`
+                          : "Run still in progress"}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-line bg-sunken rounded-[24px] border p-5">
+                    <div className="text-ink-3 text-[13px]">
+                      Execution summary
+                    </div>
+                    {isDatasetIngestionRunSummary(runSummary) ? (
+                      <div className="mt-4 grid gap-4 md:grid-cols-2">
+                        <div>
+                          <div className="text-muted text-sm">Artifact</div>
+                          <div className="text-ink mt-2 text-sm">
+                            {runSummary.artifact.original_filename} ·{" "}
+                            {runSummary.artifact.file_type.toUpperCase()}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-muted text-sm">
+                            Failure stage
+                          </div>
+                          <div className="text-ink mt-2 text-sm">
+                            {runSummary.failure_stage
+                              ? titleCase(runSummary.failure_stage)
+                              : "None"}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-muted text-sm">
+                            Duplicate rows
+                          </div>
+                          <div className="text-ink mt-2 text-sm">
+                            {runSummary.profile
+                              ? formatNumber(
+                                  runSummary.profile.duplicate_row_count,
+                                )
+                              : "--"}
+                          </div>
+                        </div>
+                        <ParserMetadataSummary
+                          metadata={runSummary.parser_metadata}
+                        />
+                      </div>
+                    ) : isDatasetTransformationRunSummary(runSummary) ? (
+                      <div className="mt-4 grid gap-4 md:grid-cols-2">
+                        <div>
+                          <div className="text-muted text-sm">
+                            Rows before → after
+                          </div>
+                          <div className="text-ink mt-2 text-sm">
+                            {runSummary.row_count_before != null &&
+                            runSummary.row_count_after != null
+                              ? `${formatNumber(runSummary.row_count_before)} → ${formatNumber(runSummary.row_count_after)}`
+                              : "--"}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-muted text-sm">
+                            Columns before → after
+                          </div>
+                          <div className="text-ink mt-2 text-sm">
+                            {runSummary.column_count_before != null &&
+                            runSummary.column_count_after != null
+                              ? `${formatNumber(runSummary.column_count_before)} → ${formatNumber(runSummary.column_count_after)}`
+                              : "--"}
+                          </div>
+                        </div>
+                        {runSummary.derived_dataset ? (
+                          <div>
+                            <div className="text-muted text-sm">
+                              Derived output
+                            </div>
+                            <div className="text-ink mt-2 text-sm">
+                              {runSummary.derived_dataset.name}
+                            </div>
+                          </div>
+                        ) : null}
+                        {runSummary.failure_stage ? (
+                          <div>
+                            <div className="text-muted text-sm">
+                              Failure stage
+                            </div>
+                            <div className="text-danger mt-2 text-sm">
+                              {titleCase(runSummary.failure_stage)}
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <div className="text-ink-2 mt-4 text-sm">
+                        Stored orchestration summary available on the run
+                        record.
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <Link
+                  href={`/projects/${projectId}/runs/${relatedRun.id}/audit`}
+                  className="text-accent hover:text-accent inline-block text-sm font-medium underline"
+                >
+                  View full run audit
+                </Link>
+              </div>
+            ) : (
+              <div className="border-line bg-sunken text-ink-2 rounded-2xl border px-4 py-4 text-sm">
+                No run is recorded for this dataset.
+              </div>
+            )}
+          </SectionPanel>
+        </div>
+      </details>
+
       <Modal
         open={isRenaming}
         title="Rename dataset"
@@ -549,7 +702,12 @@ export function DatasetDetailPageView({
         widthClassName="max-w-md"
         footer={
           <div className="flex items-center justify-end gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setIsRenaming(false)} disabled={renameBusy}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsRenaming(false)}
+              disabled={renameBusy}
+            >
               Cancel
             </Button>
             <Button
@@ -566,7 +724,9 @@ export function DatasetDetailPageView({
                     setIsRenaming(false);
                     router.refresh();
                   })
-                  .catch((caught) => setRenameError(extractErrorMessage(caught)))
+                  .catch((caught) =>
+                    setRenameError(extractErrorMessage(caught)),
+                  )
                   .finally(() => setRenameBusy(false));
               }}
             >
@@ -576,16 +736,16 @@ export function DatasetDetailPageView({
         }
       >
         <label className="block space-y-1.5">
-          <span className="text-[12px] text-ink-3">Name</span>
+          <span className="text-ink-3 text-[12px]">Name</span>
           <input
             value={renameValue}
             onChange={(event) => setRenameValue(event.target.value)}
             aria-label="Dataset name"
-            className="h-9 w-full rounded-lg border border-line bg-sunken px-3 text-sm text-ink outline-none focus:border-accent"
+            className="border-line bg-sunken text-ink focus:border-accent h-9 w-full rounded-lg border px-3 text-sm outline-none"
           />
         </label>
         {renameError ? (
-          <p role="alert" className="mt-3 text-sm text-danger">
+          <p role="alert" className="text-danger mt-3 text-sm">
             {renameError}
           </p>
         ) : null}
@@ -597,16 +757,20 @@ export function DatasetDetailPageView({
 const PARSER_NOTES_SHOWN = 4;
 
 /** How the uploaded file was read, in words; see `parser-metadata.ts`. */
-function ParserMetadataSummary({ metadata }: { metadata?: Record<string, unknown> }) {
+function ParserMetadataSummary({
+  metadata,
+}: {
+  metadata?: Record<string, unknown>;
+}) {
   const [showAll, setShowAll] = useState(false);
   const { facts, notes } = describeParserMetadata(metadata);
   const visibleNotes = showAll ? notes : notes.slice(0, PARSER_NOTES_SHOWN);
 
   return (
     <div className="md:col-span-2">
-      <div className="text-sm text-muted">How the file was read</div>
+      <div className="text-muted text-sm">How the file was read</div>
       {facts.length === 0 && notes.length === 0 ? (
-        <div className="mt-2 text-sm text-ink">--</div>
+        <div className="text-ink mt-2 text-sm">--</div>
       ) : null}
       {facts.length > 0 ? (
         <dl className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm">
@@ -623,7 +787,11 @@ function ParserMetadataSummary({ metadata }: { metadata?: Record<string, unknown
           {visibleNotes.map((note, index) => (
             <li key={`${note.stage}-${index}`} className="flex gap-2">
               <span
-                className={note.needsReview ? "shrink-0 font-medium text-warning" : "shrink-0 font-medium text-ink-2"}
+                className={
+                  note.needsReview
+                    ? "text-warning shrink-0 font-medium"
+                    : "text-ink-2 shrink-0 font-medium"
+                }
               >
                 {note.label}
                 {note.needsReview ? " (check this)" : ""}

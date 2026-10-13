@@ -4,7 +4,17 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Index, String, Text
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 # `Uuid`, not the postgresql-specific `UUID`: the dialect type declares a bare
 # UUID column, which SQLite gives NUMERIC affinity, so an identifier that
 # happens to be all decimal digits is silently converted to a float and comes
@@ -21,6 +31,7 @@ class UserNotification(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         Index("ix_user_notifications_user_id", "user_id"),
         Index("ix_user_notifications_user_created", "user_id", "created_at"),
         Index("ix_user_notifications_user_unread", "user_id", "is_read"),
+        Index("ix_user_notifications_user_group", "user_id", "group_key"),
     )
 
     user_id: Mapped[uuid.UUID] = mapped_column(
@@ -47,6 +58,26 @@ class UserNotification(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     is_read: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    #: Events with the same key fold into this row instead of adding another:
+    #: the same failure for the same object, or a day's routine successes.
+    group_key: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    #: How many events this row stands for.
+    group_count: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+
+
+class NotificationPreference(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """How one person wants one kind of notification: each, a daily summary, or off."""
+
+    __tablename__ = "notification_preferences"
+    __table_args__ = (
+        UniqueConstraint("user_id", "category", name="uq_notification_preferences_user_category"),
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    category: Mapped[str] = mapped_column(String(32), nullable=False)
+    mode: Mapped[str] = mapped_column(String(16), nullable=False)
 
 
 class ExternalNotificationTarget(UUIDPrimaryKeyMixin, TimestampMixin, Base):

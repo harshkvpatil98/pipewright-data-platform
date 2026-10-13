@@ -10,6 +10,7 @@ import { useTour } from "@/components/tour/tour-provider";
 import { WELCOME_TOUR_ID, welcomeTour } from "@/components/tour/tours";
 import { Icon } from "@/components/ui/icon";
 import { AppearanceControls } from "@/features/preferences/components/appearance-controls";
+import { NotificationPreferences } from "@/features/notifications/components/notification-preferences";
 import { AccountSecurity } from "@/features/settings/components/account-security";
 import { ApiTokensPanel } from "@/features/settings/components/api-tokens-panel";
 import { MfaPanel } from "@/features/settings/components/mfa-panel";
@@ -68,7 +69,7 @@ export function SettingsPageView({ currentUser }: SettingsPageProps) {
     >
       <div className="mx-auto max-w-3xl px-6 py-8">
         <header className="mb-7">
-          <h1 className="text-[26px] font-semibold tracking-tight text-ink">Settings</h1>
+          <h1 className="text-[26px] font-semibold tracking-tight text-ink">Your settings</h1>
           <p className="mt-2 text-[13px] text-ink-3">
             Your account, how this workspace looks, and how it behaves in this browser.
           </p>
@@ -91,6 +92,14 @@ export function SettingsPageView({ currentUser }: SettingsPageProps) {
           {currentUser.email ? <Row label="Email" value={currentUser.email} /> : null}
           <Row label="Role" value={currentUser.role} />
           <Row label="Status" value={currentUser.is_active ? "Active" : "Disabled"} />
+        </Section>
+
+        <Section
+          id="notifications"
+          title="Notifications"
+          description="For each kind of message: one notification each time, one summary a day, or none."
+        >
+          <NotificationPreferences />
         </Section>
 
         <Section
@@ -197,19 +206,24 @@ export function SettingsPageView({ currentUser }: SettingsPageProps) {
 }
 
 function Section({
+  id,
   title,
   description,
   children,
 }: {
+  id?: string;
   title: string;
   description: string;
   children: React.ReactNode;
 }) {
   return (
-    <section className="mb-5 overflow-hidden rounded-2xl border border-line bg-[color:var(--panel)]">
+    <section
+      id={id}
+      className="mb-5 scroll-mt-6 overflow-hidden rounded-2xl border border-line bg-[color:var(--panel)]"
+    >
       <div className="border-b border-line px-4 py-3.5">
-        <h2 className="text-[14px] font-semibold text-ink">{title}</h2>
-        <p className="mt-1 text-[12px] text-muted">{description}</p>
+        <h2 className="text-[15px] font-semibold text-ink">{title}</h2>
+        <p className="mt-1 text-[13px] text-muted">{description}</p>
       </div>
       <div className="divide-y divide-line">{children}</div>
     </section>

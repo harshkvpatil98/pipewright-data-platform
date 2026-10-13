@@ -22,12 +22,18 @@ const RUN_STATUS_LABELS: Record<string, string> = {
 
 /** Short labels for `user_notifications.type` badges. */
 const NOTIFICATION_EVENT_LABELS: Record<string, string> = {
-  schedule_run_failed: "Scheduled run",
-  schedule_run_succeeded: "Scheduled run",
+  schedule_run_failed: "Schedule",
+  schedule_run_succeeded: "Schedule",
   dataset_publish_failed: "Delivery",
   dataset_publish_succeeded: "Delivery",
   transformation_run_failed: "Recipe run",
   transformation_run_succeeded: "Recipe run",
+  workflow_run_failed: "Workflow",
+  workflow_run_partial: "Workflow",
+  workflow: "Workflow message",
+  incident: "Incident",
+  mention: "Mention",
+  report: "Report",
 };
 
 export function formatRunTypeLabel(runType: string | null | undefined): string {

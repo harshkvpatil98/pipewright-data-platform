@@ -7,9 +7,13 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from service_auth.schemas import UserRead
+from service_notifications import preferences
 from service_notifications.schemas import (
     MarkAllNotificationsReadResponse,
     MarkNotificationReadResponse,
+    NotificationPreferenceRead,
+    NotificationPreferencesResponse,
+    NotificationPreferenceUpdate,
     UserNotificationListResponse,
 )
 from service_notifications.service import (
@@ -53,6 +57,39 @@ def build_router(get_db: Callable[..., Session], get_current_user: Callable[...,
         current_user: UserRead = Depends(get_current_user),
     ) -> UserNotificationListResponse:
         return list_notifications_for_user(db, current_user=current_user, project_id=project_id, limit=limit)
+
+    def _preferences_for(db: Session, user_id: uuid.UUID) -> NotificationPreferencesResponse:
+        modes = preferences.all_modes(db, user_id)
+        return NotificationPreferencesResponse(
+            items=[
+                NotificationPreferenceRead(
+                    category=category.key,
+                    label=category.label,
+                    description=category.description,
+                    mode=modes[category.key],
+                    default=category.default,
+                )
+                for category in preferences.CATEGORIES
+            ],
+            modes=list(preferences.MODES),
+        )
+
+    @router.get("/notifications/preferences", response_model=NotificationPreferencesResponse)
+    def get_notification_preferences(
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> NotificationPreferencesResponse:
+        return _preferences_for(db, current_user.id)
+
+    @router.put("/notifications/preferences", response_model=NotificationPreferencesResponse)
+    def put_notification_preference(
+        payload: NotificationPreferenceUpdate,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> NotificationPreferencesResponse:
+        """Change how one kind of notification arrives, for the signed-in person only."""
+        preferences.set_mode(db, current_user.id, payload.category, payload.mode)
+        return _preferences_for(db, current_user.id)
 
     @router.patch("/notifications/read-all", response_model=MarkAllNotificationsReadResponse)
     def patch_notifications_read_all(

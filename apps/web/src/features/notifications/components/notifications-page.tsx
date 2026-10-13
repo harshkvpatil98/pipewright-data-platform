@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import type { AuthUser, UserNotificationListResponse, UserNotificationRecord } from "@platform/shared-types";
-import { Button, SectionPanel } from "@platform/shared-ui";
+import { Button, SectionPanel, buttonClassName } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { OperationalEmpty, OperationalLoading } from "@/components/operational/operational-messages";
@@ -16,19 +16,6 @@ import { formatNotificationEventLabel } from "@/lib/run-labels";
 type NotificationsPageProps = {
   currentUser: AuthUser;
 };
-
-function levelBadgeClass(level: string): string {
-  switch (level) {
-    case "error":
-      return "border-danger-line bg-danger-soft text-danger";
-    case "warning":
-      return "border-warning-line bg-warning-soft text-warning";
-    case "success":
-      return "border-success-line bg-success-soft text-success";
-    default:
-      return "border-line bg-surface-2 text-ink";
-  }
-}
 
 function relatedHref(n: UserNotificationRecord): string | null {
   if (n.related_run_id && n.project_id) {
@@ -96,9 +83,16 @@ export function NotificationsPage({ currentUser }: NotificationsPageProps) {
       subtitle="Messages about your runs, reports and mentions."
       currentUser={currentUser}
       actions={
-        <Button type="button" variant="secondary" size="sm" onClick={() => void onMarkAll()} disabled={markingAll}>
-          {markingAll ? "Updating…" : "Mark all read"}
-        </Button>
+        <>
+          <Link href="/settings#notifications" className={buttonClassName("secondary", "sm")}>
+            Choose what you get
+          </Link>
+          {data && data.unread_count > 0 ? (
+            <Button type="button" size="sm" onClick={() => void onMarkAll()} disabled={markingAll}>
+              {markingAll ? "Updating…" : "Mark all read"}
+            </Button>
+          ) : null}
+        </>
       }
     >
       {error ? (
@@ -106,63 +100,61 @@ export function NotificationsPage({ currentUser }: NotificationsPageProps) {
       ) : null}
 
       <SectionPanel
-        title="Recent activity"
-        description={data ? `${data.unread_count} unread` : "Fetching your latest alerts."}
+        title={data ? (data.unread_count > 0 ? `${data.unread_count} unread` : "All caught up") : "Notifications"}
+        description="Routine successes are added up into one summary a day; repeats of the same failure are grouped."
       >
-        {data ? (
-          <div className="mb-5 grid gap-3 md:grid-cols-3">
-            <div className="rounded-2xl border border-line bg-sunken px-4 py-4 text-sm text-ink-2">
-              <div className="text-[11px] uppercase tracking-[0.18em] text-muted">Unread</div>
-              <div className="mt-2 text-2xl font-semibold text-ink">{data.unread_count}</div>
-            </div>
-            <div className="rounded-2xl border border-line bg-sunken px-4 py-4 text-sm text-ink-2">
-              <div className="text-[11px] uppercase tracking-[0.18em] text-muted">Visible in feed</div>
-              <div className="mt-2 text-2xl font-semibold text-ink">{data.items.length}</div>
-            </div>
-            <div className="rounded-2xl border border-line bg-sunken px-4 py-4 text-sm leading-6 text-ink-3">
-              Notifications link back to related runs, schedules, datasets, or pipelines when context is available.
-            </div>
-          </div>
-        ) : null}
         {!data ? (
           <OperationalLoading message="Loading notifications…" />
         ) : data.items.length === 0 ? (
-          <OperationalEmpty description="No notifications yet. Scheduled runs, publishes, and transformations will appear here when they complete." />
+          <OperationalEmpty
+            title="Nothing new"
+            description="Failures, finished reports and mentions of you appear here."
+            action={
+              <Link href="/settings#notifications" className={buttonClassName("secondary", "sm")}>
+                Choose what you get
+              </Link>
+            }
+          />
         ) : (
-          <ul className="space-y-2">
+          <ul className="divide-y divide-line">
             {data.items.map((n) => {
               const href = relatedHref(n);
+              const count = n.group_count ?? 1;
+              const isSummary = n.type.startsWith("digest_");
               return (
-                <li
-                  key={n.id}
-                  className={`flex flex-col gap-3 rounded-2xl border px-4 py-4 text-sm shadow-[var(--shadow-md)] sm:flex-row sm:items-start sm:justify-between ${
-                    n.is_read ? "border-line bg-surface" : "border-accent-line bg-accent-soft"
-                  }`}
-                >
-                  <div className="min-w-0 flex-1 space-y-1">
+                <li key={n.id} className="flex items-start gap-3 py-3">
+                  <span
+                    className={`mt-2 h-2 w-2 shrink-0 rounded-full ${n.is_read ? "bg-line-strong" : dotClass(n.level)}`}
+                    aria-label={n.is_read ? "Read" : "Unread"}
+                  />
+                  <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span
-                        className={`rounded-lg border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${levelBadgeClass(n.level)}`}
-                      >
-                        {n.level}
+                      <span className={`text-[14px] ${n.is_read ? "text-ink-2" : "font-medium text-ink"}`}>
+                        {n.title}
                       </span>
-                      <span className="rounded border border-line px-2 py-0.5 text-[10px] uppercase tracking-wide text-ink-3">
-                        {formatNotificationEventLabel(n.type)}
+                      {!isSummary && count > 1 ? (
+                        <span className="rounded-full border border-line px-2 py-0.5 text-[12px] text-ink-3">
+                          {count} times
+                        </span>
+                      ) : null}
+                      <span className="text-[12px] text-muted">
+                        {isSummary ? "Daily summary" : formatNotificationEventLabel(n.type)}
                       </span>
-                      <span className="font-medium leading-6 text-ink">{n.title}</span>
                     </div>
-                    <p className="leading-6 text-ink-2">{n.message}</p>
-                    <div className="text-xs text-muted">{formatDate(n.created_at)}</div>
-                    {href ? (
-                      <Link href={href} className="inline-flex text-xs font-medium text-accent underline underline-offset-4">
-                        Open related page
-                      </Link>
-                    ) : null}
+                    <p className="mt-0.5 text-[13px] leading-5 text-ink-3">{n.message}</p>
+                    <div className="mt-1 flex flex-wrap items-center gap-3 text-[12px] text-muted">
+                      <span>{count > 1 ? `Latest ${formatDate(n.updated_at)}` : formatDate(n.created_at)}</span>
+                      {href ? (
+                        <Link href={href} className="font-medium text-[color:var(--accent-muted)] hover:underline">
+                          Open
+                        </Link>
+                      ) : null}
+                    </div>
                   </div>
                   {!n.is_read ? (
                     <Button
                       type="button"
-                      variant="secondary"
+                      variant="ghost"
                       size="sm"
                       className="shrink-0"
                       disabled={busyId === n.id}
@@ -170,9 +162,7 @@ export function NotificationsPage({ currentUser }: NotificationsPageProps) {
                     >
                       {busyId === n.id ? "…" : "Mark read"}
                     </Button>
-                  ) : (
-                    <span className="shrink-0 text-xs uppercase tracking-wide text-muted">Read</span>
-                  )}
+                  ) : null}
                 </li>
               );
             })}
@@ -181,4 +171,11 @@ export function NotificationsPage({ currentUser }: NotificationsPageProps) {
       </SectionPanel>
     </AppShell>
   );
+}
+
+function dotClass(level: string): string {
+  if (level === "error") return "bg-danger";
+  if (level === "warning") return "bg-warning";
+  if (level === "success") return "bg-success";
+  return "bg-[color:var(--accent)]";
 }

@@ -24,6 +24,8 @@ class UserNotificationRead(BaseModel):
     created_at: datetime
     updated_at: datetime
     read_at: datetime | None
+    #: How many events this notification stands for (grouped or a summary).
+    group_count: int = 1
 
 
 class UserNotificationListResponse(BaseModel):
@@ -37,3 +39,21 @@ class MarkNotificationReadResponse(BaseModel):
 
 class MarkAllNotificationsReadResponse(BaseModel):
     updated_count: int
+
+
+class NotificationPreferenceRead(BaseModel):
+    category: str
+    label: str
+    description: str
+    mode: str
+    default: str
+
+
+class NotificationPreferencesResponse(BaseModel):
+    items: list[NotificationPreferenceRead]
+    modes: list[str]
+
+
+class NotificationPreferenceUpdate(BaseModel):
+    category: str
+    mode: str

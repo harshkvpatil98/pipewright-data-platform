@@ -30,6 +30,9 @@ def test_create_user_notification_adds_row(mock_cls: MagicMock, mock_validate: M
     mock_cls.return_value = inst
     mock_validate.return_value = MagicMock()
     db = MagicMock()
+    # The function now asks for the person's preference first; "each" is the
+    # mode in which one event is one row, which is what this test is about.
+    db.scalar.return_value = "each"
     uid = uuid.uuid4()
     create_user_notification(
         db,

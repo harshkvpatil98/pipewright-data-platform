@@ -1112,6 +1112,21 @@ export type UserNotificationRecord = {
   created_at: string;
   updated_at: string;
   read_at: string | null;
+  /** How many events this stands for: a repeated failure, or a daily summary. */
+  group_count?: number;
+};
+
+export type NotificationPreference = {
+  category: string;
+  label: string;
+  description: string;
+  mode: "each" | "digest" | "off";
+  default: string;
+};
+
+export type NotificationPreferencesResponse = {
+  items: NotificationPreference[];
+  modes: string[];
 };
 
 export type UserNotificationListResponse = {

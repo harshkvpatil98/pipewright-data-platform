@@ -54,8 +54,8 @@ def notify_manual_dataset_publish(
                 project_id=run_read.project_id,
                 type="dataset_publish_succeeded",
                 level="success",
-                title="PostgreSQL publish succeeded",
-                message=f"Dataset “{dataset_name}” was published to table {target}.",
+                title="Delivered to PostgreSQL",
+                message=f"“{dataset_name}” was delivered to the table {target}.",
                 related_run_id=run_read.id,
                 related_dataset_id=_uuid_or_none(summary.get("dataset_id")),
             )
@@ -66,8 +66,8 @@ def notify_manual_dataset_publish(
                 project_id=run_read.project_id,
                 type="dataset_publish_failed",
                 level="error",
-                title="PostgreSQL publish failed",
-                message=f"PostgreSQL publish failed for “{dataset_name}” ({target}).",
+                title="Delivery to PostgreSQL failed",
+                message=f"“{dataset_name}” could not be delivered to {target}.",
                 related_run_id=run_read.id,
                 related_dataset_id=_uuid_or_none(summary.get("dataset_id")),
             )
@@ -80,8 +80,8 @@ def notify_manual_dataset_publish(
                 project_id=run_read.project_id,
                 type="dataset_publish_succeeded",
                 level="success",
-                title="Power BI publish succeeded",
-                message=f"Dataset publish to Power BI succeeded for “{dataset_name}” ({dest}).",
+                title="Sent to Power BI",
+                message=f"“{dataset_name}” was sent to Power BI ({dest}).",
                 related_run_id=run_read.id,
                 related_dataset_id=_uuid_or_none(summary.get("dataset_id")),
             )
@@ -92,8 +92,8 @@ def notify_manual_dataset_publish(
                 project_id=run_read.project_id,
                 type="dataset_publish_failed",
                 level="error",
-                title="Power BI publish failed",
-                message=f"Power BI publish failed for “{dataset_name}”.",
+                title="Sending to Power BI failed",
+                message=f"“{dataset_name}” could not be sent to Power BI.",
                 related_run_id=run_read.id,
                 related_dataset_id=_uuid_or_none(summary.get("dataset_id")),
             )
@@ -106,8 +106,8 @@ def notify_manual_dataset_publish(
                 project_id=run_read.project_id,
                 type="dataset_publish_succeeded",
                 level="success",
-                title="Tableau publish succeeded",
-                message=f"Dataset “{dataset_name}” was published to Tableau ({ds}).",
+                title="Sent to Tableau",
+                message=f"“{dataset_name}” was sent to Tableau ({ds}).",
                 related_run_id=run_read.id,
                 related_dataset_id=_uuid_or_none(summary.get("dataset_id")),
             )
@@ -118,8 +118,8 @@ def notify_manual_dataset_publish(
                 project_id=run_read.project_id,
                 type="dataset_publish_failed",
                 level="error",
-                title="Tableau publish failed",
-                message=f"Tableau publish failed for “{dataset_name}” ({ds}).",
+                title="Sending to Tableau failed",
+                message=f"“{dataset_name}” could not be sent to Tableau ({ds}).",
                 related_run_id=run_read.id,
                 related_dataset_id=_uuid_or_none(summary.get("dataset_id")),
             )
@@ -142,8 +142,8 @@ def notify_manual_transformation_run(
             project_id=run_read.project_id,
             type="transformation_run_succeeded",
             level="success",
-            title="Transformation run succeeded",
-            message=f"Transformation run completed for “{pipeline_name}”.",
+            title="Recipe finished",
+            message=f"The recipe “{pipeline_name}” ran without problems.",
             related_run_id=run_read.id,
             related_pipeline_id=run_read.pipeline_id,
             related_dataset_id=_uuid_or_none((summary.get("derived_dataset") or {}).get("id")),
@@ -155,8 +155,8 @@ def notify_manual_transformation_run(
             project_id=run_read.project_id,
             type="transformation_run_failed",
             level="error",
-            title="Transformation run failed",
-            message=f"Transformation run failed for “{pipeline_name}”.",
+            title="Recipe failed",
+            message=f"The recipe “{pipeline_name}” did not finish.",
             related_run_id=run_read.id,
             related_pipeline_id=run_read.pipeline_id,
             related_dataset_id=_uuid_or_none((summary.get("base_dataset") or {}).get("id")),
@@ -176,7 +176,7 @@ def notify_automated_schedule_outcome(
     triggered_run: PipelineRunRead | None,
     is_retry_execution: bool,
 ) -> None:
-    kind = "transformation pipeline" if schedule_type == "transformation_pipeline_run" else "PostgreSQL publish"
+    kind = "recipe" if schedule_type == "transformation_pipeline_run" else "delivery to PostgreSQL"
     retry_note = " (retry)" if is_retry_execution else ""
     if success:
         _persist_notification(
@@ -185,8 +185,8 @@ def notify_automated_schedule_outcome(
             project_id=project_id,
             type="schedule_run_succeeded",
             level="success",
-            title="Scheduled run succeeded",
-            message=f"Scheduled {kind} run succeeded for “{schedule_name}”{retry_note}.",
+            title="Scheduled run finished",
+            message=f"The scheduled {kind} “{schedule_name}” ran without problems{retry_note}.",
             related_run_id=triggered_run.id if triggered_run else None,
             related_schedule_id=schedule_id,
             related_pipeline_id=triggered_run.pipeline_id if triggered_run else None,
@@ -200,7 +200,7 @@ def notify_automated_schedule_outcome(
             type="schedule_run_failed",
             level="error",
             title="Scheduled run failed",
-            message=f"Scheduled pipeline run failed for “{schedule_name}”{retry_note}: {msg}",
+            message=f"The scheduled {kind} “{schedule_name}” failed{retry_note}: {msg}",
             related_run_id=triggered_run.id if triggered_run else None,
             related_schedule_id=schedule_id,
             related_pipeline_id=triggered_run.pipeline_id if triggered_run else None,
@@ -232,7 +232,7 @@ def notify_workflow_run_outcome(
             project_id=project_id,
             type="workflow_run_failed",
             level="error",
-            title="Workflow run failed",
+            title="Workflow failed",
             message=f"Workflow “{workflow_name}” failed{detail}",
         )
     elif status == "partial":
@@ -242,7 +242,7 @@ def notify_workflow_run_outcome(
             project_id=project_id,
             type="workflow_run_partial",
             level="warning",
-            title="Workflow run finished with problems",
+            title="Workflow finished with problems",
             message=(
                 f"Workflow “{workflow_name}” finished, but some steps failed or were skipped. "
                 "Open the run to see which."

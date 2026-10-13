@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useId } from "react";
+import { useId } from "react";
 
 import { Button } from "./button";
 import { cx } from "./internal/cx";
+import { Overlay } from "./overlay";
 
 type ModalProps = {
   open: boolean;
@@ -13,6 +14,8 @@ type ModalProps = {
   children: React.ReactNode;
   footer?: React.ReactNode;
   widthClassName?: string;
+  /** A dialog in the middle of the screen, or a drawer along the right edge. */
+  side?: "center" | "right";
 };
 
 export function Modal({
@@ -23,38 +26,18 @@ export function Modal({
   children,
   footer,
   widthClassName = "max-w-2xl",
+  side = "center",
 }: ModalProps) {
   const titleId = useId();
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose, open]);
-
-  if (!open) {
-    return null;
-  }
-
+  const drawer = side === "right";
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-scrim p-4 backdrop-blur-sm">
-      <button aria-label="Close dialog" className="absolute inset-0 cursor-default" onClick={onClose} />
+    <Overlay open={open} onClose={onClose} labelledBy={titleId} placement={drawer ? "right" : "center"}>
       {/* Capped to the viewport with the body scrolling, so the title and the
           buttons stay on screen on a laptop however long the form is. */}
       <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
         className={cx(
-          "relative z-10 flex max-h-[calc(100vh-2rem)] w-full flex-col rounded-[28px] border border-line bg-[color:var(--panel-strong)] shadow-[var(--shadow-lg)]",
+          "relative z-10 flex w-full flex-col border border-line bg-[color:var(--panel-strong)] shadow-[var(--shadow-lg)]",
+          drawer ? "h-full rounded-l-[28px]" : "max-h-[calc(100vh-2rem)] rounded-[28px]",
           widthClassName,
         )}
       >
@@ -78,6 +61,6 @@ export function Modal({
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">{children}</div>
         {footer ? <div className="shrink-0 border-t border-line px-6 py-4">{footer}</div> : null}
       </div>
-    </div>
+    </Overlay>
   );
 }

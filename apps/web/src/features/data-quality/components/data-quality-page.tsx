@@ -11,15 +11,7 @@ import type {
   RuleSeverity,
   RuleTypeInfo,
 } from "@platform/shared-types";
-import {
-  Button,
-  FormField,
-  Input,
-  Modal,
-  SectionPanel,
-  Select,
-  StatusBadge,
-} from "@platform/shared-ui";
+import { Badge, Button, FormField, Input, Modal, SectionPanel, Select, StatusBadge, Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { apiFetch } from "@/lib/api/client";
@@ -315,19 +307,12 @@ export function DataQualityPageView({
                     <h3 className="text-ink text-sm font-semibold">
                       {rule.name}
                     </h3>
-                    <span className="border-line text-ink-3 rounded-full border px-2 py-0.5 text-[12px]">
+                    <Badge>
                       {ruleTypeLabel(rule.rule_type)}
-                    </span>
-                    <span
-                      className={cx(
-                        "rounded-full border px-2 py-0.5 text-[12px]",
-                        rule.severity === "error"
-                          ? "border-danger-line bg-danger-soft text-danger"
-                          : "border-warning-line bg-warning-soft text-warning",
-                      )}
-                    >
+                    </Badge>
+                    <Badge tone={rule.severity === "error" ? "danger" : "warning"}>
                       {severityShortLabel(rule.severity)}
-                    </span>
+                    </Badge>
                     {rule.last_status ? (
                       <StatusBadge
                         value={
@@ -418,33 +403,32 @@ export function DataQualityPageView({
               </div>
 
               <div className="border-line overflow-x-auto rounded-2xl border">
-                <table className="w-full min-w-max text-left text-xs">
-                  <thead className="bg-surface text-ink-3">
-                    <tr>
-                      <th className="cell-pad font-medium">Check</th>
-                      <th className="cell-pad font-medium">Type</th>
-                      <th className="cell-pad font-medium">Severity</th>
-                      <th className="cell-pad font-medium">Status</th>
-                      <th className="cell-pad font-medium">Failed</th>
-                      <th className="cell-pad font-medium">Detail</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-line divide-y">
+                <Table className="min-w-max">
+                  <TableHead>
+                    <TableRow>
+                      <TableHeaderCell>Check</TableHeaderCell>
+                      <TableHeaderCell>Type</TableHeaderCell>
+                      <TableHeaderCell>Severity</TableHeaderCell>
+                      <TableHeaderCell>Status</TableHeaderCell>
+                      <TableHeaderCell>Failed</TableHeaderCell>
+                      <TableHeaderCell>Detail</TableHeaderCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
                     {evaluation.results.map((result) => (
-                      <tr
-                        key={`${result.name}-${result.rule_type}`}
-                        className="text-ink-2"
+                      <TableRow
+                        key={`${result.name}-${result.rule_type}`} className="text-ink-2"
                       >
-                        <td className="cell-pad text-ink font-medium">
+                        <TableCell className="text-ink font-medium">
                           {result.name}
-                        </td>
-                        <td className="cell-pad">
+                        </TableCell>
+                        <TableCell>
                           {ruleTypeLabel(result.rule_type)}
-                        </td>
-                        <td className="cell-pad">
+                        </TableCell>
+                        <TableCell>
                           {severityShortLabel(result.severity)}
-                        </td>
-                        <td className="cell-pad">
+                        </TableCell>
+                        <TableCell>
                           <span
                             className={cx(
                               result.status === "passed"
@@ -454,20 +438,20 @@ export function DataQualityPageView({
                           >
                             {result.status === "passed" ? "Passed" : "Failed"}
                           </span>
-                        </td>
-                        <td className="cell-pad tabular">
+                        </TableCell>
+                        <TableCell className="tabular">
                           {result.failed_rows}
                           {result.failure_rate
                             ? ` (${result.failure_rate}%)`
                             : ""}
-                        </td>
-                        <td className="cell-pad text-ink-3 max-w-md">
+                        </TableCell>
+                        <TableCell className="text-ink-3 max-w-md">
                           {result.message}
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
 
               {evaluation.warnings.length > 0 ? (

@@ -3,7 +3,7 @@
 import Link from "next/link";
 
 import type { AuthUser, RunComparisonSummary } from "@platform/shared-types";
-import { SectionPanel, StatCard, StatusBadge } from "@platform/shared-ui";
+import { SectionPanel, StatTile, StatusBadge } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { formatNumber } from "@/lib/format";
@@ -53,22 +53,22 @@ export function RunComparisonPageView({ currentUser, projectId, comparison }: Ru
       }
     >
       <section className="grid gap-4 md:grid-cols-4">
-        <StatCard
+        <StatTile
           label="Rows before"
           value={formatNumber(comparison.row_count_before)}
           caption="From run summary when available."
         />
-        <StatCard
+        <StatTile
           label="Rows after"
           value={formatNumber(comparison.row_count_after)}
           caption="From run summary when available."
         />
-        <StatCard
+        <StatTile
           label="Columns before"
           value={formatNumber(comparison.column_count_before)}
           caption="Transformation summaries."
         />
-        <StatCard
+        <StatTile
           label="Columns after"
           value={formatNumber(comparison.column_count_after)}
           caption="Transformation summaries."

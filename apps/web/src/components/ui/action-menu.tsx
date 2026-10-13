@@ -3,9 +3,8 @@
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 
-import { buttonClassName } from "@platform/shared-ui";
+import { buttonClassName, Icon, type IconName } from "@platform/shared-ui";
 
-import { Icon, type IconName } from "@/components/ui/icon";
 import { cx } from "@/lib/utils";
 
 export type ActionMenuItem = {

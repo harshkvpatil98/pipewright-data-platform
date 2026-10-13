@@ -4,10 +4,10 @@ import { useCallback, useEffect, useState } from "react";
 
 import type { NodeDiff, RunDiff } from "@platform/shared-types";
 
-import { Icon } from "@/components/ui/icon";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { cx } from "@/lib/utils";
+import { Badge, type BadgeTone, Icon } from "@platform/shared-ui";
 
 type RunDiffPanelProps = {
   projectId: string;
@@ -16,14 +16,14 @@ type RunDiffPanelProps = {
   onClose: () => void;
 };
 
-const VERDICT_TONE: Record<NodeDiff["verdict"], string> = {
-  same: "border-line text-muted",
-  slower: "border-warning-line bg-warning-soft text-warning",
-  faster: "border-success-line bg-success-soft text-success",
-  status_changed: "border-danger-line bg-danger-soft text-danger",
-  output_changed: "border-accent-line bg-accent-soft text-accent",
-  added: "border-info-line bg-info-soft text-info",
-  removed: "border-line bg-surface-2 text-ink-2",
+const VERDICT_TONE: Record<NodeDiff["verdict"], BadgeTone> = {
+  same: "neutral",
+  slower: "warning",
+  faster: "success",
+  status_changed: "danger",
+  output_changed: "accent",
+  added: "info",
+  removed: "neutral",
 };
 
 const VERDICT_LABEL: Record<NodeDiff["verdict"], string> = {
@@ -114,14 +114,9 @@ export function RunDiffPanel({ projectId, leftRunId, rightRunId, onClose }: RunD
                   >
                     <div className="flex items-start justify-between gap-2">
                       <span className="truncate text-[12px] text-ink">{node.node_name}</span>
-                      <span
-                        className={cx(
-                          "shrink-0 rounded-full border px-1.5 py-0.5 text-[12px]",
-                          VERDICT_TONE[node.verdict],
-                        )}
-                      >
+                      <Badge tone={VERDICT_TONE[node.verdict]} className="shrink-0">
                         {VERDICT_LABEL[node.verdict]}
-                      </span>
+                      </Badge>
                     </div>
                     {node.left_status !== node.right_status ? (
                       <div className="mt-1 text-[12px] text-ink-3">

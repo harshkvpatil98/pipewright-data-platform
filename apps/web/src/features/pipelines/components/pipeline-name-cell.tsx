@@ -3,11 +3,10 @@
 import Link from "next/link";
 import { useState } from "react";
 
-import { useToast } from "@/components/providers/toast-provider";
-import { Icon } from "@/components/ui/icon";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { recipeHref } from "@/lib/navigation";
+import { Icon, useToast } from "@platform/shared-ui";
 
 type PipelineNameCellProps = {
   projectId: string;

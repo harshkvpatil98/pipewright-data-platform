@@ -4,10 +4,10 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { AuthUser, OperatorDatasetRow } from "@platform/shared-types";
-import { Button, Input, SectionPanel, buttonClassName } from "@platform/shared-ui";
+import { Badge, Button, buttonClassName, EmptyState, Input, SectionPanel, Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
-import { OperationalEmpty, OperationalError } from "@/components/operational/operational-messages";
+import { OperationalError } from "@/components/operational/operational-messages";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { formatDate } from "@/lib/format";
@@ -77,7 +77,7 @@ export function DatasetsSearchPageView({ currentUser, initialDatasets }: Dataset
         }
       >
         {datasets.length === 0 ? (
-          <OperationalEmpty
+          <EmptyState size="compact"
             title="No datasets found"
             description={query.trim() ? "No dataset matches that name." : "Datasets appear here once you add data to a project."}
             action={
@@ -94,51 +94,49 @@ export function DatasetsSearchPageView({ currentUser, initialDatasets }: Dataset
           />
         ) : (
           <div className="overflow-hidden rounded-[24px] border border-line bg-sunken">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] border-collapse text-left text-sm text-ink">
-                <thead className="border-b border-line text-xs text-muted">
-                  <tr>
-                    <th className="py-2 pr-3 font-medium">Dataset</th>
-                    <th className="py-2 pr-3 font-medium">Project</th>
-                    <th className="py-2 pr-3 font-medium">Rows</th>
-                    <th className="py-2 pr-3 font-medium">Type</th>
-                    <th className="py-2 font-medium">Added</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {datasets.map((dataset) => (
-                    <tr key={dataset.id} className="border-b border-line">
-                      <td className="py-2 pr-3">
-                        <Link
-                          href={`/projects/${dataset.project_id}/datasets/${dataset.id}`}
-                          className="font-medium text-ink hover:text-accent"
-                        >
-                          {dataset.name}
-                        </Link>
-                        {dataset.is_derived ? (
-                          <span className="ml-2 rounded bg-surface-2 px-1.5 py-0.5 text-[12px] text-ink-3">
-                            derived
-                          </span>
-                        ) : null}
-                      </td>
-                      <td className="py-2 pr-3">
-                        <Link
-                          href={`/projects/${dataset.project_id}`}
-                          className="text-ink-2 hover:text-accent"
-                        >
-                          {dataset.project_name}
-                        </Link>
-                      </td>
-                      <td className="py-2 pr-3 tabular-nums text-ink-3">
-                        {dataset.row_count?.toLocaleString() ?? "—"}
-                      </td>
-                      <td className="py-2 pr-3 text-ink-3">{dataset.file_type ?? "—"}</td>
-                      <td className="py-2 text-xs text-ink-3">{formatDate(dataset.created_at)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <Table minWidth={720}>
+              <TableHead>
+                <TableRow>
+                  <TableHeaderCell>Dataset</TableHeaderCell>
+                  <TableHeaderCell>Project</TableHeaderCell>
+                  <TableHeaderCell>Rows</TableHeaderCell>
+                  <TableHeaderCell>Type</TableHeaderCell>
+                  <TableHeaderCell>Added</TableHeaderCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {datasets.map((dataset) => (
+                  <TableRow key={dataset.id}>
+                    <TableCell>
+                      <Link
+                        href={`/projects/${dataset.project_id}/datasets/${dataset.id}`}
+                        className="font-medium text-ink hover:text-accent"
+                      >
+                        {dataset.name}
+                      </Link>
+                      {dataset.is_derived ? (
+                        <Badge className="ml-2">
+                          derived
+                        </Badge>
+                      ) : null}
+                    </TableCell>
+                    <TableCell>
+                      <Link
+                        href={`/projects/${dataset.project_id}`}
+                        className="text-ink-2 hover:text-accent"
+                      >
+                        {dataset.project_name}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="tabular-nums text-ink-3">
+                      {dataset.row_count?.toLocaleString() ?? "—"}
+                    </TableCell>
+                    <TableCell className="text-ink-3">{dataset.file_type ?? "—"}</TableCell>
+                    <TableCell className="text-xs text-ink-3">{formatDate(dataset.created_at)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
         )}
       </SectionPanel>

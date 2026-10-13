@@ -2,9 +2,8 @@
 
 import { useState } from "react";
 
-import { Button, FormField, Input } from "@platform/shared-ui";
+import { Button, FormField, Input, useToast } from "@platform/shared-ui";
 
-import { useToast } from "@/components/providers/toast-provider";
 import { apiFetch } from "@/lib/api/client";
 import { clearAccessToken } from "@/lib/auth/session";
 import { extractErrorMessage } from "@/lib/api/errors";

@@ -4,7 +4,16 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import type { AuthUser, HealthLiveResponse, PlatformStatusResponse } from "@platform/shared-types";
-import { SectionPanel } from "@platform/shared-ui";
+import {
+  Badge,
+  SectionPanel,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeaderCell,
+  TableRow,
+} from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { serviceLabel } from "@/lib/service-labels";
@@ -45,12 +54,12 @@ function ModuleDetails({ details }: { details: Record<string, unknown> }) {
     <div className="space-y-1.5">
       <div className="flex flex-wrap gap-1.5">
         {chips.map((chip) => (
-          <span
+          <Badge
             key={chip}
-            className="rounded-md border border-line bg-surface px-1.5 py-0.5 font-sans text-[12px] text-ink-2"
+            className="font-sans"
           >
             {chip}
-          </span>
+          </Badge>
         ))}
         <button
           type="button"
@@ -124,56 +133,54 @@ function RuntimePanel({ platform }: { platform: PlatformStatusResponse }) {
       </div>
 
       <div className="overflow-hidden rounded-[24px] border border-line bg-sunken">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[560px] border-collapse text-left text-sm text-ink">
-            <thead className="border-b border-line text-xs text-muted">
-              <tr>
-                <th className="py-2 pr-3 font-medium">Component</th>
-                <th className="py-2 pr-3 font-medium">State</th>
-                <th className="py-2 pr-3 font-medium">Last heartbeat</th>
-                <th className="py-2 font-medium">Host</th>
-              </tr>
-            </thead>
-            <tbody>
-              {runtime.components.map((component) => {
-                const key = `${component.component}:${component.host ?? "—"}`;
-                const stateLabel =
-                  component.status === "absent"
-                    ? "not running"
-                    : component.healthy
-                      ? "running"
-                      : component.status === "stopping"
-                        ? "stopping"
-                        : "no recent beat";
-                return (
-                  <tr key={key} className="border-b border-line">
-                    <td className="py-2 pr-3 text-ink-2">
-                      {COMPONENT_LABELS[component.component] ?? component.component}
-                    </td>
-                    <td className="py-2 pr-3">
+        <Table minWidth={560}>
+          <TableHead>
+            <TableRow>
+              <TableHeaderCell>Component</TableHeaderCell>
+              <TableHeaderCell>State</TableHeaderCell>
+              <TableHeaderCell>Last heartbeat</TableHeaderCell>
+              <TableHeaderCell>Host</TableHeaderCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {runtime.components.map((component) => {
+              const key = `${component.component}:${component.host ?? "—"}`;
+              const stateLabel =
+                component.status === "absent"
+                  ? "not running"
+                  : component.healthy
+                    ? "running"
+                    : component.status === "stopping"
+                      ? "stopping"
+                      : "no recent beat";
+              return (
+                <TableRow key={key}>
+                  <TableCell className="text-ink-2">
+                    {COMPONENT_LABELS[component.component] ?? component.component}
+                  </TableCell>
+                  <TableCell>
+                    <span
+                      className={`inline-flex items-center gap-1.5 rounded-lg border px-2 py-0.5 text-[12px] font-semibold ${toneClasses(
+                        component.healthy ? "success" : "danger",
+                      )}`}
+                    >
                       <span
-                        className={`inline-flex items-center gap-1.5 rounded-lg border px-2 py-0.5 text-[12px] font-semibold ${toneClasses(
-                          component.healthy ? "success" : "danger",
-                        )}`}
-                      >
-                        <span
-                          className={`h-1.5 w-1.5 rounded-full ${
-                            component.healthy ? "bg-success" : "bg-danger"
-                          }`}
-                        />
-                        {stateLabel}
-                      </span>
-                    </td>
-                    <td className="py-2 pr-3 text-xs text-ink-3">
-                      {formatAge(component.age_seconds)}
-                    </td>
-                    <td className="py-2 font-mono text-xs text-ink-3">{component.host ?? "—"}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                        className={`h-1.5 w-1.5 rounded-full ${
+                          component.healthy ? "bg-success" : "bg-danger"
+                        }`}
+                      />
+                      {stateLabel}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-xs text-ink-3">
+                    {formatAge(component.age_seconds)}
+                  </TableCell>
+                  <TableCell className="font-mono text-xs text-ink-3">{component.host ?? "—"}</TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
       </div>
     </SectionPanel>
   );
@@ -289,37 +296,35 @@ export function SystemStatusPage({ currentUser }: { currentUser?: AuthUser | nul
           description="Per-domain health signals and safe counters. Readiness still requires POST /health/ready for orchestrators."
         >
           <div className="overflow-hidden rounded-[24px] border border-line bg-sunken">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px] border-collapse text-left text-sm text-ink">
-                <thead className="border-b border-line text-xs text-muted">
-                  <tr>
-                    <th className="py-2 pr-3 font-medium">Module</th>
-                    <th className="py-2 pr-3 font-medium">Status</th>
-                    <th className="py-2 font-medium">Details</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {platform.services.map((s) => (
-                    <tr key={s.name} className="border-b border-line">
-                      <td className="py-2 pr-3">
-                        <div className="text-[13px] text-ink">{serviceLabel(s.name)}</div>
-                        <div className="font-mono text-[12px] text-muted">{s.name}</div>
-                      </td>
-                      <td className="py-2 pr-3">
-                        <span
-                          className={`rounded-lg border px-2 py-0.5 text-[12px] font-semibold ${toneClasses(serviceHealthTone(s.status))}`}
-                        >
-                          {s.status}
-                        </span>
-                      </td>
-                      <td className="py-2 text-xs text-ink-3">
-                        <ModuleDetails details={s.details} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <Table minWidth={640}>
+              <TableHead>
+                <TableRow>
+                  <TableHeaderCell>Module</TableHeaderCell>
+                  <TableHeaderCell>Status</TableHeaderCell>
+                  <TableHeaderCell>Details</TableHeaderCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {platform.services.map((s) => (
+                  <TableRow key={s.name}>
+                    <TableCell>
+                      <div className="text-[13px] text-ink">{serviceLabel(s.name)}</div>
+                      <div className="font-mono text-[12px] text-muted">{s.name}</div>
+                    </TableCell>
+                    <TableCell>
+                      <span
+                        className={`rounded-lg border px-2 py-0.5 text-[12px] font-semibold ${toneClasses(serviceHealthTone(s.status))}`}
+                      >
+                        {s.status}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-xs text-ink-3">
+                      <ModuleDetails details={s.details} />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
         </SectionPanel>
       ) : null}

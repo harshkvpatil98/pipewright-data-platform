@@ -3,9 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
-import { buttonClassName } from "@platform/shared-ui";
+import { buttonClassName, Icon } from "@platform/shared-ui";
 
-import { Icon } from "@/components/ui/icon";
 import { apiFetch } from "@/lib/api/client";
 import { cx } from "@/lib/utils";
 

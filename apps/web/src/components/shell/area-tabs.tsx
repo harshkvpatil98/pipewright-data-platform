@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
-import { Icon } from "@/components/ui/icon";
 import { tabHref, visibleTabs, type NavArea, type NavTab } from "@/lib/navigation";
 import { cx } from "@/lib/utils";
+import { Icon } from "@platform/shared-ui";
 
 type AreaTabsProps = {
   area: NavArea;
@@ -108,6 +108,7 @@ function AboutThisPage({ tab }: { tab: NavTab }) {
         data-tour="about-page"
         onClick={() => setOpen((current) => !current)}
         aria-expanded={open}
+        aria-controls="about-this-page"
         aria-label="About this page"
         title="About this page"
         className={cx(
@@ -120,7 +121,8 @@ function AboutThisPage({ tab }: { tab: NavTab }) {
       </button>
       {open ? (
         <div
-          role="dialog"
+          id="about-this-page"
+          role="region"
           aria-label={`About ${tab.label}`}
           className="animate-fade-up absolute right-0 top-10 z-40 w-80 rounded-xl border border-line bg-[color:var(--panel-strong)] p-4 shadow-[var(--shadow-lg)]"
         >

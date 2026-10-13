@@ -5,10 +5,9 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import type { AuthUser } from "@platform/shared-types";
-import { LogoMark, Modal } from "@platform/shared-ui";
+import { Icon, type IconName, LogoMark, Modal } from "@platform/shared-ui";
 
 import { ProjectSwitcher } from "@/components/shell/project-switcher";
-import { Icon, type IconName } from "@/components/ui/icon";
 import { Tooltip } from "@/components/ui/tooltip";
 import { ThemeToggle } from "@/features/preferences/components/appearance-controls";
 import { brand } from "@/lib/brand";

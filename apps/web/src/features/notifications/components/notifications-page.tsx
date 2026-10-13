@@ -4,10 +4,10 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import type { AuthUser, UserNotificationListResponse, UserNotificationRecord } from "@platform/shared-types";
-import { Button, SectionPanel, buttonClassName } from "@platform/shared-ui";
+import { Badge, Button, buttonClassName, EmptyState, SectionPanel } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
-import { OperationalEmpty, OperationalLoading } from "@/components/operational/operational-messages";
+import { OperationalLoading } from "@/components/operational/operational-messages";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { formatDate } from "@/lib/format";
@@ -107,7 +107,7 @@ export function NotificationsPage({ currentUser }: NotificationsPageProps) {
         {!data ? (
           <OperationalLoading message="Loading notifications…" />
         ) : data.items.length === 0 ? (
-          <OperationalEmpty
+          <EmptyState size="compact"
             title="Nothing new"
             description="Failures, finished reports and mentions of you appear here."
             action={
@@ -134,9 +134,9 @@ export function NotificationsPage({ currentUser }: NotificationsPageProps) {
                         {n.title}
                       </span>
                       {!isSummary && count > 1 ? (
-                        <span className="rounded-full border border-line px-2 py-0.5 text-[12px] text-ink-3">
+                        <Badge>
                           {count} times
-                        </span>
+                        </Badge>
                       ) : null}
                       <span className="text-[12px] text-muted">
                         {isSummary ? "Daily summary" : formatNotificationEventLabel(n.type)}

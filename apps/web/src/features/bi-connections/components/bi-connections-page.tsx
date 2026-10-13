@@ -12,7 +12,19 @@ import type {
   BiIntegrationUpdatePayload,
   DestinationTestResult,
 } from "@platform/shared-types";
-import { Button, FormField, Modal, SectionPanel, Select } from "@platform/shared-ui";
+import {
+  Button,
+  FormField,
+  Modal,
+  SectionPanel,
+  Select,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeaderCell,
+  TableRow,
+} from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { DeleteRowButton } from "@/components/ui/delete-row-button";
@@ -479,31 +491,31 @@ export function BiConnectionsPageView({ currentUser, projectId, initialItems }: 
             </div>
           ) : null}
           <div className="overflow-x-auto rounded-2xl border border-line">
-            <table className="min-w-full divide-y divide-line text-left text-sm text-ink">
-              <thead className="bg-surface text-xs text-ink-3">
-                <tr>
-                  <th className="cell-pad">Name</th>
-                  <th className="cell-pad">Type</th>
-                  <th className="cell-pad">Status</th>
-                  <th className="cell-pad">Created</th>
-                  <th className="cell-pad text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line">
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableHeaderCell>Name</TableHeaderCell>
+                  <TableHeaderCell>Type</TableHeaderCell>
+                  <TableHeaderCell>Status</TableHeaderCell>
+                  <TableHeaderCell>Created</TableHeaderCell>
+                  <TableHeaderCell className="text-right">Actions</TableHeaderCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
                 {items.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="cell-pad text-center text-muted">
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center text-muted">
                       No BI connections yet. Create one to publish datasets to Power BI or Tableau from dataset detail.
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ) : (
                   items.map((row) => (
-                    <tr key={row.id} className="hover:bg-surface">
-                      <td className="cell-pad font-medium text-ink">{row.name}</td>
-                      <td className="cell-pad">{integrationLabel(row.integration_type)}</td>
-                      <td className="cell-pad">{titleCase(row.status)}</td>
-                      <td className="cell-pad text-ink-3">{formatDate(row.created_at)}</td>
-                      <td className="cell-pad text-right">
+                    <TableRow key={row.id}>
+                      <TableCell className="font-medium text-ink">{row.name}</TableCell>
+                      <TableCell>{integrationLabel(row.integration_type)}</TableCell>
+                      <TableCell>{titleCase(row.status)}</TableCell>
+                      <TableCell className="text-ink-3">{formatDate(row.created_at)}</TableCell>
+                      <TableCell className="text-right">
                         <div className="flex flex-wrap justify-end gap-2">
                           <Button variant="secondary" size="sm" onClick={() => openEdit(row)}>
                             Edit
@@ -534,12 +546,12 @@ export function BiConnectionsPageView({ currentUser, projectId, initialItems }: 
                             }
                           />
                         </div>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))
                 )}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </SectionPanel>
       </AppShell>

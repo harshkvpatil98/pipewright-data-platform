@@ -6,6 +6,14 @@ import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 
 import { toConfig, type Tool } from "./tool-catalogue";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeaderCell,
+  TableRow,
+} from "@platform/shared-ui";
 
 type Preview = { columns: string[]; rows: Record<string, unknown>[]; warnings: string[] };
 
@@ -118,24 +126,24 @@ export function ToolPreview({
       ) : preview && target ? (
         <>
           <div className="overflow-x-auto rounded-lg border border-line">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-line text-left text-muted">
-                  <th className="cell-pad font-normal">{column}</th>
-                  <th className="cell-pad font-normal">{target}</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table>
+              <TableHead>
+                <TableRow className="text-muted">
+                  <TableHeaderCell className="font-normal">{column}</TableHeaderCell>
+                  <TableHeaderCell className="font-normal">{target}</TableHeaderCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
                 {preview.rows.map((row, index) => (
-                  <tr key={index} className="border-b border-line last:border-0">
-                    <td className="cell-pad font-mono text-ink-2">
+                  <TableRow key={index}>
+                    <TableCell className="font-mono text-ink-2">
                       {render(sample[index]?.[column ?? ""])}
-                    </td>
-                    <td className="cell-pad font-mono text-ink">{render(row[target])}</td>
-                  </tr>
+                    </TableCell>
+                    <TableCell className="font-mono text-ink">{render(row[target])}</TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
           {preview.warnings.map((warning) => (
             <p key={warning} className="mt-2 text-xs text-[color:var(--warning)]">

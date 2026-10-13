@@ -1,3 +1,5 @@
+import type { BadgeTone } from "@platform/shared-ui";
+
 /**
  * The product's vocabulary, in the buyer's language.
  *
@@ -190,4 +192,11 @@ const TRIGGER_LABELS: Record<string, string> = {
 export function triggerLabel(raw: string | null | undefined): string {
   if (!raw) return "";
   return TRIGGER_LABELS[raw] ?? sentenceLabel(raw);
+}
+
+/** How a connector tier reads: tested ones in green, unverified in amber (A6 owns the wording). */
+export function tierTone(tier: number | undefined): BadgeTone {
+  if (tier === 1 || tier === 2) return "success";
+  if (tier === 3) return "neutral";
+  return "warning";
 }

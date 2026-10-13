@@ -1,7 +1,6 @@
 "use client";
 
-import { Button, Modal } from "@platform/shared-ui";
-import { useToast } from "@/components/providers/toast-provider";
+import { Button, Modal, useToast } from "@platform/shared-ui";
 import type { OneTimeCode } from "@platform/shared-types";
 
 /**

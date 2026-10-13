@@ -1,4 +1,4 @@
-import type { IconName } from "@/components/ui/icon";
+import { type IconName } from "@platform/shared-ui";
 
 /**
  * The built-in steps, as the Studio's "Add a step" palette and step settings

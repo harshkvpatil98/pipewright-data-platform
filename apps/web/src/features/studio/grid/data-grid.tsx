@@ -58,6 +58,7 @@ import {
   typeGlyph,
   type GridPalette,
 } from "@/features/studio/grid/grid-theme";
+import { Badge } from "@platform/shared-ui";
 
 export type GridColumn = {
   name: string;
@@ -889,9 +890,9 @@ export function DataGrid({
         <span className="tabular">{columns.length} columns</span>
         {selectedCount > 1 ? <span className="tabular">{selectedCount.toLocaleString()} selected</span> : null}
         {stale ? (
-          <span className="rounded bg-warning-soft px-1.5 py-0.5 text-warning">
+          <Badge tone="warning">
             Showing the last result that ran
-          </span>
+          </Badge>
         ) : null}
         <span className="ml-auto tabular">
           R{selection.focus.row + 1} · C{selection.focus.column + 1}

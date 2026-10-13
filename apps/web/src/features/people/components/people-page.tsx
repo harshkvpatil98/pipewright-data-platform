@@ -2,12 +2,27 @@
 
 import { useMemo, useState } from "react";
 
-import { Button, EmptyState, FormField, Input, Modal, SectionPanel, Select, StatCard } from "@platform/shared-ui";
+import {
+  Button,
+  EmptyState,
+  FormField,
+  Icon,
+  Input,
+  Modal,
+  SectionPanel,
+  Select,
+  StatTile,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeaderCell,
+  TableRow,
+} from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
 import { OneTimeCodeModal } from "@/components/ui/one-time-code-modal";
-import { Icon } from "@/components/ui/icon";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { formatDate } from "@/lib/format";
@@ -142,9 +157,9 @@ export function PeoplePageView({ currentUser, users: initialUsers }: PeoplePageV
         }
       >
         <section className="grid gap-4 md:grid-cols-3">
-          <StatCard label="Accounts" value={String(users.length)} caption="Everyone who has ever been given access." />
-          <StatCard label="Active" value={String(activeCount)} caption="Accounts that can sign in right now." />
-          <StatCard
+          <StatTile label="Accounts" value={String(users.length)} caption="Everyone who has ever been given access." />
+          <StatTile label="Active" value={String(activeCount)} caption="Accounts that can sign in right now." />
+          <StatTile
             label="Platform admins"
             value={String(adminCount)}
             caption="The last active admin cannot be deactivated, demoted or deleted."
@@ -194,106 +209,104 @@ export function PeoplePageView({ currentUser, users: initialUsers }: PeoplePageV
               }
             />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] text-left text-sm">
-                <thead className="text-[12px] text-muted">
-                  <tr className="border-b border-line">
-                    <th className="py-2 pr-4">Username</th>
-                    <th className="py-2 pr-4">Platform role</th>
-                    <th className="py-2 pr-4">Status</th>
-                    <th className="py-2 pr-4">Created</th>
-                    <th className="py-2 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((user) => {
-                    const isSelf = user.id === currentUser.id;
-                    const busy = busyId === user.id;
-                    return (
-                      <tr key={user.id} className="border-b border-line">
-                        <td className="py-3 pr-4 font-medium text-ink">
-                          {user.display_name || user.username}
-                          {user.display_name ? (
-                            <span className="ml-2 text-[12px] text-muted">{user.username}</span>
-                          ) : null}
-                          {isSelf ? <span className="ml-2 text-[12px] text-muted">(you)</span> : null}
-                        </td>
-                        <td className="py-3 pr-4">
-                          <select
-                            value={user.role}
-                            aria-label={`Platform role for ${user.username}`}
+            <Table minWidth={720}>
+              <TableHead>
+                <TableRow>
+                  <TableHeaderCell>Username</TableHeaderCell>
+                  <TableHeaderCell>Platform role</TableHeaderCell>
+                  <TableHeaderCell>Status</TableHeaderCell>
+                  <TableHeaderCell>Created</TableHeaderCell>
+                  <TableHeaderCell className="text-right">Actions</TableHeaderCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {filtered.map((user) => {
+                  const isSelf = user.id === currentUser.id;
+                  const busy = busyId === user.id;
+                  return (
+                    <TableRow key={user.id}>
+                      <TableCell className="font-medium text-ink">
+                        {user.display_name || user.username}
+                        {user.display_name ? (
+                          <span className="ml-2 text-[12px] text-muted">{user.username}</span>
+                        ) : null}
+                        {isSelf ? <span className="ml-2 text-[12px] text-muted">(you)</span> : null}
+                      </TableCell>
+                      <TableCell>
+                        <select
+                          value={user.role}
+                          aria-label={`Platform role for ${user.username}`}
+                          disabled={!isPlatformAdmin || isSelf || busy}
+                          onChange={(event) =>
+                            void patch(
+                              user,
+                              { role: event.target.value },
+                              `${user.username} is now ${event.target.value}.`,
+                            )
+                          }
+                          className="h-8 rounded-lg border border-line bg-sunken px-2 text-[12px] text-ink outline-none disabled:opacity-50"
+                        >
+                          {PLATFORM_ROLES.map((role) => (
+                            <option key={role} value={role}>
+                              {role}
+                            </option>
+                          ))}
+                        </select>
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={`rounded-full border px-2.5 py-1 text-[12px] font-semibold ${
+                            user.is_active
+                              ? "border-success-line bg-success-soft text-success"
+                              : "border-line bg-surface-2 text-ink-2"
+                          }`}
+                        >
+                          {user.is_active ? "Active" : "Deactivated"}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-xs text-ink-3">{formatDate(user.created_at)}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap justify-end gap-2">
+                          <Button
+                            variant="secondary"
+                            size="sm"
                             disabled={!isPlatformAdmin || isSelf || busy}
-                            onChange={(event) =>
+                            onClick={() =>
                               void patch(
                                 user,
-                                { role: event.target.value },
-                                `${user.username} is now ${event.target.value}.`,
+                                { is_active: !user.is_active },
+                                user.is_active
+                                  ? `${user.username} can no longer sign in.`
+                                  : `${user.username} can sign in again.`,
                               )
                             }
-                            className="h-8 rounded-lg border border-line bg-sunken px-2 text-[12px] text-ink outline-none disabled:opacity-50"
                           >
-                            {PLATFORM_ROLES.map((role) => (
-                              <option key={role} value={role}>
-                                {role}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-                        <td className="py-3 pr-4">
-                          <span
-                            className={`rounded-full border px-2.5 py-1 text-[12px] font-semibold ${
-                              user.is_active
-                                ? "border-success-line bg-success-soft text-success"
-                                : "border-line bg-surface-2 text-ink-2"
-                            }`}
+                            {busy ? "Saving…" : user.is_active ? "Deactivate" : "Reactivate"}
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            disabled={!isPlatformAdmin || busy}
+                            onClick={() => void generateResetCode(user)}
                           >
-                            {user.is_active ? "Active" : "Deactivated"}
-                          </span>
-                        </td>
-                        <td className="py-3 pr-4 text-xs text-ink-3">{formatDate(user.created_at)}</td>
-                        <td className="py-3">
-                          <div className="flex flex-wrap justify-end gap-2">
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              disabled={!isPlatformAdmin || isSelf || busy}
-                              onClick={() =>
-                                void patch(
-                                  user,
-                                  { is_active: !user.is_active },
-                                  user.is_active
-                                    ? `${user.username} can no longer sign in.`
-                                    : `${user.username} can sign in again.`,
-                                )
-                              }
-                            >
-                              {busy ? "Saving…" : user.is_active ? "Deactivate" : "Reactivate"}
-                            </Button>
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              disabled={!isPlatformAdmin || busy}
-                              onClick={() => void generateResetCode(user)}
-                            >
-                              Reset code
-                            </Button>
-                            <button
-                              type="button"
-                              disabled={!isPlatformAdmin || isSelf || busy}
-                              onClick={() => setDeleting(user)}
-                              aria-label={`Delete ${user.username}`}
-                              className="rounded-lg border border-line p-1.5 text-muted transition hover:border-danger-line hover:text-danger disabled:opacity-40 disabled:hover:border-line disabled:hover:text-muted"
-                            >
-                              <Icon name="trash" size={12} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                            Reset code
+                          </Button>
+                          <button
+                            type="button"
+                            disabled={!isPlatformAdmin || isSelf || busy}
+                            onClick={() => setDeleting(user)}
+                            aria-label={`Delete ${user.username}`}
+                            className="rounded-lg border border-line p-1.5 text-muted transition hover:border-danger-line hover:text-danger disabled:opacity-40 disabled:hover:border-line disabled:hover:text-muted"
+                          >
+                            <Icon name="trash" size={12} />
+                          </button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
           )}
         </SectionPanel>
       </AppShell>

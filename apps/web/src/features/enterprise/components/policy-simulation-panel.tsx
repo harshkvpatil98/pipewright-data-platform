@@ -9,7 +9,17 @@ import type {
   SecurityPolicy,
   SecurityPreview,
 } from "@platform/shared-types";
-import { Button, SectionPanel } from "@platform/shared-ui";
+import {
+  Badge,
+  Button,
+  SectionPanel,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeaderCell,
+  TableRow,
+} from "@platform/shared-ui";
 
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
@@ -171,14 +181,14 @@ export function PolicySimulationPanel({
           {result.columns_removed.length > 0 || result.columns_masked.length > 0 ? (
             <div className="flex flex-wrap gap-1.5">
               {result.columns_removed.map((c) => (
-                <span key={`r-${c}`} className="rounded-md border border-danger-line bg-danger-soft px-2 py-0.5 text-[12px] text-danger">
+                <Badge key={`r-${c}`} tone="danger">
                   {c} removed
-                </span>
+                </Badge>
               ))}
               {result.columns_masked.map((c) => (
-                <span key={`m-${c}`} className="rounded-md border border-warning-line bg-warning-soft px-2 py-0.5 text-[12px] text-warning">
+                <Badge key={`m-${c}`} tone="warning">
                   {c} masked
-                </span>
+                </Badge>
               ))}
             </div>
           ) : (
@@ -187,26 +197,24 @@ export function PolicySimulationPanel({
 
           {result.sample_rows.length > 0 ? (
             <div className="overflow-hidden rounded-xl border border-line bg-sunken">
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-left text-[12px] text-ink">
-                  <thead className="border-b border-line text-[12px] text-muted">
-                    <tr>
-                      {Object.keys(result.sample_rows[0]).map((key) => (
-                        <th key={key} className="px-2 py-1.5 font-medium">{key}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {result.sample_rows.map((row, index) => (
-                      <tr key={index} className="border-b border-line">
-                        {Object.keys(result.sample_rows[0]).map((key) => (
-                          <td key={key} className="px-2 py-1.5 text-ink-2">{String(row[key] ?? "—")}</td>
-                        ))}
-                      </tr>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    {Object.keys(result.sample_rows[0]).map((key) => (
+                      <TableHeaderCell key={key}>{key}</TableHeaderCell>
                     ))}
-                  </tbody>
-                </table>
-              </div>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {result.sample_rows.map((row, index) => (
+                    <TableRow key={index}>
+                      {Object.keys(result.sample_rows[0]).map((key) => (
+                        <TableCell key={key} className="text-ink-2">{String(row[key] ?? "—")}</TableCell>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           ) : null}
         </div>

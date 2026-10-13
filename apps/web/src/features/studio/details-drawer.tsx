@@ -2,11 +2,10 @@
 
 import { useEffect, useState } from "react";
 
-import { Icon } from "@/components/ui/icon";
 import { RecipeYamlPanel } from "@/features/studio/recipe-yaml-panel";
 import { DiscussionPanel } from "@/features/team/components/discussion-panel";
 import { typeLabel } from "@/lib/labels";
-import { cx } from "@/lib/utils";
+import { Badge, Icon, Tabs } from "@platform/shared-ui";
 
 export type ExecutionPlan = {
   source_type: string;
@@ -69,33 +68,18 @@ export function DetailsDrawer({ open, onClose, columns, plan, steps, onApplyFile
           <Icon name="close" size={15} />
         </button>
       </div>
-      <div role="tablist" className="flex shrink-0 gap-0.5 overflow-x-auto border-b border-line px-2">
-        {(
-          [
-            ["columns", "Columns"],
-            ["runs", "Where it runs"],
-            ["file", "File"],
-            ["comments", "Comments"],
-          ] as [Tab, string][]
-        ).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={tab === id}
-            onClick={() => setTab(id)}
-            className={cx(
-              "relative h-10 shrink-0 whitespace-nowrap px-2 text-[13px] transition",
-              tab === id ? "font-medium text-ink" : "text-ink-3 hover:text-ink",
-            )}
-          >
-            {label}
-            {tab === id ? (
-              <span className="absolute inset-x-2 bottom-0 h-[2px] rounded-full bg-[color:var(--accent)]" aria-hidden="true" />
-            ) : null}
-          </button>
-        ))}
-      </div>
+      <Tabs<Tab>
+        label="Recipe details"
+        className="shrink-0 px-2"
+        value={tab}
+        onChange={setTab}
+        items={[
+          { id: "columns", label: "Columns" },
+          { id: "runs", label: "Where it runs" },
+          { id: "file", label: "File" },
+          { id: "comments", label: "Comments" },
+        ]}
+      />
 
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
         {tab === "columns" ? (
@@ -177,14 +161,9 @@ function PlanDetail({ plan }: { plan: ExecutionPlan | null }) {
       <ul className="space-y-1.5">
         {plan.placements.map((placement, index) => (
           <li key={`${placement.node}-${index}`} className="flex items-start gap-2">
-            <span
-              className={cx(
-                "mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-[12px]",
-                placement.pushed ? "bg-success-soft text-success" : "bg-surface-2 text-ink-3",
-              )}
-            >
+            <Badge tone={placement.pushed ? "success" : "neutral"} className="mt-0.5 shrink-0">
               {placement.pushed ? "In source" : "Here"}
-            </span>
+            </Badge>
             <span className="min-w-0">
               <span className="text-ink">{placement.node}</span>
               <span className="text-ink-3">: {placement.reason}</span>

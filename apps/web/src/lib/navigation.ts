@@ -1,3 +1,4 @@
+import { type IconName } from "@platform/shared-ui";
 /**
  * The one navigation tree.
  *
@@ -13,7 +14,6 @@
  * route in `src/app` and fails if one is left out.
  */
 
-import type { IconName } from "@/components/ui/icon";
 
 export type Persona = "data owner" | "operator" | "administrator";
 

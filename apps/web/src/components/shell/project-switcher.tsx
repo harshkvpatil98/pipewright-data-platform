@@ -6,10 +6,10 @@ import { usePathname } from "next/navigation";
 
 import type { ProjectSummary } from "@platform/shared-types";
 
-import { Icon, type IconName } from "@/components/ui/icon";
 import { locate } from "@/lib/navigation";
 import type { ActiveProject } from "@/lib/use-active-project";
 import { cx } from "@/lib/utils";
+import { Icon, type IconName } from "@platform/shared-ui";
 
 type ProjectSwitcherProps = {
   active: ActiveProject | null;

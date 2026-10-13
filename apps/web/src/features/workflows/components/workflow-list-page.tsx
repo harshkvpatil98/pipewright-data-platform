@@ -9,14 +9,12 @@ import type {
   WorkflowDetail,
   WorkflowSummary,
 } from "@platform/shared-types";
-import { Button, EmptyState, Modal, StatusBadge } from "@platform/shared-ui";
+import { Badge, Button, EmptyState, Icon, Modal, StatusBadge, useToast } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
-import { useToast } from "@/components/providers/toast-provider";
 import { RuntimeBanner } from "@/components/ui/runtime-banner";
 import { describeCron } from "@/lib/cron-words";
 import { humanDuration } from "@/lib/runtime-health";
-import { Icon } from "@/components/ui/icon";
 import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
@@ -298,13 +296,12 @@ export function WorkflowListPage({
                   </span>
                   {workflow.trigger_type === "cron" &&
                   workflow.cron_expression ? (
-                    <span
-                      className="border-line text-ink-3 rounded-full border px-2 py-0.5 text-[12px]"
+                    <Badge
                       title={workflow.cron_expression}
                     >
                       {describeCron(workflow.cron_expression)}
                       {workflow.enabled ? "" : " · paused"}
-                    </span>
+                    </Badge>
                   ) : null}
                   {workflow.last_run_status ? (
                     <StatusBadge value={workflow.last_run_status} />

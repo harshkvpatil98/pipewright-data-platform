@@ -2,14 +2,13 @@
 
 import { useEffect, useState } from "react";
 
-import { Button, FormField, Input } from "@platform/shared-ui";
+import { Badge, Button, FormField, Input, useToast } from "@platform/shared-ui";
 import type {
   MfaEnrollResponse,
   MfaRecoveryCodesResponse,
   MfaStatus,
 } from "@platform/shared-types";
 
-import { useToast } from "@/components/providers/toast-provider";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 
@@ -187,9 +186,9 @@ export function MfaPanel() {
     return (
       <div className="space-y-4">
         <div className="flex items-center gap-2 text-[13px] text-ink-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-success-line bg-success-soft px-2.5 py-0.5 text-[12px] font-medium text-success">
+          <Badge tone="success">
             On
-          </span>
+          </Badge>
           <span>{status.recovery_codes_remaining} recovery code(s) left.</span>
         </div>
         <p className="text-[13px] leading-6 text-ink-3">

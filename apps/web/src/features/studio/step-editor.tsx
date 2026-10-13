@@ -2,7 +2,6 @@
 
 import { useId, useRef } from "react";
 
-import { Icon } from "@/components/ui/icon";
 import {
   AGGREGATION_FUNCTIONS,
   CAST_TYPE_LABELS,
@@ -14,6 +13,7 @@ import {
   type StepField,
 } from "@/features/studio/step-catalog";
 import { cx } from "@/lib/utils";
+import { Icon } from "@platform/shared-ui";
 
 type StepEditorProps = {
   definition: StepDefinition;

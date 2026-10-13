@@ -4,10 +4,21 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import type { AuthUser, DatasetRecord, PipelineRunRecord, StreamSource } from "@platform/shared-types";
-import { Button, EmptyState, SectionPanel, StatusBadge } from "@platform/shared-ui";
+import {
+  Button,
+  EmptyState,
+  Icon,
+  SectionPanel,
+  StatusBadge,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeaderCell,
+  TableRow,
+} from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
-import { Icon } from "@/components/ui/icon";
 import { AddDataDialog } from "@/features/datasets/components/add-data-dialog";
 import {
   ORIGIN_LABELS,
@@ -127,37 +138,35 @@ export function DatasetsListPageView({
                 Nothing matches. Clear the search or pick another filter.
               </p>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-left text-[14px]">
-                  <thead className="text-[13px] text-ink-3">
-                    <tr className="border-b border-line">
-                      <th className="cell-pad pl-5 font-medium lg:pl-6">Name</th>
-                      <th className="cell-pad font-medium">Came from</th>
-                      <th className="cell-pad text-right font-medium">Rows</th>
-                      <th className="cell-pad text-right font-medium">Columns</th>
-                      <th className="cell-pad font-medium">Last loaded</th>
-                      <th className="cell-pad pr-5 font-medium lg:pr-6">
-                        <span className="sr-only">Loads</span>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {visible.map((group) => (
-                      <DatasetRow
-                        key={group.latest.id}
-                        group={group}
-                        projectId={projectId}
-                        open={expanded === group.latest.id}
-                        onToggle={() =>
-                          setExpanded((current) =>
-                            current === group.latest.id ? null : group.latest.id,
-                          )
-                        }
-                      />
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <Table edge="panel">
+                <TableHead>
+                  <TableRow>
+                    <TableHeaderCell>Name</TableHeaderCell>
+                    <TableHeaderCell>Came from</TableHeaderCell>
+                    <TableHeaderCell className="text-right">Rows</TableHeaderCell>
+                    <TableHeaderCell className="text-right">Columns</TableHeaderCell>
+                    <TableHeaderCell>Last loaded</TableHeaderCell>
+                    <TableHeaderCell>
+                      <span className="sr-only">Loads</span>
+                    </TableHeaderCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {visible.map((group) => (
+                    <DatasetRow
+                      key={group.latest.id}
+                      group={group}
+                      projectId={projectId}
+                      open={expanded === group.latest.id}
+                      onToggle={() =>
+                        setExpanded((current) =>
+                          current === group.latest.id ? null : group.latest.id,
+                        )
+                      }
+                    />
+                  ))}
+                </TableBody>
+              </Table>
             )}
           </SectionPanel>
         )}
@@ -182,8 +191,8 @@ function DatasetRow({
   const failed = latest.ingestion_status === "failed" || latest.status === "failed";
   return (
     <>
-      <tr className="border-b border-line transition hover:bg-surface">
-        <td className="cell-pad pl-5 lg:pl-6">
+      <TableRow>
+        <TableCell>
           <Link
             href={`/projects/${projectId}/datasets/${latest.id}`}
             className="font-medium text-ink hover:text-[color:var(--accent-muted)]"
@@ -191,14 +200,14 @@ function DatasetRow({
             {group.name}
           </Link>
           {failed ? <StatusBadge value="failed" className="ml-2" /> : null}
-        </td>
-        <td className="cell-pad text-ink-2">{ORIGIN_LABELS[group.origin]}</td>
-        <td className="cell-pad text-right tabular-nums text-ink-2">{formatNumber(latest.row_count)}</td>
-        <td className="cell-pad text-right tabular-nums text-ink-2">
+        </TableCell>
+        <TableCell className="text-ink-2">{ORIGIN_LABELS[group.origin]}</TableCell>
+        <TableCell className="text-right tabular-nums text-ink-2">{formatNumber(latest.row_count)}</TableCell>
+        <TableCell className="text-right tabular-nums text-ink-2">
           {formatNumber(latest.column_count)}
-        </td>
-        <td className="cell-pad text-ink-3">{formatDate(latest.created_at)}</td>
-        <td className="cell-pad pr-5 text-right lg:pr-6">
+        </TableCell>
+        <TableCell className="text-ink-3">{formatDate(latest.created_at)}</TableCell>
+        <TableCell className="text-right">
           {versions.length > 1 ? (
             <button
               type="button"
@@ -210,29 +219,29 @@ function DatasetRow({
               <Icon name={open ? "chevronDown" : "chevronRight"} size={13} />
             </button>
           ) : null}
-        </td>
-      </tr>
+        </TableCell>
+      </TableRow>
       {open
         ? versions.slice(1).map((record) => (
-            <tr key={record.id} className="border-b border-line bg-sunken text-[13px]">
-              <td className="cell-pad pl-10 lg:pl-11">
+            <TableRow key={record.id} className="bg-sunken text-[13px]">
+              <TableCell className="!pl-10 lg:!pl-11">
                 <Link
                   href={`/projects/${projectId}/datasets/${record.id}`}
                   className="text-ink-2 hover:text-ink"
                 >
                   Earlier load
                 </Link>
-              </td>
-              <td className="cell-pad text-ink-3">{ORIGIN_LABELS[group.origin]}</td>
-              <td className="cell-pad text-right tabular-nums text-ink-3">
+              </TableCell>
+              <TableCell className="text-ink-3">{ORIGIN_LABELS[group.origin]}</TableCell>
+              <TableCell className="text-right tabular-nums text-ink-3">
                 {formatNumber(record.row_count)}
-              </td>
-              <td className="cell-pad text-right tabular-nums text-ink-3">
+              </TableCell>
+              <TableCell className="text-right tabular-nums text-ink-3">
                 {formatNumber(record.column_count)}
-              </td>
-              <td className="cell-pad text-ink-3">{formatDate(record.created_at)}</td>
-              <td className="cell-pad pr-5 lg:pr-6" />
-            </tr>
+              </TableCell>
+              <TableCell className="text-ink-3">{formatDate(record.created_at)}</TableCell>
+              <TableCell />
+            </TableRow>
           ))
         : null}
     </>

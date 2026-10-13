@@ -4,11 +4,9 @@ import { useEffect, useState } from "react";
 
 import type { AuthUser } from "@platform/shared-types";
 
-import { useToast } from "@/components/providers/toast-provider";
 import { AppFrame } from "@/components/shell/app-frame";
 import { useTour } from "@/components/tour/tour-provider";
 import { WELCOME_TOUR_ID, welcomeTour } from "@/components/tour/tours";
-import { Icon } from "@/components/ui/icon";
 import { AppearanceControls } from "@/features/preferences/components/appearance-controls";
 import { NotificationPreferences } from "@/features/notifications/components/notification-preferences";
 import { AccountSecurity } from "@/features/settings/components/account-security";
@@ -16,6 +14,7 @@ import { ApiTokensPanel } from "@/features/settings/components/api-tokens-panel"
 import { MfaPanel } from "@/features/settings/components/mfa-panel";
 import { appConfig } from "@/lib/config";
 import { cx } from "@/lib/utils";
+import { Icon, useToast } from "@platform/shared-ui";
 
 type SettingsPageProps = {
   currentUser: AuthUser;

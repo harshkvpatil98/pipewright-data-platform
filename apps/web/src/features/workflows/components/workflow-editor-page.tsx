@@ -14,10 +14,8 @@ import type {
   WorkflowRunRecord,
 } from "@platform/shared-types";
 
-import { useToast } from "@/components/providers/toast-provider";
 import { AppFrame } from "@/components/shell/app-frame";
 import type { RibbonGroup } from "@/components/shell/ribbon";
-import { Icon } from "@/components/ui/icon";
 import { triggerLabel } from "@/lib/labels";
 import { formatRunStatusLabel } from "@/lib/run-labels";
 import { toNodeKey, tidyLayout } from "@/features/workflows/canvas-geometry";
@@ -31,6 +29,7 @@ import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { formatDate } from "@/lib/format";
 import { cx } from "@/lib/utils";
+import { Icon, useToast } from "@platform/shared-ui";
 
 type WorkflowEditorPageProps = {
   currentUser: AuthUser;

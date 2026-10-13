@@ -3,8 +3,8 @@
 import { useState } from "react";
 
 import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
-import { Icon } from "@/components/ui/icon";
 import { apiFetch } from "@/lib/api/client";
+import { Icon } from "@platform/shared-ui";
 
 type DeleteRowButtonProps = {
   /** Path under the API root, e.g. `/projects/abc/schedules/def`. */

@@ -3,9 +3,8 @@
 import Link from "next/link";
 import { useState } from "react";
 
-import { StatusBadge } from "@platform/shared-ui";
+import { Icon, StatusBadge } from "@platform/shared-ui";
 import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
-import { Icon } from "@/components/ui/icon";
 import { apiFetch } from "@/lib/api/client";
 import { formatDate } from "@/lib/format";
 import type { ProjectSummary } from "@platform/shared-types";

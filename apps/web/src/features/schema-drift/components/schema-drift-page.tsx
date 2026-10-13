@@ -9,12 +9,13 @@ import type {
   DriftSeverity,
   SchemaDriftEvent,
 } from "@platform/shared-types";
-import { Button, SectionPanel } from "@platform/shared-ui";
+import { Badge, type BadgeTone, Button, SectionPanel, Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { formatDate } from "@/lib/format";
+import { sentenceLabel } from "@/lib/labels";
 import { cx } from "@/lib/utils";
 
 type SchemaDriftPageProps = {
@@ -23,11 +24,11 @@ type SchemaDriftPageProps = {
   initialEvents: SchemaDriftEvent[];
 };
 
-const SEVERITY_TONE: Record<DriftSeverity, string> = {
-  breaking: "border-danger-line bg-danger-soft text-danger",
-  risky: "border-warning-line bg-warning-soft text-warning",
-  compatible: "border-success-line bg-success-soft text-success",
-  none: "border-line bg-surface-2 text-ink-2",
+const SEVERITY_TONE: Record<DriftSeverity, BadgeTone> = {
+  breaking: "danger",
+  risky: "warning",
+  compatible: "success",
+  none: "neutral",
 };
 
 const SEVERITY_HELP: Record<DriftSeverity, string> = {
@@ -120,14 +121,7 @@ export function SchemaDriftPageView({
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span
-                        className={cx(
-                          "rounded-full border px-2.5 py-1 text-[12px] font-medium ",
-                          SEVERITY_TONE[event.severity],
-                        )}
-                      >
-                        {event.severity}
-                      </span>
+                      <Badge tone={SEVERITY_TONE[event.severity]}>{sentenceLabel(event.severity)}</Badge>
                       <h3 className="text-sm font-semibold text-ink">{event.summary}</h3>
                     </div>
                     <p className="mt-1 text-xs text-muted">
@@ -287,14 +281,9 @@ function ConnectorWatchPanel({ projectId }: { projectId: string }) {
             .filter((row) => row.added_columns.length || row.removed_columns.length || row.type_changes.length)
             .map((row) => (
               <p key={`${row.connection_id}:${row.stream}`} className="mt-1.5">
-                <span
-                  className={cx(
-                    "mr-2 rounded-full border px-2 py-0.5 text-[12px]",
-                    SEVERITY_TONE[(row.severity as DriftSeverity) ?? "none"] ?? SEVERITY_TONE.none,
-                  )}
-                >
-                  {row.severity}
-                </span>
+                <Badge tone={SEVERITY_TONE[(row.severity as DriftSeverity) ?? "none"] ?? SEVERITY_TONE.none} className="mr-2">
+                  {sentenceLabel(row.severity)}
+                </Badge>
                 <code className="text-ink">{row.connection_name}</code> · {row.stream} —{" "}
                 {row.summary}
               </p>
@@ -308,35 +297,33 @@ function ConnectorWatchPanel({ projectId }: { projectId: string }) {
       ) : null}
 
       {status && status.items.length > 0 ? (
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-[12.5px]">
-            <thead className="text-[12px] text-muted">
-              <tr>
-                <th className="cell-pad">Stream</th>
-                <th className="cell-pad">Connector</th>
-                <th className="cell-pad">Columns</th>
-                <th className="cell-pad">Last checked</th>
-                <th className="cell-pad">Changes seen</th>
-              </tr>
-            </thead>
-            <tbody className="text-ink-2">
-              {status.items.map((row) => (
-                <tr key={`${row.connection_id}:${row.stream}`} className="border-t border-line">
-                  <td className="cell-pad text-ink">{row.stream}</td>
-                  <td className="cell-pad">
-                    {row.connector_type}
-                    {row.source === "declared" ? (
-                      <span className="ml-1.5 text-muted">· from its manifest</span>
-                    ) : null}
-                  </td>
-                  <td className="cell-pad tabular-nums">{row.columns}</td>
-                  <td className="cell-pad">{row.observed_at ? formatDate(row.observed_at) : "—"}</td>
-                  <td className="cell-pad tabular-nums">{row.drift_count}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableHeaderCell>Stream</TableHeaderCell>
+              <TableHeaderCell>Connector</TableHeaderCell>
+              <TableHeaderCell>Columns</TableHeaderCell>
+              <TableHeaderCell>Last checked</TableHeaderCell>
+              <TableHeaderCell>Changes seen</TableHeaderCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {status.items.map((row) => (
+              <TableRow key={`${row.connection_id}:${row.stream}`}>
+                <TableCell className="text-ink">{row.stream}</TableCell>
+                <TableCell>
+                  {row.connector_type}
+                  {row.source === "declared" ? (
+                    <span className="ml-1.5 text-muted">· from its manifest</span>
+                  ) : null}
+                </TableCell>
+                <TableCell className="tabular-nums">{row.columns}</TableCell>
+                <TableCell>{row.observed_at ? formatDate(row.observed_at) : "—"}</TableCell>
+                <TableCell className="tabular-nums">{row.drift_count}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       ) : (
         <p className="rounded-2xl border border-dashed border-line px-4 py-8 text-center text-sm text-muted">
           Nothing is being watched yet. Run the watch once to record what each connection&rsquo;s

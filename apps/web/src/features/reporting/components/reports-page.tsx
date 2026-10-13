@@ -15,11 +15,10 @@ import type {
   ReportSource,
   ScheduledReport,
 } from "@platform/shared-types";
-import { Button, Modal, SectionPanel } from "@platform/shared-ui";
+import { Badge, Button, Icon, Modal, SectionPanel } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { DeleteRowButton } from "@/components/ui/delete-row-button";
-import { Icon } from "@/components/ui/icon";
 import { apiDownload, apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { formatDate } from "@/lib/format";
@@ -418,13 +417,13 @@ function ReportRow({
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className="text-ink text-[13.5px]">{report.name}</span>
-          <span className="bg-surface-2 text-ink-3 rounded px-1.5 py-0.5 text-[12px]">
+          <Badge>
             {fileFormatLabel(report.file_format)}
-          </span>
+          </Badge>
           {!report.enabled ? (
-            <span className="bg-surface-2 text-muted rounded px-1.5 py-0.5 text-[12px]">
+            <Badge>
               paused
-            </span>
+            </Badge>
           ) : null}
         </div>
         <div className="text-muted mt-0.5 text-[12px]">

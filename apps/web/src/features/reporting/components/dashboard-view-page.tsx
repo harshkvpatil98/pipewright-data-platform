@@ -13,11 +13,10 @@ import type {
   SavedChart,
 } from "@platform/shared-types";
 import { DASHBOARD_REFRESH_CHOICES } from "@platform/shared-types";
-import { Button, EmptyState, Modal, buttonClassName } from "@platform/shared-ui";
+import { Badge, Button, buttonClassName, EmptyState, Icon, Modal } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { DiscussionPanel } from "@/features/team/components/discussion-panel";
-import { Icon } from "@/components/ui/icon";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { cx } from "@/lib/utils";
@@ -353,9 +352,9 @@ export function DashboardViewPage({
             ))
           )}
           {filtersDiffer ? (
-            <span className="rounded-full border border-warning-line bg-warning-soft px-2 py-0.5 text-[12px] text-warning">
+            <Badge tone="warning">
               applied here only, not saved
-            </span>
+            </Badge>
           ) : null}
           <div className="ml-auto flex items-center gap-2">
             {filtersDiffer ? (

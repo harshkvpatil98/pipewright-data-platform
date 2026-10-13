@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react";
 
 import type { AuditEntry, AuditListResponse, AuditOutcome, AuthUser } from "@platform/shared-types";
-import { SectionPanel } from "@platform/shared-ui";
+import { Badge, type BadgeTone, SectionPanel, Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { apiFetch } from "@/lib/api/client";
@@ -17,10 +17,10 @@ type AuditLogPageProps = {
   initial: AuditListResponse;
 };
 
-const OUTCOME_TONE: Record<AuditOutcome, string> = {
-  succeeded: "border-success-line bg-success-soft text-success",
-  denied: "border-warning-line bg-warning-soft text-warning",
-  failed: "border-danger-line bg-danger-soft text-danger",
+const OUTCOME_TONE: Record<AuditOutcome, BadgeTone> = {
+  succeeded: "success",
+  denied: "warning",
+  failed: "danger",
 };
 
 const FILTERS: { id: AuditOutcome | "all"; label: string }[] = [
@@ -85,24 +85,22 @@ export function AuditLogPageView({ currentUser, projectId, initial }: AuditLogPa
             Nothing recorded yet. Only requests that could change something are recorded, not reads.
           </p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-left">
-              <thead>
-                <tr className="text-[12px] text-muted">
-                  <th className="pb-2 pr-3 font-medium">When</th>
-                  <th className="pb-2 pr-3 font-medium">Who</th>
-                  <th className="pb-2 pr-3 font-medium">Did what</th>
-                  <th className="pb-2 pr-3 font-medium">Outcome</th>
-                  <th className="pb-2 font-medium">Took</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line">
-                {data.items.map((entry) => (
-                  <AuditRow key={entry.id} entry={entry} />
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table minWidth={640}>
+            <TableHead>
+              <TableRow className="text-[12px] text-muted">
+                <TableHeaderCell>When</TableHeaderCell>
+                <TableHeaderCell>Who</TableHeaderCell>
+                <TableHeaderCell>Did what</TableHeaderCell>
+                <TableHeaderCell>Outcome</TableHeaderCell>
+                <TableHeaderCell>Took</TableHeaderCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {data.items.map((entry) => (
+                <AuditRow key={entry.id} entry={entry} />
+              ))}
+            </TableBody>
+          </Table>
         )}
       </SectionPanel>
     </AppShell>
@@ -111,31 +109,26 @@ export function AuditLogPageView({ currentUser, projectId, initial }: AuditLogPa
 
 function AuditRow({ entry }: { entry: AuditEntry }) {
   return (
-    <tr className="align-top">
-      <td className="py-2.5 pr-3 text-[12px] text-muted">{formatDate(entry.created_at)}</td>
-      <td className="py-2.5 pr-3 text-[12.5px] text-ink">
+    <TableRow>
+      <TableCell className="text-[12px] text-muted">{formatDate(entry.created_at)}</TableCell>
+      <TableCell className="text-[12.5px] text-ink">
         {entry.actor_username ?? "unknown"}
-      </td>
-      <td className="py-2.5 pr-3">
+      </TableCell>
+      <TableCell>
         <div className="text-[12.5px] capitalize text-ink">{entry.action}</div>
         <div className="truncate font-mono text-[12px] text-muted">
           {entry.method} {entry.path}
         </div>
-      </td>
-      <td className="py-2.5 pr-3">
-        <span
-          className={cx(
-            "rounded-full border px-2 py-0.5 text-[12px] capitalize",
-            OUTCOME_TONE[entry.outcome],
-          )}
-        >
+      </TableCell>
+      <TableCell>
+        <Badge tone={OUTCOME_TONE[entry.outcome]}>
           {entry.outcome === "denied" ? "refused" : entry.outcome}
-        </span>
+        </Badge>
         <span className="ml-1.5 text-[12px] text-muted">{entry.status_code}</span>
-      </td>
-      <td className="py-2.5 tabular text-[12px] text-muted">
+      </TableCell>
+      <TableCell className="tabular text-[12px] text-muted">
         {entry.duration_ms !== null ? `${entry.duration_ms} ms` : "—"}
-      </td>
-    </tr>
+      </TableCell>
+    </TableRow>
   );
 }

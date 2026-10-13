@@ -14,13 +14,13 @@ import type {
   MetricHistory,
   MetricSeries,
 } from "@platform/shared-types";
-import { Button, SectionPanel } from "@platform/shared-ui";
+import { Badge, type BadgeTone, Button, Icon, SectionPanel } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
-import { Icon } from "@/components/ui/icon";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { cx } from "@/lib/utils";
+import { sentenceLabel } from "@/lib/labels";
 
 import { CHART_HEIGHT, CHART_WIDTH, buildSparkline, formatMetric } from "../sparkline";
 
@@ -32,11 +32,11 @@ type DatasetMetricsPageProps = {
   initialAnomalies: AnomalyScan;
 };
 
-const SEVERITY_TONE: Record<IncidentSeverity, string> = {
-  critical: "border-danger-line bg-danger-soft text-danger",
-  high: "border-warning-line bg-warning-soft text-warning",
-  medium: "border-warning-line bg-warning-soft text-warning",
-  low: "border-line bg-surface-2 text-ink-3",
+const SEVERITY_TONE: Record<IncidentSeverity, BadgeTone> = {
+  critical: "danger",
+  high: "warning",
+  medium: "warning",
+  low: "neutral",
 };
 
 const SENSITIVITIES: AnomalySensitivity[] = ["low", "medium", "high"];
@@ -287,14 +287,9 @@ function AnomalyRow({ anomaly }: { anomaly: Anomaly }) {
         <div className="text-[13px] capitalize text-ink">{anomaly.label}</div>
         <p className="mt-0.5 text-[12px] text-ink-3">{anomaly.explanation}</p>
       </div>
-      <span
-        className={cx(
-          "shrink-0 rounded-full border px-2 py-0.5 text-[12px] capitalize",
-          SEVERITY_TONE[anomaly.severity],
-        )}
-      >
-        {anomaly.severity}
-      </span>
+      <Badge tone={SEVERITY_TONE[anomaly.severity]} className="shrink-0">
+        {sentenceLabel(anomaly.severity)}
+      </Badge>
     </li>
   );
 }

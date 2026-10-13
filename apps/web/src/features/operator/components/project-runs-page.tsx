@@ -4,7 +4,18 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import type { AuthUser, PipelineRunRecord } from "@platform/shared-types";
-import { EmptyState, SectionPanel, StatusBadge, buttonClassName } from "@platform/shared-ui";
+import {
+  buttonClassName,
+  EmptyState,
+  SectionPanel,
+  StatusBadge,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeaderCell,
+  TableRow,
+} from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { getPipelineRunSecondaryText } from "@/features/datasets/run-summary";
@@ -95,46 +106,44 @@ export function ProjectRunsPageView({ currentUser, projectId, runs }: ProjectRun
           }
           contentClassName="px-0 py-0"
         >
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-left text-[14px]">
-              <thead className="text-[13px] text-ink-3">
-                <tr className="border-b border-line">
-                  <th className="cell-pad pl-5 font-medium lg:pl-6">What ran</th>
-                  <th className="cell-pad font-medium">Result</th>
-                  <th className="cell-pad font-medium">Started by</th>
-                  <th className="cell-pad font-medium">When</th>
-                  <th className="cell-pad pr-5 text-right font-medium lg:pr-6">Took</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visible.map((run) => (
-                  <tr key={run.id} className="border-b border-line transition hover:bg-surface">
-                    <td className="cell-pad pl-5 lg:pl-6">
-                      <Link
-                        href={`/projects/${projectId}/runs/${run.id}/audit`}
-                        className="font-medium text-ink hover:text-[color:var(--accent-muted)]"
-                      >
-                        {formatRunTypeLabel(run.run_type)}
-                      </Link>
-                      <div className="mt-0.5 max-w-md truncate text-[13px] text-ink-3">
-                        {getPipelineRunSecondaryText(run)}
-                      </div>
-                    </td>
-                    <td className="cell-pad">
-                      <StatusBadge value={run.status} />
-                    </td>
-                    <td className="cell-pad text-ink-2">{run.triggered_by_username ?? "A schedule"}</td>
-                    <td className="cell-pad text-ink-3">
-                      {formatDate(run.started_at ?? run.created_at)}
-                    </td>
-                    <td className="cell-pad pr-5 text-right tabular-nums text-ink-3 lg:pr-6">
-                      {formatRunDuration(run)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table edge="panel">
+            <TableHead>
+              <TableRow>
+                <TableHeaderCell>What ran</TableHeaderCell>
+                <TableHeaderCell>Result</TableHeaderCell>
+                <TableHeaderCell>Started by</TableHeaderCell>
+                <TableHeaderCell>When</TableHeaderCell>
+                <TableHeaderCell className="text-right">Took</TableHeaderCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {visible.map((run) => (
+                <TableRow key={run.id}>
+                  <TableCell>
+                    <Link
+                      href={`/projects/${projectId}/runs/${run.id}/audit`}
+                      className="font-medium text-ink hover:text-[color:var(--accent-muted)]"
+                    >
+                      {formatRunTypeLabel(run.run_type)}
+                    </Link>
+                    <div className="mt-0.5 max-w-md truncate text-[13px] text-ink-3">
+                      {getPipelineRunSecondaryText(run)}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge value={run.status} />
+                  </TableCell>
+                  <TableCell className="text-ink-2">{run.triggered_by_username ?? "A schedule"}</TableCell>
+                  <TableCell className="text-ink-3">
+                    {formatDate(run.started_at ?? run.created_at)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums text-ink-3">
+                    {formatRunDuration(run)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </SectionPanel>
       )}
     </AppShell>

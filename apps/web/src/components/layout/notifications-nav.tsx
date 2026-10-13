@@ -8,6 +8,7 @@ import type { UserNotificationListResponse } from "@platform/shared-types";
 
 import { apiFetch } from "@/lib/api/client";
 import { cx } from "@/lib/utils";
+import { Badge } from "@platform/shared-ui";
 
 export function NotificationsNavLink() {
   const pathname = usePathname();
@@ -35,9 +36,9 @@ export function NotificationsNavLink() {
   const isActive = pathname === "/notifications" || pathname.startsWith("/notifications/");
   const badge =
     unread !== null && unread > 0 ? (
-      <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[12px] font-semibold text-accent">
+      <Badge tone="accent">
         {unread > 99 ? "99+" : unread}
-      </span>
+      </Badge>
     ) : (
       <span className="text-[12px] text-muted">In-app</span>
     );

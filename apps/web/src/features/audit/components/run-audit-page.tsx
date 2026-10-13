@@ -9,7 +9,7 @@ import type {
   ReplayResult,
   RunAuditSummary,
 } from "@platform/shared-types";
-import { Button, Modal, SectionPanel, StatusBadge } from "@platform/shared-ui";
+import { Badge, Button, Modal, SectionPanel, StatusBadge } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { apiFetch } from "@/lib/api/client";
@@ -18,6 +18,7 @@ import { extractErrorMessage } from "@/lib/api/errors";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { formatRunTypeLabel } from "@/lib/run-labels";
 import { recipeHref } from "@/lib/navigation";
+import { sentenceLabel } from "@/lib/labels";
 
 type RunAuditPageProps = {
   currentUser: AuthUser;
@@ -218,9 +219,9 @@ export function RunAuditPageView({ currentUser, projectId, audit }: RunAuditPage
                 <span className="text-ink-2">version {version.version_number}</span>
                 <span className="font-mono text-[12px] text-muted">{shortDigest(version.content_hash)}</span>
                 {version.retention_state === "pruned" ? (
-                  <span className="rounded-full border border-line bg-sunken px-1.5 py-0.5 text-[12px] text-muted">
+                  <Badge>
                     pruned
-                  </span>
+                  </Badge>
                 ) : null}
               </li>
             ))}
@@ -475,9 +476,9 @@ function PinLine({ projectId, pin }: { projectId: string; pin: ExecutionVersionP
   return (
     <span className="inline-flex flex-wrap items-center gap-1.5">
       {pin.role && pin.role !== "output" ? (
-        <span className="rounded-full border border-line bg-sunken px-1.5 py-0.5 text-[12px] text-muted">
-          {pin.role}
-        </span>
+        <Badge>
+          {sentenceLabel(pin.role)}
+        </Badge>
       ) : null}
       <Link
         href={`/projects/${projectId}/datasets/${pin.dataset_id}`}

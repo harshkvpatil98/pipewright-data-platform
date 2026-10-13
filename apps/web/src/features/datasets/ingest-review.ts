@@ -15,6 +15,7 @@ import type {
   IngestFinding,
   IngestSpec,
 } from "@platform/shared-types";
+import type { BadgeTone } from "@platform/shared-ui";
 
 /** How a certainty reads, and how much attention it deserves. */
 export const CERTAINTY_LABEL: Record<IngestCertainty, string> = {
@@ -24,11 +25,11 @@ export const CERTAINTY_LABEL: Record<IngestCertainty, string> = {
   ambiguous: "The file does not say",
 };
 
-export const CERTAINTY_TONE: Record<IngestCertainty, string> = {
-  certain: "border-success-line bg-success-soft text-success",
-  likely: "border-line bg-surface-2 text-ink-2",
-  uncertain: "border-warning-line bg-warning-soft text-warning",
-  ambiguous: "border-danger-line bg-danger-soft text-danger",
+export const CERTAINTY_TONE: Record<IngestCertainty, BadgeTone> = {
+  certain: "success",
+  likely: "neutral",
+  uncertain: "warning",
+  ambiguous: "danger",
 };
 
 /** A stage name as a person would say it. */

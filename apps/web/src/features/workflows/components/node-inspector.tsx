@@ -9,9 +9,9 @@ import type {
   WorkflowNodeInput,
 } from "@platform/shared-types";
 
-import { Icon } from "@/components/ui/icon";
 import { NODE_META } from "@/features/workflows/components/workflow-canvas";
 import { cx } from "@/lib/utils";
+import { Icon } from "@platform/shared-ui";
 
 const inputClass =
   "h-9 w-full rounded-lg border border-line bg-sunken px-2.5 text-[13px] text-ink outline-none transition placeholder:text-faint focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent-soft)]";

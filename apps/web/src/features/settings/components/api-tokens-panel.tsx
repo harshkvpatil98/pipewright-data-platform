@@ -2,10 +2,8 @@
 
 import { useEffect, useState } from "react";
 
-import { Button, FormField, Input, Select } from "@platform/shared-ui";
+import { Badge, Button, FormField, Icon, Input, Select, useToast } from "@platform/shared-ui";
 
-import { useToast } from "@/components/providers/toast-provider";
-import { Icon } from "@/components/ui/icon";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { formatDate } from "@/lib/format";
@@ -152,9 +150,9 @@ export function ApiTokensPanel() {
                     <code className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[12px] text-ink-3">
                       {token.prefix}…
                     </code>
-                    <span className="rounded-full border border-line px-1.5 py-0.5 text-[12px] text-ink-3">
+                    <Badge>
                       {SCOPE_LABEL[token.scope] ?? token.scope}
-                    </span>
+                    </Badge>
                   </div>
                   <div className="mt-0.5 text-[12px] text-muted">
                     {revoked

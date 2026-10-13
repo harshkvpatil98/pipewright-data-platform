@@ -3,7 +3,18 @@
 import { useMemo, useState } from "react";
 
 import type { TransformationPreviewResponse, TransformationStep } from "@platform/shared-types";
-import { Button, FormField, Modal, Textarea } from "@platform/shared-ui";
+import {
+  Button,
+  FormField,
+  Modal,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeaderCell,
+  TableRow,
+  Textarea,
+} from "@platform/shared-ui";
 
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
@@ -45,22 +56,22 @@ function SchemaBlock({ title, schema }: { title: string; schema: TransformationP
     <div className="rounded-2xl border border-line bg-sunken p-4">
       <div className="text-xs text-muted">{title}</div>
       <div className="mt-3 max-h-40 overflow-y-auto">
-        <table className="min-w-full text-left text-xs text-ink-2">
-          <thead className="text-muted">
-            <tr>
-              <th className="py-1 pr-3 font-medium">Column</th>
-              <th className="py-1 font-medium">Inferred type</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableHeaderCell>Column</TableHeaderCell>
+              <TableHeaderCell>Inferred type</TableHeaderCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
             {schema.columns.map((column) => (
-              <tr key={column.name}>
-                <td className="py-1 pr-3 align-top text-ink">{column.name}</td>
-                <td className="py-1 align-top">{column.inferred_type}</td>
-              </tr>
+              <TableRow key={column.name}>
+                <TableCell className="text-ink">{column.name}</TableCell>
+                <TableCell>{column.inferred_type}</TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     </div>
   );
@@ -204,28 +215,28 @@ export function PreviewTransformModal({ open, onClose, projectId, datasetId }: P
                   Preview rows
                 </div>
                 <div className="max-h-[320px] overflow-auto">
-                  <table className="min-w-full divide-y divide-line text-left text-xs">
-                    <thead className="sticky top-0 bg-surface text-ink-3">
-                      <tr>
+                  <Table>
+                    <TableHead className="sticky top-0 bg-surface">
+                      <TableRow>
                         {result.preview_columns.map((column) => (
-                          <th key={column} className="cell-pad font-medium">
+                          <TableHeaderCell key={column}>
                             {column}
-                          </th>
+                          </TableHeaderCell>
                         ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-line text-ink">
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
                       {result.preview_rows.map((row, rowIndex) => (
-                        <tr key={rowIndex} className="hover:bg-surface">
+                        <TableRow key={rowIndex}>
                           {result.preview_columns.map((column) => (
-                            <td key={`${rowIndex}-${column}`} className="cell-pad align-top">
+                            <TableCell key={`${rowIndex}-${column}`}>
                               {row[column] === null || row[column] === undefined ? "" : String(row[column])}
-                            </td>
+                            </TableCell>
                           ))}
-                        </tr>
+                        </TableRow>
                       ))}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
                 </div>
               </div>
             </>

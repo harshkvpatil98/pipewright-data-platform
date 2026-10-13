@@ -4,19 +4,20 @@ import Link from "next/link";
 import { useState } from "react";
 
 import {
+  Badge,
   Button,
+  buttonClassName,
   EmptyState,
   FormField,
+  Icon,
   Input,
   Modal,
   SectionPanel,
   Textarea,
-  buttonClassName,
 } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
-import { Icon } from "@/components/ui/icon";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { formatDate } from "@/lib/format";
@@ -266,13 +267,13 @@ export function DashboardsPageView({
                       >
                         {dashboard.name}
                       </Link>
-                      <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[12px] text-ink-3">
+                      <Badge>
                         {dashboard.tile_count} tile{dashboard.tile_count === 1 ? "" : "s"}
-                      </span>
+                      </Badge>
                       {dashboard.share_token ? (
-                        <span className="rounded-full border border-warning-line bg-warning-soft px-2 py-0.5 text-[12px] text-warning">
+                        <Badge tone="warning">
                           Shared by link
-                        </span>
+                        </Badge>
                       ) : null}
                     </div>
                     <div className="mt-0.5 truncate text-[12px] text-muted">

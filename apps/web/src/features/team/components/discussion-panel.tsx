@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { AuthUser, Comment, CommentListResponse, CommentTargetType } from "@platform/shared-types";
-import { Button, SectionPanel } from "@platform/shared-ui";
+import { Badge, Button, SectionPanel } from "@platform/shared-ui";
 
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
@@ -171,9 +171,9 @@ export function DiscussionPanel({
                 </span>
                 <span className="text-[12px] text-muted">{formatDateTime(comment.created_at)}</span>
                 {comment.resolved_at ? (
-                  <span className="rounded-full border border-line bg-sunken px-1.5 py-0.5 text-[12px] text-muted">
+                  <Badge>
                     resolved
-                  </span>
+                  </Badge>
                 ) : (
                   <button
                     type="button"

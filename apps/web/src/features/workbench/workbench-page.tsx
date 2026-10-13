@@ -6,13 +6,11 @@ import type { AuthUser,
   Metric,
   MetricSqlResponse,
 } from "@platform/shared-types";
-import { Button, EmptyState, Input, Select } from "@platform/shared-ui";
+import { Button, EmptyState, Icon, Input, Modal, Select, Tabs, useToast } from "@platform/shared-ui";
 
 import { AppFrame } from "@/components/shell/app-frame";
 import type { RibbonGroup } from "@/components/shell/ribbon";
-import { useToast } from "@/components/providers/toast-provider";
 import { DeleteRowButton } from "@/components/ui/delete-row-button";
-import { Icon } from "@/components/ui/icon";
 import { DataGrid } from "@/features/studio/grid/data-grid";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
@@ -429,25 +427,17 @@ export function WorkbenchPage({
       <div className="flex h-full min-h-0">
         {/* ------------------------------------------------------ side panel */}
         <aside className="flex w-64 shrink-0 flex-col">
-          <div className="flex border-b border-line" role="tablist" aria-label="Workbench panels">
-            {(["schema", "metrics", "saved", "history"] as Side[]).map((panel) => (
-              <button
-                key={panel}
-                type="button"
-                role="tab"
-                aria-selected={side === panel}
-                onClick={() => setSide(panel)}
-                className={cx(
-                  "flex-1 px-2 py-2 text-[12px] transition",
-                  side === panel
-                    ? "border-b-2 border-[color:var(--accent)] text-ink"
-                    : "text-muted hover:text-ink",
-                )}
-              >
-                {panel}
-              </button>
-            ))}
-          </div>
+          <Tabs<Side>
+            label="Side panel"
+            value={side}
+            onChange={setSide}
+            items={[
+              { id: "schema", label: "Tables" },
+              { id: "metrics", label: "Metrics" },
+              { id: "saved", label: "Saved" },
+              { id: "history", label: "History" },
+            ]}
+          />
 
           {side === "schema" ? (
             <SchemaTree
@@ -652,26 +642,25 @@ export function WorkbenchPage({
               </div>
             ) : result ? (
               <>
-                <div className="flex items-center gap-1 overflow-x-auto border-b border-line px-2" role="tablist">
-                  {statements.map((statement, index) => (
-                    <button
-                      key={statement.index}
-                      type="button"
-                      role="tab"
-                      aria-selected={index === activeTab}
-                      onClick={() => setActiveTab(index)}
-                      className={cx(
-                        "shrink-0 px-3 py-1.5 text-[12px] transition",
-                        index === activeTab
-                          ? "border-b-2 border-[color:var(--accent)] text-ink"
-                          : "text-muted hover:text-ink",
-                        statement.error ? "text-[color:var(--danger)]" : "",
-                      )}
-                      title={statement.summary}
-                    >
-                      {statement.index}. {statement.error ? "failed" : statement.columns.length ? `${statement.row_count} rows` : `${statement.rows_affected ?? 0} changed`}
-                    </button>
-                  ))}
+                <div className="flex items-center border-b border-line px-2">
+                  <Tabs
+                    label="Statement results"
+                    className="min-w-0 flex-1 border-b-0"
+                    value={String(activeTab)}
+                    onChange={(id) => setActiveTab(Number(id))}
+                    items={statements.map((statement, index) => ({
+                      id: String(index),
+                      label: `${statement.index}. ${
+                        statement.error
+                          ? "Failed"
+                          : statement.columns.length
+                            ? `${statement.row_count} rows`
+                            : `${statement.rows_affected ?? 0} changed`
+                      }`,
+                      tone: statement.error ? ("danger" as const) : undefined,
+                      title: statement.summary,
+                    }))}
+                  />
                   <span className="ml-auto shrink-0 px-3 text-[12px] tabular-nums text-muted">
                     {describeRun(result)}
                   </span>
@@ -748,27 +737,14 @@ function ConfirmWrite({
   }, []);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[color:var(--scrim)] p-4">
-      <div className="w-full max-w-lg rounded-2xl border border-line bg-surface p-6" role="dialog" aria-modal="true">
-        <h2 className="text-base font-medium text-ink">This changes data</h2>
-        <p className="mt-2 text-sm text-muted">
-          The workbench writes directly to the source database. Nothing here goes through the
-          review, lineage or audit that a pipeline does.
-        </p>
-        {warnings.map((warning) => (
-          <p key={warning} className="mt-3 rounded-lg border border-[color:var(--warning-line)] bg-[color:var(--warning-soft)] px-3 py-2 text-xs text-ink">
-            {warning}
-          </p>
-        ))}
-        {production ? (
-          <label className="mt-4 flex flex-col gap-1">
-            <span className="text-xs text-muted">
-              Type “production” to confirm
-            </span>
-            <Input ref={inputRef} value={typed} onChange={(event) => setTyped(event.target.value)} />
-          </label>
-        ) : null}
-        <div className="mt-6 flex justify-end gap-2">
+    <Modal
+      open
+      onClose={onCancel}
+      title="This changes data"
+      description="It writes straight to the source database, without the review, lineage or audit a recipe gets."
+      widthClassName="max-w-lg"
+      footer={
+        <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={onCancel}>
             Cancel
           </Button>
@@ -780,8 +756,22 @@ function ConfirmWrite({
             Run it
           </Button>
         </div>
-      </div>
-    </div>
+      }
+    >
+      {warnings.map((warning) => (
+        <p key={warning} className="mb-3 rounded-lg border border-warning-line bg-warning-soft px-3 py-2 text-[13px] text-ink">
+          {warning}
+        </p>
+      ))}
+      {production ? (
+        <label className="flex flex-col gap-1">
+          <span className="text-[13px] text-muted">Type “production” to confirm</span>
+          <Input ref={inputRef} value={typed} onChange={(event) => setTyped(event.target.value)} />
+        </label>
+      ) : (
+        <p className="text-[13px] text-ink-3">Check the statement, then run it.</p>
+      )}
+    </Modal>
   );
 }
 

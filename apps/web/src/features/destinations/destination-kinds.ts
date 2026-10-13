@@ -1,6 +1,6 @@
 import type { DestinationType } from "@platform/shared-types";
+import { type IconName } from "@platform/shared-ui";
 
-import type { IconName } from "@/components/ui/icon";
 
 export type DestinationField = {
   key: string;

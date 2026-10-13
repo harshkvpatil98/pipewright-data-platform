@@ -5,7 +5,7 @@ import type {
   IngestFinding,
   IngestSpec,
 } from "@platform/shared-types";
-import { Select } from "@platform/shared-ui";
+import { Badge, Select, Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "@platform/shared-ui";
 
 import { typeLabel } from "@/lib/labels";
 
@@ -22,7 +22,6 @@ import {
   settledFindings,
   stageLabel,
 } from "@/features/datasets/ingest-review";
-import { cx } from "@/lib/utils";
 
 type Props = {
   analysis: AnalyseUploadResponse;
@@ -112,7 +111,7 @@ export function IngestReviewPanel({ analysis, spec, onSpecChange }: Props) {
           <ul className="mt-2 space-y-2">
             {worthAGlance.map((item, index) => (
               <li key={`${item.stage}-${index}`} className="text-[12.5px] leading-5 text-ink-2">
-                <Badge finding={item} /> {item.reason}
+                <CertaintyBadge finding={item} /> {item.reason}
               </li>
             ))}
           </ul>
@@ -138,23 +137,23 @@ export function IngestReviewPanel({ analysis, spec, onSpecChange }: Props) {
           Every type here is a decision you can change before anything is stored.
         </p>
         <div className="overflow-x-auto rounded-2xl border border-line">
-          <table className="w-full text-left text-[12.5px]">
-            <thead className="bg-surface-2 text-[12px] text-muted">
-              <tr>
-                <th className="cell-pad">Include</th>
-                <th className="cell-pad">Column</th>
-                <th className="cell-pad">Read as</th>
-                <th className="cell-pad">Why</th>
-              </tr>
-            </thead>
-            <tbody className="text-ink-2">
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableHeaderCell>Include</TableHeaderCell>
+                <TableHeaderCell>Column</TableHeaderCell>
+                <TableHeaderCell>Read as</TableHeaderCell>
+                <TableHeaderCell>Why</TableHeaderCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
               {spec.columns.map((column) => {
                 const detail = analysis.analysis.columns.find(
                   (item) => item.name === column.name,
                 );
                 return (
-                  <tr key={column.name} className="border-t border-line align-top">
-                    <td className="cell-pad">
+                  <TableRow key={column.name}>
+                    <TableCell>
                       <input
                         type="checkbox"
                         checked={column.include}
@@ -165,9 +164,9 @@ export function IngestReviewPanel({ analysis, spec, onSpecChange }: Props) {
                           )
                         }
                       />
-                    </td>
-                    <td className="cell-pad text-ink">{column.name}</td>
-                    <td className="cell-pad">
+                    </TableCell>
+                    <TableCell className="text-ink">{column.name}</TableCell>
+                    <TableCell>
                       <Select
                         aria-label={`Type of ${column.name}`}
                         value={
@@ -192,11 +191,11 @@ export function IngestReviewPanel({ analysis, spec, onSpecChange }: Props) {
                           <option value={column.type}>{typeLabel(column.type)}</option>
                         )}
                       </Select>
-                    </td>
-                    <td className="cell-pad">
+                    </TableCell>
+                    <TableCell>
                       {detail ? (
                         <>
-                          <Badge finding={detail.finding} /> {detail.finding.reason}
+                          <CertaintyBadge finding={detail.finding} /> {detail.finding.reason}
                           {detail.rejected.length > 0 ? (
                             <div className="mt-1 text-[12px] text-warning">
                               Did not fit:{" "}
@@ -208,12 +207,12 @@ export function IngestReviewPanel({ analysis, spec, onSpecChange }: Props) {
                           ) : null}
                         </>
                       ) : null}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 );
               })}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       </section>
 
@@ -246,51 +245,46 @@ export function IngestReviewPanel({ analysis, spec, onSpecChange }: Props) {
           {analysis.preview.rows.length === 1 ? "" : "s"}, read the way above
         </h4>
         <div className="max-h-64 overflow-auto rounded-2xl border border-line">
-          <table className="w-full text-left text-[12px]">
-            <thead className="sticky top-0 bg-surface-2 text-[12px] text-muted">
-              <tr>
+          <Table>
+            <TableHead className="sticky top-0 bg-surface-2">
+              <TableRow>
                 {analysis.preview.columns.map((name) => (
-                  <th key={name} className="cell-pad whitespace-nowrap">
+                  <TableHeaderCell key={name} className="whitespace-nowrap">
                     {name}
                     <span className="ml-1.5 normal-case tracking-normal text-ink-3">
                       {analysis.preview.dtypes[name]}
                     </span>
-                  </th>
+                  </TableHeaderCell>
                 ))}
-              </tr>
-            </thead>
-            <tbody className="text-ink-2">
+              </TableRow>
+            </TableHead>
+            <TableBody>
               {analysis.preview.rows.slice(0, 50).map((row, index) => (
-                <tr key={index} className="border-t border-line">
+                <TableRow key={index}>
                   {analysis.preview.columns.map((name) => (
-                    <td key={name} className="cell-pad whitespace-nowrap">
+                    <TableCell key={name} className="whitespace-nowrap">
                       {row[name] === null || row[name] === undefined ? (
                         <span className="text-muted">—</span>
                       ) : (
                         String(row[name])
                       )}
-                    </td>
+                    </TableCell>
                   ))}
-                </tr>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       </section>
     </div>
   );
 }
 
-function Badge({ finding }: { finding: IngestFinding }) {
+function CertaintyBadge({ finding }: { finding: IngestFinding }) {
   return (
-    <span
-      title={confidenceLabel(finding)}
-      className={cx(
-        "mr-1.5 inline-flex rounded-full border px-1.5 py-0.5 text-[12px]",
-        CERTAINTY_TONE[finding.certainty],
-      )}
-    >
+    <Badge tone={CERTAINTY_TONE[finding.certainty]} className="mr-1.5"
+      title={confidenceLabel(finding)}>
       {CERTAINTY_LABEL[finding.certainty]}
-    </span>
+    </Badge>
   );
 }

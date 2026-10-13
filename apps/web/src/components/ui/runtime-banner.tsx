@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { Icon } from "@/components/ui/icon";
 import { apiFetch } from "@/lib/api/client";
 import { assessRuntime, type RuntimeAssessment } from "@/lib/runtime-health";
+import { Icon } from "@platform/shared-ui";
 
 type RuntimeComponent = { component: string; healthy?: boolean; status?: string };
 

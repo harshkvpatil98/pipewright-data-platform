@@ -10,9 +10,8 @@ import type {
   PiiScanResponse,
   TermListResponse,
 } from "@platform/shared-types";
-import { Button, SectionPanel } from "@platform/shared-ui";
+import { Badge, Button, Icon, SectionPanel } from "@platform/shared-ui";
 
-import { Icon } from "@/components/ui/icon";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { cx } from "@/lib/utils";
@@ -296,12 +295,11 @@ export function DatasetCatalogPanel({ projectId, datasetId, columns }: DatasetCa
                     {newSuggestedTags.length > 0 ? (
                       <div className="flex flex-wrap items-center gap-1.5">
                         {newSuggestedTags.map((tag) => (
-                          <span
+                          <Badge
                             key={tag}
-                            className="rounded bg-surface-2 px-1.5 py-0.5 text-[12px] text-ink-3"
                           >
                             {tag}
-                          </span>
+                          </Badge>
                         ))}
                         <button
                           type="button"
@@ -391,9 +389,9 @@ export function DatasetCatalogPanel({ projectId, datasetId, columns }: DatasetCa
                       {term.bindings
                         .filter((binding) => binding.dataset_id === datasetId)
                         .map((binding) => (
-                          <span
+                          <Badge
                             key={binding.column}
-                            className="inline-flex items-center gap-1 rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[12px] text-ink-3"
+                            className="font-mono"
                           >
                             {binding.column}
                             <button
@@ -404,7 +402,7 @@ export function DatasetCatalogPanel({ projectId, datasetId, columns }: DatasetCa
                             >
                               <Icon name="close" size={10} />
                             </button>
-                          </span>
+                          </Badge>
                         ))}
                     </div>
                   </li>

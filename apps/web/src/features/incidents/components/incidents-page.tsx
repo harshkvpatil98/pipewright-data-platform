@@ -10,10 +10,17 @@ import type {
   IncidentSeverity,
   IncidentStatus,
 } from "@platform/shared-types";
-import { Button, SectionPanel, buttonClassName } from "@platform/shared-ui";
+import {
+  Badge,
+  type BadgeTone,
+  Button,
+  buttonClassName,
+  EmptyState,
+  Icon,
+  SectionPanel,
+} from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
-import { Icon } from "@/components/ui/icon";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { formatDate } from "@/lib/format";
@@ -25,16 +32,16 @@ type IncidentsPageProps = {
   initial: IncidentListResponse;
 };
 
-export const SEVERITY_TONE: Record<IncidentSeverity, string> = {
-  critical: "border-danger-line bg-danger-soft text-danger",
-  high: "border-warning-line bg-warning-soft text-warning",
-  medium: "border-warning-line bg-warning-soft text-warning",
-  low: "border-line bg-surface-2 text-ink-2",
+const SEVERITY: Record<IncidentSeverity, { tone: BadgeTone; label: string }> = {
+  critical: { tone: "danger", label: "Critical" },
+  high: { tone: "warning", label: "High" },
+  medium: { tone: "warning", label: "Medium" },
+  low: { tone: "neutral", label: "Low" },
 };
 
 export const SOURCE_LABEL: Record<string, string> = {
-  quality: "Quality rule",
-  drift: "Schema drift",
+  quality: "Check",
+  drift: "Schema change",
   freshness: "Freshness",
   anomaly: "Anomaly",
   workflow: "Workflow",
@@ -143,7 +150,22 @@ export function IncidentsPageView({ currentUser, projectId, initial }: Incidents
         </div>
 
         {data.items.length === 0 ? (
-          <EmptyState filter={filter} projectId={projectId} />
+          <EmptyState
+            size="compact"
+            title={
+              filter === "open"
+                ? "Nothing is broken right now."
+                : filter === "all"
+                  ? "No incidents yet."
+                  : `No ${filter} incidents.`
+            }
+            description="An incident opens when a check fails, a source changes shape, data is late, or a number leaves its usual range."
+            action={
+              <Link href={`/projects/${projectId}/checks`} className={buttonClassName("secondary", "sm")}>
+                See your checks
+              </Link>
+            }
+          />
         ) : (
           <ul className="space-y-2">
             {data.items.map((incident) => (
@@ -153,28 +175,6 @@ export function IncidentsPageView({ currentUser, projectId, initial }: Incidents
         )}
       </SectionPanel>
     </AppShell>
-  );
-}
-
-function EmptyState({ filter, projectId }: { filter: IncidentStatus | "all"; projectId: string }) {
-  return (
-    <div className="rounded-xl border border-line px-4 py-8 text-center">
-      <div className="text-[13px] text-ink-2">
-        {filter === "open"
-          ? "Nothing is broken right now."
-          : `No ${filter === "all" ? "" : filter + " "}incidents.`}
-      </div>
-      <div className="mt-1 text-[12px] text-muted">
-        Incidents appear when a check fails, a source changes shape, data arrives late, or a
-        number leaves its usual range.
-      </div>
-      <Link
-        href={`/projects/${projectId}/checks`}
-        className={cx(buttonClassName("secondary", "sm"), "mt-3")}
-      >
-        See your checks
-      </Link>
-    </div>
   );
 }
 
@@ -193,9 +193,9 @@ function IncidentRow({ projectId, incident }: { projectId: string; incident: Inc
             <p className="mt-1 line-clamp-2 text-[12.5px] text-ink-3">{incident.summary}</p>
           ) : null}
           <div className="mt-2 flex flex-wrap items-center gap-2 text-[12px] text-muted">
-            <span className="rounded bg-surface-2 px-1.5 py-0.5">
+            <Badge>
               {SOURCE_LABEL[incident.source_kind] ?? incident.source_kind}
-            </span>
+            </Badge>
             {incident.dataset_name ? <span>{incident.dataset_name}</span> : null}
             <span>opened {formatDate(incident.opened_at)}</span>
             {incident.occurrence_count > 1 ? (
@@ -205,32 +205,31 @@ function IncidentRow({ projectId, incident }: { projectId: string; incident: Inc
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <span
-            className={cx(
-              "rounded-full border px-2 py-0.5 text-[12px] capitalize",
-              SEVERITY_TONE[incident.severity],
-            )}
-          >
-            {incident.severity}
-          </span>
-          <StatusPill status={incident.status} />
+          <IncidentSeverityBadge severity={incident.severity} />
+          <IncidentStatusBadge status={incident.status} />
         </div>
       </div>
     </li>
   );
 }
 
-export function StatusPill({ status }: { status: IncidentStatus }) {
-  const tone =
-    status === "resolved"
-      ? "border-success-line bg-success-soft text-success"
-      : status === "acknowledged"
-        ? "border-info-line bg-info-soft text-info"
-        : "border-danger-line bg-danger-soft text-danger";
+export function IncidentSeverityBadge({ severity }: { severity: IncidentSeverity }) {
+  const { tone, label } = SEVERITY[severity] ?? { tone: "neutral" as const, label: severity };
+  return <Badge tone={tone}>{label}</Badge>;
+}
+
+const STATUS: Record<IncidentStatus, { tone: BadgeTone; label: string }> = {
+  open: { tone: "danger", label: "Open" },
+  acknowledged: { tone: "info", label: "Acknowledged" },
+  resolved: { tone: "success", label: "Resolved" },
+};
+
+export function IncidentStatusBadge({ status }: { status: IncidentStatus }) {
+  const { tone, label } = STATUS[status] ?? { tone: "neutral" as const, label: status };
   return (
-    <span className={cx("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[12px] capitalize", tone)}>
-      <Icon name={status === "resolved" ? "check" : "warning"} size={10} />
-      {status}
-    </span>
+    <Badge tone={tone}>
+      <Icon name={status === "resolved" ? "check" : "warning"} size={12} />
+      {label}
+    </Badge>
   );
 }

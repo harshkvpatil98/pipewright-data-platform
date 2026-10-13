@@ -9,11 +9,10 @@ import type {
   ChangeRequestListResponse,
   ChangeStatus,
 } from "@platform/shared-types";
-import { Button, SectionPanel } from "@platform/shared-ui";
+import { Badge, type BadgeTone, Button, Icon, SectionPanel } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { DiscussionPanel } from "@/features/team/components/discussion-panel";
-import { Icon } from "@/components/ui/icon";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { formatDate } from "@/lib/format";
@@ -26,11 +25,11 @@ type ChangesPageProps = {
   initial: ChangeRequestListResponse;
 };
 
-const STATUS_TONE: Record<ChangeStatus, string> = {
-  open: "border-info-line bg-info-soft text-info",
-  approved: "border-success-line bg-success-soft text-success",
-  rejected: "border-danger-line bg-danger-soft text-danger",
-  withdrawn: "border-line bg-surface-2 text-ink-3",
+const STATUS_TONE: Record<ChangeStatus, BadgeTone> = {
+  open: "info",
+  approved: "success",
+  rejected: "danger",
+  withdrawn: "neutral",
 };
 
 const KIND_TONE: Record<string, string> = {
@@ -120,14 +119,9 @@ export function ChangesPageView({ currentUser, projectId, initial }: ChangesPage
                   >
                     <div className="flex items-start justify-between gap-2">
                       <span className="text-[13px] text-ink">{change.title}</span>
-                      <span
-                        className={cx(
-                          "shrink-0 rounded-full border px-2 py-0.5 text-[12px] capitalize",
-                          STATUS_TONE[change.status],
-                        )}
-                      >
-                        {change.status}
-                      </span>
+                      <Badge tone={STATUS_TONE[change.status]} className="shrink-0">
+                        {sentenceLabel(change.status)}
+                      </Badge>
                     </div>
                     {change.change_summary ? (
                       <p className="mt-1 line-clamp-2 text-[12px] text-ink-3">

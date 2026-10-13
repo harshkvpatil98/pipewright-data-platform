@@ -4,9 +4,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import type { DatasetUploadResponse } from "@platform/shared-types";
-import { Button, Modal } from "@platform/shared-ui";
+import { Button, Icon, type IconName, Modal } from "@platform/shared-ui";
 
-import { Icon, type IconName } from "@/components/ui/icon";
 import { UploadDatasetModal } from "@/features/datasets/components/upload-dataset-modal";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";

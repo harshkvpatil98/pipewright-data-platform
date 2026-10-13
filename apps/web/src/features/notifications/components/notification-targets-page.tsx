@@ -11,7 +11,20 @@ import type {
   ExternalNotificationTargetUpdatePayload,
 } from "@platform/shared-types";
 import { EXTERNAL_NOTIFICATION_EVENT_TYPES } from "@platform/shared-types";
-import { Button, FormField, Input, Modal, SectionPanel, Select } from "@platform/shared-ui";
+import {
+  Button,
+  FormField,
+  Input,
+  Modal,
+  SectionPanel,
+  Select,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeaderCell,
+  TableRow,
+} from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { DeleteRowButton } from "@/components/ui/delete-row-button";
@@ -226,58 +239,56 @@ export function NotificationTargetsPageView({
           {items.length === 0 ? (
             <p className="text-sm text-ink-3">Nothing set up yet. Everything already appears in your notifications; add an email address or a Slack channel to get it there too.</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] border-collapse text-left text-sm text-ink">
-                <thead className="border-b border-line text-xs text-muted">
-                  <tr>
-                    <th className="py-2 pr-4 font-medium">Name</th>
-                    <th className="py-2 pr-4 font-medium">Type</th>
-                    <th className="py-2 pr-4 font-medium">Enabled</th>
-                    <th className="py-2 pr-4 font-medium">Events</th>
-                    <th className="py-2 pr-4 font-medium">Updated</th>
-                    <th className="py-2 font-medium">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((row) => (
-                    <tr key={row.id} className="border-b border-line">
-                      <td className="py-3 pr-4 font-medium text-ink">{row.name}</td>
-                      <td className="py-3 pr-4 text-ink-3">{titleCase(row.target_type.replace(/_/g, " "))}</td>
-                      <td className="py-3 pr-4 text-ink-3">{row.enabled ? "Yes" : "No"}</td>
-                      <td className="py-3 pr-4 text-ink-3">{row.subscribed_event_types.length}</td>
-                      <td className="py-3 pr-4 text-xs text-muted">{formatDate(row.updated_at)}</td>
-                      <td className="py-3">
-                        <div className="flex flex-wrap gap-2">
-                          <Button variant="secondary" size="sm" type="button" onClick={() => openEdit(row)}>
-                            Edit
-                          </Button>
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            type="button"
-                            disabled={testingId === row.id}
-                            onClick={() => void onTest(row.id)}
-                          >
-                            {testingId === row.id ? "Testing…" : "Test"}
-                          </Button>
-                          <DeleteRowButton
-                            path={`/projects/${projectId}/notification-targets/${row.id}`}
-                            name={row.name}
-                            kind="notification target"
-                            consequences={[
-                              "Any scheduled report still delivering here must be pointed elsewhere first.",
-                            ]}
-                            onDeleted={() =>
-                              setItems((current) => current.filter((item) => item.id !== row.id))
-                            }
-                          />
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <Table minWidth={720}>
+              <TableHead>
+                <TableRow>
+                  <TableHeaderCell>Name</TableHeaderCell>
+                  <TableHeaderCell>Type</TableHeaderCell>
+                  <TableHeaderCell>Enabled</TableHeaderCell>
+                  <TableHeaderCell>Events</TableHeaderCell>
+                  <TableHeaderCell>Updated</TableHeaderCell>
+                  <TableHeaderCell>Actions</TableHeaderCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {items.map((row) => (
+                  <TableRow key={row.id}>
+                    <TableCell className="font-medium text-ink">{row.name}</TableCell>
+                    <TableCell className="text-ink-3">{titleCase(row.target_type.replace(/_/g, " "))}</TableCell>
+                    <TableCell className="text-ink-3">{row.enabled ? "Yes" : "No"}</TableCell>
+                    <TableCell className="text-ink-3">{row.subscribed_event_types.length}</TableCell>
+                    <TableCell className="text-xs text-muted">{formatDate(row.updated_at)}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-2">
+                        <Button variant="secondary" size="sm" type="button" onClick={() => openEdit(row)}>
+                          Edit
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          type="button"
+                          disabled={testingId === row.id}
+                          onClick={() => void onTest(row.id)}
+                        >
+                          {testingId === row.id ? "Testing…" : "Test"}
+                        </Button>
+                        <DeleteRowButton
+                          path={`/projects/${projectId}/notification-targets/${row.id}`}
+                          name={row.name}
+                          kind="notification target"
+                          consequences={[
+                            "Any scheduled report still delivering here must be pointed elsewhere first.",
+                          ]}
+                          onDeleted={() =>
+                            setItems((current) => current.filter((item) => item.id !== row.id))
+                          }
+                        />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           )}
         </SectionPanel>
       </AppShell>

@@ -2,11 +2,10 @@
 
 import { useCallback, useEffect, useId, useState } from "react";
 
-import { useToast } from "@/components/providers/toast-provider";
-import { Icon } from "@/components/ui/icon";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { cx } from "@/lib/utils";
+import { Badge, Button, Icon, Modal, useToast } from "@platform/shared-ui";
 
 type BackfillPreview = {
   interval: string;
@@ -125,150 +124,21 @@ export function BackfillDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center px-4">
-      <button
-        type="button"
-        aria-label="Close"
-        onClick={onClose}
-        className="absolute inset-0 cursor-default bg-scrim backdrop-blur-sm"
-      />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Backfill"
-        className="animate-fade-up relative w-full max-w-lg overflow-hidden rounded-2xl border border-line bg-[color:var(--panel-strong)] shadow-[var(--shadow-lg)]"
-      >
-        <div className="flex items-center justify-between border-b border-line px-5 py-3.5">
-          <div>
-            <h2 className="text-[14px] font-semibold text-ink">Backfill</h2>
-            <p className="mt-0.5 text-[12px] text-muted">
-              Replay this workflow across past dates, one run per slot.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close backfill"
-            className="rounded p-1 text-muted transition hover:bg-surface-2 hover:text-ink"
-          >
-            <Icon name="close" size={14} />
-          </button>
-        </div>
-
-        <div className="space-y-3.5 px-5 py-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label
-                htmlFor={`${fieldId}-start`}
-                className="mb-1.5 block text-[12px] font-medium text-ink"
-              >
-                From
-              </label>
-              <input
-                id={`${fieldId}-start`}
-                type="date"
-                className={inputClass}
-                value={start}
-                onChange={(event) => setStart(event.target.value)}
-              />
-            </div>
-            <div>
-              <label
-                htmlFor={`${fieldId}-end`}
-                className="mb-1.5 block text-[12px] font-medium text-ink"
-              >
-                Until (exclusive)
-              </label>
-              <input
-                id={`${fieldId}-end`}
-                type="date"
-                className={inputClass}
-                value={end}
-                onChange={(event) => setEnd(event.target.value)}
-              />
-            </div>
-          </div>
-
-          <div>
-            <span className="mb-1.5 block text-[12px] font-medium text-ink">Interval</span>
-            <div className="flex rounded-lg border border-line p-0.5">
-              {INTERVALS.map((value) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => setInterval(value)}
-                  className={cx(
-                    "flex-1 rounded-md px-2 py-1.5 text-[12px] capitalize transition",
-                    interval === value
-                      ? "bg-[color:var(--accent)] text-accent-ink"
-                      : "text-ink-3 hover:text-ink",
-                  )}
-                >
-                  {value}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {error ? (
-            <div className="flex items-start gap-2 rounded-lg border border-danger-line bg-danger-soft px-3 py-2.5 text-[12px] text-danger">
-              <Icon name="warning" size={13} className="mt-0.5 shrink-0" />
-              {error}
-            </div>
-          ) : preview ? (
-            <div className="rounded-lg border border-line bg-surface px-3 py-2.5">
-              <div className="text-[13px] text-ink">
-                {preview.slot_count} run{preview.slot_count === 1 ? "" : "s"} will be queued
-              </div>
-              <div className="mt-1 text-[12px] text-muted">
-                {preview.first_slot?.slice(0, 10)} through {preview.last_slot?.slice(0, 10)}
-              </div>
-              {preview.sample_slots.length > 0 ? (
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {preview.sample_slots.map((slot) => (
-                    <span
-                      key={slot}
-                      className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[12px] text-ink-3"
-                    >
-                      {slot.slice(0, 10)}
-                    </span>
-                  ))}
-                  {preview.slot_count > preview.sample_slots.length ? (
-                    <span className="px-1 py-0.5 text-[12px] text-muted">
-                      +{preview.slot_count - preview.sample_slots.length} more
-                    </span>
-                  ) : null}
-                </div>
-              ) : null}
-            </div>
-          ) : (
-            <div className="rounded-lg border border-line px-3 py-2.5 text-[12px] text-muted">
-              Checking the range…
-            </div>
-          )}
-
-          <p className="text-[12px] leading-5 text-muted">
-            Each run resolves date macros to its own slot, so{" "}
-            <code className="rounded bg-surface-2 px-1 font-mono text-[12px]">
-              {"{{ ds }}"}
-            </code>{" "}
-            is the date being reprocessed, not today.
-          </p>
-        </div>
-
-        <div className="flex justify-end gap-2 border-t border-line px-5 py-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg border border-line px-3.5 py-2 text-[12.5px] text-ink transition hover:bg-surface-2"
-          >
+    <Modal
+      open
+      onClose={onClose}
+      title="Backfill"
+      description="Run this workflow again for past dates, once per date."
+      widthClassName="max-w-lg"
+      footer={
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" size="sm" onClick={onClose}>
             Cancel
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            size="sm"
             onClick={queue}
             disabled={queueing || !preview || preview.slot_count === 0}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-[color:var(--accent)] px-3.5 py-2 text-[12.5px] font-medium text-accent-ink transition hover:brightness-110 disabled:opacity-40"
           >
             <Icon name="play" size={12} />
             {queueing
@@ -276,9 +146,110 @@ export function BackfillDialog({
               : preview
                 ? `Queue ${preview.slot_count} run${preview.slot_count === 1 ? "" : "s"}`
                 : "Queue"}
-          </button>
+          </Button>
         </div>
+      }
+    >
+      <div className="space-y-3.5">
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label
+              htmlFor={`${fieldId}-start`}
+              className="mb-1.5 block text-[12px] font-medium text-ink"
+            >
+              From
+            </label>
+            <input
+              id={`${fieldId}-start`}
+              type="date"
+              className={inputClass}
+              value={start}
+              onChange={(event) => setStart(event.target.value)}
+            />
+          </div>
+          <div>
+            <label
+              htmlFor={`${fieldId}-end`}
+              className="mb-1.5 block text-[12px] font-medium text-ink"
+            >
+              Until (exclusive)
+            </label>
+            <input
+              id={`${fieldId}-end`}
+              type="date"
+              className={inputClass}
+              value={end}
+              onChange={(event) => setEnd(event.target.value)}
+            />
+          </div>
+        </div>
+
+        <div>
+          <span className="mb-1.5 block text-[12px] font-medium text-ink">Interval</span>
+          <div className="flex rounded-lg border border-line p-0.5">
+            {INTERVALS.map((value) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setInterval(value)}
+                className={cx(
+                  "flex-1 rounded-md px-2 py-1.5 text-[12px] capitalize transition",
+                  interval === value
+                    ? "bg-[color:var(--accent)] text-accent-ink"
+                    : "text-ink-3 hover:text-ink",
+                )}
+              >
+                {value}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {error ? (
+          <div className="flex items-start gap-2 rounded-lg border border-danger-line bg-danger-soft px-3 py-2.5 text-[12px] text-danger">
+            <Icon name="warning" size={13} className="mt-0.5 shrink-0" />
+            {error}
+          </div>
+        ) : preview ? (
+          <div className="rounded-lg border border-line bg-surface px-3 py-2.5">
+            <div className="text-[13px] text-ink">
+              {preview.slot_count} run{preview.slot_count === 1 ? "" : "s"} will be queued
+            </div>
+            <div className="mt-1 text-[12px] text-muted">
+              {preview.first_slot?.slice(0, 10)} through {preview.last_slot?.slice(0, 10)}
+            </div>
+            {preview.sample_slots.length > 0 ? (
+              <div className="mt-2 flex flex-wrap gap-1">
+                {preview.sample_slots.map((slot) => (
+                  <Badge
+                    key={slot}
+                    className="font-mono"
+                  >
+                    {slot.slice(0, 10)}
+                  </Badge>
+                ))}
+                {preview.slot_count > preview.sample_slots.length ? (
+                  <span className="px-1 py-0.5 text-[12px] text-muted">
+                    +{preview.slot_count - preview.sample_slots.length} more
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <div className="rounded-lg border border-line px-3 py-2.5 text-[12px] text-muted">
+            Checking the range…
+          </div>
+        )}
+
+        <p className="text-[12px] leading-5 text-muted">
+          Each run uses its own date wherever the workflow says{" "}
+          <code className="rounded bg-surface-2 px-1 font-mono text-[12px]">
+            {"{{ ds }}"}
+          </code>
+          , so it reprocesses that day rather than today.
+        </p>
       </div>
-    </div>
+    </Modal>
   );
 }

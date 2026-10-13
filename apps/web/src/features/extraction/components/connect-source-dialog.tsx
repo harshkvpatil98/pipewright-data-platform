@@ -8,9 +8,8 @@ import type {
   SqlConnectorType,
 } from "@platform/shared-types";
 import { SQL_CONNECTOR_TYPES } from "@platform/shared-types";
-import { Button, FormField, Input, Modal, Select } from "@platform/shared-ui";
+import { Badge, Button, FormField, Icon, type IconName, Input, Modal, Select } from "@platform/shared-ui";
 
-import { Icon, type IconName } from "@/components/ui/icon";
 import {
   connectorConfig,
   firstMissing,
@@ -20,6 +19,7 @@ import {
   splitFields,
 } from "@/features/extraction/connector-form";
 import { apiFetch } from "@/lib/api/client";
+import { tierTone } from "@/lib/labels";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { cx } from "@/lib/utils";
 
@@ -41,13 +41,6 @@ const CATEGORY_ICONS: Record<string, IconName> = {
   api: "link",
   storage: "folder",
   file: "file",
-};
-
-const TIER_TONE: Record<number, string> = {
-  1: "border-success-line bg-success-soft text-success",
-  2: "border-success-line bg-success-soft text-success",
-  3: "border-line bg-surface-2 text-ink-3",
-  4: "border-warning-line bg-warning-soft text-warning",
 };
 
 /**
@@ -334,14 +327,9 @@ export function ConnectSourceDialog({
                       <span className="text-ink text-[14px] font-medium">
                         {spec.label}
                       </span>
-                      <span
-                        className={cx(
-                          "rounded-full border px-2 py-0 text-[12px]",
-                          TIER_TONE[spec.tier] ?? TIER_TONE[4],
-                        )}
-                      >
+                      <Badge tone={tierTone(spec.tier)}>
                         {spec.tier_label}
-                      </span>
+                      </Badge>
                     </span>
                     <span className="text-ink-3 block truncate text-[13px]">
                       {spec.available

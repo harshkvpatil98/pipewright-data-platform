@@ -2,9 +2,8 @@
 
 import { useMemo, useState } from "react";
 
-import { Input } from "@platform/shared-ui";
+import { Icon, Input } from "@platform/shared-ui";
 
-import { Icon } from "@/components/ui/icon";
 import { cx } from "@/lib/utils";
 
 import type { SchemaResponse, TableInfo } from "./types";

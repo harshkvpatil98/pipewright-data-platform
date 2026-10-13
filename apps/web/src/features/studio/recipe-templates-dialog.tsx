@@ -3,9 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 
 import type { LineageColumnListResponse } from "@platform/shared-types";
-import { Button, Modal } from "@platform/shared-ui";
+import { Badge, Button, Icon, Modal } from "@platform/shared-ui";
 
-import { Icon } from "@/components/ui/icon";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { cx } from "@/lib/utils";
@@ -172,20 +171,15 @@ export function RecipeTemplatesDialog({
                     <span className="min-w-0 flex-1">
                       <span className="flex flex-wrap items-center gap-2">
                         <span className="text-[15px] font-semibold text-ink">{match.template.name}</span>
-                        <span
-                          className={cx(
-                            "rounded-full border px-2 py-0.5 text-[12px]",
-                            fits
-                              ? "border-success-line bg-success-soft text-success"
-                              : "border-line text-ink-3",
-                          )}
-                        >
+                        <Badge tone={fits
+                              ? "success"
+                              : "neutral"}>
                           {fits
                             ? "Fits this data"
                             : `Needs ${match.missing
                                 .map((key) => (roleLabel.get(`${match.template.id}:${key}`) ?? key).toLowerCase())
                                 .join(" and ")}`}
-                        </span>
+                        </Badge>
                       </span>
                       <span className="mt-1 block text-[13px] leading-5 text-ink-3">
                         {match.template.description}

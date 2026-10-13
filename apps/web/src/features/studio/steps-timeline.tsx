@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { Icon } from "@/components/ui/icon";
 import { StepEditor } from "@/features/studio/step-editor";
 import { STEP_BY_TYPE } from "@/features/studio/step-catalog";
 import { describeStep } from "@/features/studio/step-summary";
@@ -10,6 +9,7 @@ import { describeToolStep, ToolStepEditor } from "@/features/studio/tools/tool-s
 import type { Tool } from "@/features/studio/tools/tool-catalogue";
 import { friendlyStepMessage } from "@/lib/labels";
 import { cx } from "@/lib/utils";
+import { Icon } from "@platform/shared-ui";
 
 export type TimelineStep = { uid: string; step_type: string; config: Record<string, unknown> };
 

@@ -11,7 +11,7 @@ import type {
   StreamSource,
   StreamSourceCreated,
 } from "@platform/shared-types";
-import { Button, FormField, Input, Modal, SectionPanel, Select } from "@platform/shared-ui";
+import { Badge, Button, FormField, Input, Modal, SectionPanel, Select } from "@platform/shared-ui";
 
 import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { apiFetch } from "@/lib/api/client";
@@ -197,12 +197,12 @@ export function LiveSourcesPanel({ projectId, connections, initial }: LiveSource
                 <div key={source.id} className="rounded-2xl border border-line bg-surface px-4 py-3">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-sm font-semibold text-ink">{source.name}</h3>
-                    <span className="rounded-full border border-line bg-sunken px-2 py-0.5 text-[12px] text-ink-3">
+                    <Badge>
                       {source.kind === "webhook" ? "Web address" : "PostgreSQL changes"}
-                    </span>
-                    <span className={cx("rounded-full border px-2 py-0.5 text-[12px]", source.last_error ? "border-danger-line bg-danger-soft text-danger" : "border-line text-muted")}>
+                    </Badge>
+                    <Badge tone={source.last_error ? "danger" : "neutral"}>
                       {source.last_error ? "Needs attention" : source.status === "active" ? "On" : source.status}
-                    </span>
+                    </Badge>
                     <div className="ml-auto flex flex-wrap items-center gap-2">
                       {source.kind === "postgres_cdc" ? (
                         <Button variant="secondary" size="sm" disabled={busy !== null} onClick={() => void poll(source)}>

@@ -14,11 +14,25 @@ import type {
   MetricSqlResponse,
   MetricUsageResponse,
 } from "@platform/shared-types";
-import { Button, EmptyState, Modal, SectionPanel, StatCard, buttonClassName } from "@platform/shared-ui";
+import {
+  Badge,
+  Button,
+  buttonClassName,
+  EmptyState,
+  Icon,
+  Modal,
+  SectionPanel,
+  StatTile,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeaderCell,
+  TableRow,
+} from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { DeleteRowButton } from "@/components/ui/delete-row-button";
-import { Icon } from "@/components/ui/icon";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { formatDate } from "@/lib/format";
@@ -229,9 +243,9 @@ export function MetricsPageView({ currentUser, projectId, initial, datasets }: M
         }
       >
         <section className="grid gap-4 md:grid-cols-3">
-          <StatCard label="Metrics" value={String(metrics.length)} caption="Definitions in this project." />
-          <StatCard label="Charts resolving through them" value={String(usedTotal)} caption="What moves when a definition changes." />
-          <StatCard
+          <StatTile label="Metrics" value={String(metrics.length)} caption="Definitions in this project." />
+          <StatTile label="Charts resolving through them" value={String(usedTotal)} caption="What moves when a definition changes." />
+          <StatTile
             label="With an owner"
             value={String(metrics.filter((metric) => metric.owner_username).length)}
             caption="Somebody to ask about the number."
@@ -274,14 +288,14 @@ export function MetricsPageView({ currentUser, projectId, initial, datasets }: M
                       <button type="button" onClick={() => void inspect(metric, "", dialect)} className="text-[13.5px] font-medium text-ink hover:text-accent">
                         {metric.name}
                       </button>
-                      <span className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[12px] text-ink-3">v{metric.version_number}</span>
-                      <span className="rounded-full border border-line bg-sunken px-2 py-0.5 text-[12px] text-ink-3">
+                      <Badge className="font-mono">v{metric.version_number}</Badge>
+                      <Badge>
                         {metric.aggregation.replace("_", " ")} of {metric.formula ? metric.formula : metric.column}
-                      </span>
+                      </Badge>
                       {metric.filters.map((filter, index) => (
-                        <span key={index} className="rounded-full border border-line px-2 py-0.5 text-[12px] text-muted">
+                        <Badge key={index}>
                           {describeFilter(filter)}
-                        </span>
+                        </Badge>
                       ))}
                     </div>
                     <div className="mt-0.5 text-[12px] text-muted">
@@ -468,16 +482,16 @@ export function MetricsPageView({ currentUser, projectId, initial, datasets }: M
               <p className="text-[12.5px] text-muted">Computing…</p>
             ) : (
               <div className="overflow-x-auto rounded-2xl border border-line">
-                <table className="min-w-full divide-y divide-line text-left text-[12.5px]">
-                  <thead className="bg-surface text-ink-3">
-                    <tr>{preview.columns.map((column) => <th key={column} className="cell-pad font-medium">{column}</th>)}</tr>
-                  </thead>
-                  <tbody className="divide-y divide-line">
+                <Table>
+                  <TableHead>
+                    <TableRow>{preview.columns.map((column) => <TableHeaderCell key={column}>{column}</TableHeaderCell>)}</TableRow>
+                  </TableHead>
+                  <TableBody>
                     {preview.rows.map((row, index) => (
-                      <tr key={index}>{preview.columns.map((column) => <td key={column} className="cell-pad text-ink-2">{row[column] === null || row[column] === undefined ? "null" : String(row[column])}</td>)}</tr>
+                      <TableRow key={index}>{preview.columns.map((column) => <TableCell key={column} className="text-ink-2">{row[column] === null || row[column] === undefined ? "null" : String(row[column])}</TableCell>)}</TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
                 {preview.warnings.length > 0 ? <p className="px-3 py-2 text-[12px] text-muted">{preview.warnings.join(" ")}</p> : null}
               </div>
             )}

@@ -34,7 +34,7 @@ export function buttonClassName(
     // half-strength bright teal on a near-black ground still reads as an
     // active button, while half-strength dark teal on white correctly
     // washes out. Desaturating removes the "this is live" signal in both.
-    "inline-flex items-center justify-center gap-2 rounded-xl font-medium transition duration-200 disabled:cursor-not-allowed disabled:opacity-50 disabled:saturate-0",
+    "inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl font-medium transition duration-200 disabled:cursor-not-allowed disabled:opacity-50 disabled:saturate-0",
     variantClasses[variant],
     sizeClasses[size],
     className,

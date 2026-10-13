@@ -10,10 +10,16 @@ import type {
   ProjectDetail,
   StreamSource,
 } from "@platform/shared-types";
-import { Button, EmptyState, SectionPanel, StatusBadge, buttonClassName } from "@platform/shared-ui";
+import {
+  Button,
+  buttonClassName,
+  EmptyState,
+  Icon,
+  SectionPanel,
+  StatusBadge,
+} from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
-import { Icon } from "@/components/ui/icon";
 import { AddDataDialog } from "@/features/datasets/components/add-data-dialog";
 import { getPipelineRunSecondaryText } from "@/features/datasets/run-summary";
 import { ProjectChecklist } from "@/features/projects/components/project-checklist";

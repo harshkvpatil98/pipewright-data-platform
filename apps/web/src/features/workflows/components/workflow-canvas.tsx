@@ -10,7 +10,6 @@ import type {
   WorkflowNodeType,
 } from "@platform/shared-types";
 
-import { Icon, type IconName } from "@/components/ui/icon";
 import {
   NODE_HEIGHT,
   NODE_WIDTH,
@@ -22,6 +21,7 @@ import {
   snap,
 } from "@/features/workflows/canvas-geometry";
 import { cx } from "@/lib/utils";
+import { Icon, type IconName } from "@platform/shared-ui";
 
 export const NODE_META: Record<
   WorkflowNodeType,

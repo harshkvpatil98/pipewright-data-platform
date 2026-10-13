@@ -10,13 +10,13 @@ import type {
   SecurityPolicyListResponse,
   UsageResponse,
 } from "@platform/shared-types";
-import { Button, SectionPanel } from "@platform/shared-ui";
+import { Badge, type BadgeTone, Button, Icon, SectionPanel } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { PolicySimulationPanel } from "@/features/enterprise/components/policy-simulation-panel";
 import { DeleteRowButton } from "@/components/ui/delete-row-button";
-import { Icon } from "@/components/ui/icon";
 import { apiFetch } from "@/lib/api/client";
+import { sentenceLabel } from "@/lib/labels";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { formatDate } from "@/lib/format";
 import { cx } from "@/lib/utils";
@@ -33,12 +33,12 @@ type GovernancePageProps = {
 const inputClass =
   "h-9 w-full rounded-lg border border-line bg-sunken px-2.5 text-[13px] text-ink outline-none transition focus:border-[color:var(--accent)]";
 
-const ACTION_TONE: Record<string, string> = {
-  deny: "border-danger-line bg-danger-soft text-danger",
-  redact: "border-warning-line bg-warning-soft text-warning",
-  hash: "border-accent-line bg-accent-soft text-accent",
-  mask: "border-warning-line bg-warning-soft text-warning",
-  allow: "border-line text-ink-3",
+const ACTION_TONE: Record<string, BadgeTone> = {
+  deny: "danger",
+  redact: "warning",
+  hash: "accent",
+  mask: "warning",
+  allow: "neutral",
 };
 
 export function GovernancePageView({
@@ -149,9 +149,9 @@ export function GovernancePageView({
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-[13px] text-ink">{policy.name}</span>
                   <div className="flex items-center gap-2">
-                    <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[12px] capitalize text-ink-3">
+                    <Badge className="capitalize">
                       applies to {policy.role}
-                    </span>
+                    </Badge>
                     <DeleteRowButton
                       path={`/projects/${projectId}/security-policies/${policy.id}`}
                       name={policy.name}
@@ -183,15 +183,10 @@ export function GovernancePageView({
                 {policy.column_rules.length > 0 ? (
                   <div className="mt-1.5 flex flex-wrap gap-1">
                     {policy.column_rules.map((rule) => (
-                      <span
-                        key={rule.column}
-                        className={cx(
-                          "rounded border px-1.5 py-0.5 font-mono text-[12px]",
-                          ACTION_TONE[rule.action] ?? ACTION_TONE.allow,
-                        )}
-                      >
+                      <Badge tone={ACTION_TONE[rule.action] ?? ACTION_TONE.allow} className="font-mono"
+                        key={rule.column}>
                         {rule.column} · {rule.action}
-                      </span>
+                      </Badge>
                     ))}
                   </div>
                 ) : null}
@@ -246,16 +241,11 @@ export function GovernancePageView({
                         : ""}
                     </div>
                   </div>
-                  <span
-                    className={cx(
-                      "shrink-0 rounded-full border px-2 py-0.5 text-[12px]",
-                      policy.dry_run
-                        ? "border-warning-line bg-warning-soft text-warning"
-                        : "border-danger-line bg-danger-soft text-danger",
-                    )}
-                  >
+                  <Badge tone={policy.dry_run
+                        ? "warning"
+                        : "danger"} className="shrink-0">
                     {policy.dry_run ? "report only" : "deletes"}
-                  </span>
+                  </Badge>
                 </li>
               ))}
             </ul>
@@ -354,14 +344,14 @@ function ErasureRow({ request }: { request: ErasureRequest }) {
     blocked?: { dataset: string; reason: string }[];
   } | null;
   const blocked = report?.blocked ?? [];
-  const statusTone =
+  const statusTone: BadgeTone =
     request.status === "completed"
-      ? "border-success-line bg-success-soft text-success"
+      ? "success"
       : request.status === "blocked"
-        ? "border-danger-line bg-danger-soft text-danger"
+        ? "danger"
         : request.status === "partial"
-          ? "border-warning-line bg-warning-soft text-warning"
-          : "border-line text-ink-3";
+          ? "warning"
+          : "neutral";
   return (
     <li className="rounded-xl border border-line bg-surface px-3.5 py-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -369,12 +359,12 @@ function ErasureRow({ request }: { request: ErasureRequest }) {
           {report?.subject_value ?? "***"}
         </span>
         <div className="flex items-center gap-1.5">
-          <span className="rounded-full border border-line px-2 py-0.5 text-[12px] text-ink-3">
-            {request.mode}
-          </span>
-          <span className={cx("rounded-full border px-2 py-0.5 text-[12px]", statusTone)}>
-            {request.status}
-          </span>
+          <Badge>
+            {sentenceLabel(request.mode)}
+          </Badge>
+          <Badge tone={statusTone}>
+            {sentenceLabel(request.status)}
+          </Badge>
         </div>
       </div>
       {report?.summary ? (

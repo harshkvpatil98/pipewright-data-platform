@@ -4,10 +4,10 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import type { AuthUser, OperatorRunRow } from "@platform/shared-types";
-import { Button, SectionPanel, StatusBadge, buttonClassName } from "@platform/shared-ui";
+import { Button, buttonClassName, EmptyState, SectionPanel, StatusBadge, Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
-import { OperationalEmpty, OperationalError } from "@/components/operational/operational-messages";
+import { OperationalError } from "@/components/operational/operational-messages";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { formatDate } from "@/lib/format";
@@ -93,7 +93,7 @@ export function RunsPageView({ currentUser, initialRuns }: RunsPageProps) {
         description={loading ? "Loading…" : `${runs.length} run${runs.length === 1 ? "" : "s"}`}
       >
         {runs.length === 0 ? (
-          <OperationalEmpty
+          <EmptyState size="compact"
             title="No runs to show"
             description={
               status
@@ -114,41 +114,39 @@ export function RunsPageView({ currentUser, initialRuns }: RunsPageProps) {
           />
         ) : (
           <div className="overflow-hidden rounded-[24px] border border-line bg-sunken">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] border-collapse text-left text-sm text-ink">
-                <thead className="border-b border-line text-xs text-muted">
-                  <tr>
-                    <th className="py-2 pr-3 font-medium">Project</th>
-                    <th className="py-2 pr-3 font-medium">Type</th>
-                    <th className="py-2 pr-3 font-medium">Pipeline</th>
-                    <th className="py-2 pr-3 font-medium">Status</th>
-                    <th className="py-2 font-medium">Started</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {runs.map((run) => (
-                    <tr key={run.id} className="border-b border-line">
-                      <td className="py-2 pr-3">
-                        <Link
-                          href={`/projects/${run.project_id}`}
-                          className="font-medium text-ink hover:text-accent"
-                        >
-                          {run.project_name}
-                        </Link>
-                      </td>
-                      <td className="py-2 pr-3 text-ink-2">{formatRunTypeLabel(run.run_type)}</td>
-                      <td className="py-2 pr-3 text-ink-3">{run.pipeline_name ?? "—"}</td>
-                      <td className="py-2 pr-3">
-                        <StatusBadge value={run.status} />
-                      </td>
-                      <td className="py-2 text-xs text-ink-3">
-                        {run.started_at ? formatDate(run.started_at) : formatDate(run.created_at)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <Table minWidth={720}>
+              <TableHead>
+                <TableRow>
+                  <TableHeaderCell>Project</TableHeaderCell>
+                  <TableHeaderCell>Type</TableHeaderCell>
+                  <TableHeaderCell>Pipeline</TableHeaderCell>
+                  <TableHeaderCell>Status</TableHeaderCell>
+                  <TableHeaderCell>Started</TableHeaderCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {runs.map((run) => (
+                  <TableRow key={run.id}>
+                    <TableCell>
+                      <Link
+                        href={`/projects/${run.project_id}`}
+                        className="font-medium text-ink hover:text-accent"
+                      >
+                        {run.project_name}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="text-ink-2">{formatRunTypeLabel(run.run_type)}</TableCell>
+                    <TableCell className="text-ink-3">{run.pipeline_name ?? "—"}</TableCell>
+                    <TableCell>
+                      <StatusBadge value={run.status} />
+                    </TableCell>
+                    <TableCell className="text-xs text-ink-3">
+                      {run.started_at ? formatDate(run.started_at) : formatDate(run.created_at)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
         )}
       </SectionPanel>

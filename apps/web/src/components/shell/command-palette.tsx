@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { Icon, type IconName } from "@/components/ui/icon";
 import { cx } from "@/lib/utils";
+import { Icon, type IconName, Overlay } from "@platform/shared-ui";
 
 export type Command = {
   id: string;
@@ -132,17 +132,8 @@ export function CommandPalette({ open, onClose, commands }: CommandPaletteProps)
   };
 
   return (
-    <div className="fixed inset-0 z-[85] flex items-start justify-center px-4 pt-[12vh]">
-      <button
-        type="button"
-        aria-label="Close command palette"
-        onClick={onClose}
-        className="absolute inset-0 cursor-default bg-scrim backdrop-blur-sm"
-      />
+    <Overlay open onClose={onClose} label="Command palette" placement="top" layer="palette">
       <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Command palette"
         className="animate-fade-up relative w-full max-w-xl overflow-hidden rounded-2xl border border-line bg-[color:var(--panel-strong)] shadow-[var(--shadow-lg)] backdrop-blur-xl"
         onKeyDown={onKeyDown}
       >
@@ -154,7 +145,8 @@ export function CommandPalette({ open, onClose, commands }: CommandPaletteProps)
             onChange={(event) => setQuery(event.target.value)}
             autoFocus
             placeholder="Search pages, data and actions…"
-            className="h-14 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-muted"
+            style={{ outline: "none" }}
+            className="h-14 flex-1 bg-transparent text-sm text-ink placeholder:text-muted"
             aria-label="Search pages and actions"
           />
           <kbd className="shrink-0 rounded border border-line bg-surface px-1.5 py-0.5 font-mono text-[12px] text-ink-3">
@@ -217,6 +209,6 @@ export function CommandPalette({ open, onClose, commands }: CommandPaletteProps)
           </span>
         </div>
       </div>
-    </div>
+    </Overlay>
   );
 }

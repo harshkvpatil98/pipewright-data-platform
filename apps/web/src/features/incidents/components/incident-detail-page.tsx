@@ -4,16 +4,15 @@ import Link from "next/link";
 import { useCallback, useState } from "react";
 
 import type { AuthUser, IncidentDetail } from "@platform/shared-types";
-import { Button, SectionPanel } from "@platform/shared-ui";
+import { Badge, Button, Icon, SectionPanel } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
-import { Icon } from "@/components/ui/icon";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { formatDate } from "@/lib/format";
 import { cx } from "@/lib/utils";
 
-import { SEVERITY_TONE, SOURCE_LABEL, StatusPill } from "./incidents-page";
+import { IncidentSeverityBadge, IncidentStatusBadge, SOURCE_LABEL } from "./incidents-page";
 
 type IncidentDetailPageProps = {
   currentUser: AuthUser;
@@ -79,13 +78,11 @@ export function IncidentDetailPageView({
           <Icon name="chevronLeft" size={12} />
           All incidents
         </Link>
-        <span className={cx("rounded-full border px-2 py-0.5 text-[12px] capitalize", SEVERITY_TONE[incident.severity])}>
-          {incident.severity}
-        </span>
-        <StatusPill status={incident.status} />
-        <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[12px] text-ink-3">
+        <IncidentSeverityBadge severity={incident.severity} />
+        <IncidentStatusBadge status={incident.status} />
+        <Badge>
           {SOURCE_LABEL[incident.source_kind] ?? incident.source_kind}
-        </span>
+        </Badge>
       </div>
 
       {error ? (

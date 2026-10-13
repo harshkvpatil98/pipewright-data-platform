@@ -15,20 +15,26 @@ import type {
 } from "@platform/shared-types";
 import {
   Button,
+  buttonClassName,
+  Icon,
   Modal,
   SectionPanel,
   StatusBadge,
-  buttonClassName,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeaderCell,
+  TableRow,
+  useToast,
 } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { ActionMenu } from "@/components/ui/action-menu";
-import { Icon } from "@/components/ui/icon";
 import { typeLabel } from "@/lib/labels";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { apiFetch } from "@/lib/api/client";
 import { downloadFromApi } from "@/lib/api/download";
-import { useToast } from "@/components/providers/toast-provider";
 import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { DatasetCatalogPanel } from "@/features/datasets/components/dataset-catalog-panel";
 import { DatasetVersionHistoryPanel } from "@/features/datasets/components/dataset-version-history-panel";
@@ -272,39 +278,36 @@ export function DatasetDetailPageView({
         description={`The first ${formatNumber(preview.rows.length)} of ${formatNumber(dataset.row_count)} rows.`}
       >
         <div className="border-line bg-sunken overflow-hidden rounded-[24px] border">
-          <div className="overflow-x-auto">
-            <table className="divide-line min-w-full divide-y text-left text-sm">
-              <thead className="bg-surface text-ink-3">
-                <tr>
-                  {preview.columns.map((column) => (
-                    <th key={column} className="cell-pad font-medium">
-                      {column}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-line divide-y">
-                {preview.rows.map((row, index) => (
-                  <tr key={index} className="hover:bg-surface transition">
-                    {preview.columns.map((column) => (
-                      <td
-                        key={`${index}-${column}`}
-                        className="cell-pad text-ink align-top"
-                      >
-                        {row[column] === null ||
-                        row[column] === undefined ||
-                        row[column] === "" ? (
-                          <span className="text-muted">—</span>
-                        ) : (
-                          String(row[column])
-                        )}
-                      </td>
-                    ))}
-                  </tr>
+          <Table>
+            <TableHead>
+              <TableRow>
+                {preview.columns.map((column) => (
+                  <TableHeaderCell key={column}>
+                    {column}
+                  </TableHeaderCell>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {preview.rows.map((row, index) => (
+                <TableRow key={index}>
+                  {preview.columns.map((column) => (
+                    <TableCell
+                      key={`${index}-${column}`} className="text-ink"
+                    >
+                      {row[column] === null ||
+                      row[column] === undefined ||
+                      row[column] === "" ? (
+                        <span className="text-muted">—</span>
+                      ) : (
+                        String(row[column])
+                      )}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
       </SectionPanel>
 
@@ -317,44 +320,42 @@ export function DatasetDetailPageView({
         }
       >
         <div className="border-line bg-sunken overflow-hidden rounded-[24px] border">
-          <div className="overflow-x-auto">
-            <table className="divide-line min-w-full divide-y text-left text-sm">
-              <thead className="bg-surface text-ink-3">
-                <tr>
-                  <th className="cell-pad font-medium">Column</th>
-                  <th className="cell-pad font-medium">Type</th>
-                  <th className="cell-pad font-medium">Empty</th>
-                  <th className="cell-pad font-medium">Distinct</th>
-                  <th className="cell-pad font-medium">Examples</th>
-                </tr>
-              </thead>
-              <tbody className="divide-line divide-y">
-                {profileColumns.map((column) => (
-                  <tr key={column.name} className="hover:bg-surface transition">
-                    <td className="cell-pad text-ink align-top">
-                      {column.name}
-                    </td>
-                    <td className="cell-pad text-ink-2 align-top">
-                      {column.inferred_type
-                        ? typeLabel(column.inferred_type)
-                        : "--"}
-                    </td>
-                    <td className="cell-pad text-ink-2 align-top">
-                      {column.null_percentage}%
-                    </td>
-                    <td className="cell-pad text-ink-2 align-top">
-                      {column.unique_percentage}%
-                    </td>
-                    <td className="cell-pad text-ink-3 align-top">
-                      {Array.isArray(column.sample_values)
-                        ? column.sample_values.map(String).join(", ")
-                        : "--"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableHeaderCell>Column</TableHeaderCell>
+                <TableHeaderCell>Type</TableHeaderCell>
+                <TableHeaderCell>Empty</TableHeaderCell>
+                <TableHeaderCell>Distinct</TableHeaderCell>
+                <TableHeaderCell>Examples</TableHeaderCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {profileColumns.map((column) => (
+                <TableRow key={column.name}>
+                  <TableCell className="text-ink">
+                    {column.name}
+                  </TableCell>
+                  <TableCell className="text-ink-2">
+                    {column.inferred_type
+                      ? typeLabel(column.inferred_type)
+                      : "--"}
+                  </TableCell>
+                  <TableCell className="text-ink-2">
+                    {column.null_percentage}%
+                  </TableCell>
+                  <TableCell className="text-ink-2">
+                    {column.unique_percentage}%
+                  </TableCell>
+                  <TableCell className="text-ink-3">
+                    {Array.isArray(column.sample_values)
+                      ? column.sample_values.map(String).join(", ")
+                      : "--"}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
       </SectionPanel>
 

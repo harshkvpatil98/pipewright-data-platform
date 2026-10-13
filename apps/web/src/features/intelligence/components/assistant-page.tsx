@@ -12,13 +12,13 @@ import type {
   PiiScanResponse,
   RuleSuggestionResponse,
 } from "@platform/shared-types";
-import { Button, SectionPanel } from "@platform/shared-ui";
+import { Badge, type BadgeTone, Button, Icon, SectionPanel } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
-import { Icon } from "@/components/ui/icon";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { cx } from "@/lib/utils";
+import { sentenceLabel } from "@/lib/labels";
 
 type AssistantPageProps = {
   currentUser: AuthUser;
@@ -31,10 +31,10 @@ type AssistantPageProps = {
   documentation: DocumentationResponse | null;
 };
 
-const CONFIDENCE_TONE: Record<Confidence, string> = {
-  high: "border-danger-line bg-danger-soft text-danger",
-  medium: "border-warning-line bg-warning-soft text-warning",
-  low: "border-line bg-surface-2 text-ink-3",
+const CONFIDENCE_TONE: Record<Confidence, BadgeTone> = {
+  high: "danger",
+  medium: "warning",
+  low: "neutral",
 };
 
 const inputClass =
@@ -198,14 +198,9 @@ export function AssistantPageView({
                       <span className="font-mono text-[12.5px] text-ink">{finding.column}</span>
                       <span className="ml-2 text-[12px] text-ink-3">{finding.label}</span>
                     </div>
-                    <span
-                      className={cx(
-                        "shrink-0 rounded-full border px-2 py-0.5 text-[12px]",
-                        CONFIDENCE_TONE[finding.confidence],
-                      )}
-                    >
-                      {finding.confidence}
-                    </span>
+                    <Badge tone={CONFIDENCE_TONE[finding.confidence]} className="shrink-0">
+                      {sentenceLabel(finding.confidence)}
+                    </Badge>
                   </div>
                   <p className="mt-1 text-[12px] text-ink-3">{finding.reason}</p>
                   <p className="mt-1 text-[12px] text-muted">
@@ -235,14 +230,9 @@ export function AssistantPageView({
                 >
                   <div className="flex items-start justify-between gap-2">
                     <span className="text-[12.5px] text-ink">{rule.name}</span>
-                    <span
-                      className={cx(
-                        "shrink-0 rounded-full border px-2 py-0.5 text-[12px]",
-                        CONFIDENCE_TONE[rule.confidence],
-                      )}
-                    >
-                      {rule.confidence}
-                    </span>
+                    <Badge tone={CONFIDENCE_TONE[rule.confidence]} className="shrink-0">
+                      {sentenceLabel(rule.confidence)}
+                    </Badge>
                   </div>
                   <p className="mt-1 text-[12px] leading-4 text-ink-3">{rule.rationale}</p>
                 </li>
@@ -317,9 +307,9 @@ export function AssistantPageView({
           </p>
           <div className="mt-1.5 flex flex-wrap gap-1">
             {documentation.dataset.facts_used.map((fact) => (
-              <span key={fact} className="rounded bg-surface-2 px-1.5 py-0.5 text-[12px] text-muted">
+              <Badge key={fact}>
                 from {fact}
-              </span>
+              </Badge>
             ))}
           </div>
 

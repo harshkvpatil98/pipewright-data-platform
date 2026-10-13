@@ -9,15 +9,13 @@ import type {
   TransformationPipelineRecord,
   TransformationRunResponse,
 } from "@platform/shared-types";
-import { Button } from "@platform/shared-ui";
+import { Badge, Button, Icon, useToast } from "@platform/shared-ui";
 
 import { AppFrame } from "@/components/shell/app-frame";
 import type { Command } from "@/components/shell/command-palette";
-import { useToast } from "@/components/providers/toast-provider";
 import { STUDIO_TOUR_ID, studioTour } from "@/components/tour/tours";
 import { useTour } from "@/components/tour/tour-provider";
 import { ActionMenu } from "@/components/ui/action-menu";
-import { Icon } from "@/components/ui/icon";
 import { AddDataDialog } from "@/features/datasets/components/add-data-dialog";
 import { useUnsavedChangesGuard } from "@/features/navigation/unsaved-changes-guard";
 import { DetailsDrawer, type ExecutionPlan } from "@/features/studio/details-drawer";
@@ -467,14 +465,9 @@ export function StudioPage({ currentUser, projectId, datasets, initialDatasetId,
                 placeholder="Name this recipe"
                 className="h-8 min-w-0 max-w-[320px] flex-1 rounded-lg border border-transparent bg-transparent px-1.5 text-[16px] font-semibold text-ink outline-none transition hover:border-line focus:border-[color:var(--accent)] focus:bg-sunken"
               />
-              <span
-                className={cx(
-                  "shrink-0 rounded-full px-2 py-0.5 text-[12px]",
-                  dirty ? "bg-warning-soft text-warning" : saved ? "bg-success-soft text-success" : "bg-surface-2 text-ink-3",
-                )}
-              >
+              <Badge tone={dirty ? "warning" : saved ? "success" : "neutral"} className="shrink-0">
                 {status}
-              </span>
+              </Badge>
             </div>
             <div data-tour="studio-source" className="mt-0.5 flex min-w-0 items-center gap-1.5 px-1.5 text-[13px] text-ink-3">
               <span className="shrink-0">From</span>

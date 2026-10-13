@@ -11,9 +11,16 @@ import type {
   DestinationListResponse,
   DestinationRecord,
 } from "@platform/shared-types";
-import { Button, FormField, Input, Modal, Select, buttonClassName } from "@platform/shared-ui";
+import {
+  Button,
+  buttonClassName,
+  FormField,
+  Icon,
+  Input,
+  Modal,
+  Select,
+} from "@platform/shared-ui";
 
-import { Icon } from "@/components/ui/icon";
 import { KIND_BY_TYPE } from "@/features/destinations/destination-kinds";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";

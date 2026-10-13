@@ -1,33 +1,25 @@
 type PageHeaderProps = {
-  eyebrow?: string;
   title: string;
-  description: string;
+  /** One sentence saying what the page is for: 15 words at most (A0 voice guide). */
+  subtitle: string;
+  /** At most three; the rest go in an overflow menu. */
   actions?: React.ReactNode;
+  /** Badges and facts about the object the page shows. */
   meta?: React.ReactNode;
 };
 
-export function PageHeader({
-  eyebrow = "Data operations control plane",
-  title,
-  description,
-  actions,
-  meta,
-}: PageHeaderProps) {
+/** The top of every list, detail and settings page: its name, its purpose, its actions. */
+export function PageHeader({ title, subtitle, actions, meta }: PageHeaderProps) {
   return (
-    <header className="border-b border-line px-6 py-7 lg:px-10 lg:py-8">
-      <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
-        <div className="max-w-4xl">
-          <div className="text-[12px] text-[color:var(--accent-muted)]">
-            {eyebrow}
-          </div>
-          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-ink lg:text-[2rem]">
-            {title}
-          </h1>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-ink-3">{description}</p>
-          {meta ? <div className="mt-5 flex flex-wrap gap-2.5">{meta}</div> : null}
+    <header className="mb-6">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0 max-w-3xl">
+          <h1 className="text-[26px] font-semibold tracking-tight text-ink">{title}</h1>
+          <p className="mt-1.5 text-[14px] leading-6 text-ink-3">{subtitle}</p>
         </div>
-        {actions ? <div className="flex flex-wrap items-center gap-3 xl:max-w-[42rem] xl:justify-end">{actions}</div> : null}
+        {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
       </div>
+      {meta ? <div className="mt-4 flex flex-wrap items-center gap-2">{meta}</div> : null}
     </header>
   );
 }

@@ -19,6 +19,14 @@ import {
   slicePath,
   yPosition,
 } from "../chart-geometry";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeaderCell,
+  TableRow,
+} from "@platform/shared-ui";
 
 /**
  * Series colours come from theme tokens, so they follow light/dark.
@@ -122,28 +130,28 @@ function TableView({ data, className }: { data: ChartData; className?: string })
   const rowCount = data.series[0]?.values.length ?? 0;
   return (
     <div className={cx("max-h-[260px] overflow-auto rounded-xl border border-line", className)}>
-      <table className="w-full text-left">
-        <thead className="sticky top-0 bg-[color:var(--panel-strong)]">
-          <tr className="text-[12px] text-muted">
+      <Table>
+        <TableHead className="sticky top-0 bg-[color:var(--panel-strong)]">
+          <TableRow className="text-[12px] text-muted">
             {data.labels.map((label) => (
-              <th key={String(label)} className="cell-pad font-medium">
+              <TableHeaderCell key={String(label)}>
                 {String(label).replace(/_/g, " ")}
-              </th>
+              </TableHeaderCell>
             ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-line">
+          </TableRow>
+        </TableHead>
+        <TableBody>
           {Array.from({ length: rowCount }, (_unused, row) => (
-            <tr key={row}>
+            <TableRow key={row}>
               {data.series.map((series) => (
-                <td key={series.name} className="cell-pad text-[12.5px] text-ink">
+                <TableCell key={series.name} className="text-[12.5px] text-ink">
                   {series.values[row] === null ? "—" : String(series.values[row])}
-                </td>
+                </TableCell>
               ))}
-            </tr>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }

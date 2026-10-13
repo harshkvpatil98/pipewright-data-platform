@@ -15,11 +15,17 @@ import type {
   LineageColumnListResponse,
   Metric,
 } from "@platform/shared-types";
-import { Button, EmptyState, SectionPanel, buttonClassName } from "@platform/shared-ui";
+import {
+  Badge,
+  Button,
+  buttonClassName,
+  EmptyState,
+  Icon,
+  SectionPanel,
+} from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { DeleteRowButton } from "@/components/ui/delete-row-button";
-import { Icon } from "@/components/ui/icon";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { cx } from "@/lib/utils";
@@ -511,10 +517,10 @@ export function ChartBuilderPageView({
                 <div className="flex items-start justify-between gap-2">
                   <span className="text-[13px] text-ink">{chart.name}</span>
                   <div className="flex shrink-0 items-center gap-1.5">
-                    <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[12px] capitalize text-ink-3">
+                    <Badge className="capitalize">
                       {chart.chart_type}
                       {chart.metric_name ? ` · ${chart.metric_name}` : ""}
-                    </span>
+                    </Badge>
                     <DeleteRowButton
                       path={`/projects/${projectId}/charts/${chart.id}`}
                       name={chart.name}

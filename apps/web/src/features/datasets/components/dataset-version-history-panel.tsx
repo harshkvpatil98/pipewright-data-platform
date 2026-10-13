@@ -11,7 +11,18 @@ import type {
   DatasetVersionDiffRequest,
   DatasetVersionListResponse,
 } from "@platform/shared-types";
-import { Button, Modal, SectionPanel } from "@platform/shared-ui";
+import {
+  Badge,
+  Button,
+  Modal,
+  SectionPanel,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeaderCell,
+  TableRow,
+} from "@platform/shared-ui";
 
 import { apiFetch } from "@/lib/api/client";
 import { downloadFromApi } from "@/lib/api/download";
@@ -237,147 +248,142 @@ export function DatasetVersionHistoryPanel({
         </p>
       ) : (
         <div className="overflow-hidden rounded-[24px] border border-line bg-sunken">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-line text-left text-sm">
-              <thead className="bg-surface text-ink-3">
-                <tr>
-                  <th className="cell-pad font-medium">Version</th>
-                  <th className="cell-pad font-medium">Published</th>
-                  <th className="cell-pad font-medium">Rows</th>
-                  <th className="cell-pad font-medium">Columns</th>
-                  <th className="cell-pad font-medium">Fingerprint</th>
-                  <th className="cell-pad font-medium sr-only">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line">
-                {history.items.map((version) => {
-                  const isHead = version.version_number === history.current_version;
-                  const pruned = version.retention_state === "pruned";
-                  const scheduled = version.retention_state === "pending_delete";
-                  return (
-                    <tr key={version.id} className="transition hover:bg-surface">
-                      <td className="cell-pad align-top text-ink">
-                        <span className="inline-flex flex-wrap items-center gap-1.5">
-                          v{version.version_number}
-                          {isHead ? (
-                            <span
-                              className={cx(
-                                "rounded-full border border-success-line bg-success-soft",
-                                "px-1.5 py-0.5 text-[12px] text-success",
-                              )}
-                            >
-                              current
-                            </span>
-                          ) : null}
-                          {pruned ? (
-                            <span
-                              className="rounded-full border border-line bg-sunken px-1.5 py-0.5 text-[12px] text-muted"
-                              title={
-                                version.pruned_at
-                                  ? `Data removed by retention on ${formatDateTime(version.pruned_at)}; the record is kept.`
-                                  : "Data removed by retention; the record is kept."
-                              }
-                            >
-                              pruned
-                            </span>
-                          ) : null}
-                          {scheduled ? (
-                            <span
-                              className="rounded-full border border-warning-line bg-warning-soft px-1.5 py-0.5 text-[12px] text-warning"
-                              title={
-                                version.delete_after
-                                  ? `Marked by a retention sweep; removable after ${formatDateTime(version.delete_after)} unless restored or replayed first.`
-                                  : "Marked by a retention sweep for removal after its grace period."
-                              }
-                            >
-                              scheduled for removal
-                            </span>
-                          ) : null}
-                          {version.active_pins > 0 ? (
-                            <span
-                              className="rounded-full border border-line bg-sunken px-1.5 py-0.5 text-[12px] text-ink-3"
-                              title="A rollback or replay is reading this version right now; it cannot be pruned while held."
-                            >
-                              held open
-                            </span>
-                          ) : null}
-                        </span>
-                      </td>
-                      <td className="cell-pad align-top text-ink-2">
-                        {formatDateTime(version.created_at)}
-                      </td>
-                      <td className="cell-pad align-top text-ink-2">
-                        {version.row_count === null ? "--" : formatNumber(version.row_count)}
-                      </td>
-                      <td className="cell-pad align-top text-ink-2">
-                        {version.column_count === null
-                          ? "--"
-                          : formatNumber(version.column_count)}
-                      </td>
-                      <td className="cell-pad align-top font-mono text-[12px] text-muted">
-                        {shortDigest(version.content_hash)}
-                      </td>
-                      <td className="cell-pad align-top text-right">
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableHeaderCell>Version</TableHeaderCell>
+                <TableHeaderCell>Published</TableHeaderCell>
+                <TableHeaderCell>Rows</TableHeaderCell>
+                <TableHeaderCell>Columns</TableHeaderCell>
+                <TableHeaderCell>Fingerprint</TableHeaderCell>
+                <TableHeaderCell className="sr-only">Actions</TableHeaderCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {history.items.map((version) => {
+                const isHead = version.version_number === history.current_version;
+                const pruned = version.retention_state === "pruned";
+                const scheduled = version.retention_state === "pending_delete";
+                return (
+                  <TableRow key={version.id}>
+                    <TableCell className="text-ink">
+                      <span className="inline-flex flex-wrap items-center gap-1.5">
+                        v{version.version_number}
+                        {isHead ? (
+                          <span
+                            className={cx(
+                              "rounded-full border border-success-line bg-success-soft",
+                              "px-1.5 py-0.5 text-[12px] text-success",
+                            )}
+                          >
+                            current
+                          </span>
+                        ) : null}
                         {pruned ? (
-                          <span className="text-[12px] text-muted">data removed</span>
-                        ) : (
-                        <div className="flex flex-wrap justify-end gap-1">
-                          <button
-                            type="button"
-                            onClick={() => void openVersion(version)}
-                            className="rounded-lg border border-line px-2 py-1 text-[12px] text-ink-3 transition hover:text-ink"
-                          >
-                            View data
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => openQuery({ version_number: version.version_number })}
-                            className="rounded-lg border border-line px-2 py-1 text-[12px] text-ink-3 transition hover:text-ink"
-                          >
-                            Query
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              void downloadFromApi(
-                                `/projects/${projectId}/datasets/${datasetId}/download?format=csv&version=${version.version_number}`,
-                                `version-${version.version_number}.csv`,
-                              ).catch((caught) => setDownloadError(extractErrorMessage(caught)))
+                          <Badge
+                            title={
+                              version.pruned_at
+                                ? `Data removed by retention on ${formatDateTime(version.pruned_at)}; the record is kept.`
+                                : "Data removed by retention; the record is kept."
                             }
-                            className="rounded-lg border border-line px-2 py-1 text-[12px] text-ink-3 transition hover:text-ink"
                           >
-                            Download
-                          </button>
-                          {!isHead ? (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => openDiff(version)}
-                                className="rounded-lg border border-line px-2 py-1 text-[12px] text-ink-3 transition hover:text-ink"
-                              >
-                                Diff vs current
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setRestoreError(null);
-                                  setRestoring(version);
-                                }}
-                                className="rounded-lg border border-line px-2 py-1 text-[12px] text-ink-3 transition hover:text-ink"
-                              >
-                                Restore
-                              </button>
-                            </>
-                          ) : null}
-                        </div>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                            pruned
+                          </Badge>
+                        ) : null}
+                        {scheduled ? (
+                          <Badge tone="warning"
+                            title={
+                              version.delete_after
+                                ? `Marked by a retention sweep; removable after ${formatDateTime(version.delete_after)} unless restored or replayed first.`
+                                : "Marked by a retention sweep for removal after its grace period."
+                            }
+                          >
+                            scheduled for removal
+                          </Badge>
+                        ) : null}
+                        {version.active_pins > 0 ? (
+                          <Badge
+                            title="A rollback or replay is reading this version right now; it cannot be pruned while held."
+                          >
+                            held open
+                          </Badge>
+                        ) : null}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-ink-2">
+                      {formatDateTime(version.created_at)}
+                    </TableCell>
+                    <TableCell className="text-ink-2">
+                      {version.row_count === null ? "--" : formatNumber(version.row_count)}
+                    </TableCell>
+                    <TableCell className="text-ink-2">
+                      {version.column_count === null
+                        ? "--"
+                        : formatNumber(version.column_count)}
+                    </TableCell>
+                    <TableCell className="font-mono text-[12px] text-muted">
+                      {shortDigest(version.content_hash)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {pruned ? (
+                        <span className="text-[12px] text-muted">data removed</span>
+                      ) : (
+                      <div className="flex flex-wrap justify-end gap-1">
+                        <button
+                          type="button"
+                          onClick={() => void openVersion(version)}
+                          className="rounded-lg border border-line px-2 py-1 text-[12px] text-ink-3 transition hover:text-ink"
+                        >
+                          View data
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openQuery({ version_number: version.version_number })}
+                          className="rounded-lg border border-line px-2 py-1 text-[12px] text-ink-3 transition hover:text-ink"
+                        >
+                          Query
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void downloadFromApi(
+                              `/projects/${projectId}/datasets/${datasetId}/download?format=csv&version=${version.version_number}`,
+                              `version-${version.version_number}.csv`,
+                            ).catch((caught) => setDownloadError(extractErrorMessage(caught)))
+                          }
+                          className="rounded-lg border border-line px-2 py-1 text-[12px] text-ink-3 transition hover:text-ink"
+                        >
+                          Download
+                        </button>
+                        {!isHead ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => openDiff(version)}
+                              className="rounded-lg border border-line px-2 py-1 text-[12px] text-ink-3 transition hover:text-ink"
+                            >
+                              Diff vs current
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setRestoreError(null);
+                                setRestoring(version);
+                              }}
+                              className="rounded-lg border border-line px-2 py-1 text-[12px] text-ink-3 transition hover:text-ink"
+                            >
+                              Restore
+                            </button>
+                          </>
+                        ) : null}
+                      </div>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
         </div>
       )}
 
@@ -405,28 +411,28 @@ export function DatasetVersionHistoryPanel({
           </p>
         ) : (
           <div className="overflow-x-auto rounded-2xl border border-line">
-            <table className="min-w-full divide-y divide-line text-left text-[12.5px]">
-              <thead className="bg-surface text-ink-3">
-                <tr>
+            <Table>
+              <TableHead>
+                <TableRow>
                   {preview.columns.map((column) => (
-                    <th key={column} className="cell-pad font-medium">
+                    <TableHeaderCell key={column}>
                       {column}
-                    </th>
+                    </TableHeaderCell>
                   ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line">
+                </TableRow>
+              </TableHead>
+              <TableBody>
                 {preview.rows.slice(0, 50).map((row, index) => (
-                  <tr key={index} className="transition hover:bg-surface">
+                  <TableRow key={index}>
                     {preview.columns.map((column) => (
-                      <td key={column} className="cell-pad align-top text-ink-2">
+                      <TableCell key={column} className="text-ink-2">
                         {formatCell(row[column])}
-                      </td>
+                      </TableCell>
                     ))}
-                  </tr>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         )}
       </Modal>
@@ -580,28 +586,28 @@ export function DatasetVersionHistoryPanel({
                 <p className="text-[12.5px] text-muted">The statement returned no columns.</p>
               ) : (
                 <div className="max-h-[50vh] overflow-auto rounded-2xl border border-line">
-                  <table className="min-w-full divide-y divide-line text-left text-[12.5px]">
-                    <thead className="bg-surface text-ink-3">
-                      <tr>
+                  <Table>
+                    <TableHead>
+                      <TableRow>
                         {queryResult.columns.map((column) => (
-                          <th key={column} className="cell-pad font-medium">
+                          <TableHeaderCell key={column}>
                             {column}
-                          </th>
+                          </TableHeaderCell>
                         ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-line">
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
                       {queryResult.rows.map((row, index) => (
-                        <tr key={index} className="transition hover:bg-surface">
+                        <TableRow key={index}>
                           {queryResult.columns.map((column) => (
-                            <td key={column} className="cell-pad align-top text-ink-2">
+                            <TableCell key={column} className="text-ink-2">
                               {formatCell(row[column])}
-                            </td>
+                            </TableCell>
                           ))}
-                        </tr>
+                        </TableRow>
                       ))}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
                 </div>
               )}
             </div>

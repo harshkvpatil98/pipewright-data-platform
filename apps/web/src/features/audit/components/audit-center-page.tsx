@@ -3,16 +3,17 @@
 import { useCallback, useEffect, useState } from "react";
 
 import type { AuditCenterResponse, AuditCenterRow, AuthUser } from "@platform/shared-types";
-import { Button, Input, SectionPanel } from "@platform/shared-ui";
+import { Badge, Button, EmptyState, Input, SectionPanel, Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
-import { OperationalEmpty, OperationalError } from "@/components/operational/operational-messages";
+import { OperationalError } from "@/components/operational/operational-messages";
 import { apiFetch } from "@/lib/api/client";
 import { appConfig } from "@/lib/config";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { getAccessToken } from "@/lib/auth/session";
 import { formatDate } from "@/lib/format";
 import { cx } from "@/lib/utils";
+import { sentenceLabel } from "@/lib/labels";
 
 type AuditCenterPageProps = {
   currentUser: AuthUser;
@@ -101,7 +102,7 @@ export function AuditCenterPageView({ currentUser, initial, forbidden }: AuditCe
   if (forbidden) {
     return (
       <AppShell currentUser={currentUser} title="Audit across all projects" subtitle="Every change in every project, with filters and export.">
-        <OperationalEmpty
+        <EmptyState size="compact"
           title="Admins only"
           description="The Audit Center shows actions across every project, so it is limited to platform admins."
         />
@@ -159,7 +160,7 @@ export function AuditCenterPageView({ currentUser, initial, forbidden }: AuditCe
         }
       >
         {rows.length === 0 ? (
-          <OperationalEmpty
+          <EmptyState size="compact"
             title="No matching activity"
             description={
               outcome || actor || query
@@ -184,44 +185,37 @@ export function AuditCenterPageView({ currentUser, initial, forbidden }: AuditCe
           />
         ) : (
           <div className="overflow-hidden rounded-[24px] border border-line bg-sunken">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[820px] border-collapse text-left text-sm text-ink">
-                <thead className="border-b border-line text-xs text-muted">
-                  <tr>
-                    <th className="py-2 pr-3 font-medium">When</th>
-                    <th className="py-2 pr-3 font-medium">Actor</th>
-                    <th className="py-2 pr-3 font-medium">Project</th>
-                    <th className="py-2 pr-3 font-medium">Action</th>
-                    <th className="py-2 font-medium">Outcome</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row) => (
-                    <tr key={row.id} className="border-b border-line">
-                      <td className="py-2 pr-3 text-xs text-ink-3">{formatDate(row.created_at)}</td>
-                      <td className="py-2 pr-3 text-ink-2">{row.actor_username ?? "—"}</td>
-                      <td className="py-2 pr-3 text-ink-3">{row.project_name ?? "—"}</td>
-                      <td className="py-2 pr-3 text-ink-2">
-                        {row.action}
-                        <span className="ml-2 font-mono text-[12px] text-muted">{row.method} {row.path}</span>
-                      </td>
-                      <td className="py-2">
-                        <span
-                          className={cx(
-                            "rounded-full border px-2 py-0.5 text-[12px] font-semibold ",
-                            row.outcome === "success"
-                              ? "border-success-line bg-success-soft text-success"
-                              : "border-danger-line bg-danger-soft text-danger",
-                          )}
-                        >
-                          {row.outcome}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <Table minWidth={820}>
+              <TableHead>
+                <TableRow>
+                  <TableHeaderCell>When</TableHeaderCell>
+                  <TableHeaderCell>Actor</TableHeaderCell>
+                  <TableHeaderCell>Project</TableHeaderCell>
+                  <TableHeaderCell>Action</TableHeaderCell>
+                  <TableHeaderCell>Outcome</TableHeaderCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {rows.map((row) => (
+                  <TableRow key={row.id}>
+                    <TableCell className="text-xs text-ink-3">{formatDate(row.created_at)}</TableCell>
+                    <TableCell className="text-ink-2">{row.actor_username ?? "—"}</TableCell>
+                    <TableCell className="text-ink-3">{row.project_name ?? "—"}</TableCell>
+                    <TableCell className="text-ink-2">
+                      {row.action}
+                      <span className="ml-2 font-mono text-[12px] text-muted">{row.method} {row.path}</span>
+                    </TableCell>
+                    <TableCell>
+                      <Badge tone={row.outcome === "success"
+                            ? "success"
+                            : "danger"}>
+                        {sentenceLabel(row.outcome)}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
         )}
       </SectionPanel>

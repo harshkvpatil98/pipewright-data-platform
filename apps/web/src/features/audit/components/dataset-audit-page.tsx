@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 import type { AuthUser, DatasetAuditSummary } from "@platform/shared-types";
-import { Button, SectionPanel, StatCard, StatusBadge } from "@platform/shared-ui";
+import { Button, SectionPanel, StatTile, StatusBadge } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { downloadFromApi } from "@/lib/api/download";
@@ -75,14 +75,14 @@ export function DatasetAuditPageView({ currentUser, projectId, audit }: DatasetA
       </SectionPanel>
 
       <section className="grid gap-4 md:grid-cols-4">
-        <StatCard label="Rows" value={formatNumber(audit.metrics.row_count)} caption="From dataset record." />
-        <StatCard label="Columns" value={formatNumber(audit.metrics.column_count)} caption="From dataset record." />
-        <StatCard
+        <StatTile label="Rows" value={formatNumber(audit.metrics.row_count)} caption="From dataset record." />
+        <StatTile label="Columns" value={formatNumber(audit.metrics.column_count)} caption="From dataset record." />
+        <StatTile
           label="Completeness"
           value={ph.completeness_score != null ? `${ph.completeness_score}%` : "--"}
           caption="From latest profile when available."
         />
-        <StatCard
+        <StatTile
           label="Duplicate rows"
           value={ph.duplicate_row_count != null ? formatNumber(ph.duplicate_row_count) : "--"}
           caption={

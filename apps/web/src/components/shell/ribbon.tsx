@@ -1,8 +1,8 @@
 "use client";
 
-import { Icon, type IconName } from "@/components/ui/icon";
 import { Tooltip } from "@/components/ui/tooltip";
 import { cx } from "@/lib/utils";
+import { Icon, type IconName } from "@platform/shared-ui";
 
 export type RibbonAction = {
   id: string;

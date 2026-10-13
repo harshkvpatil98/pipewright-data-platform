@@ -1,6 +1,7 @@
 "use client";
 
 import type { AuthUser } from "@platform/shared-types";
+import { PageHeader } from "@platform/shared-ui";
 
 import { AppFrame } from "@/components/shell/app-frame";
 import type { RibbonGroup } from "@/components/shell/ribbon";
@@ -38,16 +39,7 @@ export function AppShell({
   return (
     <AppFrame currentUser={currentUser} title={title} ribbon={ribbon} statusItems={statusItems}>
       <div className="px-6 py-6 lg:px-8">
-        <header className="mb-6">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="min-w-0 max-w-3xl">
-              <h1 className="text-[26px] font-semibold tracking-tight text-ink">{title}</h1>
-              <p className="mt-1.5 text-[14px] leading-6 text-ink-3">{subtitle}</p>
-            </div>
-            {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
-          </div>
-          {meta ? <div className="mt-4 flex flex-wrap items-center gap-2">{meta}</div> : null}
-        </header>
+        <PageHeader title={title} subtitle={subtitle} actions={actions} meta={meta} />
 
         <div className="space-y-5">{children}</div>
       </div>

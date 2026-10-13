@@ -13,12 +13,11 @@ import type {
 import { AppFrame } from "@/components/shell/app-frame";
 import { runtimeSignalsFromStatus } from "@/components/ui/runtime-banner";
 import { assessRuntime, humanDuration } from "@/lib/runtime-health";
-import { Icon, type IconName } from "@/components/ui/icon";
-import { useToast } from "@/components/providers/toast-provider";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { serviceLabel } from "@/lib/service-labels";
 import { cx } from "@/lib/utils";
+import { Icon, type IconName, useToast } from "@platform/shared-ui";
 
 type HomeDashboardProps = {
   currentUser: AuthUser | null;

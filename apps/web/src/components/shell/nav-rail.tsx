@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 
-import { Icon } from "@/components/ui/icon";
 import { Tooltip } from "@/components/ui/tooltip";
 import { areaHref, type AreaId, type NavArea } from "@/lib/navigation";
 import { cx } from "@/lib/utils";
+import { Icon } from "@platform/shared-ui";
 
 type NavRailProps = {
   areas: NavArea[];

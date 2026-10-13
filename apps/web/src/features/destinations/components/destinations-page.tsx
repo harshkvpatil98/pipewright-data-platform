@@ -10,12 +10,20 @@ import type {
   DestinationTestResult,
   DestinationUpdatePayload,
 } from "@platform/shared-types";
-import { Button, EmptyState, FormField, Input, Modal, SectionPanel, Select } from "@platform/shared-ui";
+import {
+  Button,
+  EmptyState,
+  FormField,
+  Icon,
+  Input,
+  Modal,
+  SectionPanel,
+  Select,
+} from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { CopyDatabaseDialog } from "@/features/destinations/components/copy-database-dialog";
 import { DeleteRowButton } from "@/components/ui/delete-row-button";
-import { Icon } from "@/components/ui/icon";
 import {
   configFrom,
   DESTINATION_KINDS,

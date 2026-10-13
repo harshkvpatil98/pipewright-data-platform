@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 
-import { Icon } from "@/components/ui/icon";
 import { cx } from "@/lib/utils";
+import { Icon } from "@platform/shared-ui";
 
 export type StatusItem = {
   id: string;

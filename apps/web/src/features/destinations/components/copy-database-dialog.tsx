@@ -11,9 +11,21 @@ import type {
   ExtractionConnectionListResponse,
 } from "@platform/shared-types";
 import { SQL_CONNECTOR_TYPES } from "@platform/shared-types";
-import { Button, FormField, Modal, Select, buttonClassName } from "@platform/shared-ui";
+import {
+  Button,
+  buttonClassName,
+  FormField,
+  Icon,
+  Modal,
+  Select,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeaderCell,
+  TableRow,
+} from "@platform/shared-ui";
 
-import { Icon } from "@/components/ui/icon";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { cx } from "@/lib/utils";
@@ -314,31 +326,31 @@ export function CopyDatabaseDialog({ open, onClose, projectId, connectionId }: C
                 </span>
                 {table.problem ? <span className="ml-2 text-[13px] text-danger">{table.problem}</span> : null}
               </summary>
-              <table className="mt-2 w-full text-left text-[13px]">
-                <thead className="text-ink-3">
-                  <tr>
-                    <th className="py-1 pr-3 font-medium">Column</th>
-                    <th className="py-1 pr-3 font-medium">{plan.source_label}</th>
-                    <th className="py-1 pr-3 font-medium">{plan.destination_label}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-line">
+              <Table className="mt-2">
+                <TableHead>
+                  <TableRow>
+                    <TableHeaderCell>Column</TableHeaderCell>
+                    <TableHeaderCell>{plan.source_label}</TableHeaderCell>
+                    <TableHeaderCell>{plan.destination_label}</TableHeaderCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
                   {table.columns.map((column) => (
-                    <tr key={column.name} className={cx(column.lossy && "bg-warning-soft")}>
-                      <td className="py-1 pr-3 text-ink">
+                    <TableRow key={column.name} className={cx(column.lossy && "bg-warning-soft")}>
+                      <TableCell className="text-ink">
                         {column.name}
                         {column.primary_key ? <span className="ml-1 text-[12px] text-[color:var(--accent-muted)]">key</span> : null}
                         {!column.nullable && !column.primary_key ? <span className="ml-1 text-[12px] text-ink-3">required</span> : null}
-                      </td>
-                      <td className="py-1 pr-3 font-mono text-[12px] text-ink-3">{column.source_type}</td>
-                      <td className="py-1 pr-3 font-mono text-[12px] text-ink-2">
+                      </TableCell>
+                      <TableCell className="font-mono text-[12px] text-ink-3">{column.source_type}</TableCell>
+                      <TableCell className="font-mono text-[12px] text-ink-2">
                         {column.target_type}
                         {column.note ? <span className="block font-sans text-[12px] text-warning">{column.note}</span> : null}
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
               {table.not_carried.length ? (
                 <p className="mt-2 text-[13px] text-ink-3">Not copied: {table.not_carried.join("; ")}.</p>
               ) : null}

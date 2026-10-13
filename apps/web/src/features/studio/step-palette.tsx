@@ -2,9 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { Button } from "@platform/shared-ui";
+import { Button, Icon, Overlay } from "@platform/shared-ui";
 
-import { Icon } from "@/components/ui/icon";
 import {
   STEP_BY_TYPE,
   STEP_CATALOG,
@@ -129,14 +128,6 @@ export function StepPalette({
     // the palette back to the first pick.
   }, [preselect]);
 
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
   const steps = useMemo(() => rankSteps(query), [query]);
   // Tools named for what the column holds ("Standardise an email" for email)
   // are the likeliest wanted, so they lead, both suggested and in a search.
@@ -187,18 +178,14 @@ export function StepPalette({
   const ready = selected !== null && (!selected.column_scoped || Boolean(toolColumn));
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-[color:var(--scrim)] p-4 pt-[6vh]"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
+    <Overlay
+      open
+      onClose={onClose}
+      label="Add a step"
+      placement="free"
+      className="flex items-start justify-center p-4 pt-[6vh]"
     >
-      <div
-        className="relative flex max-h-[86vh] w-full max-w-5xl overflow-hidden rounded-2xl border border-line bg-surface shadow-[var(--shadow-lg)]"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Add a step"
-      >
+      <div className="relative flex max-h-[86vh] w-full max-w-5xl overflow-hidden rounded-2xl border border-line bg-surface shadow-[var(--shadow-lg)]">
         <div className={cx("w-full flex-col border-line md:flex md:w-1/2 md:border-r", selected ? "hidden" : "flex")}>
           <div className="border-b border-line p-4">
             <div className="flex items-center justify-between gap-2">
@@ -383,7 +370,7 @@ export function StepPalette({
           )}
         </div>
       </div>
-    </div>
+    </Overlay>
   );
 }
 

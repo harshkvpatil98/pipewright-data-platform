@@ -10,8 +10,8 @@ import {
   useState,
 } from "react";
 
-import { Icon } from "@/components/ui/icon";
 import { cx } from "@/lib/utils";
+import { Icon, Overlay } from "@platform/shared-ui";
 
 export type TourStep = {
   /** Matches a `data-tour="..."` attribute on the element to highlight. */
@@ -121,7 +121,6 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!active) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") finish();
       // Enter on a focused tour button already clicks it; advancing here too
       // skipped every other step.
       const onButton = (event.target as HTMLElement | null)?.tagName === "BUTTON";
@@ -194,7 +193,7 @@ function TourOverlay({ step, rect, index, total, onBack, onNext, onSkip }: Overl
   const card = computeCardPosition(placement, rect);
 
   return (
-    <div className="fixed inset-0 z-[90]" role="dialog" aria-modal="true" aria-label={step.title}>
+    <Overlay open onClose={onSkip} label={step.title} placement="free" scrim={false} layer="tour">
       {spotlight ? (
         <div
           className="pointer-events-none absolute rounded-xl ring-2 ring-[color:var(--accent)] transition-all duration-300 ease-[var(--ease-out)]"
@@ -276,7 +275,7 @@ function TourOverlay({ step, rect, index, total, onBack, onNext, onSkip }: Overl
           </div>
         </div>
       </div>
-    </div>
+    </Overlay>
   );
 }
 

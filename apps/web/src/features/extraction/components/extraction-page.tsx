@@ -22,20 +22,10 @@ import type {
   StreamSource,
 } from "@platform/shared-types";
 import { SQL_CONNECTOR_TYPES } from "@platform/shared-types";
-import {
-  Button,
-  EmptyState,
-  FormField,
-  Input,
-  Modal,
-  SectionPanel,
-  Select,
-  StatusBadge,
-} from "@platform/shared-ui";
+import { Badge, Button, EmptyState, FormField, Icon, Input, Modal, SectionPanel, Select, StatusBadge, Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { DeleteRowButton } from "@/components/ui/delete-row-button";
-import { Icon } from "@/components/ui/icon";
 import { AddDataDialog } from "@/features/datasets/components/add-data-dialog";
 import { UploadDatasetModal } from "@/features/datasets/components/upload-dataset-modal";
 import { CopyDatabaseDialog } from "@/features/destinations/components/copy-database-dialog";
@@ -43,6 +33,7 @@ import { ConnectSourceDialog } from "@/features/extraction/components/connect-so
 import { LiveSourcesPanel } from "@/features/extraction/components/live-sources-panel";
 import { groupDatasets, originHints } from "@/lib/dataset-origin";
 import { apiFetch } from "@/lib/api/client";
+import { tierTone } from "@/lib/labels";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { formatDate, formatNumber } from "@/lib/format";
 import { cx } from "@/lib/utils";
@@ -88,26 +79,13 @@ const STREAM_LOAD_MODE_LABELS: Partial<Record<LoadMode, string>> = {
  * read long after either. Same glyph and same word as the catalogue, so the
  * badge means one thing across the product.
  */
-const TIER_STYLE: Record<number, string> = {
-  1: "border-success-line bg-success-soft text-success",
-  2: "border-success-line bg-success-soft text-success",
-  3: "border-line bg-surface-2 text-ink-3",
-  4: "border-warning-line bg-warning-soft text-warning",
-};
-
 function TierBadge({ spec }: { spec: ConnectorSpec | undefined }) {
   if (!spec) return null;
   return (
-    <span
-      title={spec.tier_explanation}
-      className={cx(
-        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[12px]",
-        TIER_STYLE[spec.tier] ?? TIER_STYLE[4],
-      )}
-    >
+    <Badge tone={tierTone(spec.tier)} title={spec.tier_explanation}>
       <span aria-hidden="true">{spec.tier_badge}</span>
       {spec.tier_label}
-    </span>
+    </Badge>
   );
 }
 
@@ -648,9 +626,9 @@ export function ExtractionPageView({
                         <h3 className="text-ink text-[15px] font-semibold">
                           {connection.name}
                         </h3>
-                        <span className="border-line text-ink-3 rounded-full border px-2 py-0.5 text-[12px]">
+                        <Badge>
                           {sourceLabel(connection.connector_type)}
-                        </span>
+                        </Badge>
                         {/* Every connection says how far its kind of source is tested here. */}
                         <TierBadge spec={catalogue.get(connection.connector_type)} />
                         {connection.last_test_status ? (
@@ -789,36 +767,34 @@ export function ExtractionPageView({
                   </Button>
                 </div>
                 <div className="border-line mt-3 overflow-x-auto rounded-2xl border">
-                  <table className="w-full min-w-max text-left text-[13px]">
-                    <thead className="bg-surface text-ink-3">
-                      <tr>
+                  <Table className="min-w-max">
+                    <TableHead>
+                      <TableRow>
                         {preview.columns.map((column) => (
-                          <th
-                            key={column}
-                            className="cell-pad font-medium whitespace-nowrap"
+                          <TableHeaderCell
+                            key={column} className="whitespace-nowrap"
                           >
                             {column}
-                          </th>
+                          </TableHeaderCell>
                         ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-line divide-y">
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
                       {preview.rows.map((row, index) => (
-                        <tr key={index} className="text-ink-2">
+                        <TableRow key={index} className="text-ink-2">
                           {preview.columns.map((column) => (
-                            <td
-                              key={column}
-                              className="cell-pad tabular whitespace-nowrap"
+                            <TableCell
+                              key={column} className="tabular whitespace-nowrap"
                             >
                               {row[column] === null || row[column] === undefined
                                 ? "—"
                                 : String(row[column])}
-                            </td>
+                            </TableCell>
                           ))}
-                        </tr>
+                        </TableRow>
                       ))}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
                 </div>
               </>
             ) : null}
@@ -857,22 +833,21 @@ export function ExtractionPageView({
                           <h3 className="text-ink text-[15px] font-semibold">
                             {job.name}
                           </h3>
-                          <span className="border-line text-ink-3 rounded-full border px-2 py-0.5 text-[12px]">
+                          <Badge>
                             {LOAD_MODE_LABELS[job.load_mode]}
-                          </span>
+                          </Badge>
                           {job.last_run_status ? (
                             <StatusBadge value={job.last_run_status} />
                           ) : null}
                           {job.steps && job.steps.length > 0 ? (
-                            <span
-                              className="border-line bg-sunken text-ink-3 rounded-full border px-2 py-0.5 text-[12px]"
+                            <Badge
                               title={job.steps
                                 .map((step) => step.step_type)
                                 .join(" → ")}
                             >
                               cleans {job.steps.length} step
                               {job.steps.length === 1 ? "" : "s"} on the way in
-                            </span>
+                            </Badge>
                           ) : null}
                         </div>
                         <p className="text-muted mt-1 text-[13px]">

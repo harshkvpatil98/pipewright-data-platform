@@ -4,11 +4,11 @@ import { useCallback, useEffect, useState } from "react";
 
 import type { ResourceVersion, RestoreResponse, VersionListResponse } from "@platform/shared-types";
 
-import { Icon } from "@/components/ui/icon";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { formatDate } from "@/lib/format";
 import { cx } from "@/lib/utils";
+import { Icon } from "@platform/shared-ui";
 
 type VersionHistoryPanelProps = {
   projectId: string;

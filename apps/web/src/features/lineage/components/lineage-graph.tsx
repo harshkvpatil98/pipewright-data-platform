@@ -2,10 +2,10 @@
 
 import type { DatasetLineage } from "@platform/shared-types";
 
-import { Icon } from "@/components/ui/icon";
 import { cx } from "@/lib/utils";
 
 import { NODE_HEIGHT, NODE_WIDTH, layoutLineage } from "../lineage-layout";
+import { Icon } from "@platform/shared-ui";
 
 const EDGE_TONE: Record<string, string> = {
   produces: "stroke-[color:var(--accent)]",

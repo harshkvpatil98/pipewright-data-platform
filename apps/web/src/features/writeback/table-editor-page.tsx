@@ -3,12 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { AuthUser } from "@platform/shared-types";
-import { Button, EmptyState, Input, Select } from "@platform/shared-ui";
+import { Button, EmptyState, Icon, Input, Select, useToast } from "@platform/shared-ui";
 
 import { AppFrame } from "@/components/shell/app-frame";
 import type { RibbonGroup } from "@/components/shell/ribbon";
-import { useToast } from "@/components/providers/toast-provider";
-import { Icon } from "@/components/ui/icon";
 import { DataGrid, type GridColumn } from "@/features/studio/grid/data-grid";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";

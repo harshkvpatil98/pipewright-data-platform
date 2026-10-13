@@ -9,13 +9,13 @@ import type {
   ProjectRole,
   RoleCatalogResponse,
 } from "@platform/shared-types";
-import { Button, Modal, SectionPanel } from "@platform/shared-ui";
+import { Badge, type BadgeTone, Button, Icon, Modal, SectionPanel } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
-import { Icon } from "@/components/ui/icon";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { cx } from "@/lib/utils";
+import { sentenceLabel } from "@/lib/labels";
 
 type MembersPageProps = {
   currentUser: AuthUser;
@@ -25,11 +25,11 @@ type MembersPageProps = {
 
 const ROLE_ORDER: ProjectRole[] = ["viewer", "operator", "editor", "admin"];
 
-const ROLE_TONE: Record<ProjectRole, string> = {
-  admin: "border-accent-line bg-accent-soft text-accent",
-  editor: "border-info-line bg-info-soft text-info",
-  operator: "border-accent-line bg-accent-soft text-accent",
-  viewer: "border-line bg-surface-2 text-ink-2",
+const ROLE_TONE: Record<ProjectRole, BadgeTone> = {
+  admin: "accent",
+  editor: "info",
+  operator: "accent",
+  viewer: "neutral",
 };
 
 export function MembersPageView({
@@ -152,9 +152,9 @@ export function MembersPageView({
                     {member.username}
                   </span>
                   {member.is_owner ? (
-                    <span className="bg-surface-2 text-ink-3 rounded px-1.5 py-0.5 text-[12px]">
+                    <Badge>
                       owner
-                    </span>
+                    </Badge>
                   ) : null}
                 </div>
                 {member.invited_by_username ? (
@@ -192,14 +192,9 @@ export function MembersPageView({
                   </button>
                 </div>
               ) : (
-                <span
-                  className={cx(
-                    "rounded-full border px-2 py-0.5 text-[12px] capitalize",
-                    ROLE_TONE[member.role],
-                  )}
-                >
-                  {member.role}
-                </span>
+                <Badge tone={ROLE_TONE[member.role]}>
+                  {sentenceLabel(member.role)}
+                </Badge>
               )}
             </li>
           ))}
@@ -213,14 +208,9 @@ export function MembersPageView({
             : ROLE_ORDER.map((value) => ({ role: value, description: "" }))
           ).map((entry) => (
             <li key={entry.role} className="flex items-start gap-3">
-              <span
-                className={cx(
-                  "mt-0.5 w-20 shrink-0 rounded-full border px-2 py-0.5 text-center text-[12px] capitalize",
-                  ROLE_TONE[entry.role],
-                )}
-              >
-                {entry.role}
-              </span>
+              <Badge tone={ROLE_TONE[entry.role]} className="mt-0.5 w-20 shrink-0 text-center">
+                {sentenceLabel(entry.role)}
+              </Badge>
               <span className="text-ink-3 text-[12.5px] leading-5">
                 {entry.description}
               </span>

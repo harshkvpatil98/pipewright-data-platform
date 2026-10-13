@@ -3,7 +3,16 @@
 import Link from "next/link";
 
 import type { TransformationPipelineRecord } from "@platform/shared-types";
-import { SectionPanel, StatusBadge } from "@platform/shared-ui";
+import {
+  SectionPanel,
+  StatusBadge,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeaderCell,
+  TableRow,
+} from "@platform/shared-ui";
 
 import { RunPipelineButton } from "@/features/pipelines/components/run-pipeline-button";
 import { recipeHref } from "@/lib/navigation";
@@ -24,59 +33,57 @@ export function DatasetPipelinesRunSection({ projectId, pipelines }: DatasetPipe
       description="Run one to make a fresh copy of its result from this data."
     >
       <div className="overflow-hidden rounded-[24px] border border-line bg-sunken">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-line text-left text-sm">
-            <thead className="bg-surface text-ink-3">
-              <tr>
-                <th className="cell-pad font-medium">Recipe</th>
-                <th className="cell-pad font-medium">Status</th>
-                <th className="cell-pad font-medium">Steps</th>
-                <th className="cell-pad font-medium text-right">
-                  <span className="sr-only">Open</span>
-                </th>
-                <th className="cell-pad font-medium text-right">
-                  <span className="sr-only">Run</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line">
-              {pipelines.map((pipeline) => (
-                <tr key={pipeline.id} className="transition hover:bg-surface">
-                  <td className="cell-pad align-top">
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableHeaderCell>Recipe</TableHeaderCell>
+              <TableHeaderCell>Status</TableHeaderCell>
+              <TableHeaderCell>Steps</TableHeaderCell>
+              <TableHeaderCell className="text-right">
+                <span className="sr-only">Open</span>
+              </TableHeaderCell>
+              <TableHeaderCell className="text-right">
+                <span className="sr-only">Run</span>
+              </TableHeaderCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {pipelines.map((pipeline) => (
+              <TableRow key={pipeline.id}>
+                <TableCell>
+                  <Link
+                    href={recipeHref(projectId, pipeline.id)}
+                    className="font-medium text-ink hover:text-accent"
+                  >
+                    {pipeline.name}
+                  </Link>
+                  <div className="mt-1 text-sm leading-6 text-ink-3">
+                    {pipeline.description ?? `${pipeline.step_count} step${pipeline.step_count === 1 ? "" : "s"}`}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <StatusBadge value={pipeline.status} />
+                </TableCell>
+                <TableCell className="text-ink-3">{pipeline.step_count}</TableCell>
+                <TableCell>
+                  <div className="flex justify-end">
                     <Link
                       href={recipeHref(projectId, pipeline.id)}
-                      className="font-medium text-ink hover:text-accent"
+                      className="text-sm text-accent hover:text-accent"
                     >
-                      {pipeline.name}
+                      Open
                     </Link>
-                    <div className="mt-1 text-sm leading-6 text-ink-3">
-                      {pipeline.description ?? `${pipeline.step_count} step${pipeline.step_count === 1 ? "" : "s"}`}
-                    </div>
-                  </td>
-                  <td className="cell-pad align-top">
-                    <StatusBadge value={pipeline.status} />
-                  </td>
-                  <td className="cell-pad align-top text-ink-3">{pipeline.step_count}</td>
-                  <td className="cell-pad align-top">
-                    <div className="flex justify-end">
-                      <Link
-                        href={recipeHref(projectId, pipeline.id)}
-                        className="text-sm text-accent hover:text-accent"
-                      >
-                        Open
-                      </Link>
-                    </div>
-                  </td>
-                  <td className="cell-pad align-top">
-                    <div className="flex justify-end">
-                      <RunPipelineButton projectId={projectId} pipelineId={pipeline.id} />
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex justify-end">
+                    <RunPipelineButton projectId={projectId} pipelineId={pipeline.id} />
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       </div>
     </SectionPanel>
   );

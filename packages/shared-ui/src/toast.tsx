@@ -2,8 +2,8 @@
 
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
 
-import { Icon, type IconName } from "@/components/ui/icon";
-import { cx } from "@/lib/utils";
+import { Icon, type IconName } from "./icon";
+import { cx } from "./internal/cx";
 
 export type ToastTone = "success" | "error" | "info" | "warning";
 
@@ -38,6 +38,12 @@ const TONE_STYLES: Record<ToastTone, { icon: IconName; className: string }> = {
 };
 
 const AUTO_DISMISS_MS = 5200;
+
+/**
+ * Short confirmations and failures that do not need a place on the page:
+ * "Recipe saved", "Could not download". Wrap the app once in ToastProvider
+ * and call useToast() where something happens.
+ */
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);

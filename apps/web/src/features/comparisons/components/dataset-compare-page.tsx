@@ -9,7 +9,7 @@ import type {
   DatasetStatisticalTestResult,
   SavedStatisticalTestRead,
 } from "@platform/shared-types";
-import { Button, Modal, SectionPanel, StatCard } from "@platform/shared-ui";
+import { Button, Modal, SectionPanel, StatTile } from "@platform/shared-ui";
 
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
@@ -142,22 +142,22 @@ export function DatasetComparePageView({ currentUser, projectId, comparison }: D
       }
     >
       <section className="grid gap-4 md:grid-cols-4">
-        <StatCard
+        <StatTile
           label="Row delta (right − left)"
           value={formatDelta(comparison.row_count_delta)}
           caption="From dataset row_count fields."
         />
-        <StatCard
+        <StatTile
           label="Column delta"
           value={formatDelta(comparison.column_count_delta)}
           caption="From dataset column_count fields."
         />
-        <StatCard
+        <StatTile
           label="Left rows"
           value={formatNumber(left_dataset.row_count)}
           caption={left_dataset.name}
         />
-        <StatCard
+        <StatTile
           label="Right rows"
           value={formatNumber(right_dataset.row_count)}
           caption={right_dataset.name}

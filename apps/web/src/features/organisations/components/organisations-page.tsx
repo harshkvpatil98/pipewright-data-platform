@@ -2,11 +2,21 @@
 
 import { useMemo, useState } from "react";
 
-import { Button, EmptyState, FormField, Input, Modal, SectionPanel, Select, StatCard } from "@platform/shared-ui";
+import {
+  Badge,
+  Button,
+  EmptyState,
+  FormField,
+  Icon,
+  Input,
+  Modal,
+  SectionPanel,
+  Select,
+  StatTile,
+} from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
-import { Icon } from "@/components/ui/icon";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { formatDate } from "@/lib/format";
@@ -191,17 +201,17 @@ export function OrganisationsPageView({
         ) : (
           <>
             <section className="grid gap-4 md:grid-cols-3">
-              <StatCard
+              <StatTile
                 label="Organisations"
                 value={String(organisations.length)}
                 caption="Tenant boundaries on this platform."
               />
-              <StatCard
+              <StatTile
                 label="Assigned members"
                 value={String(totalMembers)}
                 caption="Accounts that belong to a tenant."
               />
-              <StatCard
+              <StatTile
                 label="Unassigned"
                 value={String(unassigned.length)}
                 caption="Accounts in no tenant; they see only tenant-less projects."
@@ -250,9 +260,9 @@ export function OrganisationsPageView({
                             <span className="truncate text-[13.5px] font-medium text-ink">
                               {org.name}
                             </span>
-                            <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[12px] text-ink-3">
+                            <Badge>
                               {sentenceLabel(org.plan)}
-                            </span>
+                            </Badge>
                           </button>
                           <span className="text-[12px] text-muted">
                             {org.member_count} member(s) · {org.project_count} project(s) ·

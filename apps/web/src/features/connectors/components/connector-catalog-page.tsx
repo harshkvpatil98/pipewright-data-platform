@@ -10,11 +10,11 @@ import type {
   ConnectorSpec,
   FormatCatalogResponse,
 } from "@platform/shared-types";
-import { SectionPanel } from "@platform/shared-ui";
+import { Badge, Icon, SectionPanel, Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
-import { Icon } from "@/components/ui/icon";
 import { apiFetch } from "@/lib/api/client";
+import { tierTone } from "@/lib/labels";
 import { cx } from "@/lib/utils";
 
 type ConnectorCatalogPageProps = {
@@ -33,20 +33,6 @@ const CATEGORY_LABEL: Record<string, string> = {
   timeseries: "Time series",
   streaming: "Streams",
   lakehouse: "Lakehouse",
-};
-
-/**
- * How a tier reads on a card.
- *
- * Deliberately not colour alone: the badge glyph and the word both carry it, so
- * the distinction survives greyscale and colour-vision deficiency — the same
- * rule the run-status badges follow.
- */
-const TIER_STYLE: Record<number, string> = {
-  1: "border-success-line bg-success-soft text-success",
-  2: "border-success-line bg-success-soft text-success",
-  3: "border-line bg-surface-2 text-ink-3",
-  4: "border-warning-line bg-warning-soft text-warning",
 };
 
 const CAPABILITY_LABEL: Record<ConnectorCapability, string> = {
@@ -150,44 +136,37 @@ export function ConnectorCatalogPageView({
           title="File formats"
           description="Typed formats keep the column types a CSV would lose."
         >
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[560px] text-left">
-              <thead>
-                <tr className="text-[12px] text-muted">
-                  <th className="pb-2 pr-3 font-medium">Format</th>
-                  <th className="pb-2 pr-3 font-medium">Extensions</th>
-                  <th className="pb-2 pr-3 font-medium">Keeps types</th>
-                  <th className="pb-2 font-medium">Notes</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line">
-                {formats.items.map((format) => (
-                  <tr key={format.name}>
-                    <td className="py-2 pr-3 text-[12.5px] text-ink">{format.label}</td>
-                    <td className="py-2 pr-3 font-mono text-[12px] text-muted">
-                      {format.extensions.join(" ")}
-                    </td>
-                    <td className="py-2 pr-3">
-                      <span
-                        className={cx(
-                          "rounded-full border px-2 py-0.5 text-[12px]",
-                          format.typed
-                            ? "border-success-line bg-success-soft text-success"
-                            : "border-line text-muted",
-                        )}
-                      >
-                        {format.typed ? "yes" : "no"}
-                      </span>
-                    </td>
-                    <td className="py-2 text-[12px] text-ink-3">
-                      {format.description}
-                      {!format.writable ? " Read only." : ""}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table minWidth={560}>
+            <TableHead>
+              <TableRow className="text-[12px] text-muted">
+                <TableHeaderCell>Format</TableHeaderCell>
+                <TableHeaderCell>Extensions</TableHeaderCell>
+                <TableHeaderCell>Keeps types</TableHeaderCell>
+                <TableHeaderCell>Notes</TableHeaderCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {formats.items.map((format) => (
+                <TableRow key={format.name}>
+                  <TableCell className="text-[12.5px] text-ink">{format.label}</TableCell>
+                  <TableCell className="font-mono text-[12px] text-muted">
+                    {format.extensions.join(" ")}
+                  </TableCell>
+                  <TableCell>
+                    <Badge tone={format.typed
+                          ? "success"
+                          : "neutral"}>
+                      {format.typed ? "yes" : "no"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-[12px] text-ink-3">
+                    {format.description}
+                    {!format.writable ? " Read only." : ""}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
           <p className="mt-3 text-[12px] text-muted">
             Compression is unwrapped automatically: {formats.compressions.join(", ")}.
           </p>
@@ -243,44 +222,31 @@ function ConnectorCard({ spec }: { spec: ConnectorSpec }) {
     >
       <div className="flex items-start justify-between gap-2">
         <h3 className="text-[13.5px] font-medium text-ink">{spec.label}</h3>
-        <span className="shrink-0 rounded bg-surface-2 px-1.5 py-0.5 text-[12px] text-ink-3">
+        <Badge className="shrink-0">
           {CATEGORY_LABEL[spec.category] ?? spec.category}
-        </span>
+        </Badge>
       </div>
 
-      <p
-        title={spec.tier_explanation}
-        className={cx(
-          "mt-1.5 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[12px]",
-          TIER_STYLE[spec.tier] ?? TIER_STYLE[4],
-        )}
-      >
-        <span aria-hidden="true">{spec.tier_badge}</span>
-        {spec.tier_label}
-        {spec.verified_by ? (
-          <span className="text-ink-3">· {spec.verified_by}</span>
-        ) : null}
-      </p>
+      <div className="mt-1.5">
+        <Badge tone={tierTone(spec.tier)} title={spec.tier_explanation}>
+          <span aria-hidden="true">{spec.tier_badge}</span>
+          {spec.tier_label}
+          {spec.verified_by ? <span className="font-normal opacity-80">· {spec.verified_by}</span> : null}
+        </Badge>
+      </div>
       <p className="mt-1 text-[12px] leading-5 text-ink-3">{spec.description}</p>
 
       <div className="mt-2 flex flex-wrap gap-1">
         {spec.capabilities
           .filter((capability) => capability !== "test")
           .map((capability) => (
-            <span
+            <Badge
               key={capability}
+              tone={capability === "write" || capability === "incremental" ? "accent" : "neutral"}
               title={CAPABILITY_LABEL[capability]}
-              className={cx(
-                "rounded px-1.5 py-0.5 text-[12px]",
-                capability === "write"
-                  ? "bg-accent-soft text-accent"
-                  : capability === "incremental"
-                    ? "bg-accent-soft text-accent"
-                    : "bg-surface-2 text-ink-3",
-              )}
             >
               {CAPABILITY_LABEL[capability]}
-            </span>
+            </Badge>
           ))}
       </div>
 
@@ -316,15 +282,10 @@ function VerificationPanel({ health }: { health: ConnectorHealth }) {
       <ul className="flex flex-col gap-2">
         {health.tiers.map((tier) => (
           <li key={tier.tier} className="flex items-center gap-3">
-            <span
-              className={cx(
-                "flex w-40 shrink-0 items-center gap-1.5 rounded-full border px-2 py-0.5 text-[12px]",
-                TIER_STYLE[tier.tier] ?? TIER_STYLE[4],
-              )}
-            >
+            <Badge tone={tierTone(tier.tier)} className="flex w-40 shrink-0">
               <span aria-hidden="true">{tier.badge}</span>
               {tier.label}
-            </span>
+            </Badge>
             {/* A fixed-width track: a bar sized against the whole row squeezed
                 the explanation beside the largest tier into a 70px column. */}
             <span

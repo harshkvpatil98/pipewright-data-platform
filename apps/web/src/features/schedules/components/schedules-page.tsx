@@ -26,6 +26,12 @@ import {
   SectionPanel,
   Select,
   StatusBadge,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeaderCell,
+  TableRow,
   Textarea,
 } from "@platform/shared-ui";
 
@@ -392,103 +398,101 @@ export function SchedulesPageView({
               }
             />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[880px] border-collapse text-left text-[14px] text-ink">
-                <thead className="text-[13px] text-ink-3">
-                  <tr className="border-b border-line">
-                    <th className="cell-pad pl-5 font-medium lg:pl-6">Schedule</th>
-                    <th className="cell-pad font-medium">When</th>
-                    <th className="cell-pad font-medium">Next run</th>
-                    <th className="cell-pad font-medium">Last run</th>
-                    <th className="cell-pad pr-5 text-right font-medium lg:pr-6">
-                      <span className="sr-only">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((row) => (
-                    <tr key={row.id} className="border-b border-line align-top transition hover:bg-surface">
-                      <td className="cell-pad pl-5 lg:pl-6">
-                        <div className="font-medium text-ink">{row.name}</div>
-                        <div className="text-[13px] text-ink-3">{scheduleTypeLabel(row.schedule_type)}</div>
-                      </td>
-                      <td className="cell-pad">
-                        <div className="text-ink-2">{describeCron(row.cron_expression)}</div>
-                        <div className="text-[13px] text-muted" title={`Timetable: ${row.cron_expression}`}>
-                          {row.timezone || "UTC"}
-                          {describeCron(row.cron_expression) === "A custom timetable"
-                            ? ` · ${row.cron_expression}`
-                            : ""}
+            <Table minWidth={880} edge="panel">
+              <TableHead>
+                <TableRow>
+                  <TableHeaderCell>Schedule</TableHeaderCell>
+                  <TableHeaderCell>When</TableHeaderCell>
+                  <TableHeaderCell>Next run</TableHeaderCell>
+                  <TableHeaderCell>Last run</TableHeaderCell>
+                  <TableHeaderCell className="text-right">
+                    <span className="sr-only">Actions</span>
+                  </TableHeaderCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {items.map((row) => (
+                  <TableRow key={row.id}>
+                    <TableCell>
+                      <div className="font-medium text-ink">{row.name}</div>
+                      <div className="text-[13px] text-ink-3">{scheduleTypeLabel(row.schedule_type)}</div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-ink-2">{describeCron(row.cron_expression)}</div>
+                      <div className="text-[13px] text-muted" title={`Timetable: ${row.cron_expression}`}>
+                        {row.timezone || "UTC"}
+                        {describeCron(row.cron_expression) === "A custom timetable"
+                          ? ` · ${row.cron_expression}`
+                          : ""}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-ink-2">
+                      {!row.enabled ? (
+                        <span className="text-muted">Paused</span>
+                      ) : isRunningNow(row) ? (
+                        <StatusBadge value="running" />
+                      ) : row.next_run_at ? (
+                        formatDate(row.next_run_at)
+                      ) : (
+                        "—"
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {row.last_run_status ? (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <StatusBadge value={row.last_run_status} />
+                          {row.last_run_finished_at ? (
+                            <span className="text-[13px] text-muted">
+                              {formatDate(row.last_run_finished_at)}
+                            </span>
+                          ) : null}
                         </div>
-                      </td>
-                      <td className="cell-pad text-ink-2">
-                        {!row.enabled ? (
-                          <span className="text-muted">Paused</span>
-                        ) : isRunningNow(row) ? (
-                          <StatusBadge value="running" />
-                        ) : row.next_run_at ? (
-                          formatDate(row.next_run_at)
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-                      <td className="cell-pad">
-                        {row.last_run_status ? (
-                          <div className="flex flex-wrap items-center gap-2">
-                            <StatusBadge value={row.last_run_status} />
-                            {row.last_run_finished_at ? (
-                              <span className="text-[13px] text-muted">
-                                {formatDate(row.last_run_finished_at)}
-                              </span>
-                            ) : null}
-                          </div>
-                        ) : (
-                          <span className="text-muted">Not run yet</span>
-                        )}
-                        {row.retry_count_current > 0 ? (
-                          <div className="mt-1 text-[13px] text-warning">
-                            Trying again ({row.retry_count_current} of {row.max_retries})
-                            {row.next_retry_at ? `, next ${formatDate(row.next_retry_at)}` : ""}
-                          </div>
-                        ) : null}
-                      </td>
-                      <td className="cell-pad pr-5 text-right lg:pr-6">
-                        <div className="flex flex-wrap justify-end gap-2">
-                          <Button
-                            type="button"
-                            size="sm"
-                            onClick={() => onTrigger(row)}
-                            disabled={triggeringId === row.id}
-                          >
-                            {triggeringId === row.id ? "Running…" : "Run now"}
-                          </Button>
-                          <Button type="button" variant="secondary" size="sm" onClick={() => openEdit(row)}>
-                            Edit
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => onToggle(row, !row.enabled)}
-                          >
-                            {row.enabled ? "Pause" : "Resume"}
-                          </Button>
-                          <DeleteRowButton
-                            path={`/projects/${projectId}/schedules/${row.id}`}
-                            name={row.name}
-                            kind="schedule"
-                            consequences={["Its run history stays; the schedule itself stops existing."]}
-                            onDeleted={() =>
-                              setItems((current) => current.filter((item) => item.id !== row.id))
-                            }
-                          />
+                      ) : (
+                        <span className="text-muted">Not run yet</span>
+                      )}
+                      {row.retry_count_current > 0 ? (
+                        <div className="mt-1 text-[13px] text-warning">
+                          Trying again ({row.retry_count_current} of {row.max_retries})
+                          {row.next_retry_at ? `, next ${formatDate(row.next_retry_at)}` : ""}
                         </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                      ) : null}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex flex-wrap justify-end gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => onTrigger(row)}
+                          disabled={triggeringId === row.id}
+                        >
+                          {triggeringId === row.id ? "Running…" : "Run now"}
+                        </Button>
+                        <Button type="button" variant="secondary" size="sm" onClick={() => openEdit(row)}>
+                          Edit
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => onToggle(row, !row.enabled)}
+                        >
+                          {row.enabled ? "Pause" : "Resume"}
+                        </Button>
+                        <DeleteRowButton
+                          path={`/projects/${projectId}/schedules/${row.id}`}
+                          name={row.name}
+                          kind="schedule"
+                          consequences={["Its run history stays; the schedule itself stops existing."]}
+                          onDeleted={() =>
+                            setItems((current) => current.filter((item) => item.id !== row.id))
+                          }
+                        />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           )}
         </SectionPanel>
         </div>

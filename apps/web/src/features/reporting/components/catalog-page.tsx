@@ -9,11 +9,10 @@ import type {
   GlossaryTerm,
   TermListResponse,
 } from "@platform/shared-types";
-import { SectionPanel } from "@platform/shared-ui";
+import { Badge, Icon, SectionPanel } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { DeleteRowButton } from "@/components/ui/delete-row-button";
-import { Icon } from "@/components/ui/icon";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { cx } from "@/lib/utils";
@@ -152,9 +151,9 @@ export function CatalogPageView({
                     ) : null}
                     <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[12px] text-muted">
                       {hit.reasons.slice(0, 3).map((reason) => (
-                        <span key={reason} className="rounded bg-surface px-1.5 py-0.5">
+                        <Badge key={reason}>
                           {reason}
-                        </span>
+                        </Badge>
                       ))}
                       {hit.row_count !== null ? (
                         <span>{hit.row_count.toLocaleString()} rows</span>
@@ -168,10 +167,10 @@ export function CatalogPageView({
                   </div>
                   <div className="flex shrink-0 items-center gap-1.5">
                     {hit.certified ? (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-success-line bg-success-soft px-2 py-0.5 text-[12px] text-success">
+                      <Badge tone="success">
                         <Icon name="check" size={10} />
                         certified
-                      </span>
+                      </Badge>
                     ) : null}
                     {hit.owner ? (
                       <span className="text-[12px] text-muted">{hit.owner}</span>
@@ -246,12 +245,12 @@ function TermRow({
       {term.bindings.length > 0 ? (
         <div className="mt-1.5 flex flex-wrap gap-1">
           {term.bindings.map((binding) => (
-            <span
+            <Badge
               key={`${binding.dataset_id}-${binding.column}`}
-              className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[12px] text-ink-3"
+              className="font-mono"
             >
               {binding.column}
-            </span>
+            </Badge>
           ))}
         </div>
       ) : null}

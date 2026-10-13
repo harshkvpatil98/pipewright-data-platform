@@ -4,13 +4,11 @@ import Link from "next/link";
 import { useCallback, useState } from "react";
 
 import type { AuthUser, ColumnTrace, DatasetLineage } from "@platform/shared-types";
-import { Button, SectionPanel } from "@platform/shared-ui";
+import { Badge, Button, Icon, SectionPanel } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
-import { Icon } from "@/components/ui/icon";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
-import { cx } from "@/lib/utils";
 
 import { ImpactDialog } from "./impact-dialog";
 import { LineageGraph } from "./lineage-graph";
@@ -133,16 +131,9 @@ export function LineagePageView({
                 >
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-[12.5px] text-ink">{column.column}</span>
-                    <span
-                      className={cx(
-                        "rounded px-1.5 py-0.5 text-[12px]",
-                        column.derived
-                          ? "bg-accent-soft text-accent"
-                          : "bg-surface-2 text-ink-3",
-                      )}
-                    >
-                      {column.derived ? "derived" : "source"}
-                    </span>
+                    <Badge tone={column.derived ? "accent" : "neutral"}>
+                      {column.derived ? "Worked out" : "From the source"}
+                    </Badge>
                   </div>
                   {column.origins.length > 0 ? (
                     <div className="mt-0.5 truncate text-[12px] text-muted">

@@ -3,6 +3,7 @@
 import { Input, Select } from "@platform/shared-ui";
 
 import type { Tool, ToolParam } from "./tool-catalogue";
+import { typeLabel } from "@/lib/labels";
 
 export function Field({
   label,
@@ -143,7 +144,7 @@ export function ToolFields({
               {columns.map((entry) => (
                 <option key={entry.name} value={entry.name}>
                   {entry.name}
-                  {entry.type ? ` · ${entry.type}` : ""}
+                  {entry.type ? ` · ${typeLabel(entry.type)}` : ""}
                 </option>
               ))}
             </Select>

@@ -18,9 +18,6 @@ type PipelineListPageViewProps = {
 
 export function PipelineListPageView({ currentUser, project, pipelines, datasets, activeDatasetId }: PipelineListPageViewProps) {
   const datasetNameMap = new Map(datasets.map((dataset) => [dataset.id, dataset.name]));
-  const createHref = activeDatasetId
-    ? `/projects/${project.id}/pipelines/new?sourceDatasetId=${activeDatasetId}`
-    : `/projects/${project.id}/pipelines/new`;
   const studioHref = activeDatasetId
     ? `/projects/${project.id}/studio?dataset=${activeDatasetId}`
     : `/projects/${project.id}/studio`;
@@ -32,7 +29,7 @@ export function PipelineListPageView({ currentUser, project, pipelines, datasets
       subtitle="Saved recipes: the steps that turn one dataset into another."
       actions={
         <Link href={studioHref} className={buttonClassName("primary")}>
-          New recipe in Studio
+          New recipe
         </Link>
       }
       meta={
@@ -45,12 +42,7 @@ export function PipelineListPageView({ currentUser, project, pipelines, datasets
     >
       <SectionPanel
         title={`${pipelines.length} saved recipe${pipelines.length === 1 ? "" : "s"}`}
-        description="Open one to change its steps, or run it to make a fresh copy of its result."
-        actions={
-          <Link href={createHref} className={buttonClassName("secondary", "sm")}>
-            Write steps in a form instead
-          </Link>
-        }
+        description="Open one in the Studio to change its steps, or run it to make a fresh copy of its result."
       >
         {pipelines.length === 0 ? (
           <EmptyState
@@ -83,7 +75,6 @@ export function PipelineListPageView({ currentUser, project, pipelines, datasets
                         <PipelineNameCell
                           projectId={project.id}
                           pipelineId={pipeline.id}
-                          baseDatasetId={pipeline.base_dataset_id}
                           name={pipeline.name}
                         />
                         <div className="mt-1 max-w-sm text-ink-3">{pipeline.description ?? "No description."}</div>

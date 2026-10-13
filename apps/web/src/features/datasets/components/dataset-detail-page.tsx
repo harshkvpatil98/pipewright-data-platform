@@ -45,6 +45,7 @@ import {
 import { describeParserMetadata } from "@/features/datasets/parser-metadata";
 import { formatDate, formatNumber, titleCase } from "@/lib/format";
 import { formatRunTypeLabel } from "@/lib/run-labels";
+import { recipeHref } from "@/lib/navigation";
 
 type DatasetDetailPageViewProps = {
   currentUser: AuthUser;
@@ -175,17 +176,6 @@ export function DatasetDetailPageView({
                   "See the result of a step without saving anything.",
                 onSelect: () => setIsPreviewTransformOpen(true),
               },
-              ...(!dataset.is_derived
-                ? [
-                    {
-                      id: "recipe-form",
-                      label: "Write a recipe in a form",
-                      icon: "book" as const,
-                      description: "For people who prefer forms to the Studio.",
-                      href: `/projects/${projectId}/pipelines/new?sourceDatasetId=${dataset.id}`,
-                    },
-                  ]
-                : []),
               {
                 id: "rename",
                 label: "Rename",
@@ -378,7 +368,7 @@ export function DatasetDetailPageView({
               <dd className="text-ink mt-2 text-sm">
                 {lineagePipeline ? (
                   <Link
-                    href={`/projects/${projectId}/datasets/${lineagePipeline.base_dataset_id}/pipelines/${lineagePipeline.id}`}
+                    href={recipeHref(projectId, lineagePipeline.id)}
                     className="text-accent hover:text-accent"
                   >
                     {lineagePipeline.name}

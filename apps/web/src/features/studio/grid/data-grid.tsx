@@ -84,12 +84,12 @@ export type DataGridProps = {
    * live table has row identity and can say WHICH row changed.
    */
   onEditCell?: (address: CellAddress, value: string) => void;
-  /** The column the data is sorted by, read from the pipeline's steps. */
+  /** The column the rows on screen are sorted by, shown as an arrow in its header. */
   sort?: { column: string; direction: SortDirection } | null;
   /**
-   * Called when a header is clicked. Sorting is a STEP, not a view operation:
-   * the grid holds a page of rows, so sorting what is loaded would order a
-   * sample and present it as the order of the table.
+   * Called when a header is clicked. The grid only reports the click; the page
+   * decides what a sort means. The Studio sorts the rows on screen for viewing
+   * and says so, with a separate way to add a sort step for the whole table.
    */
   onSortChange?: (sort: { column: string; direction: SortDirection } | null) => void;
   /**
@@ -122,7 +122,7 @@ const HEADER_LABEL_HEIGHT = 30;
 const QUALITY_BAR_HEIGHT = 4;
 const HEADER_HEIGHT = HEADER_LABEL_HEIGHT + QUALITY_BAR_HEIGHT;
 const FONT = '13px ui-sans-serif, -apple-system, "Segoe UI", sans-serif';
-const HEADER_FONT = '600 11px ui-sans-serif, -apple-system, "Segoe UI", sans-serif';
+const HEADER_FONT = '600 12px ui-sans-serif, -apple-system, "Segoe UI", sans-serif';
 
 export function DataGrid({
   columns,
@@ -507,6 +507,9 @@ export function DataGrid({
   };
 
   const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    // Only the main button selects, sorts, resizes or drags. A right-click is
+    // for the column menu, and also sorting the column under it was a surprise.
+    if (event.button !== 0) return;
     const point = pointFor(event);
     if (!point) return;
 
@@ -881,7 +884,7 @@ export function DataGrid({
         />
       ) : null}
 
-      <div className="flex shrink-0 items-center gap-4 border-t border-line bg-surface px-3 py-1.5 text-[11px] text-muted">
+      <div className="flex shrink-0 items-center gap-4 border-t border-line bg-surface px-3 py-1.5 text-[12px] text-muted">
         <span className="tabular">{rows.length.toLocaleString()} rows</span>
         <span className="tabular">{columns.length} columns</span>
         {selectedCount > 1 ? <span className="tabular">{selectedCount.toLocaleString()} selected</span> : null}
@@ -922,13 +925,13 @@ function ColumnProfileCard({
           type="button"
           onClick={onClose}
           aria-label="Close column profile"
-          className="ml-auto rounded px-1.5 text-[11px] text-muted transition hover:bg-surface-2 hover:text-ink"
+          className="ml-auto rounded px-1.5 text-[12px] text-muted transition hover:bg-surface-2 hover:text-ink"
         >
           Close
         </button>
       </div>
 
-      <p className="mb-2.5 text-[11px] text-muted">{describeProfile(profile)}</p>
+      <p className="mb-2.5 text-[12px] text-muted">{describeProfile(profile)}</p>
 
       <dl className="mb-2.5 grid grid-cols-2 gap-x-3 gap-y-1 text-[12px]">
         <dt className="text-ink-3">Values</dt>
@@ -964,7 +967,7 @@ function ColumnProfileCard({
 
       {profile.top.length > 0 ? (
         <div>
-          <div className="mb-1 text-[10px] uppercase tracking-[0.14em] text-muted">
+          <div className="mb-1 text-[12px] font-medium text-muted">
             Most common
           </div>
           <ul className="grid gap-1">

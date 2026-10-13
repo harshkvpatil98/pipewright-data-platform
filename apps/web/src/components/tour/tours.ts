@@ -52,32 +52,32 @@ export const welcomeTour: TourStep[] = [
   },
 ];
 
-export const STUDIO_TOUR_ID = "studio-v1";
+export const STUDIO_TOUR_ID = "studio-v2";
 
 export const studioTour: TourStep[] = [
   {
     target: "studio-source",
-    placement: "right",
-    title: "Pick your input",
-    body: "Choose the dataset you want to shape. Its rows load into the grid immediately so you can see what you are working with.",
+    placement: "bottom",
+    title: "Start from your data",
+    body: "Pick the dataset to clean. Its first rows load on the right, and the original is never changed.",
   },
   {
-    target: "ribbon",
-    placement: "bottom",
-    title: "Apply a transformation",
-    body: "Every tool here adds one step to your recipe. Your original dataset is never changed.",
+    target: "add-step",
+    placement: "right",
+    title: "Add a step",
+    body: "Search for what you want to do, such as “trim spaces” or “remove duplicates”. Press / to open it from anywhere.",
   },
   {
     target: "applied-steps",
-    placement: "left",
-    title: "Steps stack in order",
-    body: "Each step runs on the output of the one before it. Remove or reorder any step and the preview recalculates instantly.",
+    placement: "right",
+    title: "Your recipe, top to bottom",
+    body: "Each step works on the result of the one above. Click a step to change its settings right there.",
   },
   {
     target: "studio-preview",
-    placement: "top",
-    title: "Live preview",
-    body: "This is the real result of your steps on your actual data. Save it as a recipe when it looks right.",
+    placement: "left",
+    title: "See the result as you go",
+    body: "The preview updates after every change. Right-click a column for steps that suit it. Save when it looks right.",
   },
 ];
 

@@ -8,6 +8,7 @@ import { SectionPanel, StatCard, StatusBadge } from "@platform/shared-ui";
 import { AppShell } from "@/components/layout/app-shell";
 import { formatNumber } from "@/lib/format";
 import { formatRunTypeLabel } from "@/lib/run-labels";
+import { recipeHref } from "@/lib/navigation";
 
 type RunComparisonPageProps = {
   currentUser: AuthUser;
@@ -127,7 +128,7 @@ export function RunComparisonPageView({ currentUser, projectId, comparison }: Ru
               <dd className="mt-1 font-mono text-xs text-ink-2">
                 {comparison.pipeline_id ? (
                   <Link
-                    href={`/projects/${projectId}/pipelines/${comparison.pipeline_id}`}
+                    href={recipeHref(projectId, comparison.pipeline_id)}
                     className="text-accent hover:text-accent"
                   >
                     {comparison.pipeline_id}

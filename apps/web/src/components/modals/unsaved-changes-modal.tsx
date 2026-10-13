@@ -21,7 +21,6 @@ export function UnsavedChangesModal({
     <Modal
       open={open}
       title={title}
-      description={message}
       onClose={onStay}
       widthClassName="max-w-lg"
       footer={
@@ -35,9 +34,7 @@ export function UnsavedChangesModal({
         </div>
       }
     >
-      <div className="rounded-2xl border border-warning-line bg-warning-soft px-4 py-4 text-sm leading-6 text-warning">
-        Unsaved edits in this editor will be discarded if you continue.
-      </div>
+      <p className="text-sm leading-6 text-ink-2">{message}</p>
     </Modal>
   );
 }

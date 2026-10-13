@@ -7,22 +7,22 @@ import { useToast } from "@/components/providers/toast-provider";
 import { Icon } from "@/components/ui/icon";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
+import { recipeHref } from "@/lib/navigation";
 
 type PipelineNameCellProps = {
   projectId: string;
   pipelineId: string;
-  baseDatasetId: string;
   name: string;
 };
 
 /**
- * A pipeline's name, editable in place.
+ * A recipe's name, editable in place.
  *
- * Auto-named pipelines pile up as look-alikes; the save prompt fixes new ones,
- * and this fixes the ones already saved without a trip to a separate edit
- * screen. It stays a link until you choose to rename.
+ * Auto-named recipes pile up as look-alikes; this fixes the ones already saved
+ * without opening each in the Studio. It stays a link until you choose to
+ * rename.
  */
-export function PipelineNameCell({ projectId, pipelineId, baseDatasetId, name }: PipelineNameCellProps) {
+export function PipelineNameCell({ projectId, pipelineId, name }: PipelineNameCellProps) {
   const toast = useToast();
   const [current, setCurrent] = useState(name);
   const [editing, setEditing] = useState(false);
@@ -87,7 +87,7 @@ export function PipelineNameCell({ projectId, pipelineId, baseDatasetId, name }:
   return (
     <span className="group/name flex items-center gap-1.5">
       <Link
-        href={`/projects/${projectId}/datasets/${baseDatasetId}/pipelines/${pipelineId}`}
+        href={recipeHref(projectId, pipelineId)}
         className="font-medium text-ink hover:text-accent"
       >
         {current}

@@ -3,47 +3,37 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import type { AuthUser, DatasetRecord } from "@platform/shared-types";
+import type {
+  AuthUser,
+  DatasetRecord,
+  TransformationPipelineRecord,
+  TransformationRunResponse,
+} from "@platform/shared-types";
+import { Button } from "@platform/shared-ui";
 
-import { DataGrid, type GridColumn } from "@/features/studio/grid/data-grid";
-import {
-  sortFromSteps,
-  sortStepConfig,
-  type SortDirection,
-} from "@/features/studio/grid/column-state";
 import { AppFrame } from "@/components/shell/app-frame";
 import type { Command } from "@/components/shell/command-palette";
-import type { RibbonGroup } from "@/components/shell/ribbon";
 import { useToast } from "@/components/providers/toast-provider";
 import { STUDIO_TOUR_ID, studioTour } from "@/components/tour/tours";
 import { useTour } from "@/components/tour/tour-provider";
-import { Button, FormField, Input, Modal } from "@platform/shared-ui";
-
+import { ActionMenu } from "@/components/ui/action-menu";
 import { Icon } from "@/components/ui/icon";
-import { StepEditor } from "@/features/studio/step-editor";
-import {
-  STEP_BY_TYPE,
-  STEP_CATALOG,
-  STEP_GROUPS,
-  type StepDefinition,
-} from "@/features/studio/step-catalog";
 import { AddDataDialog } from "@/features/datasets/components/add-data-dialog";
+import { useUnsavedChangesGuard } from "@/features/navigation/unsaved-changes-guard";
+import { DetailsDrawer, type ExecutionPlan } from "@/features/studio/details-drawer";
+import { DataGrid, type GridColumn } from "@/features/studio/grid/data-grid";
 import { RecipeTemplatesDialog } from "@/features/studio/recipe-templates-dialog";
-import { RecipeYamlPanel } from "@/features/studio/recipe-yaml-panel";
-import { ColumnMenu } from "@/features/studio/tools/column-menu";
-import { ToolBrowser } from "@/features/studio/tools/tool-browser";
-import {
-  describeToolStep,
-  ToolStepEditor,
-} from "@/features/studio/tools/tool-step-editor";
-import {
-  toolsForColumn,
-  type Tool,
-  type ToolCatalogue,
-} from "@/features/studio/tools/tool-catalogue";
-import { friendlyStepMessage, typeLabel } from "@/lib/labels";
+import { clearDraft, draftKey, readDraft, writeDraft, type RecipeDraft } from "@/features/studio/recipe-draft";
+import { record, redo, startHistory, undo, type History } from "@/features/studio/recipe-history";
+import { prefillConfig, type StepDefinition } from "@/features/studio/step-catalog";
+import { StepPalette } from "@/features/studio/step-palette";
+import { StepsTimeline, type StepOutcome, type TimelineStep } from "@/features/studio/steps-timeline";
+import type { ToolCatalogue } from "@/features/studio/tools/tool-catalogue";
+import { planPhrase, previewScope } from "@/features/studio/studio-words";
+import { sortForView, type ViewSort } from "@/features/studio/view-sort";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
+import { friendlyStepMessage } from "@/lib/labels";
 import { cx } from "@/lib/utils";
 
 type PreviewResponse = {
@@ -56,92 +46,155 @@ type PreviewResponse = {
   schema_after: {
     columns: { name: string; inferred_type: string; canonical_type?: string | null }[];
   };
-  execution_plan?: {
-    source_type: string;
-    surface: string;
-    pushed_steps: number;
-    local_steps: number;
-    sql?: string | null;
-    placements: { node: string; pushed: boolean; reason: string }[];
-    note?: string;
-  } | null;
-  step_outcomes?: {
-    index: number;
-    step_type: string;
-    rows_before: number;
-    rows_after: number;
-    columns_before: number;
-    columns_after: number;
-  }[];
+  execution_plan?: ExecutionPlan | null;
+  step_outcomes?: (StepOutcome & { index: number; step_type: string })[];
   warnings: string[];
 };
 
-type AppliedStep = {
-  /** Stable key for list rendering and reordering. */
-  uid: string;
-  step_type: string;
-  config: Record<string, unknown>;
-};
+type StoredStep = { step_type: string; config: Record<string, unknown> };
 
 type StudioPageProps = {
   currentUser: AuthUser;
   projectId: string;
   datasets: DatasetRecord[];
   initialDatasetId?: string;
+  /** An existing recipe to open, from `?recipe=`. */
+  recipe?: TransformationPipelineRecord | null;
 };
 
 let uidCounter = 0;
 const nextUid = () => `step-${++uidCounter}`;
 
-export function StudioPage({
-  currentUser,
-  projectId,
-  datasets,
-  initialDatasetId,
-}: StudioPageProps) {
+const withUids = (steps: StoredStep[]): TimelineStep[] =>
+  steps.map((step) => ({ uid: nextUid(), step_type: step.step_type, config: step.config }));
+
+const stored = (steps: TimelineStep[]): StoredStep[] =>
+  steps.map((step) => ({ step_type: step.step_type, config: step.config }));
+
+/** What "unsaved" is measured against: the name and steps as last saved. */
+const signature = (name: string, steps: TimelineStep[]) => JSON.stringify([name.trim(), stored(steps)]);
+
+/** Messages that mean "this step is not set up yet": guidance, not failure. */
+const INCOMPLETE = /cannot be empty|missing required field|must be a non-empty|is required/i;
+
+export function StudioPage({ currentUser, projectId, datasets, initialDatasetId, recipe = null }: StudioPageProps) {
   const router = useRouter();
   const toast = useToast();
-  const { startIfUnseen } = useTour();
+  const { start, startIfUnseen } = useTour();
 
-  const [datasetId, setDatasetId] = useState(initialDatasetId ?? datasets[0]?.id ?? "");
-  const [steps, setSteps] = useState<AppliedStep[]>([]);
-  const [selectedUid, setSelectedUid] = useState<string | null>(null);
-  const [preview, setPreview] = useState<PreviewResponse | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [savePromptOpen, setSavePromptOpen] = useState(false);
+  const [datasetId, setDatasetId] = useState(
+    recipe?.base_dataset_id ?? initialDatasetId ?? datasets[0]?.id ?? "",
+  );
+  const dataset = useMemo(() => datasets.find((item) => item.id === datasetId) ?? null, [datasets, datasetId]);
+
+  // ----------------------------------------------------------- the recipe
+  const [saved, setSaved] = useState<{ id: string; name: string } | null>(
+    recipe ? { id: recipe.id, name: recipe.name } : null,
+  );
+  const [history, setHistory] = useState<History<TimelineStep[]>>(() =>
+    startHistory(withUids((recipe?.steps_json as StoredStep[] | undefined) ?? [])),
+  );
+  const steps = history.present;
+  const [name, setName] = useState(recipe?.name ?? (dataset ? `${dataset.name} recipe` : ""));
+  const [nameTouched, setNameTouched] = useState(Boolean(recipe));
+  const [baseline, setBaseline] = useState(() => (recipe ? signature(recipe.name, history.present) : null));
+  const dirty = baseline === null ? steps.length > 0 : signature(name, steps) !== baseline;
+
+  const change = useCallback(
+    (next: (current: TimelineStep[]) => TimelineStep[], group?: string) =>
+      setHistory((current) => record(current, next(current.present), { group })),
+    [],
+  );
+
+  // ------------------------------------------------------- local draft
+  // Unsaved work is kept in this browser, so an ended session, a closed tab
+  // or a crash does not lose it. It is offered back the next time this recipe
+  // (or a new recipe on this dataset) is opened.
+  const key = draftKey(projectId, saved?.id ?? null, datasetId);
+  const [offer, setOffer] = useState<RecipeDraft | null>(null);
+  const offerChecked = useRef(false);
+
+  useEffect(() => {
+    if (offerChecked.current) return;
+    offerChecked.current = true;
+    const draft = readDraft(key);
+    if (draft && JSON.stringify([draft.name.trim(), draft.steps]) !== signature(name, steps)) setOffer(draft);
+    // Checked once, against what the page opened with.
+  }, []);
+
+  useEffect(() => {
+    if (!dirty) {
+      // An offered draft stays until it is restored or discarded.
+      if (!offer) clearDraft(key);
+      return;
+    }
+    // Starting fresh while the offer is showing is the answer to it.
+    if (offer) setOffer(null);
+    const timer = setTimeout(() => writeDraft(key, { name, steps: stored(steps), at: Date.now() }), 500);
+    return () => clearTimeout(timer);
+  }, [key, dirty, name, steps, offer]);
+
+  const restoreDraft = () => {
+    if (!offer) return;
+    change(() => withUids(offer.steps));
+    setName(offer.name);
+    setNameTouched(true);
+    setOpenUid(null);
+    setOffer(null);
+  };
+
+  // A new recipe's name follows the dataset until somebody types one.
+  useEffect(() => {
+    if (!nameTouched && !saved && dataset) setName(`${dataset.name} recipe`);
+  }, [dataset, nameTouched, saved]);
+
+  const [openUid, setOpenUid] = useState<string | null>(null);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [paletteColumn, setPaletteColumn] = useState<string | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [addDataOpen, setAddDataOpen] = useState(false);
-  const [saveName, setSaveName] = useState("");
-  /**
-   * Columns of the untransformed source. Held separately so the step editor
-   * still offers real column names while the current step is half-configured
-   * and the live preview is therefore failing.
-   */
-  const [baseColumns, setBaseColumns] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [running, setRunning] = useState(false);
+  const [viewSort, setViewSort] = useState<ViewSort | null>(null);
 
-  const dataset = useMemo(
-    () => datasets.find((item) => item.id === datasetId) ?? null,
-    [datasets, datasetId],
-  );
+  useUnsavedChangesGuard({
+    when: dirty,
+    title: "Leave without saving?",
+    message: saved
+      ? "Your changes to this recipe are not saved. They stay in this browser and are offered back the next time you open the recipe here."
+      : "This recipe is not saved yet. Its steps stay in this browser and are offered back the next time you open this dataset in the Studio.",
+  });
 
-  const selected = useMemo(
-    () => steps.find((step) => step.uid === selectedUid) ?? null,
-    [steps, selectedUid],
-  );
+  // Once saved, the address names the recipe, so a reload or a bookmark opens
+  // it again. Deferred a moment: the leave guard steps back out of the history
+  // entry it added while there were unsaved changes, and replacing the address
+  // before that would replace the wrong entry.
+  useEffect(() => {
+    if (dirty || !saved) return;
+    const target = `/projects/${projectId}/studio?recipe=${saved.id}`;
+    const timer = setTimeout(() => {
+      if (`${window.location.pathname}${window.location.search}` !== target) {
+        window.history.replaceState(null, "", target);
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [dirty, saved, projectId]);
 
   useEffect(() => {
     const timer = setTimeout(() => startIfUnseen(studioTour, STUDIO_TOUR_ID), 1200);
     return () => clearTimeout(timer);
   }, [startIfUnseen]);
 
-  // Preview is debounced and generation-guarded: rapid edits cancel earlier
-  // results so a slow response cannot overwrite a newer one.
+  // ------------------------------------------------------------- preview
+  const [preview, setPreview] = useState<PreviewResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // Generation-guarded: a slow response never overwrites a newer one.
   const generation = useRef(0);
 
   const runPreview = useCallback(
-    async (activeSteps: AppliedStep[], activeDatasetId: string) => {
+    async (activeSteps: TimelineStep[], activeDatasetId: string) => {
       if (!activeDatasetId) {
         setPreview(null);
         return;
@@ -152,23 +205,14 @@ export function StudioPage({
       try {
         const response = await apiFetch<PreviewResponse>(
           `/projects/${projectId}/datasets/${activeDatasetId}/pipelines/preview`,
-          {
-            method: "POST",
-            body: JSON.stringify({
-              steps: activeSteps.map((step) => ({ step_type: step.step_type, config: step.config })),
-            }),
-          },
+          { method: "POST", body: JSON.stringify({ steps: stored(activeSteps) }) },
         );
         if (ticket === generation.current) setPreview(response);
       } catch (caught) {
-        if (ticket === generation.current) {
-          setError(extractErrorMessage(caught));
-          // The last good preview is KEPT. A step is added before it is
-          // configured, so the first request after every single "add step"
-          // fails -- and discarding the preview made the data vanish at exactly
-          // the moment somebody needed to look at it to configure the step.
-          // The grid stays, marked stale, until a request succeeds.
-        }
+        // The last good preview is kept, marked stale: a step is added before
+        // it is set up, and the data vanishing at that moment is exactly when
+        // somebody needs to look at it.
+        if (ticket === generation.current) setError(extractErrorMessage(caught));
       } finally {
         if (ticket === generation.current) setLoading(false);
       }
@@ -177,11 +221,12 @@ export function StudioPage({
   );
 
   useEffect(() => {
-    const timer = setTimeout(() => runPreview(steps, datasetId), 320);
+    const timer = setTimeout(() => void runPreview(steps, datasetId), 320);
     return () => clearTimeout(timer);
   }, [steps, datasetId, runPreview]);
 
-  // Read the source shape once per dataset, independent of the applied steps.
+  // The source's own columns, so a half-set-up step still offers real names.
+  const [baseColumns, setBaseColumns] = useState<{ name: string; type?: string }[]>([]);
   useEffect(() => {
     if (!datasetId) {
       setBaseColumns([]);
@@ -193,7 +238,9 @@ export function StudioPage({
       body: JSON.stringify({ steps: [] }),
     })
       .then((response) => {
-        if (!cancelled) setBaseColumns(response.preview_columns);
+        if (cancelled) return;
+        const types = new Map(response.schema_after.columns.map((c) => [c.name, c.canonical_type ?? c.inferred_type]));
+        setBaseColumns(response.preview_columns.map((column) => ({ name: column, type: types.get(column) })));
       })
       .catch(() => {
         if (!cancelled) setBaseColumns([]);
@@ -203,22 +250,29 @@ export function StudioPage({
     };
   }, [datasetId, projectId]);
 
-  // ------------------------------------------------------------- tool library
-  //
-  // Fetched once and held: the catalogue is a property of the platform, and
-  // re-fetching it per keystroke is what makes a palette feel slow.
-  const [catalogue, setCatalogue] = useState<ToolCatalogue>({ categories: [], items: [] });
-  const [browserOpen, setBrowserOpen] = useState(false);
-  const [browserColumn, setBrowserColumn] = useState<string | null>(null);
-  const [restrictToType, setRestrictToType] = useState(false);
-  const [columnMenu, setColumnMenu] = useState<
-    { column: string; at: { x: number; y: number } } | null
-  >(null);
-  //: Chosen from the context menu; the browser opens with it already selected.
-  const [pendingTool, setPendingTool] = useState<string | null>(null);
-  //: The recipe as code. Both directions, which is what makes it reviewable.
-  const [yamlOpen, setYamlOpen] = useState(false);
+  const columns = useMemo<GridColumn[]>(() => {
+    if (!preview) return [];
+    const types = new Map(preview.schema_after.columns.map((c) => [c.name, c.canonical_type ?? c.inferred_type]));
+    return preview.preview_columns.map((column) => ({ name: column, type: types.get(column) }));
+  }, [preview]);
 
+  /** Columns offered in step settings: the result's, plus the source's while a step is half set up. */
+  const settingsColumns = useMemo(() => {
+    const seen = new Map<string, { name: string; type?: string }>();
+    for (const column of [...columns, ...baseColumns]) if (!seen.has(column.name)) seen.set(column.name, column);
+    return Array.from(seen.values());
+  }, [columns, baseColumns]);
+
+  // A view sort on a column that has gone (renamed, removed) is dropped.
+  useEffect(() => {
+    if (viewSort && preview && !preview.preview_columns.includes(viewSort.column)) setViewSort(null);
+  }, [preview, viewSort]);
+
+  const rows = useMemo(() => sortForView(preview?.preview_rows ?? [], viewSort), [preview, viewSort]);
+
+  // --------------------------------------------------------- tool library
+  const [catalogue, setCatalogue] = useState<ToolCatalogue>({ categories: [], items: [] });
+  const [preselect, setPreselect] = useState<string | null>(null);
   useEffect(() => {
     let cancelled = false;
     apiFetch<ToolCatalogue>("/transformations/tools")
@@ -226,8 +280,7 @@ export function StudioPage({
         if (!cancelled) setCatalogue(response);
       })
       .catch(() => {
-        // The ribbon's built-in steps still work without it; the tool browser
-        // says so rather than opening empty.
+        // The common steps still work without the library.
         if (!cancelled) setCatalogue({ categories: [], items: [] });
       });
     return () => {
@@ -235,58 +288,37 @@ export function StudioPage({
     };
   }, []);
 
-  const addToolStep = useCallback((config: Record<string, unknown>) => {
-    setSteps((current) => [
-      ...current,
-      { uid: nextUid(), step_type: "tool", config },
-    ]);
-    setBrowserOpen(false);
-    setColumnMenu(null);
+  // ------------------------------------------------------------- editing
+  const openPalette = useCallback((column: string | null = null, tool: string | null = null) => {
+    setPaletteColumn(column);
+    setPreselect(tool);
+    setPaletteOpen(true);
   }, []);
 
-  const addStep = useCallback((definition: StepDefinition) => {
-    const step: AppliedStep = {
-      uid: nextUid(),
-      step_type: definition.type,
-      config: { ...(definition.defaults ?? {}) },
-    };
-    setSteps((current) => [...current, step]);
-    setSelectedUid(step.uid);
-  }, []);
-
-  /**
-   * A header sort is a STEP, not a view operation.
-   *
-   * The grid holds a page of rows, so sorting what is loaded would order a
-   * sample and present it as the order of the table. Replacing the existing
-   * sort rather than stacking another keeps the header and the pipeline
-   * telling the same story -- two sort_rows steps would show one arrow and
-   * apply the other.
-   */
-  const sort = useMemo(() => sortFromSteps(steps), [steps]);
-
-  const handleSortChange = useCallback(
-    (next: { column: string; direction: SortDirection } | null) => {
-      setSteps((current) => {
-        const withoutSort = current.filter((step) => step.step_type !== "sort_rows");
-        if (next === null) return withoutSort;
-        const { config } = sortStepConfig(next);
-        return [...withoutSort, { uid: nextUid(), step_type: "sort_rows", config }];
-      });
-    },
-    []
-  );
-
-  const updateStep = (uid: string, config: Record<string, unknown>) =>
-    setSteps((current) => current.map((step) => (step.uid === uid ? { ...step, config } : step)));
-
-  const removeStep = (uid: string) => {
-    setSteps((current) => current.filter((step) => step.uid !== uid));
-    setSelectedUid((current) => (current === uid ? null : current));
+  const addBuiltIn = (definition: StepDefinition, column: string | null) => {
+    const step: TimelineStep = { uid: nextUid(), step_type: definition.type, config: prefillConfig(definition, column) };
+    change((current) => [...current, step]);
+    setOpenUid(step.uid);
+    setPaletteOpen(false);
   };
 
-  const moveStep = (uid: string, direction: -1 | 1) => {
-    setSteps((current) => {
+  const addTool = (config: Record<string, unknown>) => {
+    const step: TimelineStep = { uid: nextUid(), step_type: "tool", config };
+    change((current) => [...current, step]);
+    setOpenUid(null);
+    setPaletteOpen(false);
+  };
+
+  const updateStep = (uid: string, config: Record<string, unknown>) =>
+    change((current) => current.map((step) => (step.uid === uid ? { ...step, config } : step)), `config:${uid}`);
+
+  const removeStep = (uid: string) => {
+    change((current) => current.filter((step) => step.uid !== uid));
+    setOpenUid((current) => (current === uid ? null : current));
+  };
+
+  const moveStep = (uid: string, direction: -1 | 1) =>
+    change((current) => {
       const index = current.findIndex((step) => step.uid === uid);
       const target = index + direction;
       if (index === -1 || target < 0 || target >= current.length) return current;
@@ -294,158 +326,108 @@ export function StudioPage({
       [next[index], next[target]] = [next[target], next[index]];
       return next;
     });
+
+  const sortWholeTable = () => {
+    if (!viewSort) return;
+    const step: TimelineStep = {
+      uid: nextUid(),
+      step_type: "sort_rows",
+      config: { columns: [viewSort.column], ascending: viewSort.direction === "asc" },
+    };
+    change((current) => [...current, step]);
+    setViewSort(null);
   };
 
-  const savePipeline = useCallback(async (chosenName?: string) => {
-    if (!dataset || steps.length === 0) return;
-    setSaving(true);
-    try {
-      const fallback = `${dataset.name} · ${steps.length} step${steps.length === 1 ? "" : "s"}`;
-      const created = await apiFetch<{ id: string; name: string }>(
-        `/projects/${projectId}/datasets/${dataset.id}/pipelines`,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            name: (chosenName ?? "").trim() || fallback,
-            steps_json: steps.map((step) => ({ step_type: step.step_type, config: step.config })),
-          }),
-        },
-      );
-      toast.notify({
-        tone: "success",
-        title: "Pipeline saved",
-        description: `“${created.name}” is ready to run or schedule.`,
-        actions: [
-          {
-            label: "Run now",
-            onClick: () => {
-              void apiFetch(`/projects/${projectId}/pipelines/${created.id}/run`, {
-                method: "POST",
+  const doUndo = useCallback(() => setHistory((current) => undo(current)), []);
+  const doRedo = useCallback(() => setHistory((current) => redo(current)), []);
+
+  // "/" adds a step; ⌘Z and ⇧⌘Z undo and redo. All ignored while typing.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const typing =
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA" ||
+        target?.tagName === "SELECT" ||
+        target?.isContentEditable;
+      if (typing || paletteOpen) return;
+      if (event.key === "/" && !event.metaKey && !event.ctrlKey && datasetId) {
+        event.preventDefault();
+        openPalette();
+      } else if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") {
+        event.preventDefault();
+        if (event.shiftKey) doRedo();
+        else doUndo();
+      } else if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "y") {
+        event.preventDefault();
+        doRedo();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [paletteOpen, datasetId, openPalette, doUndo, doRedo]);
+
+  // -------------------------------------------------------- save and run
+  const save = useCallback(
+    async (asNew = false) => {
+      if (!dataset || steps.length === 0) return;
+      const chosenName = name.trim() || `${dataset.name} recipe`;
+      const finalName = asNew && saved ? `${chosenName} (copy)` : chosenName;
+      setSaving(true);
+      try {
+        const body = JSON.stringify({ name: finalName, steps_json: stored(steps) });
+        const result =
+          saved && !asNew
+            ? await apiFetch<TransformationPipelineRecord>(`/projects/${projectId}/pipelines/${saved.id}`, {
+                method: "PATCH",
+                body,
               })
-                .then(() => toast.info("Run started", "Watch it under the project’s runs."))
-                .catch((caught) => toast.error("Could not start the run", extractErrorMessage(caught)));
-            },
-          },
-          {
-            label: "Schedule",
-            onClick: () => router.push(`/projects/${projectId}/schedules?new=1`),
-          },
-        ],
-      });
-      router.refresh();
-    } catch (caught) {
-      toast.error("Could not save the recipe", extractErrorMessage(caught));
-    } finally {
-      setSaving(false);
-    }
-  }, [dataset, steps, projectId, toast, router]);
-
-  // Columns come from the live preview so they reflect the steps applied so far.
-  const columns = useMemo<GridColumn[]>(() => {
-    if (!preview) return [];
-    // Prefer the canonical type: `decimal(18,2)` and `timestamp(6,tz)` say
-    // things the seven-word vocabulary cannot, and the header glyph shows them.
-    const types = new Map(
-      preview.schema_after.columns.map((c) => [c.name, c.canonical_type ?? c.inferred_type])
-    );
-    return preview.preview_columns.map((name) => ({ name, type: types.get(name) }));
-  }, [preview]);
-
-  /**
-   * Column names offered to the step editor.
-   *
-   * The live preview reflects every applied step, so it is the most accurate
-   * source when it succeeds. While a step is mid-configuration the preview
-   * fails, and falling back to the source columns keeps real names on offer
-   * instead of dropping the user into a free-text box.
-   */
-  const columnsForSelected = useMemo(() => {
-    const fromPreview = preview?.preview_columns ?? [];
-    const merged = new Set([...fromPreview, ...baseColumns]);
-    return Array.from(merged);
-  }, [preview, baseColumns]);
-
-  const ribbon = useMemo<RibbonGroup[]>(
-    () => [
-      {
-        id: "pipeline",
-        label: "Pipeline",
-        actions: [
-          {
-            id: "save",
-            label: "Save",
-            icon: "check",
-            prominent: true,
-            disabled: steps.length === 0 || saving || !dataset,
-            onClick: () => {
-              if (!dataset || steps.length === 0) return;
-              setSaveName(`${dataset.name} · ${steps.length} step${steps.length === 1 ? "" : "s"}`);
-              setSavePromptOpen(true);
-            },
-          },
-          {
-            id: "tools",
-            label: `All tools${catalogue.items.length ? ` (${catalogue.items.length})` : ""}`,
-            icon: "sparkles",
-            prominent: true,
-            hint: "Search the whole library, or right-click a column header",
-            disabled: !dataset || catalogue.items.length === 0,
-            onClick: () => {
-              setBrowserColumn(null);
-              setRestrictToType(false);
-              setBrowserOpen(true);
-            },
-          },
-          {
-            id: "yaml",
-            label: yamlOpen ? "Hide YAML" : "As YAML",
-            icon: "book",
-            hint: "Edit the recipe as a file, or keep it in git",
-            disabled: !dataset,
-            onClick: () => setYamlOpen((current) => !current),
-          },
-          {
-            id: "clear",
-            label: "Clear",
-            icon: "trash",
-            disabled: steps.length === 0,
-            onClick: () => {
-              setSteps([]);
-              setSelectedUid(null);
-            },
-          },
-        ],
-      },
-      ...STEP_GROUPS.map((group) => ({
-        id: group.toLowerCase(),
-        label: group,
-        actions: STEP_CATALOG.filter((step) => step.group === group).map((step) => ({
-          id: step.type,
-          label: step.label,
-          icon: step.icon,
-          disabled: !dataset,
-          onClick: () => addStep(step),
-        })),
-      })),
-    ],
-    [steps.length, saving, dataset, addStep, savePipeline, catalogue.items.length, yamlOpen],
+            : await apiFetch<TransformationPipelineRecord>(`/projects/${projectId}/datasets/${dataset.id}/pipelines`, {
+                method: "POST",
+                body,
+              });
+        setSaved({ id: result.id, name: result.name });
+        setName(result.name);
+        setNameTouched(true);
+        setBaseline(signature(result.name, steps));
+        toast.success("Recipe saved", "Run it to save the result as a dataset, or put it on a schedule.");
+      } catch (caught) {
+        toast.error("Could not save the recipe", extractErrorMessage(caught));
+      } finally {
+        setSaving(false);
+      }
+    },
+    [dataset, steps, name, saved, projectId, toast],
   );
 
-  const rowDelta = preview ? preview.row_count_after - preview.row_count_before : 0;
+  const run = useCallback(async () => {
+    if (!saved || dirty) return;
+    setRunning(true);
+    try {
+      const result = await apiFetch<TransformationRunResponse>(`/projects/${projectId}/pipelines/${saved.id}/run`, {
+        method: "POST",
+      });
+      toast.notify({
+        tone: "success",
+        title: "Recipe ran",
+        description: `The result, ${result.dataset.row_count?.toLocaleString() ?? "?"} rows, is saved as “${result.dataset.name}”.`,
+        actions: [
+          { label: "Open the result", onClick: () => router.push(`/projects/${projectId}/datasets/${result.dataset.id}`) },
+          { label: "Schedule it", onClick: () => router.push(`/projects/${projectId}/schedules?new=1`) },
+        ],
+      });
+    } catch (caught) {
+      toast.error("The run did not finish", extractErrorMessage(caught));
+    } finally {
+      setRunning(false);
+    }
+  }, [saved, dirty, projectId, router, toast]);
 
-  // A freshly added step is unconfigured by definition; that is guidance, not a
-  // failure, so it is presented differently from a genuine execution error.
-  const incomplete =
-    error !== null &&
-    /cannot be empty|missing required field|must be a non-empty|is required/i.test(error);
+  // ------------------------------------------------------------- display
+  const incomplete = error !== null && INCOMPLETE.test(error);
+  const problem = error ? { message: error, incomplete } : null;
+  const plan = preview?.execution_plan ?? null;
 
-  /**
-   * Every tool, in the command palette.
-   *
-   * The palette caps its results, so adding a hundred and sixty-seven entries
-   * costs nothing on screen and makes Ctrl+K the fastest way to reach any of
-   * them -- which is the point of a library this size.
-   */
   const toolCommands = useMemo<Command[]>(
     () =>
       catalogue.items.map((tool) => ({
@@ -455,384 +437,356 @@ export function StudioPage({
         icon: "sparkles" as const,
         hint: tool.summary,
         keywords: [tool.name.replace(/[._]/g, " "), ...tool.synonyms].join(" "),
-        run: () => {
-          setBrowserColumn(null);
-          setRestrictToType(false);
-          setPendingTool(tool.name);
-          setBrowserOpen(true);
-        },
+        run: () => openPalette(null, tool.name),
       })),
-    [catalogue.items],
+    [catalogue.items, openPalette],
   );
 
-  const menuColumn = columnMenu
-    ? columns.find((entry) => entry.name === columnMenu.column)
-    : undefined;
+  const status = saved ? (dirty ? "Unsaved changes" : "Saved") : steps.length > 0 ? "Not saved yet" : "New recipe";
 
   return (
-    <AppFrame
-      currentUser={currentUser}
-      ribbon={ribbon}
-      commands={toolCommands}
-      disableWelcomeTour
-      statusItems={[
-        { id: "dataset", label: "Source", value: dataset?.name ?? "none" },
-        { id: "steps", label: "Steps", value: String(steps.length) },
-        {
-          id: "rows",
-          label: "Rows",
-          value: preview ? preview.row_count_after.toLocaleString() : "—",
-          tone: rowDelta < 0 ? "warn" : "neutral",
-        },
-        {
-          id: "cols",
-          label: "Columns",
-          value: preview ? String(preview.column_count_after) : "—",
-        },
-      ]}
-      health={{ label: loading ? "Computing preview" : "Preview current", healthy: !error }}
-      inspector={{
-        title: yamlOpen ? "Recipe as code" : selected ? "Step settings" : "Inspector",
-        content: yamlOpen ? (
-          <RecipeYamlPanel
-            steps={steps.map((step) => ({ step_type: step.step_type, config: step.config }))}
-            onApply={(next) => {
-              setSteps(
-                next.map((step) => ({
-                  uid: nextUid(),
-                  step_type: step.step_type,
-                  config: step.config,
-                })),
-              );
-              setSelectedUid(null);
-              toast.success("Recipe updated", "The steps now match the file.");
-            }}
-            onClose={() => setYamlOpen(false)}
-          />
-        ) : selected ? (
-          selected.step_type === "tool" ? (
-            <ToolStepEditor
-              config={selected.config}
-              tools={catalogue.items}
-              columns={columns.length ? columns : columnsForSelected.map((name) => ({ name }))}
-              onChange={(config) => updateStep(selected.uid, config)}
-            />
-          ) : (
-            <StepEditor
-              definition={STEP_BY_TYPE.get(selected.step_type)!}
-              config={selected.config}
-              columns={columnsForSelected}
-              datasets={datasets
-                .filter((item) => item.id !== datasetId)
-                .map((item) => ({ id: item.id, name: item.name }))}
-              onChange={(config) => updateStep(selected.uid, config)}
-            />
-          )
-        ) : (
-          <InspectorIdle dataset={dataset} preview={preview} />
-        ),
-      }}
-    >
-      <div className="flex h-full min-h-0">
-        {/* Applied steps */}
-        <div
-          data-tour="applied-steps"
-          className="flex w-[260px] shrink-0 flex-col border-r border-line bg-[color:var(--panel)]"
-        >
-          <div className="flex h-10 items-center justify-between border-b border-line px-3">
-            <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted">
-              Applied steps
-            </span>
-            {steps.length > 0 ? (
-              <span className="tabular rounded-full bg-surface-2 px-1.5 py-0.5 text-[10px] text-ink-3">
-                {steps.length}
+    <AppFrame currentUser={currentUser} commands={toolCommands} disableWelcomeTour>
+      <div className="flex h-full min-h-0 flex-col">
+        {/* ---------------------------------------------------------- header */}
+        <header className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-line bg-[color:var(--panel)] px-4 py-2.5">
+          <div className="min-w-0 flex-1 basis-[280px]">
+            <div className="flex min-w-0 items-center gap-2">
+              <label htmlFor="recipe-name" className="sr-only">
+                Recipe name
+              </label>
+              <input
+                id="recipe-name"
+                value={name}
+                onChange={(event) => {
+                  setName(event.target.value);
+                  setNameTouched(true);
+                }}
+                placeholder="Name this recipe"
+                className="h-8 min-w-0 max-w-[320px] flex-1 rounded-lg border border-transparent bg-transparent px-1.5 text-[16px] font-semibold text-ink outline-none transition hover:border-line focus:border-[color:var(--accent)] focus:bg-sunken"
+              />
+              <span
+                className={cx(
+                  "shrink-0 rounded-full px-2 py-0.5 text-[12px]",
+                  dirty ? "bg-warning-soft text-warning" : saved ? "bg-success-soft text-success" : "bg-surface-2 text-ink-3",
+                )}
+              >
+                {status}
               </span>
-            ) : null}
+            </div>
+            <div data-tour="studio-source" className="mt-0.5 flex min-w-0 items-center gap-1.5 px-1.5 text-[13px] text-ink-3">
+              <span className="shrink-0">From</span>
+              {saved ? (
+                <span
+                  className="max-w-[240px] shrink-0 truncate font-medium text-ink-2"
+                  title="A saved recipe always starts from the same dataset"
+                >
+                  {dataset?.name ?? "a dataset that is no longer here"}
+                </span>
+              ) : (
+                <select
+                  aria-label="Dataset to start from"
+                  value={datasetId}
+                  onChange={(event) => setDatasetId(event.target.value)}
+                  className="h-7 min-w-0 max-w-[220px] rounded-md border border-line bg-sunken px-1.5 text-[13px] text-ink outline-none focus:border-[color:var(--accent)]"
+                >
+                  {datasets.length === 0 ? <option value="">No data yet</option> : null}
+                  {datasets.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+              <span className="hidden shrink-0 sm:inline">
+                · {steps.length} step{steps.length === 1 ? "" : "s"}
+              </span>
+              <span className="hidden min-w-0 truncate [@media(min-height:700px)]:inline">
+                · Clean and reshape a dataset step by step. The original is never changed.
+              </span>
+            </div>
           </div>
 
-          <div data-tour="studio-source" className="border-b border-line p-3">
-            <label
-              htmlFor="studio-dataset"
-              className="mb-1.5 block text-[11px] font-medium text-ink-3"
-            >
-              Source dataset
-            </label>
-            <select
-              id="studio-dataset"
-              value={datasetId}
-              onChange={(event) => {
-                setDatasetId(event.target.value);
-                setSteps([]);
-                setSelectedUid(null);
-              }}
-              className="h-9 w-full rounded-lg border border-line bg-sunken px-2.5 text-[13px] text-ink outline-none focus:border-[color:var(--accent)]"
-            >
-              {datasets.length === 0 ? <option value="">No datasets yet</option> : null}
-              {datasets.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <ol className="flex-1 overflow-y-auto p-2">
-            {steps.length === 0 ? (
-              <li className="px-2 py-6 text-center">
-                <p className="text-[13px] leading-5 text-muted">
-                  Pick a tool from the ribbon above to add your first step, or start from a
-                  common job.
-                </p>
-                {datasetId ? (
-                  <button
-                    type="button"
-                    onClick={() => setTemplatesOpen(true)}
-                    className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-[color:var(--accent-soft)] bg-[color:var(--accent-faint)] px-3 py-1.5 text-[13px] font-medium text-ink transition hover:brightness-110"
-                  >
-                    <Icon name="sparkles" size={14} />
-                    Start from a template
-                  </button>
-                ) : null}
-              </li>
-            ) : (
-              steps.map((step, index) => {
-                const definition = STEP_BY_TYPE.get(step.step_type);
-                // A tool step has no entry in the built-in catalogue: its name
-                // and icon come from the library instead, or the list would
-                // read "tool" a hundred times over.
-                const asTool =
-                  step.step_type === "tool"
-                    ? describeToolStep(step.config, catalogue.items)
-                    : null;
-                const active = step.uid === selectedUid;
-                return (
-                  <li key={step.uid}>
-                    <div
-                      className={cx(
-                        "group mb-1 flex items-center gap-2 rounded-lg border px-2 py-2 transition duration-[var(--duration-fast)]",
-                        active
-                          ? "border-[color:var(--accent-soft)] bg-[color:var(--accent-faint)]"
-                          : "border-transparent hover:bg-surface",
-                      )}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => setSelectedUid(active ? null : step.uid)}
-                        className="flex min-w-0 flex-1 items-center gap-2 text-left"
-                      >
-                        <span className="tabular w-4 shrink-0 text-[10px] text-muted">
-                          {index + 1}
-                        </span>
-                        <Icon
-                          name={definition?.icon ?? (asTool ? "sparkles" : "transform")}
-                          size={14}
-                          className={active ? "text-ink" : "text-ink-3"}
-                        />
-                        <span
-                          className={cx(
-                            "truncate text-[12px]",
-                            active ? "text-ink" : "text-ink-2",
-                          )}
-                        >
-                          {asTool ? asTool.label : (definition?.label ?? step.step_type)}
-                          {asTool?.detail ? (
-                            <span className="text-ink-3"> · {asTool.detail}</span>
-                          ) : null}
-                        </span>
-                        {/* What this step actually did. A step whose effect is
-                            invisible is a step nobody can debug. */}
-                        <StepDelta outcome={preview?.step_outcomes?.[index]} />
-                      </button>
-                      <div className="flex shrink-0 items-center opacity-0 transition group-hover:opacity-100">
-                        <button
-                          type="button"
-                          onClick={() => moveStep(step.uid, -1)}
-                          disabled={index === 0}
-                          aria-label="Move step up"
-                          className="rounded p-0.5 text-muted transition hover:text-ink disabled:opacity-25"
-                        >
-                          <Icon name="chevronDown" size={12} className="rotate-180" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => moveStep(step.uid, 1)}
-                          disabled={index === steps.length - 1}
-                          aria-label="Move step down"
-                          className="rounded p-0.5 text-muted transition hover:text-ink disabled:opacity-25"
-                        >
-                          <Icon name="chevronDown" size={12} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => removeStep(step.uid)}
-                          aria-label="Remove step"
-                          className="rounded p-0.5 text-muted transition hover:text-danger"
-                        >
-                          <Icon name="close" size={12} />
-                        </button>
-                      </div>
-                    </div>
-                  </li>
-                );
-              })
-            )}
-          </ol>
-        </div>
-
-        {/* Preview canvas */}
-        <div data-tour="studio-preview" className="flex min-w-0 flex-1 flex-col p-4">
-          {error ? (
-            <div
+          <div className="flex shrink-0 items-center gap-1.5">
+            <IconButton icon="undo" label="Undo" shortcut="⌘Z" disabled={history.past.length === 0} onClick={doUndo} />
+            <IconButton icon="redo" label="Redo" shortcut="⇧⌘Z" disabled={history.future.length === 0} onClick={doRedo} />
+            <button
+              type="button"
+              onClick={() => setDetailsOpen((current) => !current)}
+              aria-pressed={detailsOpen}
               className={cx(
-                "mb-3 flex items-start gap-2.5 rounded-xl border px-3.5 py-2.5 text-[13px]",
-                incomplete
-                  ? "border-info-line bg-info-soft text-info"
-                  : "border-danger-line bg-danger-soft text-danger",
+                "flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-[13px] transition",
+                detailsOpen ? "bg-surface-2 text-ink" : "text-ink-3 hover:bg-surface-2 hover:text-ink",
               )}
             >
-              <Icon name={incomplete ? "info" : "warning"} size={15} className="mt-0.5 shrink-0" />
-              <div>
-                <div className="font-medium">
-                  {incomplete ? "Finish setting up this step" : "This step cannot run"}
-                </div>
-                <div className="mt-0.5 text-[12px] opacity-90">{friendlyStepMessage(error)}</div>
-              </div>
-            </div>
-          ) : null}
-
-          {preview && preview.warnings.length > 0 ? (
-            <div className="mb-3 rounded-xl border border-warning-line bg-warning-soft px-3.5 py-2.5 text-[12px] text-warning">
-              {preview.warnings.map((warning) => (
-                <div key={warning} className="flex items-start gap-2">
-                  <Icon name="info" size={13} className="mt-0.5 shrink-0 opacity-80" />
-                  {warning}
-                </div>
-              ))}
-            </div>
-          ) : null}
-
-          {preview?.execution_plan ? (
-            <ExecutionPlanStrip plan={preview.execution_plan} />
-          ) : null}
-
-          <div className="mb-3 flex flex-wrap items-center gap-3">
-            <Metric label="Rows" value={preview ? preview.row_count_after.toLocaleString() : "—"} delta={rowDelta} />
-            <Metric
-              label="Columns"
-              value={preview ? String(preview.column_count_after) : "—"}
-              delta={preview ? preview.column_count_after - preview.column_count_before : 0}
+              <Icon name="panelRight" size={15} />
+              Details
+            </button>
+            <ActionMenu
+              label="More"
+              variant="ghost"
+              items={[
+                ...(steps.length === 0 && datasetId
+                  ? [{ id: "template", label: "Start from a template", icon: "sparkles" as const, onSelect: () => setTemplatesOpen(true) }]
+                  : []),
+                ...(saved && steps.length > 0
+                  ? [{ id: "copy", label: "Save as a new recipe", icon: "plus" as const, onSelect: () => void save(true) }]
+                  : []),
+                ...(steps.length > 0
+                  ? [
+                      {
+                        id: "clear",
+                        label: "Remove all steps",
+                        icon: "trash" as const,
+                        description: "You can undo this.",
+                        onSelect: () => change(() => []),
+                      },
+                    ]
+                  : []),
+                { id: "recipes", label: "All recipes", icon: "list" as const, href: `/projects/${projectId}/pipelines` },
+                { id: "tour", label: "Show me around", icon: "help" as const, onSelect: () => start(studioTour, STUDIO_TOUR_ID) },
+              ]}
             />
-            {loading ? (
-              <span className="flex items-center gap-1.5 text-[11px] text-muted">
-                <span className="h-1.5 w-1.5 animate-live rounded-full bg-[color:var(--accent)]" />
-                Recomputing
-              </span>
-            ) : null}
+            <Button
+              variant={dirty || !saved ? "primary" : "secondary"}
+              size="sm"
+              onClick={() => void save()}
+              disabled={saving || !dataset || steps.length === 0 || (saved !== null && !dirty)}
+            >
+              {saving ? "Saving…" : "Save"}
+            </Button>
+            <Button
+              variant={saved && !dirty ? "primary" : "secondary"}
+              size="sm"
+              onClick={() => void run()}
+              disabled={running || !saved || dirty}
+              title={
+                !saved
+                  ? "Save the recipe first"
+                  : dirty
+                    ? "Save your changes first; a run uses the saved recipe"
+                    : "Run the saved recipe on the whole dataset and save the result"
+              }
+            >
+              <Icon name="play" size={13} />
+              {running ? "Running…" : "Run"}
+            </Button>
+          </div>
+        </header>
+
+        {/* ------------------------------------------------------------ body */}
+        <div className="relative flex min-h-0 flex-1">
+          <div className="flex w-[320px] shrink-0 flex-col border-r border-line bg-[color:var(--panel)]">
+            <StepsTimeline
+              sourceName={dataset?.name ?? null}
+              source={preview ? { rows: preview.row_count_before, columns: preview.column_count_before } : null}
+              result={preview && !error ? { rows: preview.row_count_after, columns: preview.column_count_after } : null}
+              steps={steps}
+              outcomes={error ? undefined : preview?.step_outcomes}
+              openUid={openUid}
+              onOpen={setOpenUid}
+              onChange={updateStep}
+              onMove={moveStep}
+              onRemove={removeStep}
+              onAdd={() => openPalette()}
+              onTemplates={datasetId ? () => setTemplatesOpen(true) : null}
+              problem={openUid ? problem : null}
+              tools={catalogue.items}
+              columns={settingsColumns}
+              datasets={datasets.filter((item) => item.id !== datasetId).map((item) => ({ id: item.id, name: item.name }))}
+            />
           </div>
 
-          <div className={cx("min-h-0 flex-1 transition-opacity", loading && "opacity-60")}>
-            {datasets.length === 0 ? (
-              <EmptyState
-                title="Nothing to clean yet"
-                body="Add some data to this project, then come back to clean and reshape it here."
-                action={
-                  <Button size="sm" onClick={() => setAddDataOpen(true)}>
-                    Add data
+          <section data-tour="studio-preview" aria-label="Preview" className="flex min-w-0 flex-1 flex-col p-3">
+            {offer ? (
+              <div
+                role="status"
+                className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-info-line bg-info-soft px-3 py-2 text-[13px] text-info"
+              >
+                <Icon name="clock" size={15} className="shrink-0" />
+                <span className="min-w-0 flex-1">
+                  <span className="font-medium">You have unsaved work here from {draftTime(offer.at)}.</span>{" "}
+                  {offer.steps.length} step{offer.steps.length === 1 ? "" : "s"} in “{offer.name || "an unnamed recipe"}”.
+                </span>
+                <span className="flex shrink-0 gap-1.5">
+                  <Button size="sm" onClick={restoreDraft}>
+                    Restore it
                   </Button>
-                }
-              />
-            ) : (
-              <DataGrid
-                columns={columns}
-                rows={preview?.preview_rows ?? []}
-                sort={sort}
-                onSortChange={handleSortChange}
-                onColumnMenu={(column, at) => setColumnMenu({ column, at })}
-                stale={error !== null}
-                emptyMessage={
-                  steps.length > 0
-                    ? "These steps produced no rows. Try relaxing a filter."
-                    : "Loading preview…"
-                }
-              />
-            )}
-          </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      clearDraft(key);
+                      setOffer(null);
+                    }}
+                  >
+                    Discard
+                  </Button>
+                </span>
+              </div>
+            ) : null}
+            {error && !openUid ? (
+              <div
+                role="status"
+                className={cx(
+                  "mb-2 flex items-start gap-2.5 rounded-xl border px-3 py-2 text-[13px]",
+                  incomplete ? "border-info-line bg-info-soft text-info" : "border-danger-line bg-danger-soft text-danger",
+                )}
+              >
+                <Icon name={incomplete ? "info" : "warning"} size={15} className="mt-0.5 shrink-0" />
+                <span className="min-w-0 flex-1">
+                  <span className="font-medium">{incomplete ? "A step needs setting up. " : "A step cannot run. "}</span>
+                  {friendlyStepMessage(error)}
+                </span>
+                {steps.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setOpenUid(steps[steps.length - 1].uid)}
+                    className="shrink-0 rounded-md px-2 py-0.5 font-medium underline-offset-2 hover:underline"
+                  >
+                    Open the last step
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+
+            {preview && preview.warnings.length > 0 ? (
+              <div className="mb-2 rounded-xl border border-warning-line bg-warning-soft px-3 py-2 text-[13px] text-warning">
+                {preview.warnings.map((warning) => (
+                  <div key={warning} className="flex items-start gap-2">
+                    <Icon name="info" size={14} className="mt-0.5 shrink-0" />
+                    {warning}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
+            <div className="mb-2 flex min-h-7 flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-ink-3">
+              {preview ? (
+                <>
+                  <span className="tabular font-medium text-ink-2">
+                    {previewScope(preview.preview_rows.length, preview.row_count_after)}
+                  </span>
+                  <span aria-hidden="true">·</span>
+                  <span className="tabular">{preview.column_count_after} columns</span>
+                  {preview.row_count_before !== preview.row_count_after ? (
+                    <>
+                      <span aria-hidden="true">·</span>
+                      <span className="tabular">
+                        {preview.row_count_before.toLocaleString()} → {preview.row_count_after.toLocaleString()} rows after
+                        these steps
+                      </span>
+                    </>
+                  ) : null}
+                  {planPhrase(plan) ? (
+                    <>
+                      <span aria-hidden="true">·</span>
+                      <button
+                        type="button"
+                        onClick={() => setDetailsOpen(true)}
+                        className="underline-offset-2 hover:text-ink hover:underline"
+                      >
+                        {planPhrase(plan)}
+                      </button>
+                    </>
+                  ) : null}
+                </>
+              ) : datasetId ? (
+                <span>Loading the preview…</span>
+              ) : null}
+              {loading && preview ? (
+                <span className="ml-auto flex items-center gap-1.5 text-muted">
+                  <span className="h-1.5 w-1.5 animate-live rounded-full bg-[color:var(--accent)]" />
+                  Updating
+                </span>
+              ) : null}
+            </div>
+
+            {viewSort ? (
+              <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-line bg-surface px-3 py-1.5 text-[13px]">
+                <Icon name="sort" size={14} className="text-ink-3" />
+                <span className="text-ink">
+                  Sorted by {viewSort.column}, {viewSort.direction === "asc" ? "A to Z" : "Z to A"}, for viewing.
+                  <span className="text-ink-3"> Only the rows shown are sorted.</span>
+                </span>
+                <span className="ml-auto flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={sortWholeTable}
+                    className="rounded-md px-2 py-1 font-medium text-[color:var(--accent-muted)] hover:bg-[color:var(--accent-faint)]"
+                  >
+                    Sort the whole table
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewSort(null)}
+                    aria-label="Stop sorting the view"
+                    className="rounded-md p-1 text-muted hover:bg-surface-2 hover:text-ink"
+                  >
+                    <Icon name="close" size={13} />
+                  </button>
+                </span>
+              </div>
+            ) : null}
+
+            <div className={cx("min-h-0 flex-1 transition-opacity", loading && "opacity-70")}>
+              {datasets.length === 0 ? (
+                <div className="flex h-full flex-col items-center justify-center rounded-xl border border-dashed border-line px-6 text-center">
+                  <Icon name="table" size={26} className="text-muted" />
+                  <h3 className="mt-3 text-[15px] font-medium text-ink-2">Nothing to clean yet</h3>
+                  <p className="mt-1.5 max-w-sm text-[13px] leading-5 text-muted">
+                    Add some data to this project, then come back to clean and reshape it here.
+                  </p>
+                  <div className="mt-4">
+                    <Button size="sm" onClick={() => setAddDataOpen(true)}>
+                      Add data
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <DataGrid
+                  columns={columns}
+                  rows={rows}
+                  sort={viewSort}
+                  onSortChange={(next) => setViewSort(next)}
+                  onColumnMenu={(column) => openPalette(column)}
+                  stale={error !== null}
+                  emptyMessage={steps.length > 0 ? "These steps leave no rows. Try loosening a filter." : "Loading the preview…"}
+                />
+              )}
+            </div>
+          </section>
+
+          <DetailsDrawer
+            open={detailsOpen}
+            onClose={() => setDetailsOpen(false)}
+            columns={preview?.schema_after.columns ?? []}
+            plan={plan}
+            steps={stored(steps)}
+            discussion={saved ? { projectId, recipeId: saved.id, currentUsername: currentUser.username } : null}
+            onApplyFile={(next) => {
+              change(() => withUids(next));
+              setOpenUid(null);
+              toast.success("Recipe updated", "The steps now match the file.");
+            }}
+          />
         </div>
       </div>
 
-      {columnMenu ? (
-        <ColumnMenu
-          column={columnMenu.column}
-          columnType={menuColumn?.type}
-          tools={toolsForColumn(catalogue.items, menuColumn?.type)}
-          at={columnMenu.at}
-          onPick={(tool: Tool) => {
-            setBrowserColumn(columnMenu.column);
-            setRestrictToType(true);
-            setColumnMenu(null);
-            setBrowserOpen(true);
-            setPendingTool(tool.name);
-          }}
-          onBrowseAll={() => {
-            setBrowserColumn(columnMenu.column);
-            setRestrictToType(true);
-            setColumnMenu(null);
-            setBrowserOpen(true);
-          }}
-          onClose={() => setColumnMenu(null)}
-        />
-      ) : null}
-
-      {browserOpen ? (
-        <ToolBrowser
+      {paletteOpen ? (
+        <StepPalette
           tools={catalogue.items}
-          categories={catalogue.categories}
-          columns={columns.map((entry) => ({ name: entry.name, type: entry.type }))}
-          initialColumn={browserColumn}
-          restrictToColumnType={restrictToType}
-          preselect={pendingTool}
+          columns={settingsColumns}
+          column={paletteColumn}
+          preselect={preselect}
           sampleRows={preview?.preview_rows ?? []}
-          onAdd={addToolStep}
+          onAddBuiltIn={addBuiltIn}
+          onAddTool={addTool}
           onClose={() => {
-            setBrowserOpen(false);
-            setPendingTool(null);
+            setPaletteOpen(false);
+            setPreselect(null);
           }}
         />
       ) : null}
-
-      <Modal
-        open={savePromptOpen}
-        onClose={() => setSavePromptOpen(false)}
-        title="Save this recipe"
-        description="Give it a name you will recognise in the Recipes list and when scheduling it."
-        widthClassName="max-w-md"
-        footer={
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setSavePromptOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              disabled={saving || saveName.trim().length < 1}
-              onClick={() => {
-                setSavePromptOpen(false);
-                void savePipeline(saveName);
-              }}
-            >
-              {saving ? "Saving…" : "Save recipe"}
-            </Button>
-          </div>
-        }
-      >
-        <FormField label="Name" htmlFor="pipeline-name">
-          <Input
-            id="pipeline-name"
-            value={saveName}
-            onChange={(e) => setSaveName(e.target.value)}
-            autoFocus
-          />
-        </FormField>
-      </Modal>
 
       <RecipeTemplatesDialog
         open={templatesOpen}
@@ -840,245 +794,53 @@ export function StudioPage({
         projectId={projectId}
         datasetId={datasetId}
         onApply={(templateSteps, templateName) => {
-          const added = templateSteps.map((step) => ({
-            uid: nextUid(),
-            step_type: step.step_type,
-            config: step.config,
-          }));
-          setSteps((current) => [...current, ...added]);
-          setSelectedUid(null);
+          const added = withUids(templateSteps);
+          change((current) => [...current, ...added]);
+          setOpenUid(null);
           toast.success(
             `${templateName}: ${added.length} step${added.length === 1 ? "" : "s"} added`,
-            "Check the result in the grid, change any step, then save the recipe.",
+            "Check the result in the preview, change any step, then save the recipe.",
           );
         }}
       />
       <AddDataDialog open={addDataOpen} onClose={() => setAddDataOpen(false)} projectId={projectId} />
+
     </AppFrame>
   );
 }
 
-function Metric({ label, value, delta }: { label: string; value: string; delta: number }) {
-  return (
-    <div className="flex items-baseline gap-2 rounded-lg border border-line bg-surface px-3 py-1.5">
-      <span className="text-[10px] uppercase tracking-[0.16em] text-muted">{label}</span>
-      <span className="tabular text-[15px] font-semibold text-ink">{value}</span>
-      {delta !== 0 ? (
-        <span
-          className={cx(
-            "tabular text-[11px]",
-            delta > 0 ? "text-success" : "text-warning",
-          )}
-        >
-          {delta > 0 ? "+" : ""}
-          {delta.toLocaleString()}
-        </span>
-      ) : null}
-    </div>
-  );
+/** "14:05 today", or "3 Oct, 14:05" for an older draft. */
+function draftTime(at: number): string {
+  const when = new Date(at);
+  const time = when.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  return when.toDateString() === new Date().toDateString()
+    ? `${time} today`
+    : `${when.toLocaleDateString(undefined, { day: "numeric", month: "short" })}, ${time}`;
 }
 
-function InspectorIdle({
-  dataset,
-  preview,
+function IconButton({
+  icon,
+  label,
+  shortcut,
+  disabled,
+  onClick,
 }: {
-  dataset: DatasetRecord | null;
-  preview: PreviewResponse | null;
-}) {
-  if (!dataset) {
-    return <p className="text-[12px] leading-5 text-muted">Select a dataset to begin.</p>;
-  }
-  return (
-    <div className="space-y-4">
-      <div>
-        <div className="text-[11px] uppercase tracking-[0.16em] text-muted">Dataset</div>
-        <div className="mt-1 text-[13px] font-medium text-ink">{dataset.name}</div>
-        <div className="mt-0.5 text-[11px] text-muted">
-          {dataset.row_count?.toLocaleString() ?? "?"} rows · {dataset.column_count ?? "?"} columns
-        </div>
-      </div>
-      {preview ? (
-        <div>
-          <div className="mb-1.5 text-[11px] uppercase tracking-[0.16em] text-muted">
-            Output schema
-          </div>
-          <ul className="space-y-1">
-            {preview.schema_after.columns.map((column) => (
-              <li
-                key={column.name}
-                className="flex items-center justify-between gap-2 rounded-md bg-surface px-2 py-1.5"
-              >
-                <span className="truncate text-[12px] text-ink">{column.name}</span>
-                <span
-                  className="shrink-0 text-[10.5px] text-muted"
-                  title={column.canonical_type ?? column.inferred_type}
-                >
-                  {typeLabel(column.canonical_type ?? column.inferred_type)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-      <p className="text-[11px] leading-5 text-muted">
-        Select a step on the left to edit its settings here.
-      </p>
-    </div>
-  );
-}
-
-function EmptyState({
-  title,
-  body,
-  action,
-}: {
-  title: string;
-  body: string;
-  action?: React.ReactNode;
+  icon: "undo" | "redo";
+  label: string;
+  shortcut: string;
+  disabled: boolean;
+  onClick: () => void;
 }) {
   return (
-    <div className="flex h-full flex-col items-center justify-center rounded-xl border border-dashed border-line px-6 text-center">
-      <Icon name="table" size={26} className="text-muted" />
-      <h3 className="mt-3 text-[15px] font-medium text-ink-2">{title}</h3>
-      <p className="mt-1.5 max-w-sm text-[13px] leading-5 text-muted">{body}</p>
-      {action ? <div className="mt-4">{action}</div> : null}
-    </div>
-  );
-}
-
-/**
- * The row and column change one step made.
- *
- * Silent when a step changed nothing, so the panel draws attention to the steps
- * that did something rather than to a column of zeroes.
- */
-function StepDelta({
-  outcome,
-}: {
-  outcome?: { rows_before: number; rows_after: number; columns_before: number; columns_after: number };
-}) {
-  if (!outcome) return null;
-  const rows = outcome.rows_after - outcome.rows_before;
-  const columns = outcome.columns_after - outcome.columns_before;
-  if (rows === 0 && columns === 0) return null;
-
-  const parts: string[] = [];
-  if (rows !== 0) parts.push(`${rows > 0 ? "+" : ""}${rows.toLocaleString()} rows`);
-  if (columns !== 0) parts.push(`${columns > 0 ? "+" : ""}${columns} cols`);
-
-  return (
-    <span
-      className={cx(
-        "tabular ml-auto shrink-0 pl-2 text-[10.5px]",
-        rows < 0 || columns < 0 ? "text-warning" : "text-muted",
-      )}
-      title={`${outcome.rows_before.toLocaleString()} → ${outcome.rows_after.toLocaleString()} rows`}
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      title={`${label} (${shortcut})`}
+      className="flex h-9 w-9 items-center justify-center rounded-lg text-ink-3 transition hover:bg-surface-2 hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent"
     >
-      {parts.join(" · ")}
-    </span>
+      <Icon name={icon} size={16} />
+    </button>
   );
 }
-
-/**
- * Where the work would happen on a full run against this dataset's source.
- *
- * Labelled carefully: a preview always reads the materialised file, so this
- * describes the *run*, not what just happened. "Nothing pushes down, because
- * this is a stored file" is the useful answer -- it is the reason a pipeline
- * over a hundred million rows would be slow, and it is invisible otherwise.
- */
-function ExecutionPlanStrip({
-  plan,
-}: {
-  plan: {
-    source_type: string;
-    surface: string;
-    pushed_steps: number;
-    local_steps: number;
-    sql?: string | null;
-    placements: { node: string; pushed: boolean; reason: string }[];
-    note?: string;
-    rewrites?: string[];
-  };
-}) {
-  const [open, setOpen] = useState(false);
-  const pushes = plan.pushed_steps > 1; // a bare scan is not pushdown
-  const rewrites = plan.rewrites ?? [];
-
-  return (
-    <div className="mb-3 rounded-xl border border-line bg-surface">
-      <button
-        type="button"
-        onClick={() => setOpen((current) => !current)}
-        aria-expanded={open}
-        className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left"
-      >
-        <Icon
-          name={pushes ? "activity" : "info"}
-          size={14}
-          className={pushes ? "text-success" : "text-ink-3"}
-        />
-        <span className="text-[12px] text-ink">
-          {pushes
-            ? `${plan.pushed_steps} step${plan.pushed_steps === 1 ? "" : "s"} would run in ${plan.source_type}`
-            : `All steps run in Pipewright, because a ${plan.source_type} source cannot run them itself`}
-        </span>
-        {plan.local_steps > 0 ? (
-          <span className="tabular text-[11px] text-muted">
-            {plan.local_steps} local
-          </span>
-        ) : null}
-        <Icon
-          name="chevronDown"
-          size={12}
-          className={cx("ml-auto text-muted transition", open && "rotate-180")}
-        />
-      </button>
-
-      {open ? (
-        <div className="border-t border-line px-3.5 py-2.5">
-          {plan.note ? <p className="mb-2 text-[11.5px] text-muted">{plan.note}</p> : null}
-          {rewrites.length > 0 ? (
-            <div className="mb-2 rounded-lg border border-line bg-sunken px-2.5 py-2 text-[11.5px]">
-              <p className="text-ink">
-                Rewritten first, without changing the result.
-                <span className="text-muted"> Each rewrite is tested to give the same answer on both engines.</span>
-              </p>
-              <ul className="mt-1 grid gap-0.5 text-muted">
-                {rewrites.map((entry, index) => (
-                  <li key={`${entry}-${index}`}>{entry}</li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-          <ul className="grid gap-1">
-            {plan.placements.map((placement, index) => (
-              <li key={`${placement.node}-${index}`} className="flex items-start gap-2 text-[11.5px]">
-                <span
-                  className={cx(
-                    "mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-[10px] uppercase tracking-[0.08em]",
-                    placement.pushed
-                      ? "bg-success-soft text-success"
-                      : "bg-surface-2 text-ink-3",
-                  )}
-                >
-                  {placement.pushed ? "source" : "here"}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="text-ink">{placement.node}</span>
-                  <span className="text-muted">: {placement.reason}</span>
-                </span>
-              </li>
-            ))}
-          </ul>
-          {plan.sql ? (
-            <pre className="mt-2.5 overflow-x-auto rounded-lg bg-sunken p-2.5 text-[11px] leading-5 text-ink-2">
-              {plan.sql}
-            </pre>
-          ) : null}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-

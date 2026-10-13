@@ -57,7 +57,9 @@ export type IconName =
   | "link"
   | "upload"
   | "keyboard"
-  | "external";
+  | "external"
+  | "undo"
+  | "redo";
 
 const PATHS: Record<IconName, React.ReactNode> = {
   home: <path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z" />,
@@ -276,6 +278,18 @@ const PATHS: Record<IconName, React.ReactNode> = {
     <>
       <path d="M14 4.5h5.5V10M19.5 4.5 11 13" />
       <path d="M18 14v4.5A1.5 1.5 0 0 1 16.5 20h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6H10" />
+    </>
+  ),
+  undo: (
+    <>
+      <path d="M9 14 4 9l5-5" />
+      <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
+    </>
+  ),
+  redo: (
+    <>
+      <path d="m15 14 5-5-5-5" />
+      <path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13" />
     </>
   ),
 };

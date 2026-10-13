@@ -1,25 +1,11 @@
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 
-import type { TransformationPipelineRecord } from "@platform/shared-types";
-import { ApiError } from "@/lib/api/errors";
-import { requireCurrentUser } from "@/lib/auth/server";
-import { serverApiFetch } from "@/lib/api/server";
-
-type PipelineEditorPageProps = {
+type PageProps = {
   params: Promise<{ projectId: string; pipelineId: string }>;
 };
 
-export default async function PipelineEditorPage({ params }: PipelineEditorPageProps) {
+/** A recipe opens in the Studio; this address is kept for links and bookmarks. */
+export default async function RecipeAddressPage({ params }: PageProps) {
   const { projectId, pipelineId } = await params;
-  await requireCurrentUser();
-
-  try {
-    const pipeline = await serverApiFetch<TransformationPipelineRecord>(`/projects/${projectId}/pipelines/${pipelineId}`);
-    redirect(`/projects/${projectId}/datasets/${pipeline.base_dataset_id}/pipelines/${pipeline.id}`);
-  } catch (error) {
-    if (error instanceof ApiError && error.status === 404) {
-      notFound();
-    }
-    throw error;
-  }
+  redirect(`/projects/${projectId}/studio?recipe=${pipelineId}`);
 }

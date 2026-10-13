@@ -204,8 +204,9 @@ export const AREAS: NavArea[] = [
         description: "Clean and reshape a dataset step by step, seeing the result as you go.",
         help: [
           "Pick a dataset and add steps: filter rows, fix text, add columns and more.",
-          "Every step shows its effect on the data straight away.",
-          "Nothing changes your original data; save the steps as a recipe to reuse them.",
+          "Click a step to change it. Right-click a column for steps that suit it.",
+          "Every change shows in the preview straight away, and undo takes it back.",
+          "Your original data is never changed; save the steps as a recipe to reuse them.",
         ],
         keywords: "transform clean shape recipe grid spreadsheet steps",
       },
@@ -219,7 +220,7 @@ export const AREAS: NavArea[] = [
         description: "Saved recipes: the steps that turn one dataset into another.",
         help: [
           "Recipes are saved sets of steps that turn one dataset into another.",
-          "Run one to make a fresh copy of its result.",
+          "Open one to change its steps in the Studio, or run it to make a fresh result.",
           "Put a recipe on a schedule so it runs by itself.",
         ],
         keywords: "pipelines saved transformations",
@@ -756,6 +757,11 @@ export function locate(pathname: string): Location | null {
 }
 
 // --------------------------------------------------------------------- hrefs
+
+/** A recipe opens in the Studio, wherever it is linked from. */
+export function recipeHref(projectId: string, recipeId: string): string {
+  return `/projects/${projectId}/studio?recipe=${recipeId}`;
+}
 
 /** Where a tab lives; null when it needs a project and none is open. */
 export function tabHref(area: NavArea, tab: NavTab, projectId: string | null): string | null {

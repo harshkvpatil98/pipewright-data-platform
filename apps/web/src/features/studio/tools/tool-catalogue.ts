@@ -138,6 +138,22 @@ export function toolsForColumn(tools: Tool[], columnType: string | undefined): T
   return tools.filter((tool) => tool.column_scoped && acceptsType(tool, columnType));
 }
 
+/**
+ * Tools whose title names what the column holds: "Standardise an email" for a
+ * column called `email` or `customer_email`. A whole word of the column's name
+ * has to appear in the title, and the tool has to accept the column's type, so
+ * "Month name" is not offered for a text column called `name`.
+ */
+export function toolsNamedForColumn(tools: Tool[], column: string, columnType: string | undefined): Tool[] {
+  const words = column
+    .toLowerCase()
+    .split(/[^a-z]+/)
+    .filter((word) => word.length >= 3);
+  if (words.length === 0) return [];
+  const patterns = words.map((word) => new RegExp(`\\b${word}s?\\b`, "i"));
+  return toolsForColumn(tools, columnType).filter((tool) => patterns.some((pattern) => pattern.test(tool.title)));
+}
+
 export function groupByCategory(tools: Tool[]): { category: string; tools: Tool[] }[] {
   const groups = new Map<string, Tool[]>();
   for (const tool of tools) {

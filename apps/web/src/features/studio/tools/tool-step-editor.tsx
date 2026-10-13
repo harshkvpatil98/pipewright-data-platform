@@ -2,6 +2,8 @@
 
 import { useMemo } from "react";
 
+import { cx } from "@/lib/utils";
+
 import { exampleLine, toConfig, type Tool } from "./tool-catalogue";
 import { ToolFields } from "./tool-form";
 
@@ -17,20 +19,23 @@ export function ToolStepEditor({
   tools,
   columns,
   onChange,
+  compact = false,
 }: {
   config: Record<string, unknown>;
   tools: Tool[];
   columns: { name: string; type?: string }[];
   onChange: (config: Record<string, unknown>) => void;
+  /** Inside the steps list, where the step's name is already on its line. */
+  compact?: boolean;
 }) {
   const name = typeof config.tool === "string" ? config.tool : "";
   const tool = useMemo(() => tools.find((entry) => entry.name === name), [tools, name]);
 
   if (!tool) {
     return (
-      <p className="text-sm text-muted">
+      <p className="text-[13px] text-muted">
         This step uses a tool called <code className="text-ink">{name || "(none)"}</code>, which
-        this version of the platform does not have. The pipeline still stores it; running it will
+        this version of the platform does not have. The recipe still stores it; running it will
         report the same thing.
       </p>
     );
@@ -52,10 +57,10 @@ export function ToolStepEditor({
   return (
     <div className="flex flex-col gap-4">
       <header>
-        <h3 className="text-sm font-medium text-ink">{tool.title}</h3>
-        <p className="mt-1 text-xs text-muted">{tool.summary}</p>
+        {compact ? null : <h3 className="text-sm font-medium text-ink">{tool.title}</h3>}
+        <p className={cx("text-[13px] text-ink-3", !compact && "mt-1")}>{tool.summary}</p>
         {exampleLine(tool) ? (
-          <p className="mt-2 rounded-lg border border-line bg-sunken px-3 py-2 font-mono text-xs text-ink">
+          <p className="mt-2 rounded-lg border border-line bg-sunken px-3 py-2 font-mono text-[12px] text-ink">
             {exampleLine(tool)}
           </p>
         ) : null}

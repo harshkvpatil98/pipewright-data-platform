@@ -17,6 +17,7 @@ import { downloadFromApi } from "@/lib/api/download";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { formatRunTypeLabel } from "@/lib/run-labels";
+import { recipeHref } from "@/lib/navigation";
 
 type RunAuditPageProps = {
   currentUser: AuthUser;
@@ -148,7 +149,7 @@ export function RunAuditPageView({ currentUser, projectId, audit }: RunAuditPage
               <dd className="mt-1 text-ink">
                 {audit.pipeline_id ? (
                   <Link
-                    href={`/projects/${projectId}/pipelines/${audit.pipeline_id}`}
+                    href={recipeHref(projectId, audit.pipeline_id)}
                     className="text-accent hover:text-accent"
                   >
                     {audit.pipeline_id}

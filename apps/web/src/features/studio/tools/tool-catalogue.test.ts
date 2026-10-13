@@ -9,6 +9,7 @@ import {
   rankTools,
   toConfig,
   toolsForColumn,
+  toolsNamedForColumn,
   type Tool,
 } from "./tool-catalogue";
 
@@ -231,5 +232,25 @@ describe("exampleLine", () => {
       example: { rows: [{ v: null }], params: {}, column: "v", output: null, expect: [""], note: "" },
     });
     expect(exampleLine(withNulls)).toBe("empty → blank");
+  });
+});
+
+describe("toolsNamedForColumn", () => {
+  const EMAIL = tool({ name: "contact.email", title: "Standardise an email" });
+  const MONTH_NAME = tool({ name: "date.month_name", title: "Month name", accepts: "temporal" });
+  const FULL_NAME = tool({ name: "text.split_name", title: "Split a full name" });
+  const all = [TRIM, EMAIL, MONTH_NAME, FULL_NAME];
+
+  it("finds tools named for what the column holds", () => {
+    expect(toolsNamedForColumn(all, "customer_email", "string").map((t) => t.name)).toEqual(["contact.email"]);
+  });
+
+  it("only offers tools that accept the column's type", () => {
+    expect(toolsNamedForColumn(all, "name", "string").map((t) => t.name)).toEqual(["text.split_name"]);
+  });
+
+  it("ignores short words and finds nothing for a generic name", () => {
+    expect(toolsNamedForColumn(all, "id", "string")).toEqual([]);
+    expect(toolsNamedForColumn(all, "value", "string")).toEqual([]);
   });
 });

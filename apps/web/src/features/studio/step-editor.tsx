@@ -5,8 +5,11 @@ import { useId, useRef } from "react";
 import { Icon } from "@/components/ui/icon";
 import {
   AGGREGATION_FUNCTIONS,
+  CAST_TYPE_LABELS,
   CAST_TYPES,
   FILTER_OPERATORS,
+  FUNCTION_LABELS,
+  OPERATOR_LABELS,
   type StepDefinition,
   type StepField,
 } from "@/features/studio/step-catalog";
@@ -29,7 +32,7 @@ export function StepEditor({ definition, config, columns, datasets, onChange }: 
 
   return (
     <div className="space-y-3">
-      <p className="text-[12px] leading-5 text-ink-3">{definition.summary}</p>
+      <p className="text-[13px] leading-5 text-ink-3">{definition.summary}</p>
       {definition.fields.map((field) => (
         <Field
           key={field.key}
@@ -57,12 +60,12 @@ function Field({ field, value, columns, datasets, onChange }: FieldProps) {
 
   return (
     <div>
-      <label htmlFor={id} className="mb-1.5 flex items-center gap-2 text-[12px] font-medium text-ink">
+      <label htmlFor={id} className="mb-1.5 flex items-center gap-2 text-[13px] font-medium text-ink">
         {field.label}
-        {field.optional ? <span className="text-[10px] text-muted">optional</span> : null}
+        {field.optional ? <span className="text-[12px] font-normal text-muted">optional</span> : null}
       </label>
       <Control id={id} field={field} value={value} columns={columns} datasets={datasets} onChange={onChange} />
-      {field.help ? <p className="mt-1.5 text-[11px] leading-4 text-muted">{field.help}</p> : null}
+      {field.help ? <p className="mt-1.5 text-[12px] leading-4 text-muted">{field.help}</p> : null}
     </div>
   );
 }
@@ -133,10 +136,10 @@ function Control({ id, field, value, columns, datasets, onChange }: FieldProps &
           value={typeof value === "string" ? value : ""}
           onChange={(event) => onChange(event.target.value || undefined)}
         >
-          {field.optional ? <option value="">Default</option> : <option value="">Choose…</option>}
+          {field.optional ? <option value="">As it is</option> : <option value="">Choose…</option>}
           {(field.options ?? []).map((option) => (
             <option key={option} value={option}>
-              {option}
+              {field.optionLabels?.[option] ?? option}
             </option>
           ))}
         </select>
@@ -235,7 +238,7 @@ function ColumnPicker({
             type="button"
             onClick={() => toggle(column)}
             className={cx(
-              "rounded-md px-2 py-1 text-[11px] transition duration-[var(--duration-fast)]",
+              "rounded-md px-2 py-1 text-[12px] transition duration-[var(--duration-fast)]",
               selected
                 ? "bg-[color:var(--accent)] text-accent-ink"
                 : "bg-surface-2 text-ink-2 hover:bg-surface-2",
@@ -291,7 +294,7 @@ function MappingEditor({
             >
               {CAST_TYPES.map((type) => (
                 <option key={type} value={type}>
-                  {type}
+                  {CAST_TYPE_LABELS[type]}
                 </option>
               ))}
             </select>
@@ -369,7 +372,7 @@ function ConditionEditor({
             >
               {FILTER_OPERATORS.map((operator) => (
                 <option key={operator} value={operator}>
-                  {operator.replace(/_/g, " ")}
+                  {OPERATOR_LABELS[operator]}
                 </option>
               ))}
             </select>
@@ -440,7 +443,7 @@ function AggregationEditor({
           >
             {AGGREGATION_FUNCTIONS.map((fn) => (
               <option key={fn} value={fn}>
-                {fn}
+                {FUNCTION_LABELS[fn]}
               </option>
             ))}
           </select>
@@ -514,7 +517,7 @@ function AddRowButton({ label, onClick }: { label: string; onClick: () => void }
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-line py-1.5 text-[11px] text-ink-3 transition hover:border-line-strong hover:bg-surface hover:text-ink"
+      className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-line py-1.5 text-[12px] text-ink-3 transition hover:border-line-strong hover:bg-surface hover:text-ink"
     >
       <Icon name="plus" size={12} />
       {label}
@@ -576,7 +579,7 @@ function FormulaInput({
               type="button"
               onClick={() => insert(`[${column}]`)}
               title={`Insert [${column}]`}
-              className="rounded border border-line bg-surface px-1.5 py-0.5 font-mono text-[10.5px] text-ink-3 transition hover:border-line-strong hover:text-ink"
+              className="rounded border border-line bg-surface px-1.5 py-0.5 font-mono text-[12px] text-ink-3 transition hover:border-line-strong hover:text-ink"
             >
               {column}
             </button>

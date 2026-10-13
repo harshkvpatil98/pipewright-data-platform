@@ -6,6 +6,7 @@ import type { TransformationPipelineRecord } from "@platform/shared-types";
 import { SectionPanel, StatusBadge } from "@platform/shared-ui";
 
 import { RunPipelineButton } from "@/features/pipelines/components/run-pipeline-button";
+import { recipeHref } from "@/lib/navigation";
 
 type DatasetPipelinesRunSectionProps = {
   projectId: string;
@@ -43,7 +44,7 @@ export function DatasetPipelinesRunSection({ projectId, pipelines }: DatasetPipe
                 <tr key={pipeline.id} className="transition hover:bg-surface">
                   <td className="cell-pad align-top">
                     <Link
-                      href={`/projects/${projectId}/datasets/${pipeline.base_dataset_id}/pipelines/${pipeline.id}`}
+                      href={recipeHref(projectId, pipeline.id)}
                       className="font-medium text-ink hover:text-accent"
                     >
                       {pipeline.name}
@@ -59,7 +60,7 @@ export function DatasetPipelinesRunSection({ projectId, pipelines }: DatasetPipe
                   <td className="cell-pad align-top">
                     <div className="flex justify-end">
                       <Link
-                        href={`/projects/${projectId}/datasets/${pipeline.base_dataset_id}/pipelines/${pipeline.id}`}
+                        href={recipeHref(projectId, pipeline.id)}
                         className="text-sm text-accent hover:text-accent"
                       >
                         Open

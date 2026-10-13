@@ -12,6 +12,7 @@ import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { formatDate } from "@/lib/format";
 import { formatNotificationEventLabel } from "@/lib/run-labels";
+import { recipeHref } from "@/lib/navigation";
 
 type NotificationsPageProps = {
   currentUser: AuthUser;
@@ -28,7 +29,7 @@ function relatedHref(n: UserNotificationRecord): string | null {
     return `/projects/${n.project_id}/datasets/${n.related_dataset_id}`;
   }
   if (n.related_pipeline_id && n.project_id) {
-    return `/projects/${n.project_id}/pipelines/${n.related_pipeline_id}`;
+    return recipeHref(n.project_id, n.related_pipeline_id);
   }
   return null;
 }

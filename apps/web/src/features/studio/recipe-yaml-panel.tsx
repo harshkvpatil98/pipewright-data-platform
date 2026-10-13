@@ -26,7 +26,8 @@ export function RecipeYamlPanel({
 }: {
   steps: { step_type: string; config: Record<string, unknown> }[];
   onApply: (steps: { step_type: string; config: Record<string, unknown> }[]) => void;
-  onClose: () => void;
+  /** Shown as a Close button when the panel can be dismissed on its own. */
+  onClose?: () => void;
 }) {
   const [text, setText] = useState("");
   const [edited, setEdited] = useState(false);
@@ -82,7 +83,7 @@ export function RecipeYamlPanel({
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
       <p className="text-xs text-muted">
-        The steps above, as a file. Edit it and press Apply, or keep it in git and review
+        This recipe's steps, as a file. Edit it and press Apply, or keep it in git and review
         changes in a pull request.
       </p>
 
@@ -126,9 +127,11 @@ export function RecipeYamlPanel({
         <Button size="sm" onClick={() => void apply()} disabled={busy || !edited}>
           {busy ? "Applying…" : "Apply to recipe"}
         </Button>
-        <Button variant="ghost" size="sm" onClick={onClose}>
-          Close
-        </Button>
+        {onClose ? (
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            Close
+          </Button>
+        ) : null}
       </div>
     </div>
   );

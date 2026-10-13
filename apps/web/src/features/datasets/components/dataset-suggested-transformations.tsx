@@ -16,6 +16,7 @@ import {
 } from "@/features/datasets/suggestion-pipeline";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
+import { recipeHref } from "@/lib/navigation";
 
 type DatasetSuggestedTransformationsProps = {
   projectId: string;
@@ -90,9 +91,7 @@ export function DatasetSuggestedTransformations({
           body: JSON.stringify(payload),
         },
       );
-      router.push(
-        `/projects/${projectId}/datasets/${created.base_dataset_id}/pipelines/${created.id}`,
-      );
+      router.push(recipeHref(projectId, created.id));
       router.refresh();
     } catch (error) {
       setCreateError(extractErrorMessage(error));

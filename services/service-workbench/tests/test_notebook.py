@@ -221,7 +221,10 @@ class TestPythonCells:
             engine=engine,
         )
         assert result.cells[1].ok, result.cells[1].error
-        assert "60" in result.cells[1].stdout
+        # What it computed, not the `orders` table it read (that table used to
+        # be shown again, hiding the result; found once cells ran on Linux).
+        assert "total = 60.0" in result.cells[1].stdout
+        assert result.cells[1].output_name is None
 
     def test_a_python_cell_publishes_a_frame_the_next_recipe_reads(self, engine) -> None:
         space = Namespace()
@@ -297,3 +300,25 @@ class TestTheRunIsBounded:
         from service_workbench.notebook import MAX_RUN_SECONDS
 
         assert MAX_RUN_SECONDS == 120
+
+
+class TestWhatAPythonCellShows:
+    """Runs everywhere: the gate is lifted, since what is being checked is what
+    the notebook shows, not whether this platform can sandbox."""
+
+    def test_a_computed_value_is_shown_rather_than_the_table_it_read(self, engine, monkeypatch) -> None:
+        monkeypatch.setattr(sandbox, "require_usable", lambda: None)
+        result = run_notebook(
+            [
+                Cell(kind="sql", source="SELECT * FROM orders", output_name="orders", position=0),
+                Cell(kind="python", source="total = float(orders['amount'].sum())", position=1),
+                Cell(kind="python", source="big = orders[orders['amount'] > 15]", position=2),
+            ],
+            engine=engine,
+        )
+        computed, filtered = result.cells[1], result.cells[2]
+        assert computed.ok and filtered.ok, (computed.error, filtered.error)
+        assert computed.stdout == "total = 60.0"
+        assert computed.output_name is None
+        # A frame the cell made is shown as the result.
+        assert filtered.output_name == "big"

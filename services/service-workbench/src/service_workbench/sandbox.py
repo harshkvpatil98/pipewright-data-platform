@@ -483,6 +483,10 @@ _FORBIDDEN_EVENTS = (
 )
 
 
+#: Forbidden to the cell, allowed to installed library code it calls.
+LIBRARY_ONLY_EVENTS = frozenset({"compile", "sys._getframe"})
+
+
 def _purge_modules() -> None:
     """Drop the dangerous modules from ``sys.modules`` before arming.
 
@@ -498,6 +502,12 @@ def _purge_modules() -> None:
     which is why this runs after pandas is imported and before the cell starts.
     """
     import sys as _sys
+
+    # Loaded lazily by allowed modules from outside the allowlist: `_strptime`
+    # on the first `strptime` (and so the first `pd.to_datetime` with a
+    # format). Loaded now, while imports are unrestricted, so the cell finds
+    # it cached instead of refused.
+    import _strptime  # noqa: F401
 
     doomed = [
         name
@@ -523,6 +533,10 @@ def _install_audit_hook() -> None:
     # tz-aware timestamps are part of this platform's type system, and it reads
     # its data from `/usr/share/zoneinfo` rather than from `sys.prefix`.
     readable = {p for p in (_sys.prefix, _sys.base_prefix, _sys.exec_prefix) if p}
+    # Code objects name the file they came from by its real path, which differs
+    # from the prefix where the prefix is a symlink (Homebrew's `opt` links to
+    # its `Cellar`); both spellings count as the interpreter's own tree.
+    readable.update(os.path.realpath(path) for path in list(readable))
     try:
         import zoneinfo as _zoneinfo
 
@@ -533,13 +547,63 @@ def _install_audit_hook() -> None:
     # The cell's own body is run with `exec`, which is itself an audited event.
     # Exactly one is expected -- it fires before any of the cell's code runs --
     # so allowing the first and refusing the rest is unambiguous.
-    state = {"armed": False, "own_exec_used": False}
+    state = {"armed": False, "own_exec_used": False, "inspecting": False}
+
+    def loading_a_module(code: Any) -> bool:
+        """An installed module's body, run by the import system itself.
+
+        numpy and pandas load parts of themselves on first use (`numpy.rec`
+        when a frame is summed), and the import system runs a module's body
+        with `exec`. The `import` event before it has already been checked
+        against the allowlist; refusing the `exec` that follows broke ordinary
+        cells. Only a module body from the interpreter's own tree, executed
+        directly by importlib, passes; the cell's code cannot compile new code,
+        so it cannot make one of those.
+        """
+        if getattr(code, "co_name", None) != "<module>":
+            return False
+        if not str(getattr(code, "co_filename", "")).startswith(interpreter_paths):
+            return False
+        state["inspecting"] = True
+        try:
+            caller = _sys._getframe(2)
+            return caller.f_code.co_name == "_call_with_frames_removed" and "importlib._bootstrap" in (
+                caller.f_code.co_filename
+            )
+        except ValueError:
+            return False
+        finally:
+            state["inspecting"] = False
+
+    def called_by_a_library() -> bool:
+        """The event was raised by installed code, not by the cell.
+
+        For `LIBRARY_ONLY_EVENTS`: `typing` compiles a type name ("Series")
+        and looks up its caller's frame when pandas reads an annotation. That
+        makes a code object and runs nothing (running one still has to pass
+        the `exec` rule, which a library-made one does not), and frames in
+        this spawned process hold nothing of the gateway's. The cell itself
+        cannot pass: its own frame is `<cell>`, not a file in the
+        interpreter's tree.
+        """
+        state["inspecting"] = True
+        try:
+            caller = _sys._getframe(2)
+            return str(caller.f_code.co_filename).startswith(interpreter_paths)
+        except ValueError:
+            return False
+        finally:
+            state["inspecting"] = False
 
     def hook(event: str, args: tuple) -> None:
-        if not state["armed"]:
+        if not state["armed"] or state["inspecting"]:
             return
         if event == "exec" and not state["own_exec_used"]:
             state["own_exec_used"] = True
+            return
+        if event == "exec" and args and loading_a_module(args[0]):
+            return
+        if event in LIBRARY_ONLY_EVENTS and called_by_a_library():
             return
         if event == "import":
             root = str(args[0]).split(".")[0]

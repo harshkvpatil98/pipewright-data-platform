@@ -110,6 +110,25 @@ class TestItRuns:
         assert result.bindings["out"] == "1"
 
 
+class TestLibrariesLoadWhatTheyNeed:
+    """numpy and pandas load parts of themselves on first use; that is the
+    import system at work, not the cell, and has to keep working (found when
+    cells first ran on Linux in CI)."""
+
+    def test_a_lazily_loaded_part_of_numpy_runs(self) -> None:
+        frame = pd.DataFrame({"amount": [10.0, 20.0, 30.0]})
+        result = sandbox.run("total = float(orders['amount'].sum())\nprint(total)", {"orders": frame})
+        assert result.ok, result.error
+        assert "60.0" in result.stdout
+
+    def test_dates_with_a_format_parse(self) -> None:
+        result = sandbox.run(
+            "when = pd.to_datetime(['2026-10-14'], format='%Y-%m-%d')\nprint(when[0].year)"
+        )
+        assert result.ok, result.error
+        assert "2026" in result.stdout
+
+
 class TestErrorsAreTheCellAuthorsProblem:
     def test_a_syntax_error_names_the_line(self) -> None:
         result = sandbox.run("x = (1 +")
@@ -172,6 +191,36 @@ class TestEscapeAttempts:
 
     def test_compile_is_not_available(self) -> None:
         assert not sandbox.run("compile('1', '<s>', 'eval')").ok
+
+    def test_the_real_compile_is_refused_when_the_cell_calls_it(self) -> None:
+        # A library may compile (typing does, for type names); the cell may not,
+        # even having found the real `compile` through a module's builtins.
+        result = sandbox.run(
+            "real_compile = pd.__dict__['__builtins__']['compile']\n"
+            "real_compile('1', '<s>', 'eval')"
+        )
+        assert not result.ok
+        assert "compile" in result.error
+
+    def test_the_cell_cannot_inspect_frames_itself(self) -> None:
+        result = sandbox.run(
+            "getframe = pd.__dict__['__builtins__']['__import__']('sys')._getframe\n"
+            "getframe(0)"
+        )
+        assert not result.ok
+
+    def test_a_disguised_module_body_cannot_be_executed(self) -> None:
+        # The import system may run an installed module's body; a cell that
+        # dresses its own code up as one, and finds the real `exec` through a
+        # module's builtins, is still refused: it is not importlib calling.
+        result = sandbox.run(
+            "f = lambda: 1\n"
+            "code = f.__code__.replace(co_name='<module>', co_filename=pd.__file__)\n"
+            "real_exec = pd.__dict__['__builtins__']['exec']\n"
+            "real_exec(code, {})"
+        )
+        assert not result.ok
+        assert "exec" in result.error
 
     def test_builtins_cannot_be_reached_through_a_class(self) -> None:
         # The classic route: object.__subclasses__() to find something that

@@ -258,23 +258,34 @@ def _run_python(cell: Cell, outcome: CellResult, space: Namespace, row_preview: 
     if not result.ok:
         raise BadRequestError(result.error)
 
+    # The frames the cell made or changed, worked out before binding: a cell
+    # that only reads `orders` hands `orders` back unchanged, and showing it
+    # again would hide what the cell computed.
+    made = _new_or_changed(result.frames, space)
+
     # Only frames cross the boundary. A Python cell's scalars and objects stay
     # in that cell, because nothing else in the notebook can read them.
     for name, frame in result.frames.items():
         space.bind(name, frame)
 
-    chosen = cell.output_name or _last_new_frame(result.frames, space)
+    chosen = cell.output_name or (made[-1] if made else None)
     if chosen and chosen in space.frames:
         outcome.output_name = chosen
         _preview(outcome, space.frames[chosen], row_preview)
     elif result.bindings and not outcome.stdout:
+        unchanged_inputs = set(result.frames) - set(made)
         outcome.stdout = "\n".join(
-            f"{name} = {value}" for name, value in result.bindings.items()
+            f"{name} = {value}" for name, value in result.bindings.items() if name not in unchanged_inputs
         )
 
 
-def _last_new_frame(frames: dict[str, pd.DataFrame], space: Namespace) -> str | None:
-    return next(reversed(list(frames)), None) if frames else None
+def _new_or_changed(frames: dict[str, pd.DataFrame], space: Namespace) -> list[str]:
+    """Names of the frames a cell made, or changed, in the order it bound them."""
+    return [
+        name
+        for name, frame in frames.items()
+        if name not in space.frames or not frame.equals(space.frames[name])
+    ]
 
 
 def _run_recipe(cell: Cell, outcome: CellResult, space: Namespace, row_preview: int) -> None:

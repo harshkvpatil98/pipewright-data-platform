@@ -46,6 +46,17 @@ export function DatasetBeingRead({ projectId, runId }: { projectId: string; runI
   const events = ((run?.logs_json?.events as RunEvent[] | undefined) ?? []).filter((event) => event.message);
   const latest = events.at(-1)?.message ?? "Waiting for the background worker.";
 
+  if (run?.status === "failed") {
+    // Shown until the refreshed page arrives with the reason, and in its place
+    // if the dataset was not told: never a spinner over a run that has ended.
+    return (
+      <div role="alert" className="rounded-xl border border-danger-line bg-danger-soft px-4 py-3">
+        <div className="text-[15px] font-medium text-danger">This file could not be read</div>
+        <p className="mt-1 text-[14px] text-ink-2">{latest}</p>
+      </div>
+    );
+  }
+
   return (
     <div
       role="status"

@@ -33,12 +33,34 @@ logger = get_logger(__name__)
 LEASE_SECONDS = 600
 
 Handler = Callable[[Session, PipelineRun, Any, Any], None]
+#: What else to mark when a run fails outside its handler's own care (an
+#: unexpected error, a stopped worker): the dataset a large upload was for.
+OnFail = Callable[[Session, PipelineRun, str], None]
 _HANDLERS: dict[str, Handler] = {}
+_ON_FAIL: dict[str, OnFail] = {}
+
+#: What a run whose worker stopped says (A7).
+STALLED = "The background worker stopped before this finished. Start it again to finish it."
 
 
-def register(run_type: str, handler: Handler) -> None:
-    """What the worker does for a queued run of this type."""
+def register(run_type: str, handler: Handler, *, on_fail: OnFail | None = None) -> None:
+    """What the worker does for a queued run of this type, and what to mark if it fails."""
     _HANDLERS[run_type] = handler
+    if on_fail is not None:
+        _ON_FAIL[run_type] = on_fail
+
+
+def _after_failure(db: Session, run: PipelineRun, message: str) -> None:
+    """Best effort: a failure to mark the rest must not hide the run's own failure."""
+    hook = _ON_FAIL.get(run.run_type)
+    if hook is None:
+        return
+    try:
+        hook(db, run, message)
+        db.commit()
+    except Exception:  # noqa: BLE001
+        logger.exception("background_on_fail_failed run_id=%s run_type=%s", run.id, run.run_type)
+        db.rollback()
 
 
 def handled_types() -> list[str]:
@@ -143,6 +165,7 @@ def _fail(db: Session, run_id: uuid.UUID, message: str) -> None:
     run.logs_json = {**(run.logs_json or {}), "events": events}
     run.summary_json = {**(run.summary_json or {}), "error": message}
     db.commit()
+    _after_failure(db, run, message)
 
 
 def release_stalled(db: Session, *, now: datetime | None = None) -> int:
@@ -157,12 +180,15 @@ def release_stalled(db: Session, *, now: datetime | None = None) -> int:
     ).all()
     for run in stalled:
         events = list((run.logs_json or {}).get("events", []))
-        events.append(event("failed", "The worker doing this stopped responding. Start it again to finish it."))
+        events.append(event("failed", STALLED))
         run.status = "failed"
         run.completed_at = moment
         run.logs_json = {**(run.logs_json or {}), "events": events}
+        run.summary_json = {**(run.summary_json or {}), "error": STALLED}
         run.claim_owner_id = None
         run.claim_expires_at = None
     if stalled:
         db.commit()
+    for run in stalled:
+        _after_failure(db, run, STALLED)
     return len(stalled)

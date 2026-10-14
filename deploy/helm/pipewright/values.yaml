@@ -105,12 +105,14 @@ web:
 worker:
   replicaCount: 1
   intervalSeconds: 5
-  # The worker reads uploads over 25MB and does database copies; reading a
-  # file takes about fifteen times its size in memory, so 2Gi covers the
-  # default 100MB upload limit (MAX_UPLOAD_SIZE_BYTES).
+  # The worker reads uploads over 25MB, delivers large datasets and copies
+  # databases. Reading a file takes about twenty times its size in memory
+  # (measured: 1.98GB for a 99MB CSV of 2 million rows), more for files of
+  # many short text values, so 4Gi covers the default 100MB upload limit
+  # (MAX_UPLOAD_SIZE_BYTES) with room. Lower that limit for a smaller worker.
   resources:
-    requests: { cpu: 250m, memory: 512Mi }
-    limits: { cpu: "2", memory: 2Gi }
+    requests: { cpu: 250m, memory: 1Gi }
+    limits: { cpu: "2", memory: 4Gi }
 
 # The schedule ticker. Keep this at ONE replica unless every replica has a
 # distinct SCHEDULER_RUNTIME_ID; the lease reduces but does not eliminate

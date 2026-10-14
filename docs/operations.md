@@ -43,8 +43,8 @@ pg_restore --no-owner --clean --if-exists --dbname="$DATABASE_URL" backups/<stam
 
 Uploaded files live under `UPLOAD_ROOT_PATH` (default `data/uploads`) and are
 archived alongside the dump; restore them by unpacking the archive into the same
-path. Object-storage deployments back the bucket up with the provider's tooling
-instead.
+path. With `STORAGE_BACKEND=s3` they live in a bucket instead; back it up with
+the provider's tooling (versioning or replication).
 
 **Drill it.** A restore you have never run is not a restore. Schedule
 `backup.sh --verify` (it exits non-zero if the restored row counts are empty)
@@ -54,9 +54,9 @@ and alert on failure.
 
 | Component | Scale by | Notes |
 | --- | --- | --- |
-| Gateway | replicas / HPA | Stateless; scale on CPU. `gateway.autoscaling.enabled=true`. |
+| Gateway | replicas / HPA | Stateless once stored files are shared: `STORAGE_BACKEND=s3` (a bucket), or one `ReadWriteMany` volume (`storage.persistence`). Scale on CPU. `gateway.autoscaling.enabled=true`. |
 | Web | replicas / HPA | Stateless; scale on CPU. |
-| Workflow worker | replicas | The queue claim is leased, so many workers share load safely. |
+| Workflow worker | replicas | The queue claim is leased, so many workers share load safely. It also does the long work the pages hand over: uploads over 25MB, deliveries over 50,000 rows and database copies. A project runs at most `WORKFLOW_MAX_RUNS_PER_PROJECT` workflow runs at once (3). |
 | Schedule ticker | **one**, usually | The lease reduces but does not eliminate double-execution across pollers. Run one replica, or give each a distinct `SCHEDULER_RUNTIME_ID`. |
 | Postgres | vertical + read replicas | The single stateful tier; size it first (below). |
 
@@ -70,9 +70,16 @@ Starting points; measure with the perf baseline (below) and adjust.
 
 | Scale | Gateway | Web | Worker | Postgres |
 | --- | --- | --- | --- | --- |
-| Trial / single team | 1 × 0.5 vCPU / 512Mi | 1 × 0.5 vCPU / 512Mi | 1 | 1 vCPU / 2Gi |
-| Small (≤50 users) | 2 × 1 vCPU / 512Mi | 2 × 0.5 vCPU / 512Mi | 1–2 | 2 vCPU / 4Gi, SSD |
-| Medium (≤500 users) | 3–6 (HPA) × 1 vCPU | 3–6 (HPA) | 2–4 | 4–8 vCPU / 16Gi, read replica for reporting |
+| Trial / single team | 1 × 0.5 vCPU / 512Mi | 1 × 0.5 vCPU / 512Mi | 1 × 1 vCPU / 4Gi | 1 vCPU / 2Gi |
+| Small (≤50 users) | 2 × 1 vCPU / 1Gi | 2 × 0.5 vCPU / 512Mi | 1–2 × 2 vCPU / 4Gi | 2 vCPU / 4Gi, SSD |
+| Medium (≤500 users) | 3–6 (HPA) × 1 vCPU / 1Gi | 3–6 (HPA) | 2–4 × 2 vCPU / 4Gi | 4–8 vCPU / 16Gi, read replica for reporting |
+
+**Memory follows the largest file.** Reading a file takes about twenty times
+its size (measured: 1.98GB on the worker for a 99MB CSV of 2 million rows; the
+gateway peaked at 479MB receiving it). Files of many short text values take
+more. Give the worker about forty times the upload limit (4GB for the default
+100MB), or lower `MAX_UPLOAD_SIZE_BYTES` to fit the worker you have; System
+status shows the limit in force.
 
 Tune the connection pool (`DB_POOL_SIZE`, `DB_MAX_OVERFLOW`) so
 `gateway_replicas × (pool + overflow)` stays under Postgres `max_connections`.
@@ -87,9 +94,19 @@ Tune the connection pool (`DB_POOL_SIZE`, `DB_MAX_OVERFLOW`) so
 - **Runtime health:** `GET /api/v1/status` carries per-component heartbeats
   (workflow worker, schedule ticker) and queue depths; the System-status page
   and Home card render them. A stalled queue also opens an incident (P3).
-- **Request tracing:** every request carries a correlation id (in the response
-  header and in every log line it produces), so one request's logs group across
-  services.
+- **Request tracing:** every request carries a correlation id (the
+  `X-Request-ID` response header, every log line it produces, and its audit
+  entry), so one request's logs group across services.
+- **Traces:** set `OTEL_ENABLED=true` and `OTEL_EXPORTER_OTLP_ENDPOINT` (an
+  OpenTelemetry Collector, Jaeger, Tempo, Honeycomb...) and each gateway
+  request becomes a trace with a span per database statement, carrying the
+  same correlation id. Health checks and `/metrics` are left out. The standard
+  `OTEL_*` variables configure the exporter; off, nothing is loaded.
+- **Rate limits:** sign-in (per account and per address), one-time codes,
+  public dashboards and inbound webhooks are limited, shared between gateways
+  through the database; a refused request gets 429 with `Retry-After`. The
+  limits are listed on System status. `RATE_LIMITS_ENABLED=false` turns them
+  off for a load test.
 - **Slow queries:** set `DB_SLOW_QUERY_MS` (e.g. `500`) to log any SQL statement
   over that many milliseconds, with its correlation id. It is off by default;
   turn it on to diagnose a slow page, then turn it back off — it is not an
@@ -126,3 +143,9 @@ with the workers running alongside — a floor, not a production number):
 `/status` is the outlier: it fans out to every service plus the scheduler and
 runtime snapshots, so it is the one endpoint to cache or scrape sparingly.
 Re-run after a material change and add a dated row.
+
+**Budgets in CI (A7).** `--budgets` fails the run when an endpoint's p95 passes
+its budget in `BUDGETS_MS` (health 150ms, status 2,500ms, projects 1,000ms and
+so on). The CI `performance` job starts a fresh gateway, seeds five demo
+projects with `--seed 5` and runs 100 requests at concurrency 4 against those
+budgets on every push.

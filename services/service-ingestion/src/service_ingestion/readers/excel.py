@@ -49,7 +49,12 @@ def read_excel(
         # being held in memory twice.
         workbook = load_workbook(io.BytesIO(payload), data_only=True, read_only=True)
     except Exception as exc:  # noqa: BLE001 - any failure here is "not a workbook"
-        raise BadRequestError(f"Could not open this workbook: {exc}") from exc
+        # The library's own words ("File is not a zip file") mean nothing to
+        # the person uploading; say what it means for them (A7).
+        raise BadRequestError(
+            "This file could not be opened as an Excel workbook. It may be damaged, password protected, "
+            "or another kind of file with an Excel name; open it in Excel and save it again, or save it as CSV."
+        ) from exc
 
     sheet_names = list(workbook.sheetnames)
     if not sheet_names:

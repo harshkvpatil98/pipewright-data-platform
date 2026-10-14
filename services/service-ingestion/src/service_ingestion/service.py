@@ -499,4 +499,16 @@ def _read_upload(
         raise InternalServerError(safe_error) from exc
 
 
-background.register('dataset_ingestion', read_queued_upload)
+def _dataset_not_read(db, run, message: str) -> None:
+    """A large upload whose run failed outside the reading itself (the stored
+    file gone, the worker stopped): its dataset says so, rather than "being
+    read" for ever."""
+    from service_datasets.models import Dataset
+
+    dataset_id = (run.request_json or {}).get('dataset_id')
+    dataset = db.get(Dataset, uuid.UUID(dataset_id)) if dataset_id else None
+    if dataset is not None and dataset.ingestion_status not in ('succeeded', 'failed'):
+        finalize_dataset_ingestion_failure(db, dataset=dataset, ingestion_error=message)
+
+
+background.register('dataset_ingestion', read_queued_upload, on_fail=_dataset_not_read)

@@ -43,6 +43,51 @@ def db() -> Iterator[Session]:
         engine.dispose()
 
 
+def _queued(db: Session, tmp_path, monkeypatch):
+    monkeypatch.setattr(ingestion, "IN_REQUEST_BYTES", 10)
+    row = User(username="owner", password_hash="x", role="admin", is_active=True)
+    db.add(row)
+    db.commit()
+    now = datetime.now(UTC)
+    user = UserRead(id=row.id, username="owner", role="admin", is_active=True, created_at=now, updated_at=now)
+    project = create_project(db, ProjectCreate(name="Shop", description=None), user)
+    storage = LocalStorageBackend(str(tmp_path / "files"))
+    answered = ingestion.ingest_project_file(
+        db, project_id=project.id, dataset_name="Orders",
+        upload_file=IngestionUpload(file_name="orders.csv", content_type="text/csv", file_bytes=CSV),
+        storage_backend=storage, settings=settings, current_user=user,
+    )
+    return answered, storage
+
+
+def test_a_read_that_fails_before_it_starts_marks_the_dataset(db: Session, tmp_path, monkeypatch) -> None:
+    """The stored file gone before the worker got to it: the dataset says it
+    could not be read, rather than "being read" for ever (found in A7)."""
+    answered, storage = _queued(db, tmp_path, monkeypatch)
+    for path in list(storage.list_paths()):
+        storage.delete(path)
+
+    finished = background.run_next(db, storage_backend=storage, settings=settings, owner="test-worker")
+    assert finished.status == "failed"
+    dataset = db.get(Dataset, answered.dataset.id)
+    assert dataset.ingestion_status == "failed"
+    assert dataset.ingestion_error
+
+
+def test_a_read_whose_worker_stopped_marks_the_dataset(db: Session, tmp_path, monkeypatch) -> None:
+    from datetime import timedelta
+
+    answered, _storage = _queued(db, tmp_path, monkeypatch)
+    claimed = background.claim_next(db, owner="dead-worker")
+    claimed.claim_expires_at = datetime.now(UTC) - timedelta(minutes=1)
+    db.commit()
+
+    assert background.release_stalled(db) == 1
+    dataset = db.get(Dataset, answered.dataset.id)
+    assert dataset.ingestion_status == "failed"
+    assert dataset.ingestion_error == background.STALLED
+
+
 def test_a_large_file_is_read_by_the_worker(db: Session, tmp_path, monkeypatch) -> None:
     monkeypatch.setattr(ingestion, "IN_REQUEST_BYTES", 10)
     row = User(username="owner", password_hash="x", role="admin", is_active=True)

@@ -87,4 +87,4 @@ def test_a_run_whose_worker_stopped_is_failed_not_repeated(db: Session, run: Pip
     assert background.release_stalled(db, now=datetime.now(UTC) + timedelta(seconds=background.LEASE_SECONDS + 1)) == 1
     db.refresh(claimed)
     assert claimed.status == "failed"
-    assert "stopped responding" in claimed.logs_json["events"][-1]["message"]
+    assert "background worker stopped" in claimed.logs_json["events"][-1]["message"]

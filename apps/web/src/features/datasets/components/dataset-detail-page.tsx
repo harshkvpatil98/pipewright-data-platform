@@ -249,6 +249,28 @@ export function DatasetDetailPageView({
       {["pending", "queued", "running"].includes(dataset.ingestion_status) && dataset.pipeline_run_id ? (
         <DatasetBeingRead projectId={projectId} runId={dataset.pipeline_run_id} />
       ) : null}
+      {dataset.ingestion_status === "failed" ? (
+        <div role="alert" className="rounded-xl border border-danger-line bg-danger-soft px-4 py-3">
+          <div className="text-[15px] font-medium text-danger">This file could not be read</div>
+          <p className="mt-1 text-[14px] text-ink-2">
+            {dataset.ingestion_error ?? "Reading it stopped with an error."}
+          </p>
+          <p className="mt-1 text-[13px] text-ink-3">
+            Nothing from it was saved. Fix the file, or the setting the message names, and upload it again.
+            {dataset.pipeline_run_id ? (
+              <>
+                {" "}
+                <Link
+                  href={`/projects/${projectId}/runs/${dataset.pipeline_run_id}/audit`}
+                  className="text-[color:var(--accent-muted)] underline"
+                >
+                  See what happened
+                </Link>
+              </>
+            ) : null}
+          </p>
+        </div>
+      ) : null}
       <DeliverDatasetModal
         open={isPublishOpen}
         onClose={() => setIsPublishOpen(false)}
@@ -429,7 +451,9 @@ export function DatasetDetailPageView({
         </SectionPanel>
       ) : null}
 
-      {!dataset.is_derived ? (
+      {/* What follows is worked out from the data, so it waits until the
+          file has been read rather than saying "nothing to suggest" (A7). */}
+      {!dataset.is_derived && dataset.ingestion_status === "succeeded" ? (
         <DatasetSuggestedTransformations
           projectId={projectId}
           datasetId={dataset.id}
@@ -438,23 +462,27 @@ export function DatasetDetailPageView({
         />
       ) : null}
 
-      {!dataset.is_derived && pipelinesForDataset.length > 0 ? (
+      {!dataset.is_derived && pipelinesForDataset.length > 0 && dataset.ingestion_status === "succeeded" ? (
         <DatasetPipelinesRunSection
           projectId={projectId}
           pipelines={pipelinesForDataset}
         />
       ) : null}
 
-      <DatasetVersionHistoryPanel
-        projectId={projectId}
-        datasetId={dataset.id}
-      />
+      {dataset.ingestion_status === "succeeded" ? (
+        <>
+          <DatasetVersionHistoryPanel
+            projectId={projectId}
+            datasetId={dataset.id}
+          />
 
-      <DatasetCatalogPanel
-        projectId={projectId}
-        datasetId={dataset.id}
-        columns={schemaColumns.map((column) => String(column.name))}
-      />
+          <DatasetCatalogPanel
+            projectId={projectId}
+            datasetId={dataset.id}
+            columns={schemaColumns.map((column) => String(column.name))}
+          />
+        </>
+      ) : null}
 
       <DiscussionPanel
         projectId={projectId}

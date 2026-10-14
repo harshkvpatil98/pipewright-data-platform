@@ -54,7 +54,7 @@ from service_workflows.models import (  # noqa: F401
     WorkflowNodeRun,
     WorkflowRun,
 )
-from service_notifications.models import ExternalNotificationTarget, UserNotification  # noqa: F401
+from service_notifications.models import ExternalNotificationTarget, UserNotification, WebhookDelivery  # noqa: F401
 from service_workbench.models import (  # noqa: F401
     Notebook,
     NotebookCell,

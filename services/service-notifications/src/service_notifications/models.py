@@ -102,3 +102,34 @@ class ExternalNotificationTarget(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     created_by_user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
+
+
+class WebhookDelivery(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """One event sent to one webhook target, with every attempt's outcome (A8).
+
+    The body is kept exactly as first sent, so a retry sends the same bytes
+    (with a fresh signature timestamp) and a receiver can deduplicate on the
+    delivery id in it.
+    """
+
+    __tablename__ = "webhook_deliveries"
+    __table_args__ = (
+        Index("ix_webhook_deliveries_target_created", "target_id", "created_at"),
+        Index("ix_webhook_deliveries_due", "status", "next_attempt_at"),
+    )
+
+    target_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("external_notification_targets.id", ondelete="CASCADE"), nullable=False
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    event_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    #: pending (a try is due), succeeded, or failed (no more tries).
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    last_status_code: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    next_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

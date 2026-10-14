@@ -50,7 +50,7 @@ Some connectors need a package the server does not have. The page lists each mis
 
 ## Alerts
 
-Each project chooses where its failures and reports go, under **Overview → Alerts**: an email address or a Slack channel, and which events each hears about. Incidents and failed workflows can be sent there, as can a weekly summary of the project's runs, checks and incidents. Email needs the platform's mail settings (`EXTERNAL_NOTIFICATION_SMTP_*`).
+Each project chooses where its failures and reports go, under **Overview → Alerts**: an email address, a Slack channel or a webhook (signed JSON to your own systems, see [Using the API](api.md#webhooks)), and which events each hears about. Incidents and failed workflows can be sent there, as can a weekly summary of the project's runs, checks and incidents. Email needs the platform's mail settings (`EXTERNAL_NOTIFICATION_SMTP_*`).
 
 Each person also chooses, in the bell's settings, whether they want each message as it happens, a daily or weekly summary, or nothing.
 

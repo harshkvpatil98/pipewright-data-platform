@@ -7,7 +7,11 @@ from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
 from service_notifications.at_rest_config import notification_target_config_for_internal_use
-from service_notifications.constants import EXTERNAL_TARGET_EMAIL, EXTERNAL_TARGET_SLACK_WEBHOOK
+from service_notifications.constants import (
+    EXTERNAL_TARGET_EMAIL,
+    EXTERNAL_TARGET_SLACK_WEBHOOK,
+    EXTERNAL_TARGET_WEBHOOK,
+)
 from service_notifications.models import ExternalNotificationTarget
 from service_notifications.senders.email_sender import send_email_event_message
 from service_notifications.senders.slack_sender import send_slack_event_message
@@ -65,6 +69,11 @@ def dispatch_external_notifications(
                     )
                     if not ok:
                         logger.warning("external_slack_dispatch_failed", extra={"target_id": str(row.id)})
+                elif row.target_type == EXTERNAL_TARGET_WEBHOOK:
+                    # Recorded and retried by `webhook_sender`; nothing to log here.
+                    from service_notifications.senders.webhook_sender import deliver
+
+                    deliver(db, target=row, config=cfg, event_type=event_type, title=title, message=message, level=level)
             except Exception:
                 logger.exception("external_target_dispatch_failed", extra={"target_id": str(row.id)})
     except Exception:

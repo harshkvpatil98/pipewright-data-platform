@@ -43,9 +43,14 @@ def _post_webhook(*, config: dict[str, Any], text: str) -> tuple[bool, str]:
         return False, "webhook_url missing."
 
     body = {"text": text[:15000]}
+    from shared_python.outbound import OutboundBlocked, httpx_request_guard
+
     try:
-        with httpx.Client(timeout=15.0) as client:
+        # The same address guard as every other outbound call (A8: Slack had none).
+        with httpx.Client(timeout=15.0, event_hooks={"request": [httpx_request_guard]}) as client:
             r = client.post(url.strip(), json=body)
+    except OutboundBlocked as e:
+        return False, f"Refused: {e}"
     except httpx.HTTPError as e:
         logger.warning("slack_webhook_http_error", extra={"error_type": type(e).__name__})
         return False, f"Webhook request failed: {e}"

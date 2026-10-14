@@ -1190,7 +1190,7 @@ export type UserNotificationListResponse = {
   unread_count: number;
 };
 
-export type ExternalNotificationTargetType = "email" | "slack_webhook";
+export type ExternalNotificationTargetType = "email" | "slack_webhook" | "webhook";
 
 export const EXTERNAL_NOTIFICATION_EVENT_TYPES = [
   "incident_opened",
@@ -1218,7 +1218,23 @@ export type ExternalNotificationTargetRecord = {
   created_by_user_id: string;
   created_at: string;
   updated_at: string;
+  /** A webhook's signing secret: only in the answer that made or rotated it. */
+  signing_secret?: string | null;
 };
+
+export type WebhookDelivery = {
+  id: string;
+  event_type: string;
+  status: "pending" | "succeeded" | "failed";
+  attempts: number;
+  last_status_code: number | null;
+  last_error: string | null;
+  next_attempt_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+};
+
+export type WebhookDeliveryListResponse = { items: WebhookDelivery[] };
 
 export type ExternalNotificationTargetListResponse = {
   items: ExternalNotificationTargetRecord[];

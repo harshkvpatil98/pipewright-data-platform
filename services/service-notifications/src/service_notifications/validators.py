@@ -9,6 +9,7 @@ from service_notifications.constants import (
     ALLOWED_EXTERNAL_TARGET_TYPES,
     EXTERNAL_TARGET_EMAIL,
     EXTERNAL_TARGET_SLACK_WEBHOOK,
+    EXTERNAL_TARGET_WEBHOOK,
 )
 from shared_python.security.encryption import STORED_SECRET_PREFIX
 
@@ -65,6 +66,11 @@ def merge_external_notification_config(
         if "webhook_url" in incoming and _should_preserve_slack_webhook(incoming.get("webhook_url")):
             out["webhook_url"] = existing.get("webhook_url", "")
         return out
+    if target_type == EXTERNAL_TARGET_WEBHOOK:
+        # The signing secret is made and rotated by the platform, never edited.
+        out = {**existing, **{key: value for key, value in incoming.items() if key != "signing_secret"}}
+        out["signing_secret"] = existing.get("signing_secret", "")
+        return out
     return {**existing, **incoming}
 
 
@@ -117,5 +123,26 @@ def validate_and_normalize_config(*, target_type: str, config: dict[str, Any]) -
             "webhook_url": url.strip(),
             **({"channel_label": label.strip()} if label else {}),
         }
+
+    if target_type == EXTERNAL_TARGET_WEBHOOK:
+        url = config.get("url")
+        if not isinstance(url, str) or not url.strip():
+            raise ValueError("Give the address that receives the events.")
+        parsed = urlparse(url.strip())
+        local = (parsed.hostname or "") in ("localhost", "127.0.0.1", "::1")
+        if parsed.scheme != "https" and not (parsed.scheme == "http" and local):
+            raise ValueError("The address must start with https:// so the events cannot be read on the way.")
+        if not parsed.hostname:
+            raise ValueError("That address is not complete.")
+        from shared_python.outbound import OutboundBlocked, check_host
+
+        try:
+            check_host(parsed.hostname)
+        except OutboundBlocked as exc:
+            raise ValueError(f"Events cannot be sent there: {exc}") from exc
+        secret = config.get("signing_secret")
+        if not isinstance(secret, str) or not secret:
+            raise ValueError("The signing secret is missing.")
+        return {"url": url.strip(), "signing_secret": secret}
 
     raise ValueError("Unsupported target_type.")

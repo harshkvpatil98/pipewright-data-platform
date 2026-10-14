@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from service_notifications.constants import EXTERNAL_TARGET_EMAIL, EXTERNAL_TARGET_SLACK_WEBHOOK
+from service_notifications.constants import (
+    EXTERNAL_TARGET_EMAIL,
+    EXTERNAL_TARGET_SLACK_WEBHOOK,
+    EXTERNAL_TARGET_WEBHOOK,
+)
 
 
 def redact_config_for_api(*, target_type: str, config: dict[str, Any]) -> dict[str, Any]:
@@ -17,6 +21,12 @@ def redact_config_for_api(*, target_type: str, config: dict[str, Any]) -> dict[s
         url = out.get("webhook_url")
         if isinstance(url, str):
             out["webhook_url"] = _redact_webhook_url(url)
+        return out
+    if target_type == EXTERNAL_TARGET_WEBHOOK:
+        out = dict(config)
+        # Shown once, when made or rotated; afterwards only its last characters.
+        secret = out.pop("signing_secret", None)
+        out["signing_secret_hint"] = _secret_hint(secret)
         return out
     return dict(config)
 
@@ -42,3 +52,16 @@ def _redact_webhook_url(url: str) -> str:
     if "hooks.slack.com" in (p.netloc or "") and path.startswith("/services/"):
         return f"https://{p.netloc}{path[:20]}…/***"
     return f"https://{p.netloc}/…/***"
+
+
+def _secret_hint(stored: object) -> str | None:
+    """`whsec_…abcd`: enough to tell two secrets apart, nothing to sign with."""
+    if not isinstance(stored, str) or not stored:
+        return None
+    try:
+        from shared_python.security.encryption import decrypt_secret_value
+
+        plain = decrypt_secret_value(stored)
+    except Exception:  # noqa: BLE001 - a key problem shows as no hint, not an error
+        return None
+    return f"whsec_…{plain[-4:]}"

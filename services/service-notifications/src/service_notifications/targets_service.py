@@ -7,14 +7,19 @@ from sqlalchemy import Uuid, bindparam, select, text
 from sqlalchemy.orm import Session
 
 from service_auth.schemas import UserRead
-from service_notifications.constants import EXTERNAL_TARGET_EMAIL, EXTERNAL_TARGET_SLACK_WEBHOOK
+from service_notifications.constants import (
+    EXTERNAL_TARGET_EMAIL,
+    EXTERNAL_TARGET_SLACK_WEBHOOK,
+    EXTERNAL_TARGET_WEBHOOK,
+)
 from service_notifications.at_rest_config import (
     notification_target_config_for_internal_use,
     persist_notification_target_config_at_rest,
 )
-from service_notifications.models import ExternalNotificationTarget
+from service_notifications.models import ExternalNotificationTarget, WebhookDelivery
 from service_notifications.redaction import redact_config_for_api
 from service_notifications.senders.email_sender import send_email_test_message
+from service_notifications.senders import webhook_sender
 from service_notifications.senders.slack_sender import send_slack_test_message
 from service_notifications.target_schemas import (
     ExternalNotificationTargetCreate,
@@ -22,6 +27,8 @@ from service_notifications.target_schemas import (
     ExternalNotificationTargetRead,
     ExternalNotificationTargetTestResponse,
     ExternalNotificationTargetUpdate,
+    WebhookDeliveryListResponse,
+    WebhookDeliveryRead,
 )
 from service_notifications.validators import (
     merge_external_notification_config,
@@ -77,9 +84,15 @@ def create_target(
     db: Session, *, project_id: uuid.UUID, current_user: UserRead, payload: ExternalNotificationTargetCreate
 ) -> ExternalNotificationTargetRead:
     ensure_owned_project(db, project_id, current_user.id)
+    secret: str | None = None
     try:
         ttype = validate_target_type(payload.target_type)
-        cfg = validate_and_normalize_config(target_type=ttype, config=payload.config_json)
+        incoming = dict(payload.config_json)
+        if ttype == EXTERNAL_TARGET_WEBHOOK:
+            # Made here, shown once in this answer, kept encrypted (A8, Y1).
+            secret = webhook_sender.new_secret()
+            incoming["signing_secret"] = secret
+        cfg = validate_and_normalize_config(target_type=ttype, config=incoming)
         evts = validate_subscribed_event_types(payload.subscribed_event_types)
     except ValueError as e:
         raise BadRequestError(str(e)) from e
@@ -96,7 +109,42 @@ def create_target(
     db.add(row)
     db.commit()
     db.refresh(row)
-    return _to_read(row)
+    return _to_read(row).model_copy(update={"signing_secret": secret})
+
+
+def rotate_webhook_secret(
+    db: Session, *, project_id: uuid.UUID, target_id: uuid.UUID, current_user: UserRead
+) -> ExternalNotificationTargetRead:
+    """A new signing secret; the old one stops working at once."""
+    ensure_owned_project(db, project_id, current_user.id)
+    row = db.get(ExternalNotificationTarget, target_id)
+    if row is None or row.project_id != project_id:
+        raise NotFoundError("Notification target not found.")
+    if row.target_type != EXTERNAL_TARGET_WEBHOOK:
+        raise BadRequestError("Only a webhook has a signing secret.")
+    secret = webhook_sender.new_secret()
+    current = notification_target_config_for_internal_use(row.target_type, dict(row.config_json or {}))
+    row.config_json = persist_notification_target_config_at_rest(row.target_type, {**current, "signing_secret": secret})
+    db.commit()
+    db.refresh(row)
+    return _to_read(row).model_copy(update={"signing_secret": secret})
+
+
+def list_webhook_deliveries(
+    db: Session, *, project_id: uuid.UUID, target_id: uuid.UUID, current_user: UserRead, limit: int = 25
+) -> WebhookDeliveryListResponse:
+    """The most recent events sent to a webhook, with how each went."""
+    ensure_owned_project(db, project_id, current_user.id)
+    row = db.get(ExternalNotificationTarget, target_id)
+    if row is None or row.project_id != project_id:
+        raise NotFoundError("Notification target not found.")
+    deliveries = db.scalars(
+        select(WebhookDelivery)
+        .where(WebhookDelivery.target_id == target_id)
+        .order_by(WebhookDelivery.created_at.desc())
+        .limit(max(1, min(limit, 100)))
+    ).all()
+    return WebhookDeliveryListResponse(items=[WebhookDeliveryRead.model_validate(item) for item in deliveries])
 
 
 def get_target(
@@ -208,6 +256,18 @@ def send_notification_target_test(
         ok, msg = send_email_test_message(config=cfg)
     elif row.target_type == EXTERNAL_TARGET_SLACK_WEBHOOK:
         ok, msg = send_slack_test_message(config=cfg)
+    elif row.target_type == EXTERNAL_TARGET_WEBHOOK:
+        delivery = webhook_sender.deliver(
+            db, target=row, config=cfg, event_type="test", title="A test from Pipewright",
+            message="This is a test event. If you can read it, the address and signature work.", level="info",
+        )
+        ok = delivery.status == "succeeded"
+        msg = (
+            f"Delivered: the address answered {delivery.last_status_code}."
+            if ok
+            else (delivery.last_error or "Not delivered.")
+            + (" It will be tried again shortly." if delivery.status == "pending" else "")
+        )
     else:
         raise BadRequestError("Unsupported target type.")
 

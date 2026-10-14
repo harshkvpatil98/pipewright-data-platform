@@ -242,7 +242,7 @@ export function comparisonTestLabel(raw: string | null | undefined): string {
   return COMPARISON_TEST_LABELS[raw] ?? sentenceLabel(raw);
 }
 
-const CHANNEL_LABELS: Record<string, string> = { email: "Email", slack_webhook: "Slack" };
+const CHANNEL_LABELS: Record<string, string> = { email: "Email", slack_webhook: "Slack", webhook: "Webhook" };
 
 /** Where an alert goes, in words. */
 export function channelLabel(raw: string | null | undefined): string {

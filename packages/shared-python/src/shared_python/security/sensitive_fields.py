@@ -14,4 +14,5 @@ DESTINATION_SENSITIVE_FIELD_KEYS: dict[str, tuple[str, ...]] = {
 NOTIFICATION_TARGET_SENSITIVE_FIELD_KEYS: dict[str, tuple[str, ...]] = {
     "email": (),
     "slack_webhook": ("webhook_url",),
+    "webhook": ("signing_secret",),
 }

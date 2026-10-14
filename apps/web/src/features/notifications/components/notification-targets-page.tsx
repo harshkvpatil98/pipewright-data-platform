@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -9,9 +10,12 @@ import type {
   ExternalNotificationTargetRecord,
   ExternalNotificationTargetType,
   ExternalNotificationTargetUpdatePayload,
+  WebhookDelivery,
+  WebhookDeliveryListResponse,
 } from "@platform/shared-types";
 import { EXTERNAL_NOTIFICATION_EVENT_TYPES } from "@platform/shared-types";
 import {
+  Badge,
   Button,
   FormField,
   Input,
@@ -24,6 +28,7 @@ import {
   TableHead,
   TableHeaderCell,
   TableRow,
+  useToast,
 } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -44,6 +49,8 @@ const EVENT_LABELS: Record<string, string> = {
   dataset_publish_succeeded: "A delivery finished",
   transformation_run_failed: "A recipe run failed",
   transformation_run_succeeded: "A recipe run finished",
+  metric_alert: "A measure crossed its alert",
+  test: "A test",
 };
 
 type NotificationTargetsPageViewProps = {
@@ -60,12 +67,25 @@ function emptySlackConfig() {
   return { webhook_url: "", channel_label: "" };
 }
 
+/** A delivery's outcome in words: "Delivered (204)", "Trying again", "Not delivered (refused)". */
+export function deliveryOutcome(delivery: Pick<WebhookDelivery, "status" | "last_status_code" | "last_error">): {
+  label: string;
+  tone: "success" | "warning" | "danger";
+} {
+  if (delivery.status === "succeeded") {
+    return { label: `Delivered${delivery.last_status_code ? ` (${delivery.last_status_code})` : ""}`, tone: "success" };
+  }
+  if (delivery.status === "pending") return { label: "Trying again", tone: "warning" };
+  return { label: "Not delivered", tone: "danger" };
+}
+
 export function NotificationTargetsPageView({
   currentUser,
   projectId,
   initialItems,
 }: NotificationTargetsPageViewProps) {
   const router = useRouter();
+  const toast = useToast();
   const [items, setItems] = useState(initialItems);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<ExternalNotificationTargetRecord | null>(null);
@@ -74,6 +94,7 @@ export function NotificationTargetsPageView({
   const [enabled, setEnabled] = useState(true);
   const [emailCfg, setEmailCfg] = useState(emptyEmailConfig);
   const [slackCfg, setSlackCfg] = useState(emptySlackConfig);
+  const [webhookUrl, setWebhookUrl] = useState("");
   const [selectedEvents, setSelectedEvents] = useState<Set<string>>(
     () => new Set([...EXTERNAL_NOTIFICATION_EVENT_TYPES]),
   );
@@ -81,6 +102,10 @@ export function NotificationTargetsPageView({
   const [formError, setFormError] = useState<string | null>(null);
   const [testingId, setTestingId] = useState<string | null>(null);
   const [testMessage, setTestMessage] = useState<string | null>(null);
+  // A webhook's signing secret, shown once after it is made or replaced.
+  const [freshSecret, setFreshSecret] = useState<{ name: string; secret: string } | null>(null);
+  const [deliveriesFor, setDeliveriesFor] = useState<ExternalNotificationTargetRecord | null>(null);
+  const [deliveries, setDeliveries] = useState<WebhookDelivery[] | null>(null);
 
   const openCreate = () => {
     setEditing(null);
@@ -89,6 +114,7 @@ export function NotificationTargetsPageView({
     setEnabled(true);
     setEmailCfg(emptyEmailConfig());
     setSlackCfg(emptySlackConfig());
+    setWebhookUrl("");
     setSelectedEvents(new Set([...EXTERNAL_NOTIFICATION_EVENT_TYPES]));
     setFormError(null);
     setModalOpen(true);
@@ -100,20 +126,21 @@ export function NotificationTargetsPageView({
     setTargetType(row.target_type);
     setEnabled(row.enabled);
     const cfg = row.config_json as Record<string, string>;
-    if (row.target_type === "email") {
-      setEmailCfg({
-        recipient_email: String(cfg.recipient_email ?? ""),
-        sender_email: String(cfg.sender_email ?? ""),
-        subject_prefix: String(cfg.subject_prefix ?? ""),
-      });
-      setSlackCfg(emptySlackConfig());
-    } else {
-      setSlackCfg({
-        webhook_url: "",
-        channel_label: String(cfg.channel_label ?? ""),
-      });
-      setEmailCfg(emptyEmailConfig());
-    }
+    setEmailCfg(
+      row.target_type === "email"
+        ? {
+            recipient_email: String(cfg.recipient_email ?? ""),
+            sender_email: String(cfg.sender_email ?? ""),
+            subject_prefix: String(cfg.subject_prefix ?? ""),
+          }
+        : emptyEmailConfig(),
+    );
+    setSlackCfg(
+      row.target_type === "slack_webhook"
+        ? { webhook_url: "", channel_label: String(cfg.channel_label ?? "") }
+        : emptySlackConfig(),
+    );
+    setWebhookUrl(row.target_type === "webhook" ? String(cfg.url ?? "") : "");
     setSelectedEvents(new Set(row.subscribed_event_types));
     setFormError(null);
     setModalOpen(true);
@@ -144,6 +171,9 @@ export function NotificationTargetsPageView({
       }
       return o;
     }
+    if (targetType === "webhook") {
+      return { url: webhookUrl.trim() };
+    }
     const o: Record<string, unknown> = { webhook_url: slackCfg.webhook_url.trim() };
     if (slackCfg.channel_label.trim()) {
       o.channel_label = slackCfg.channel_label.trim();
@@ -155,19 +185,18 @@ export function NotificationTargetsPageView({
     setFormError(null);
     const subs = [...selectedEvents];
     if (subs.length === 0) {
-      setFormError("Select at least one event type.");
+      setFormError("Choose at least one event.");
       return;
     }
     setSaving(true);
     try {
-           if (editing) {
+      if (editing) {
         const patch: ExternalNotificationTargetUpdatePayload = {
           name: name.trim(),
           enabled,
           subscribed_event_types: subs,
         };
-        const skipSlackUrl =
-          editing.target_type === "slack_webhook" && !slackCfg.webhook_url.trim();
+        const skipSlackUrl = editing.target_type === "slack_webhook" && !slackCfg.webhook_url.trim();
         if (!skipSlackUrl) {
           patch.config_json = buildConfigPayload();
         }
@@ -183,10 +212,13 @@ export function NotificationTargetsPageView({
           config_json: buildConfigPayload(),
           subscribed_event_types: subs,
         };
-        await apiFetch<ExternalNotificationTargetRecord>(`/projects/${projectId}/notification-targets`, {
+        const made = await apiFetch<ExternalNotificationTargetRecord>(`/projects/${projectId}/notification-targets`, {
           method: "POST",
           body: JSON.stringify(body),
         });
+        // In the list at once, not after the refresh, beside its secret.
+        setItems((current) => [{ ...made, signing_secret: null }, ...current.filter((item) => item.id !== made.id)]);
+        if (made.signing_secret) setFreshSecret({ name: made.name, secret: made.signing_secret });
       }
       setModalOpen(false);
       router.refresh();
@@ -205,11 +237,48 @@ export function NotificationTargetsPageView({
         `/projects/${projectId}/notification-targets/${id}/test`,
         { method: "POST" },
       );
-      setTestMessage(`${res.success ? "Success" : "Failed"}: ${res.message}`);
+      setTestMessage(`${res.success ? "Sent" : "Not sent"}: ${res.message}`);
     } catch (e) {
       setTestMessage(extractErrorMessage(e));
     } finally {
       setTestingId(null);
+    }
+  };
+
+  const newSecret = async (row: ExternalNotificationTargetRecord) => {
+    try {
+      const rotated = await apiFetch<ExternalNotificationTargetRecord>(
+        `/projects/${projectId}/notification-targets/${row.id}/rotate-secret`,
+        { method: "POST" },
+      );
+      if (rotated.signing_secret) setFreshSecret({ name: rotated.name, secret: rotated.signing_secret });
+      router.refresh();
+    } catch (e) {
+      toast.error("Could not make a new secret", extractErrorMessage(e));
+    }
+  };
+
+  const copySecret = async () => {
+    if (!freshSecret) return;
+    try {
+      await navigator.clipboard.writeText(freshSecret.secret);
+      toast.success("Copied", "Keep it with your other secrets. It will not be shown again.");
+    } catch {
+      toast.info("Copy it now", "It will not be shown again.");
+    }
+  };
+
+  const showDeliveries = async (row: ExternalNotificationTargetRecord) => {
+    setDeliveriesFor(row);
+    setDeliveries(null);
+    try {
+      const listed = await apiFetch<WebhookDeliveryListResponse>(
+        `/projects/${projectId}/notification-targets/${row.id}/deliveries?limit=25`,
+      );
+      setDeliveries(listed.items);
+    } catch (e) {
+      toast.error("Could not load the deliveries", extractErrorMessage(e));
+      setDeliveries([]);
     }
   };
 
@@ -222,7 +291,7 @@ export function NotificationTargetsPageView({
       <AppShell
         currentUser={currentUser}
         title="Alerts"
-        subtitle="Send failures and reports to email or Slack."
+        subtitle="Send failures and reports to email, Slack or your own systems."
         actions={
           <>
             <Button type="button" onClick={openCreate}>
@@ -231,6 +300,31 @@ export function NotificationTargetsPageView({
           </>
         }
       >
+        {freshSecret ? (
+          <div className="mb-4 rounded-xl border border-success-line bg-success-soft px-3.5 py-3">
+            <div className="text-[13px] font-medium text-success">
+              The signing secret for “{freshSecret.name}”. Copy it now; it will not be shown again.
+            </div>
+            <p className="mt-1 text-[13px] text-ink-2">
+              Your system uses it to check each event came from Pipewright.{" "}
+              <Link href="/help/api#webhooks" className="underline">
+                How to check a signature
+              </Link>
+            </p>
+            <div className="mt-2 flex items-center gap-2">
+              <code className="flex-1 overflow-x-auto whitespace-nowrap rounded-lg bg-surface px-2.5 py-1.5 font-mono text-[12px] text-ink">
+                {freshSecret.secret}
+              </code>
+              <Button variant="secondary" size="sm" onClick={() => void copySecret()}>
+                Copy
+              </Button>
+              <Button size="sm" onClick={() => setFreshSecret(null)}>
+                Done
+              </Button>
+            </div>
+          </div>
+        ) : null}
+
         {testMessage ? (
           <div className="mb-4 rounded-2xl border border-line bg-surface px-4 py-3 text-sm text-ink">
             {testMessage}
@@ -242,16 +336,19 @@ export function NotificationTargetsPageView({
           description="Each one receives the kinds of event you choose. If sending fails, the run itself is not affected."
         >
           {items.length === 0 ? (
-            <p className="text-sm text-ink-3">Nothing set up yet. Everything already appears in your notifications; add an email address or a Slack channel to get it there too.</p>
+            <p className="text-sm text-ink-3">
+              Nothing set up yet. Everything already appears in your notifications; add an email address, a Slack
+              channel or a webhook to get it there too.
+            </p>
           ) : (
             <Table minWidth={720}>
               <TableHead>
                 <TableRow>
                   <TableHeaderCell>Name</TableHeaderCell>
-                  <TableHeaderCell>Type</TableHeaderCell>
-                  <TableHeaderCell>Enabled</TableHeaderCell>
+                  <TableHeaderCell>Goes to</TableHeaderCell>
+                  <TableHeaderCell>On</TableHeaderCell>
                   <TableHeaderCell>Events</TableHeaderCell>
-                  <TableHeaderCell>Updated</TableHeaderCell>
+                  <TableHeaderCell>Changed</TableHeaderCell>
                   <TableHeaderCell>Actions</TableHeaderCell>
                 </TableRow>
               </TableHead>
@@ -275,12 +372,22 @@ export function NotificationTargetsPageView({
                           disabled={testingId === row.id}
                           onClick={() => void onTest(row.id)}
                         >
-                          {testingId === row.id ? "Testing…" : "Test"}
+                          {testingId === row.id ? "Sending…" : "Send a test"}
                         </Button>
+                        {row.target_type === "webhook" ? (
+                          <>
+                            <Button variant="secondary" size="sm" type="button" onClick={() => void showDeliveries(row)}>
+                              Deliveries
+                            </Button>
+                            <Button variant="ghost" size="sm" type="button" onClick={() => void newSecret(row)}>
+                              New secret
+                            </Button>
+                          </>
+                        ) : null}
                         <DeleteRowButton
                           path={`/projects/${projectId}/notification-targets/${row.id}`}
                           name={row.name}
-                          kind="notification target"
+                          kind="alert"
                           consequences={[
                             "Any scheduled report still delivering here must be pointed elsewhere first.",
                           ]}
@@ -300,8 +407,8 @@ export function NotificationTargetsPageView({
 
       <Modal
         open={modalOpen}
-        title={editing ? "Edit notification target" : "Create notification target"}
-        description="Sensitive fields are masked after save. For Slack, paste a full https webhook URL (stored server-side)."
+        title={editing ? "Change this alert" : "Add an alert"}
+        description="Choose where it goes and which events it hears about."
         onClose={() => setModalOpen(false)}
         footer={
           <div className="flex flex-wrap justify-end gap-2">
@@ -317,27 +424,28 @@ export function NotificationTargetsPageView({
         <div className="flex flex-col gap-4">
           {formError ? <p className="text-sm text-danger">{formError}</p> : null}
           <FormField label="Name" htmlFor="nt-name">
-            <Input id="nt-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Ops email" />
+            <Input id="nt-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="For example, Operations email" />
           </FormField>
-          <label className="flex flex-col gap-1 text-xs text-muted">
-            Target type
+          <FormField label="Send to" htmlFor="nt-type">
             <Select
+              id="nt-type"
               value={targetType}
               disabled={Boolean(editing)}
               onChange={(e) => setTargetType(e.target.value as ExternalNotificationTargetType)}
             >
               <option value="email">Email</option>
-              <option value="slack_webhook">Slack webhook</option>
+              <option value="slack_webhook">A Slack channel</option>
+              <option value="webhook">A webhook (signed JSON for your own systems)</option>
             </Select>
-          </label>
+          </FormField>
           <label className="flex items-center gap-2 text-sm text-ink-2">
             <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
-            Enabled
+            On
           </label>
 
           {targetType === "email" ? (
             <>
-              <FormField label="Recipient email" htmlFor="nt-recipient">
+              <FormField label="Send to this address" htmlFor="nt-recipient">
                 <Input
                   id="nt-recipient"
                   value={emailCfg.recipient_email}
@@ -345,9 +453,9 @@ export function NotificationTargetsPageView({
                 />
               </FormField>
               <FormField
-                label="Sender email (optional)"
+                label="Send from (optional)"
                 htmlFor="nt-sender"
-                description="Overrides EXTERNAL_NOTIFICATION_SMTP_FROM when set."
+                description="Leave empty to send from the platform's own address."
               >
                 <Input
                   id="nt-sender"
@@ -355,7 +463,7 @@ export function NotificationTargetsPageView({
                   onChange={(e) => setEmailCfg((c) => ({ ...c, sender_email: e.target.value }))}
                 />
               </FormField>
-              <FormField label="Subject prefix (optional)" htmlFor="nt-subject">
+              <FormField label="Start each subject with (optional)" htmlFor="nt-subject">
                 <Input
                   id="nt-subject"
                   value={emailCfg.subject_prefix}
@@ -364,15 +472,29 @@ export function NotificationTargetsPageView({
                 />
               </FormField>
             </>
+          ) : targetType === "webhook" ? (
+            <FormField
+              label="Address that receives the events"
+              htmlFor="nt-url"
+              description="Each event is sent as signed JSON. After you save, a secret to check signatures with is shown once."
+            >
+              <Input
+                id="nt-url"
+                autoComplete="off"
+                value={webhookUrl}
+                onChange={(e) => setWebhookUrl(e.target.value)}
+                placeholder="https://example.com/hooks/pipewright"
+              />
+            </FormField>
           ) : (
             <>
               <FormField
-                label="Webhook URL (https)"
+                label="Slack's webhook address"
                 htmlFor="nt-webhook"
                 description={
                   editing
-                    ? "Saved URL is redacted. Leave blank to keep the existing webhook; enter a full URL to replace it."
-                    : undefined
+                    ? "The saved address is hidden. Leave this empty to keep it, or paste a new one to replace it."
+                    : "Make one in Slack under Incoming webhooks; it starts with https://hooks.slack.com/."
                 }
               >
                 <Input
@@ -384,7 +506,7 @@ export function NotificationTargetsPageView({
                   placeholder="https://hooks.slack.com/services/…"
                 />
               </FormField>
-              <FormField label="Channel label (optional, display only)" htmlFor="nt-channel">
+              <FormField label="Channel name (optional, shown in each message)" htmlFor="nt-channel">
                 <Input
                   id="nt-channel"
                   value={slackCfg.channel_label}
@@ -394,8 +516,8 @@ export function NotificationTargetsPageView({
             </>
           )}
 
-          <div>
-            <div className="text-xs text-muted">Subscribed events</div>
+          <fieldset>
+            <legend className="text-xs text-muted">Send when</legend>
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
               {EXTERNAL_NOTIFICATION_EVENT_TYPES.map((ev) => (
                 <label key={ev} className="flex items-center gap-2 text-sm text-ink-2">
@@ -404,8 +526,50 @@ export function NotificationTargetsPageView({
                 </label>
               ))}
             </div>
-          </div>
+          </fieldset>
         </div>
+      </Modal>
+
+      <Modal
+        open={deliveriesFor !== null}
+        title={deliveriesFor ? `Deliveries to “${deliveriesFor.name}”` : "Deliveries"}
+        description="The latest events sent, newest first. One that fails is tried twice more, a minute and then five minutes later."
+        onClose={() => setDeliveriesFor(null)}
+        widthClassName="max-w-3xl"
+      >
+        {deliveries === null ? (
+          <p className="text-sm text-ink-3">Loading…</p>
+        ) : deliveries.length === 0 ? (
+          <p className="text-sm text-ink-3">Nothing sent yet. Use Send a test to try it.</p>
+        ) : (
+          <Table minWidth={600}>
+            <TableHead>
+              <TableRow>
+                <TableHeaderCell>When</TableHeaderCell>
+                <TableHeaderCell>Event</TableHeaderCell>
+                <TableHeaderCell>Result</TableHeaderCell>
+                <TableHeaderCell>Tries</TableHeaderCell>
+                <TableHeaderCell>Why</TableHeaderCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {deliveries.map((delivery) => {
+                const outcome = deliveryOutcome(delivery);
+                return (
+                  <TableRow key={delivery.id}>
+                    <TableCell className="text-xs text-muted">{formatDate(delivery.created_at)}</TableCell>
+                    <TableCell className="text-ink-2">{EVENT_LABELS[delivery.event_type] ?? delivery.event_type}</TableCell>
+                    <TableCell>
+                      <Badge tone={outcome.tone}>{outcome.label}</Badge>
+                    </TableCell>
+                    <TableCell className="text-ink-3">{delivery.attempts}</TableCell>
+                    <TableCell className="text-[13px] text-ink-3">{delivery.last_error ?? ""}</TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        )}
       </Modal>
     </>
   );

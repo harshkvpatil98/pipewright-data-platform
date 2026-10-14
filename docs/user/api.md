@@ -158,6 +158,36 @@ curl -s "$PIPEWRIGHT/api/v1/projects/$PROJECT/datasets/$DATASET/download?format=
 
 The project's row and column policies apply to the API exactly as they do in the app: a token sees what its owner may see.
 
+## Webhooks
+
+A webhook sends each event you choose to an address of yours, as it happens. Add one under **Overview → Alerts → Add an alert → A webhook**; its signing secret is shown once, after you save.
+
+Each event is a `POST` with a JSON body:
+
+```json
+{"id": "5f0c…", "type": "workflow_run_failed", "occurred_at": "2026-10-15T09:12:03+00:00",
+ "project": {"id": "…", "name": "Shop"}, "title": "Workflow failed",
+ "message": "Workflow “Nightly” failed: …", "level": "error"}
+```
+
+The `id` is the same on every try of one event, so you can ignore one you have already handled. The request carries `Pipewright-Signature: t=<seconds>,v1=<signature>`. Check it before you trust the event: the signature is HMAC-SHA256 of `t`, a full stop and the raw body, made with your secret. In Python:
+
+```python
+import hashlib
+import hmac
+import time
+
+
+def came_from_pipewright(secret: str, signature_header: str, body: bytes) -> bool:
+    parts = dict(item.split("=", 1) for item in signature_header.split(","))
+    timestamp = int(parts["t"])
+    expected = hmac.new(secret.encode(), f"{timestamp}.".encode() + body, hashlib.sha256).hexdigest()
+    recent = abs(time.time() - timestamp) <= 300  # refuse an old event replayed
+    return recent and hmac.compare_digest(expected, parts["v1"])
+```
+
+Answer with any `2xx` once you have the event. An answer of `5xx`, `408` or `429`, or none within five seconds, is tried twice more, a minute and then five minutes later; any other answer is taken as a refusal and not repeated. **Deliveries** on the alert shows every try and its result, and **New secret** replaces the secret at once.
+
 ## Good to know
 
 - **Finding ids.** `GET /api/v1/projects` lists projects, and `GET /api/v1/projects/$PROJECT/datasets` lists a project's datasets, each with its `id`. In the app, a page's **Technical details** shows the ids it is about.

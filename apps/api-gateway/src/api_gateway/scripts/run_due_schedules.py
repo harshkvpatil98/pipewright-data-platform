@@ -111,13 +111,22 @@ def _sweep_dataset_versions() -> None:
 
 
 def _sweep_rate_limits() -> None:
-    """Forget rate-limit windows that ended a day ago (A7, X5). Best effort."""
+    """Forget rate-limit windows that ended a day ago (A7, X5), and webhook
+    delivery records older than thirty days (A8). Best effort."""
+    from datetime import UTC, datetime, timedelta
+
+    from service_notifications.models import WebhookDelivery
     from shared_python.rate_limit import forget_old_windows
 
     db = SessionLocal()
     try:
         forget_old_windows(db)
+        db.query(WebhookDelivery).filter(
+            WebhookDelivery.created_at < datetime.now(UTC) - timedelta(days=30)
+        ).delete(synchronize_session=False)
+        db.commit()
     except Exception:  # noqa: BLE001 - a sweep failure must not stop the ticker
+        db.rollback()
         logger.exception("rate_limit_sweep_failed")
     finally:
         db.close()

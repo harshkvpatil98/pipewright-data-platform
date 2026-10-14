@@ -52,6 +52,17 @@ def _beat(interval: float, status: str = "running") -> None:
         db.close()
 
 
+def _retry_webhooks(db) -> None:
+    """Make the webhook tries that are due (A8, Y1). Best effort."""
+    from service_notifications.senders.webhook_sender import retry_due
+
+    try:
+        retry_due(db)
+    except Exception:  # noqa: BLE001 - a webhook problem must not stop the worker
+        db.rollback()
+        logger.exception("webhook_retry_failed")
+
+
 def tick_background(max_runs: int) -> int:
     """Do queued background runs (large uploads, deliveries, database copies; A7, X3).
 
@@ -66,6 +77,7 @@ def tick_background(max_runs: int) -> int:
     db = SessionLocal()
     try:
         background.release_stalled(db)
+        _retry_webhooks(db)
         done = 0
         while done < max_runs and not _stopping:
             run = background.run_next(

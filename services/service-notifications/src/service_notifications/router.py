@@ -27,12 +27,15 @@ from service_notifications.target_schemas import (
     ExternalNotificationTargetRead,
     ExternalNotificationTargetTestResponse,
     ExternalNotificationTargetUpdate,
+    WebhookDeliveryListResponse,
 )
 from service_notifications.targets_service import (
     create_target,
     delete_target,
     get_target,
     list_targets,
+    list_webhook_deliveries,
+    rotate_webhook_secret,
     send_notification_target_test,
     update_target,
 )
@@ -182,6 +185,35 @@ def build_router(get_db: Callable[..., Session], get_current_user: Callable[...,
     ) -> ExternalNotificationTargetTestResponse:
         return send_notification_target_test(
             db, project_id=project_id, target_id=target_id, current_user=current_user
+        )
+
+    @router.post(
+        "/projects/{project_id}/notification-targets/{target_id}/rotate-secret",
+        response_model=ExternalNotificationTargetRead,
+    )
+    def post_rotate_webhook_secret(
+        project_id: uuid.UUID,
+        target_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> ExternalNotificationTargetRead:
+        """A webhook's new signing secret, shown in this answer only."""
+        return rotate_webhook_secret(db, project_id=project_id, target_id=target_id, current_user=current_user)
+
+    @router.get(
+        "/projects/{project_id}/notification-targets/{target_id}/deliveries",
+        response_model=WebhookDeliveryListResponse,
+    )
+    def get_webhook_deliveries(
+        project_id: uuid.UUID,
+        target_id: uuid.UUID,
+        limit: int = Query(default=25, ge=1, le=100),
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> WebhookDeliveryListResponse:
+        """The latest events sent to a webhook and how each went."""
+        return list_webhook_deliveries(
+            db, project_id=project_id, target_id=target_id, current_user=current_user, limit=limit
         )
 
     return router

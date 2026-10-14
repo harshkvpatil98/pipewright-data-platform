@@ -1612,6 +1612,59 @@ externalised, English only shipped).
 
 **Exit gate.** A partner can integrate without reading the source.
 
+### A8 specification (written 2026-10-15)
+
+**Measured before starting.**
+
+| | Now |
+|---|---|
+| Outbound events | Email and Slack targets only; Slack gets `{"text": ...}`, unsigned, one try, failures only in the log, and the Slack sender skips the outbound address guard |
+| Moving work between projects | Promotion copies one workflow; nothing exports a project's recipes, checks, schedules, dashboards and metrics together |
+| Scripting | API tokens exist; no client package and no command line for people (the six console scripts are for operators) |
+| Embedding | Public share links only; every page is sent `X-Frame-Options: SAMEORIGIN`, the API `DENY`, so nothing can be framed; links never expire |
+| Alerts on numbers | Row counts and column measures are captured after each run; anomaly scans run only when someone opens them; no thresholds |
+| What happened in a project | The audit log, runs and incidents on separate pages; nothing in one stream |
+| Languages | Every string inline in English; dates and numbers formatted as `en`/`en-US` in a dozen places |
+| Left from A7 | Live OIDC (now Keycloak in CI), 100MB uploads (now 200MB, read in half the memory), checks and charts parsing whole files (now a columnar copy), 15-minute stall detection (now three minutes) |
+
+**Y1. Signed webhooks.** A "Webhook" alert target posts JSON for the events
+it subscribes to, signed with HMAC-SHA256 over the timestamp and body
+(`Pipewright-Signature: t=…,v1=…`), through the outbound guard, tried up to
+three times with a growing wait, every attempt recorded and shown on the
+target. The guide shows how to verify a signature.
+
+**Y2. Project bundles.** Export a project's recipes, checks, schedules,
+workflows, metrics, charts and dashboards as one versioned JSON file; import
+it into any project with a preview first that names what will be made and
+which references (datasets, connections, destinations) it will match by name
+or leave for the person to choose.
+
+**Y3. Client and command line.** A Python client generated from the
+OpenAPI document (a test fails when it is out of date) and a `pipewright`
+command line on it: sign in with a token, list projects and datasets, upload
+and download, run a recipe or workflow and wait for it.
+
+**Y4. Embeds.** A dashboard can be embedded with a signed link that expires
+and can be revoked, served by a frameless page that only the origins an
+administrator lists (`EMBED_ALLOWED_ORIGINS`) may frame.
+
+**Y5. Metric alerts.** On a dataset's measures (rows, completeness, a
+column's nulls or mean): alert when above or below a value, or when it moves
+more than a share from the last run; checked after every capture; the alert
+reaches the project's alert targets.
+
+**Y6. Activity.** One stream per project, newest first: changes (the audit
+sentences), runs finished and failed, incidents, comments and alerts, with
+who and when, filterable by kind.
+
+**Y7. Languages, ready.** Messages for the shell and navigation live in a
+catalogue (`messages/en`), read through one function; dates and numbers are
+formatted in one place by locale; the language lint reads the catalogue.
+English is the one language shipped.
+
+**Y8. Defects.** Walk every page; rehearse each new capability as a partner
+would; nothing found is left open.
+
 ---
 
 ## A9 — Launch gate

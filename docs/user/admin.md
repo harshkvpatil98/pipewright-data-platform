@@ -95,7 +95,7 @@ Set these in the gateway's environment. Changes take effect when the gateway res
 | `MAX_UPLOAD_SIZE_BYTES` | The largest file people can upload (100MB by default). Files over 25MB are read by the background worker, which needs about twenty times the file's size in memory. |
 | `STORAGE_BACKEND` | Where stored files live: `local` (the server's disk, the default) or `s3` (a bucket, so several servers share them), with `STORAGE_S3_BUCKET`, `_PREFIX`, `_ENDPOINT_URL`, `_REGION`, `_ACCESS_KEY_ID` and `_SECRET_ACCESS_KEY`. |
 | `WORKFLOW_MAX_RUNS_PER_PROJECT` | How many workflow runs one project may have going at once (3); more wait their turn. |
-| `WORKFLOW_LEASE_SECONDS` | How long a run whose background worker stopped waits before it is marked failed and can be picked up (900, 15 minutes). |
+| `WORKFLOW_LEASE_SECONDS` | How long a run whose background worker stopped waits before it is marked failed and can be picked up (180, three minutes). A working worker renews it, however long the run. |
 | `RATE_LIMITS_ENABLED` | Set to `false` only for a load test; sign-in and public addresses are limited otherwise. |
 | `OTEL_ENABLED`, `OTEL_EXPORTER_OTLP_ENDPOINT` | Send traces of each request and its database statements to an OpenTelemetry collector. Off by default. |
 

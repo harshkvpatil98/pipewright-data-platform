@@ -139,7 +139,7 @@ class Settings(BaseSettings):
     workflow_max_runs_per_project: int = Field(default=3, ge=1, le=100)
     # How long a workflow run whose worker stopped stays "running" before it is
     # failed and can be picked up. A live worker renews it as it goes (A7).
-    workflow_lease_seconds: int = Field(default=900, ge=60, le=86400)
+    workflow_lease_seconds: int = Field(default=180, ge=60, le=86400)
 
     @field_validator("backend_cors_origins", mode="before")
     @classmethod

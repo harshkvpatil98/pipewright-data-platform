@@ -79,7 +79,7 @@ def _keep_the_lease(db: Session, run: WorkflowRun, settings: Any, waiting: int) 
     """A retry's wait is part of the run: extend the worker's lease over it."""
     if run.claim_expires_at is None:
         return
-    lease = int(getattr(settings, "workflow_lease_seconds", None) or 900)
+    lease = int(getattr(settings, "workflow_lease_seconds", None) or 180)
     run.claim_expires_at = datetime.now(UTC) + timedelta(seconds=waiting + lease)
     db.commit()
 

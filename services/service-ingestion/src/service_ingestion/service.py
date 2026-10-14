@@ -298,6 +298,10 @@ def _read_upload(
                 logs_json=_build_log_events(log_events),
             )
         mark_dataset_ingestion_running(db, dataset=dataset)
+        if already_stored:
+            # On the worker, nothing may hold the run's row while the file is
+            # read: the lease keeper renews it from another connection (A7).
+            db.commit()
 
         current_stage = 'upload'
         if already_stored:

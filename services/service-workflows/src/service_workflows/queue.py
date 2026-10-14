@@ -20,7 +20,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from service_workflows.cron import advance_after_fire, due_workflows
@@ -32,7 +32,9 @@ from shared_python.logging import get_logger
 
 logger = get_logger(__name__)
 
-DEFAULT_LEASE_SECONDS = 900
+# A working worker renews the lease every quarter of this (shared_python.lease),
+# so it bounds only how long a run whose worker stopped stays "running" (A7).
+DEFAULT_LEASE_SECONDS = 180
 
 
 def worker_identity(settings: Any | None = None) -> str:
@@ -251,14 +253,31 @@ def release_stalled_runs(db: Session, *, settings: Any | None = None) -> int:
             )
         ).all()
     )
+    released = 0
     for run in stalled:
-        logger.warning(
-            "workflow_run_stalled run_id=%s owner=%s", run.id, run.claim_owner_id
-        )
+        # Claimed with a condition the database checks as it writes, so a run
+        # whose worker renewed the lease or finished since the read is left
+        # alone rather than overwritten.
+        changed = db.execute(
+            update(WorkflowRun)
+            .where(
+                WorkflowRun.id == run.id,
+                WorkflowRun.status == "running",
+                WorkflowRun.claim_expires_at <= now,
+            )
+            .values(claim_owner_id=None, claim_expires_at=None)
+            .execution_options(synchronize_session=False)
+        ).rowcount
+        db.commit()
+        if not changed:
+            continue
+        db.refresh(run)
+        logger.warning("workflow_run_stalled run_id=%s", run.id)
         # Finished like any failed run, so it is not a silent failure: the
         # workflow shows it and whoever gets failure alerts hears of it.
         _finish(db, run, status="failed", error=STALLED)
-    return len(stalled)
+        released += 1
+    return released
 
 
 def enqueue_due_workflows(db: Session, *, now: datetime | None = None) -> list[WorkflowRun]:

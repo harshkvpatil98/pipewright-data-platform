@@ -163,6 +163,39 @@ def test_a_stalled_run_tells_the_person_who_started_it(db: Session, workflow: Wo
     assert "Pick up from where it failed" in notes[0].message
 
 
+def test_a_lease_renewed_between_the_sweeps_read_and_write_is_left_alone(
+    db: Session, workflow: Workflow, monkeypatch
+) -> None:
+    """The sweep writes only where the run is still running and still
+    expired, so a worker that renews in the gap keeps its run (A7)."""
+    from sqlalchemy import update
+
+    enqueue_workflow_run(db, workflow=workflow, triggered_by_user_id=None)
+    claimed = claim_next_run(db)
+    claimed.claim_expires_at = datetime.now(UTC) - timedelta(minutes=1)
+    db.commit()
+    run_id = claimed.id
+
+    read = db.scalars
+
+    def read_then_renew(statement, *args, **kwargs):
+        rows = read(statement, *args, **kwargs).all()
+        db.execute(update(WorkflowRun).where(WorkflowRun.id == run_id)
+                   .values(claim_expires_at=datetime.now(UTC) + timedelta(minutes=3)))
+        db.commit()
+        return iter_result(rows)
+
+    class iter_result(list):
+        def all(self):
+            return list(self)
+
+    monkeypatch.setattr(db, "scalars", read_then_renew)
+    assert release_stalled_runs(db) == 0
+    monkeypatch.undo()
+    db.expire_all()
+    assert db.get(WorkflowRun, run_id).status == "running"
+
+
 def test_a_live_lease_is_left_alone(db: Session, workflow: Workflow) -> None:
     enqueue_workflow_run(db, workflow=workflow, triggered_by_user_id=None)
     claimed = claim_next_run(db)

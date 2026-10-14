@@ -19,7 +19,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from service_pipeline_runs.models import PipelineRun
@@ -29,9 +29,10 @@ from shared_python.logging import get_logger
 
 logger = get_logger(__name__)
 
-#: How long a worker holds a run before another may treat it as stalled.
-#: Progress renews it, so only a worker that stopped loses it.
-LEASE_SECONDS = 600
+#: How long a worker holds a run before another may treat it as stalled. A
+#: working worker renews it every quarter of this (`shared_python.lease`), so
+#: only a worker that stopped loses it, and its run is failed within minutes.
+LEASE_SECONDS = 180
 
 Handler = Callable[[Session, PipelineRun, Any, Any], None]
 #: What else to mark when a run fails outside its handler's own care (an
@@ -184,17 +185,29 @@ def release_stalled(db: Session, *, now: datetime | None = None) -> int:
             PipelineRun.claim_expires_at <= moment,
         )
     ).all()
+    released = []
     for run in stalled:
-        events = list((run.logs_json or {}).get("events", []))
-        events.append(event("failed", STALLED))
-        run.status = "failed"
-        run.completed_at = moment
-        run.logs_json = {**(run.logs_json or {}), "events": events}
-        run.summary_json = {**(run.summary_json or {}), "error": STALLED}
-        run.claim_owner_id = None
-        run.claim_expires_at = None
-    if stalled:
-        db.commit()
-    for run in stalled:
+        events = [*list((run.logs_json or {}).get("events", [])), event("failed", STALLED)]
+        # Claimed with a condition the database checks as it writes: a run
+        # whose worker renewed or finished it since the read is left alone.
+        changed = db.execute(
+            update(PipelineRun)
+            .where(
+                PipelineRun.id == run.id,
+                PipelineRun.status == "running",
+                PipelineRun.claim_expires_at <= moment,
+            )
+            .values(
+                status="failed", completed_at=moment, claim_owner_id=None, claim_expires_at=None,
+                logs_json={**(run.logs_json or {}), "events": events},
+                summary_json={**(run.summary_json or {}), "error": STALLED},
+            )
+            .execution_options(synchronize_session=False)
+        ).rowcount
+        if changed:
+            released.append(run)
+    db.commit()
+    for run in released:
+        db.refresh(run)
         _after_failure(db, run, STALLED)
-    return len(stalled)
+    return len(released)

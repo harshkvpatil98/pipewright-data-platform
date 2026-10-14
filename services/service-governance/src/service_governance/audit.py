@@ -227,7 +227,9 @@ class AuditMiddleware(BaseHTTPMiddleware):
                     resource_id=resource_id,
                     status_code=response.status_code,
                     outcome=outcome_for(response.status_code),
-                    correlation_id=response.headers.get("x-correlation-id"),
+                    # The header CorrelationIdMiddleware sets; this read a
+                    # header nothing set, so no entry had its id (found in A7).
+                    correlation_id=response.headers.get("x-request-id"),
                     duration_ms=duration_ms,
                 )
             )

@@ -17,6 +17,21 @@ def get_correlation_id() -> str:
     return _correlation_id.get()
 
 
+def _tag_trace(correlation_id: str) -> None:
+    """Put the correlation id on the request's trace span, when tracing is on (A7).
+
+    The logs already carry the id; with it on the span too, a slow trace leads
+    to its log lines and a log line to its trace.
+    """
+    try:
+        from opentelemetry import trace
+    except ImportError:
+        return
+    span = trace.get_current_span()
+    if span.is_recording():
+        span.set_attribute("pipewright.correlation_id", correlation_id)
+
+
 class CorrelationIdMiddleware(BaseHTTPMiddleware):
     def __init__(self, app, logger: logging.Logger, header_name: str = "X-Request-ID"):
         super().__init__(app)
@@ -26,6 +41,7 @@ class CorrelationIdMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         correlation_id = request.headers.get(self.header_name) or str(uuid.uuid4())
         token = _correlation_id.set(correlation_id)
+        _tag_trace(correlation_id)
         started_at = time.perf_counter()
 
         try:

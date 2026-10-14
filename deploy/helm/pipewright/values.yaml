@@ -24,6 +24,10 @@ config:
   # Where the browser reaches the API and where the web reaches it internally.
   NEXT_PUBLIC_API_BASE_URL: ""
   API_INTERNAL_BASE_URL: ""
+  # Traces over OTLP/HTTP: set OTEL_ENABLED to "true" and point
+  # OTEL_EXPORTER_OTLP_ENDPOINT at a collector, e.g. "http://otel-collector:4318".
+  # OTEL_ENABLED: "true"
+  # OTEL_EXPORTER_OTLP_ENDPOINT: ""
 
 # Secret values. In production, prefer an existing Secret (existingSecret) that
 # your secret manager syncs, so nothing sensitive lives in values or git.

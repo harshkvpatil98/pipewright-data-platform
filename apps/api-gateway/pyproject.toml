@@ -31,7 +31,12 @@ dependencies = [
   "service-transformations>=0.1.0",
   "shared-python>=0.1.0",
   "sqlalchemy>=2.0,<3.0",
-  "uvicorn[standard]>=0.34,<1.0"
+  "uvicorn[standard]>=0.34,<1.0",
+  # Traces, used only when OTEL_ENABLED is set (A7).
+  "opentelemetry-sdk>=1.30,<2.0",
+  "opentelemetry-exporter-otlp-proto-http>=1.30,<2.0",
+  "opentelemetry-instrumentation-fastapi>=0.51b0",
+  "opentelemetry-instrumentation-sqlalchemy>=0.51b0"
 ]
 
 [project.optional-dependencies]

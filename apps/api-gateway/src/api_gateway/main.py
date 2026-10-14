@@ -9,6 +9,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from api_gateway.config import settings
 from api_gateway.dependencies import SessionLocal, engine, get_db, get_storage_backend
 from api_gateway.router import build_api_router
+from api_gateway.tracing import install_tracing
 from service_enterprise import build_metrics_router
 from service_governance import AuditMiddleware
 from service_schedules.internal_router import build_internal_router
@@ -105,6 +106,7 @@ def create_application() -> FastAPI:
     # outside the authenticated API. It exposes counts, never rows.
     application.include_router(build_metrics_router(get_db))
     application.include_router(build_api_router(settings), prefix=settings.api_v1_prefix)
+    install_tracing(application, engine, settings)
     return application
 
 

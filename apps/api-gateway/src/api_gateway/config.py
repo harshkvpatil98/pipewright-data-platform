@@ -67,6 +67,10 @@ class Settings(BaseSettings):
     #: address is read from X-Forwarded-For that many hops back; at zero it is
     #: the connecting address and the header is ignored (anyone can forge it).
     trusted_proxy_hops: int = 0
+    # OpenTelemetry traces of each request and its database statements, sent
+    # over OTLP to OTEL_EXPORTER_OTLP_ENDPOINT (A7). Off by default.
+    otel_enabled: bool = False
+    otel_service_name: str = "pipewright-gateway"
     # Shown under Help, Contact support: an email address or a web address.
     support_contact: str | None = None
     # "local": files on this machine's disk (upload_root_path). "s3": an

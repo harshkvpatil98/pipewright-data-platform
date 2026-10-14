@@ -169,7 +169,7 @@ def build_router(
     # ---- security policies ----
 
     @router.get("/projects/{project_id}/security-policies", response_model=PolicyListResponse)
-    def read_policies(
+    def list_security_policies(
         project_id: uuid.UUID,
         dataset_id: uuid.UUID | None = Query(default=None),
         db: Session = Depends(get_db),
@@ -206,7 +206,7 @@ def build_router(
         "/projects/{project_id}/security-policies/{policy_id}",
         status_code=status.HTTP_204_NO_CONTENT,
     )
-    def remove_policy(
+    def remove_security_policy(
         project_id: uuid.UUID,
         policy_id: uuid.UUID,
         db: Session = Depends(get_db),
@@ -219,7 +219,7 @@ def build_router(
         "/projects/{project_id}/datasets/{dataset_id}/security-preview",
         response_model=PolicyPreviewResponse,
     )
-    def preview(
+    def preview_security_policies(
         project_id: uuid.UUID,
         dataset_id: uuid.UUID,
         role: str = Query(default="viewer", pattern="^(viewer|operator|editor|admin)$"),

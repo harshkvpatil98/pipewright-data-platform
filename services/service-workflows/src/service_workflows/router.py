@@ -121,7 +121,7 @@ def build_router(
         response_model=WorkflowRunRead,
         status_code=status.HTTP_202_ACCEPTED,
     )
-    def post_run(
+    def post_workflow_run(
         project_id: uuid.UUID,
         workflow_id: uuid.UUID,
         payload: WorkflowRunRequest | None = None,

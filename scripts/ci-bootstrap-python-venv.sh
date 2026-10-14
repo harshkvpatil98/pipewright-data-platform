@@ -38,3 +38,4 @@ pip install -e services/service-workflows
 pip install -e services/service-lineage
 pip install -e services/service-intelligence
 pip install -e 'apps/api-gateway[dev]'
+pip install -e clients/python

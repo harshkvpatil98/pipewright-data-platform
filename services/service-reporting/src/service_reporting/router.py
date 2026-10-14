@@ -290,7 +290,7 @@ def build_router(
     # ---- metrics (the semantic layer) ----
 
     @router.get("/projects/{project_id}/metrics", response_model=MetricListResponse)
-    def read_metrics(
+    def list_project_metrics(
         project_id: uuid.UUID,
         db: Session = Depends(get_db),
         current_user: UserRead = Depends(get_current_user),

@@ -59,6 +59,7 @@ pip install -e services/service-workflows
 pip install -e services/service-lineage
 pip install -e services/service-intelligence
 pip install -e 'apps/api-gateway[dev]'
+pip install -e clients/python
 
 # APP_SECRET_ENCRYPTION_KEY ships empty in .env.example; saved destination / BI /
 # webhook secrets are encrypted with it, so generate one on first setup.

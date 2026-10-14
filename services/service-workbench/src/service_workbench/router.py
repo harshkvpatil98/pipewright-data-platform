@@ -170,7 +170,7 @@ def build_router(
     # ------------------------------------------------------------- analysing
 
     @router.post(f"{base}/preview", response_model=ScriptPlanResponse)
-    def post_preview(
+    def post_workbench_preview(
         project_id: uuid.UUID,
         payload: ScriptPlanRequest,
         db: Session = Depends(get_db),

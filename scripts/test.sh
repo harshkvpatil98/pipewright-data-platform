@@ -17,6 +17,7 @@ source .venv/bin/activate
 pytest --import-mode=importlib \
   apps/api-gateway/tests \
   packages/shared-python/tests \
+  clients/python/tests \
   services/service-auth/tests \
   services/service-access/tests \
   services/service-enterprise/tests \

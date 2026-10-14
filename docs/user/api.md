@@ -199,6 +199,18 @@ def came_from_pipewright(secret: str, signature_header: str, body: bytes) -> boo
 
 Answer with any `2xx` once you have the event. An answer of `5xx`, `408` or `429`, or none within five seconds, is tried twice more, a minute and then five minutes later; any other answer is taken as a refusal and not repeated. **Deliveries** on the alert shows every try and its result, and **New secret** replaces the secret at once.
 
+## The Python client and command line
+
+The repository's `clients/python` is a Python package with every API operation as a method and a `pipewright` command for the jobs people do most: list projects and datasets, upload and download, run a recipe or a workflow and wait for it, move a bundle, or call any operation.
+
+```text
+pip install -e clients/python
+pipewright login https://pipewright.example.com --token pw_...
+pipewright run workflow "Regional sales" Nightly --wait
+```
+
+Its README lists every command; in Python, `from pipewright import Client`. The methods are generated from this API's own reference, so they cannot fall behind it.
+
 ## Good to know
 
 - **Finding ids.** `GET /api/v1/projects` lists projects, and `GET /api/v1/projects/$PROJECT/datasets` lists a project's datasets, each with its `id`. In the app, a page's **Technical details** shows the ids it is about.

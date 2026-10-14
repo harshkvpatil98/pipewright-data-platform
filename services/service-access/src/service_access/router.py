@@ -49,7 +49,7 @@ def build_router(
         response_model=MemberRead,
         status_code=status.HTTP_201_CREATED,
     )
-    def add_member(
+    def add_project_member(
         project_id: uuid.UUID,
         payload: MemberInvite,
         db: Session = Depends(get_db),

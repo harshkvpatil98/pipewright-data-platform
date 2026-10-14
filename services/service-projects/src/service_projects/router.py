@@ -57,7 +57,7 @@ def build_router(get_db: Callable[..., Session], get_current_user: Callable[...,
     ) -> ProjectDetail:
         return update_project(db, project_id, payload, current_user)
 
-    @router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
+    @router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT, name="delete_project")
     def remove_project(
         project_id: uuid.UUID,
         db: Session = Depends(get_db),

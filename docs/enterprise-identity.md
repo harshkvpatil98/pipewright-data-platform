@@ -52,9 +52,25 @@ where the web serves `/` and proxies `/api` to the gateway satisfies this.
 
 **Verification status.** The pure logic (PKCE, state, ID-token verification,
 claim mapping) and the provisioning are unit-tested, including the RS256
-signature path against a matching JWKS. The **network legs have not been run
-against a live Okta/Entra/Auth0 tenant** in this environment — point it at a
-real provider to confirm the wire protocol before relying on it.
+signature path against a matching JWKS. The whole flow runs against a live
+provider on every change: CI starts Keycloak 26, `scripts/sso-test-provider.py`
+makes a realm, a confidential client with PKCE, a `groups` claim and a person,
+and `apps/web/e2e/sso.spec.ts` signs in through the web app and the
+provider's own form. Okta, Entra ID and Auth0 have not been run here (no
+tenant); `scripts/check-oidc.py` checks the one a deployment configures.
+
+**Trying it locally.** Start Keycloak and set it up:
+
+```
+docker run -d --name pw-keycloak -p 18080:8080 \
+  -e KC_BOOTSTRAP_ADMIN_USERNAME=admin -e KC_BOOTSTRAP_ADMIN_PASSWORD=keycloak-admin \
+  quay.io/keycloak/keycloak:26.0 start-dev
+.venv/bin/python scripts/sso-test-provider.py \
+  --redirect http://localhost:8000/api/v1/auth/sso/callback --web http://localhost:3000
+```
+
+It prints the `OIDC_*` settings to start the gateway with, and a person to
+sign in as.
 
 ## SAML
 

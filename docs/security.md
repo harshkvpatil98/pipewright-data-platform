@@ -33,15 +33,17 @@ in the product under **Help → Security** ([docs/user/security.md](user/securit
 - **SAML is not offered.** It needs XML signature verification, and a SAML
   implementation that skips it is an authentication bypass.
 
-**Not proven yet: OIDC against a live provider.** The flow is tested with the
-provider imitated, including real RS256 signatures against a matching key set.
-It has not been run against a live Okta or Entra ID account for this version,
-because this environment has none. `scripts/check-oidc.py` does that against
-whatever provider the deployment configures: it checks the settings, the
-discovery document, the signing keys and the client credentials, and with
-`--sign-in` completes a real sign-in without writing to the database. The
-script itself is tested against a provider served locally
-(`apps/api-gateway/tests/test_check_oidc.py`). Run it before relying on SSO.
+**Tested against a live provider.** Every change runs a real sign-in in CI
+against Keycloak 26, a full OpenID Connect provider in a container
+(`scripts/sso-test-provider.py` sets it up; `apps/web/e2e/sso.spec.ts` signs
+in): "Continue with SSO", the provider's own form, the code exchanged with
+PKCE, the ID token verified against the provider's published keys, and the
+account made from its claims with the role its group maps to. The flow is
+also unit-tested with the provider imitated, including RS256 signatures.
+Okta and Entra ID speak the same protocol but have not been run here (no
+tenant); `scripts/check-oidc.py` checks whichever provider a deployment
+configures (settings, discovery, signing keys, client credentials, and with
+`--sign-in` a real sign-in that writes nothing). Run it before relying on SSO.
 
 ## Sessions
 
@@ -150,7 +152,7 @@ script itself is tested against a provider served locally
 
 ## Not done yet
 
-- OIDC against a live provider (above).
+- OIDC against Okta or Entra ID specifically (above; Keycloak is tested).
 - A content security policy (left to the proxy, above).
 
 ## Reporting a vulnerability

@@ -204,8 +204,18 @@ jobs:
       API_INTERNAL_BASE_URL: http://127.0.0.1:8000/api/v1
       # 127.0.0.1 throughout: "localhost" can resolve to IPv6 first.
       E2E_BASE_URL: http://127.0.0.1:3000
+      E2E_API_URL: http://127.0.0.1:8000/api/v1
       E2E_USERNAME: browser-runner
       E2E_PASSWORD: browser-runner-password
+      # Single sign-on against a live provider: Keycloak, started below.
+      OIDC_ISSUER: http://127.0.0.1:18080/realms/pipewright
+      OIDC_CLIENT_ID: pipewright
+      OIDC_CLIENT_SECRET: kc-test-client-secret
+      OIDC_REDIRECT_URI: http://127.0.0.1:8000/api/v1/auth/sso/callback
+      OIDC_GROUP_ROLE_MAP: '{"data-editors": "admin"}'
+      WEB_BASE_URL: http://127.0.0.1:3000
+      E2E_SSO_USERNAME: sso-ann
+      E2E_SSO_PASSWORD: ann-sso-password
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -222,6 +232,18 @@ jobs:
         run: npm ci
       - name: Bootstrap Python venv
         run: bash ./scripts/ci-bootstrap-python-venv.sh
+      - name: Start a Keycloak identity provider
+        run: |
+          docker run -d --name keycloak -p 18080:8080 \
+            -e KC_BOOTSTRAP_ADMIN_USERNAME=admin -e KC_BOOTSTRAP_ADMIN_PASSWORD=keycloak-admin \
+            quay.io/keycloak/keycloak:26.0 start-dev
+          for attempt in $(seq 1 90); do
+            curl -sf http://127.0.0.1:18080/realms/master/.well-known/openid-configuration > /dev/null && break
+            sleep 2
+          done
+          .venv/bin/python scripts/sso-test-provider.py \
+            --redirect "$OIDC_REDIRECT_URI" --web "$E2E_BASE_URL"
+          .venv/bin/python scripts/check-oidc.py
       - name: Migrate, add the test account, start the gateway
         working-directory: apps/api-gateway
         run: |
@@ -243,7 +265,7 @@ jobs:
       - name: Install the browser
         working-directory: apps/web
         run: npx playwright install --with-deps chromium
-      - name: Golden path and accessibility
+      - name: Golden path, accessibility and single sign-on
         working-directory: apps/web
         run: npx playwright test
       - name: Logs and report on failure

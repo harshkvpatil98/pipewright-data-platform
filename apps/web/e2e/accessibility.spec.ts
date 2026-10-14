@@ -18,6 +18,8 @@ async function audit(page: Page, name: string): Promise<void> {
     // The framework's dev-only overlay is not part of the product.
     .exclude("nextjs-portal")
     .analyze();
+  // One heading names each page; editors give theirs to screen readers only.
+  expect.soft(await page.locator("h1").count(), `${name}: one h1`).toBe(1);
   const blocking = results.violations.filter((item) => item.impact === "serious" || item.impact === "critical");
   for (const item of results.violations) {
     console.log(`${name}: ${item.impact} ${item.id} (${item.nodes.length}) ${item.help}`);
@@ -57,6 +59,9 @@ test("each page template, signed in", async ({ page }) => {
     ["project overview", ""],
     ["datasets", "/datasets"],
     ["studio", "/studio"],
+    ["sql", "/workbench"],
+    ["notebooks", "/notebooks"],
+    ["table editor", "/table-editor"],
     ["checks", "/checks"],
     ["dashboards", "/dashboards"],
     ["schedules", "/schedules"],

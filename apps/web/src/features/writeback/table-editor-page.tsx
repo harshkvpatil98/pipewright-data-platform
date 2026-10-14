@@ -469,6 +469,7 @@ export function TableEditorPage({
   return (
     <AppFrame
       currentUser={currentUser}
+      heading="Table editor"
       ribbon={ribbon}
       statusItems={[
         { id: "table", label: "Table", value: shape?.table ?? "none" },

@@ -47,6 +47,11 @@ type AppFrameProps = {
   commands?: Command[];
   /** Suppress the first-run tour on pages where it would be confusing. */
   disableWelcomeTour?: boolean;
+  /**
+   * The page's heading for screen readers, on editors whose name sits in a
+   * toolbar rather than a page header, so every page has one `h1`.
+   */
+  heading?: string;
   children: React.ReactNode;
 };
 
@@ -60,6 +65,7 @@ export function AppFrame({
   inspector,
   commands = [],
   disableWelcomeTour = false,
+  heading,
   children,
 }: AppFrameProps) {
   const pathname = usePathname();
@@ -303,6 +309,7 @@ export function AppFrame({
           ) : null}
           <div className="flex min-h-0 flex-1">
             <main className="flex min-w-0 flex-1 flex-col">
+              {heading ? <h1 className="sr-only">{heading}</h1> : null}
               {ribbon.length > 0 ? <Ribbon groups={ribbon} /> : null}
               <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
             </main>

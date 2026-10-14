@@ -37,8 +37,11 @@ export function AreaTabs({ area, activeTabId, projectId, isAdmin }: AreaTabsProp
           {tabs.map((tab) => {
             const href = tabHref(area, tab, projectId);
             const isActive = tab.id === activeTabId;
+            // Below 1280px wide the icons go and the padding tightens, so an
+            // area's every tab still shows on a small laptop (A7: Trust's
+            // seven tabs were cut off at 1024px).
             const className = cx(
-              "relative flex h-full shrink-0 items-center gap-2 px-3 text-[13.5px] transition",
+              "relative flex h-full shrink-0 items-center gap-2 px-2.5 text-[13.5px] transition xl:px-3",
               isActive ? "font-medium text-ink" : "text-ink-3 hover:text-ink",
             );
             const body = (
@@ -46,7 +49,7 @@ export function AreaTabs({ area, activeTabId, projectId, isAdmin }: AreaTabsProp
                 <Icon
                   name={tab.icon}
                   size={15}
-                  className={isActive ? "text-[color:var(--accent-muted)]" : ""}
+                  className={cx("hidden xl:block", isActive && "text-[color:var(--accent-muted)]")}
                 />
                 {tab.label}
                 {isActive ? (

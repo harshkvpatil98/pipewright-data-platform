@@ -446,7 +446,7 @@ export function StudioPage({ currentUser, projectId, datasets, initialDatasetId,
   const status = saved ? (dirty ? "Unsaved changes" : "Saved") : steps.length > 0 ? "Not saved yet" : "New recipe";
 
   return (
-    <AppFrame currentUser={currentUser} commands={toolCommands} disableWelcomeTour>
+    <AppFrame currentUser={currentUser} commands={toolCommands} heading="Studio" disableWelcomeTour>
       <div className="flex h-full min-h-0 flex-col">
         {/* ---------------------------------------------------------- header */}
         <header className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-line bg-[color:var(--panel)] px-4 py-2.5">

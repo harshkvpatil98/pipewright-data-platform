@@ -205,6 +205,7 @@ export function NotebookPage({
     return (
       <AppFrame
         currentUser={currentUser}
+        heading="Notebooks"
       >
         <EmptyState
           title="No database connections in this project"
@@ -225,6 +226,7 @@ export function NotebookPage({
   return (
     <AppFrame
       currentUser={currentUser}
+      heading="Notebooks"
       ribbon={ribbon}
       statusItems={[
         { id: "cells", label: "Cells", value: String(cells.length) },

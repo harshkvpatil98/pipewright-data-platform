@@ -475,6 +475,7 @@ export function WorkflowEditorPage({
     <AppFrame
       currentUser={currentUser}
       title={workflow.name}
+      heading={workflow.name}
       ribbon={ribbon}
       disableWelcomeTour
       statusItems={[

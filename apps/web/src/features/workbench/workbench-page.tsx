@@ -394,6 +394,7 @@ export function WorkbenchPage({
     return (
       <AppFrame
         currentUser={currentUser}
+        heading="SQL"
       >
         <EmptyState
           title="No database connections in this project"
@@ -414,6 +415,7 @@ export function WorkbenchPage({
   return (
     <AppFrame
       currentUser={currentUser}
+      heading="SQL"
       ribbon={ribbon}
       statusItems={[
         { id: "mode", label: "Mode", value: plan?.policy.description ?? "read-only" },
@@ -428,7 +430,8 @@ export function WorkbenchPage({
     >
       <div className="flex h-full min-h-0">
         {/* ------------------------------------------------------ side panel */}
-        <aside className="flex w-64 shrink-0 flex-col">
+        {/* Wide enough for its four tabs; at w-64 "History" was cut off (A7). */}
+        <aside className="flex w-72 shrink-0 flex-col">
           <Tabs<Side>
             label="Side panel"
             value={side}

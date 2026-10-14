@@ -43,15 +43,28 @@ export function Ribbon({ groups, className }: RibbonProps) {
       role="toolbar"
       className={cx("border-b border-line bg-[color:var(--panel)]", className)}
     >
-      <div className="flex items-center gap-1 overflow-x-auto px-4 py-1.5 lg:px-6">
-        {groups.map((group, groupIndex) => (
-          <div key={group.id} role="group" aria-label={group.label} className="flex items-center gap-1">
-            {groupIndex > 0 ? <span className="mx-1.5 h-5 w-px shrink-0 bg-line" aria-hidden="true" /> : null}
-            {group.actions.map((action) => (
-              <RibbonButton key={action.id} action={action} />
+      {/* Wraps rather than scrolls: a sideways-scrolling toolbar hides its
+          last buttons, and keyboard users cannot scroll one (found in A7).
+          Each group draws its divider to its left; the divider of a group
+          that starts a line falls outside the clipped box, so no line
+          begins with one. The padding inside the clip keeps focus rings. */}
+      <div className="px-3 py-0.5 lg:px-5">
+        <div className="overflow-hidden p-1">
+          <div className="-ml-3 flex flex-wrap items-center gap-y-1">
+            {groups.map((group) => (
+              <div
+                key={group.id}
+                role="group"
+                aria-label={group.label}
+                className="relative ml-3 flex flex-wrap items-center gap-1 before:absolute before:-left-[7px] before:top-1/2 before:h-5 before:w-px before:-translate-y-1/2 before:bg-line before:content-['']"
+              >
+                {group.actions.map((action) => (
+                  <RibbonButton key={action.id} action={action} />
+                ))}
+              </div>
             ))}
           </div>
-        ))}
+        </div>
       </div>
     </div>
   );

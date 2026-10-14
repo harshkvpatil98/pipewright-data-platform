@@ -206,7 +206,9 @@ def test_a_copy_started_from_the_page_runs_on_the_worker_with_progress(db, world
         finished = background.run_next(db, storage_backend=None, settings=None, owner="test-worker")
         assert finished.id == started.run_id and finished.status == "succeeded"
         messages = [event["message"] for event in finished.logs_json["events"]]
-        assert any(message.startswith("Copying customers (1 of 2)") for message in messages)
+        # Source tables are named with their schema, as the page lists them.
+        assert any(message.startswith("Copying ") and message.endswith(".customers (1 of 2).") for message in messages)
+        assert messages[-1] == "Copied 2 of 2 tables."
         assert finished.summary_json["rows_copied"] == 5
         assert finished.claim_owner_id is None
     finally:

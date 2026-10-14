@@ -15,6 +15,7 @@ from datetime import UTC, datetime, timedelta
 
 import jwt
 import pytest
+from cryptography.fernet import Fernet
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -51,6 +52,8 @@ def api(tmp_path, monkeypatch):
     monkeypatch.setattr(dependencies, "storage_backend", LocalStorageBackend(str(tmp_path / "storage")))
     monkeypatch.setenv("RATE_LIMITS_ENABLED", "false")
     monkeypatch.setenv("WEB_BASE_URL", "https://pipewright.example.com")
+    # Embed secrets are kept encrypted; CI has no deployment key of its own.
+    monkeypatch.setenv("APP_SECRET_ENCRYPTION_KEY", Fernet.generate_key().decode())
     db = factory()
     db.add(User(username="owner", password_hash=hash_password(PASSWORD), role="admin", is_active=True))
     db.commit()

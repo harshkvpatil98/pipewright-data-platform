@@ -9,8 +9,8 @@ read-only audits of the code (information architecture and copy; feature
 coverage against what a data-platform buyer expects). Every number below was
 measured, not estimated.
 
-**Status:** **A0 and A1 done (2026-10-13); A2 to A6 done (2026-10-14); A7
-(scale and reliability) is next.** Each phase's "What shipped" note below says what was delivered, what
+**Status:** **A0 and A1 done (2026-10-13); A2 to A7 done (2026-10-14); A8
+(adoption pack) is next.** Each phase's "What shipped" note below says what was delivered, what
 was measured, and what moved to a later phase. `docs/HANDOFF.md` records the
 session.
 
@@ -1413,7 +1413,7 @@ to A7 as planned. A content security policy is left to the proxy.
 
 ---
 
-## A7 — Scale and reliability
+## A7 — Scale and reliability *(done 2026-10-14)*
 
 **Why.** §7 scale story; agent audit of I and D.
 
@@ -1496,6 +1496,107 @@ sandbox limits); System status shows them, so a buyer reads them in the
 product rather than in the code.
 
 **X10. Defects.** Walk every page again; nothing found is left open.
+
+**What shipped.**
+
+- **X1, CI green.** Notebook cells run on Linux (the memory limit is the
+  interpreter's own size plus 512MB, the result channel opens before limits
+  apply); the dependency audit passes, its one unfixable advisory accepted by
+  name with the reason. CI also builds both production images.
+- **X2, files in a bucket.** `STORAGE_BACKEND=s3` keeps stored files in AWS
+  S3 or anything that speaks its API (MinIO, R2...), under encryption at rest
+  when a key is set. `test_two_gateways.py` starts two gateways on one
+  database and one bucket, sends a chunked upload's chunks to both, finishes
+  it on one and reads it on the other; CI runs it against MinIO. Relative
+  storage paths are anchored to the gateway, the Docker images and compose
+  files mount one files volume, and the Helm chart takes a bucket or a
+  `ReadWriteMany` volume and refuses a configuration that would split files
+  across pods.
+- **X3, long work off the request.** `service_pipeline_runs/background.py`:
+  a request queues a run with what to do; the worker claims it under a
+  lease, writes progress to it, and a run whose worker stopped is failed
+  (and its dataset marked) rather than repeated. Uploads over 25MB, database
+  copies, and deliveries over 50,000 rows go this way; the dataset page and
+  the copy and delivery windows follow the run and show its progress. The
+  upload ceiling went from 25MB to 100MB; analysis reads the first 5MB of a
+  large delimited file and says so.
+- **X4, workflows that recover.** Per-task retries with doubling waits (up to
+  15 minutes), set on each task. "Pick up from where it failed" reuses each
+  task that succeeded while its settings are unchanged and every task before
+  it was reused (a fingerprint per task run, migration 0054), so fixing the
+  failed task and picking up runs from there. A project runs at most
+  `WORKFLOW_MAX_RUNS_PER_PROJECT` runs at once (3).
+- **X5, rate limits.** Sign-in per account (10 in 5 minutes) and per address
+  (60 a minute), one-time codes, public dashboard links and inbound webhooks,
+  counted in the database so every gateway shares them; a refusal is a 429
+  with `Retry-After` and a sentence saying when.
+- **X6, traces.** `OTEL_ENABLED` turns on OpenTelemetry traces over OTLP: a
+  span per request (health checks and `/metrics` left out) and per SQL
+  statement, from SQLAlchemy's engine events because the OpenTelemetry
+  SQLAlchemy package refuses SQLAlchemy 2.1. The request span carries the
+  correlation id; so do audit entries, which had recorded none.
+- **X7, budgets in CI.** `scripts/perf-baseline.py --budgets` fails when an
+  endpoint's p95 passes its budget; the CI `performance` job seeds a fresh
+  database with five demo projects and runs ten endpoints against them.
+- **X8, browser tests in CI.** Playwright signs in once, then walks the
+  golden path (new project, sample data, a step in the Studio, save and run,
+  a check, a chart onto a new dashboard) and runs axe (WCAG 2.1 A and AA) on
+  the sign-in page and 15 signed-in pages covering every template, four of
+  them again in the dark theme, failing on a serious or critical finding or
+  on a page without exactly one heading.
+- **X9, limits stated.** System status lists twelve limits the server
+  enforces, each read from the code or setting that enforces it (a test
+  holds them together): upload size and when the worker takes over, preview
+  rows, import rows, delivery rows written while you wait, copy rows, SQL
+  rows, runs at once, task tries, notebook limits, sign-in attempts, shared
+  links.
+- **X10, defects.** Every page walked again in a headless browser (70 pages
+  at 1280 and 1024 pixels: errors, raw values, sideways scrolling, unnamed
+  controls, clipped tabs, headings) and the scale features rehearsed for
+  real. Found and fixed: "Pick up from where it failed" was refused for every
+  run on PostgreSQL (it compared `updated_at`, which each finished run
+  moves); a stopped or crashed workflow run failed silently, saying "its
+  lease expired"; a run longer than its lease (a workflow over 15 minutes, a
+  delivery quiet for 10) would have been failed by a second worker while it
+  still worked, and a side thread now keeps the lease (`shared_python/lease.py`); a large read that failed before it began left its dataset
+  "being read" for ever; a failed read showed no reason outside Technical
+  details, and panels said "nothing to suggest" while the file was still
+  being read; the worker's memory limit was the size of a 100MB read; the
+  editors had no page heading; a toolbar wider than the window hid buttons
+  and could not be reached by keyboard; Trust's tabs were cut off at 1024
+  pixels and the SQL panel's History tab everywhere; 125 messages counted
+  "row(s)" and task messages said "Quality gate", "node" and "Pipeline"
+  (the wording test now reads every string, not only raised errors); a
+  copy test that only runs against real servers expected the wrong table
+  names.
+
+**Measured.**
+
+| | Before | After |
+|---|---|---|
+| CI on `main` | red since 2026-09-16 | green: tests, images, performance budgets, browser and accessibility |
+| Where stored files live | the gateway's disk | that, or an S3-compatible bucket; two gateways on one bucket tested in CI |
+| Largest upload | 25MB, read in the request | 100MB: a 99MB CSV (1,979,499 rows) through the page answered at once and showed its rows 23 s later; worker peak 1.98GB |
+| A delivery of 1,003,735 rows to MySQL | held the request | the request answered in 106 ms; the worker finished in 21 s |
+| A workflow whose worker is killed mid-delivery | stayed "running" until its lease, then failed silently | failed with the reason, notified, picked up: the check reused, every row delivered |
+| Addresses with a rate limit | 0 | 5, shared between gateways |
+| Tracing | a correlation id in logs | OpenTelemetry requests and statements, correlation id on spans and audit entries |
+| Endpoints with a p95 budget in CI | 0 | 10 |
+| Browser tests in CI | 0 | 5: sign in once, the golden path, and axe on the sign-in page and 15 signed-in pages (4 again in the dark theme), 0 serious or critical findings |
+| Limits stated in the product | 0 | 12 on System status |
+| Pages walked with a problem (70, at two widths) | 4 kinds | 0 |
+| Messages counting "row(s)" | 125 | 0 (tested) |
+
+**Not done here, and stated.** The plan asked for a 200MB upload; the
+ceiling is 100MB because reading a file takes about twenty times its size in
+memory, and the chart now gives the worker 4Gi; reading files in pieces
+rather than whole is the way to a larger ceiling and is not started. Check
+evaluation and chart computation still run in the request, bounded by the
+preview and dataset sizes; a check over a large dataset in a workflow runs
+on the worker. A workflow run whose worker stops is failed when its lease
+(`WORKFLOW_LEASE_SECONDS`, 15 minutes) runs out; the rehearsal expired it by
+hand rather than wait.
+OIDC against a live identity provider is still unproven (no tenant here).
 
 ---
 

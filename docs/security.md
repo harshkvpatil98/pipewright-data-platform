@@ -96,9 +96,16 @@ script itself is tested against a provider served locally
   SAMEORIGIN`, `X-Content-Type-Options: nosniff`, `Referrer-Policy:
   strict-origin-when-cross-origin` and a `Permissions-Policy` that turns off
   camera, microphone and location; every API answer with `nosniff`,
-  `X-Frame-Options: DENY` and `Referrer-Policy: no-referrer`. A content
-  security policy is left to the proxy, which knows the deployment's own
-  addresses.
+  `X-Frame-Options: DENY` and `Referrer-Policy: no-referrer`. On HTTPS the
+  session cookie is set `Secure`. A content security policy is left to the
+  proxy, which knows the deployment's own addresses.
+- **Rate limits.** Password sign-in is limited per account and address (10
+  in 5 minutes per account, 60 a minute per address), as are one-time code
+  redemption, public dashboard links and inbound webhooks. Counts are kept in
+  the database (`rate_limit_windows`, migration 0052) so every gateway shares
+  them; a refusal is HTTP 429 with `Retry-After`. `shared_python/rate_limit.py`;
+  `apps/api-gateway/tests/test_rate_limits.py` runs them through the HTTP
+  stack.
 - **Outbound requests.** Connectors that fetch web addresses refuse the cloud
   metadata service and, unless `OUTBOUND_ALLOW_LOOPBACK` is set, the server
   itself; `OUTBOUND_BLOCK_PRIVATE_NETWORKS` also refuses private ranges.
@@ -112,7 +119,9 @@ script itself is tested against a provider served locally
   Files without the header still read, so a key can be added to a running
   deployment; `platform-encrypt-storage` encrypts the files saved before it.
   System status shows whether encryption is on. Losing the key loses the
-  files; keep it with the other secrets.
+  files; keep it with the other secrets. With `STORAGE_BACKEND=s3` the files
+  live in a bucket, encrypted before they are sent when a key is set
+  (`test_two_gateways.py` checks the bucket holds only encrypted bytes).
 - **Credentials.** Passwords and keys for connections, destinations, BI tools
   and alert channels are encrypted with a Fernet key
   (`APP_SECRET_ENCRYPTION_KEY`), or held in HashiCorp Vault, AWS Secrets
@@ -129,7 +138,10 @@ script itself is tested against a provider served locally
 ## Audit
 
 - Every mutating request is recorded, including refused ones: who, what,
-  when, the outcome and a correlation id. Request bodies are never recorded.
+  when, the outcome and the request's correlation id (`X-Request-ID`, also in
+  its log lines and, with `OTEL_ENABLED`, its trace). Request bodies are
+  never recorded. (Until A7 the correlation id was read from a header no
+  request carried, so entries before then have none.)
 - Entries read as sentences ("Ann deleted the dashboard Weekly sales"),
   naming what was touched while it still exists. Each project has its own
   log; administrators see every project in one place and can export it.
@@ -139,8 +151,6 @@ script itself is tested against a provider served locally
 ## Not done yet
 
 - OIDC against a live provider (above).
-- Rate limiting on sign-in and public addresses: planned for the next phase
-  (adoption-readiness A7).
 - A content security policy (left to the proxy, above).
 
 ## Reporting a vulnerability

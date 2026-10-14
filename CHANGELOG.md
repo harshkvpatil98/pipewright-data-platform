@@ -13,6 +13,34 @@ the test counts at the time — is in the session log in
 
 ---
 
+## A7 — scale and reliability (2026-10-14)
+
+- **CI green again**: notebook cells run on Linux, the dependency audit
+  passes, and CI builds both production images, holds ten endpoints to p95
+  budgets, and runs the browser suite.
+- **Files in a bucket**: `STORAGE_BACKEND=s3` keeps stored files in S3 or an
+  S3-compatible store, encrypted at rest with a key; two gateways on one
+  bucket are tested in CI. Docker and Helm mount one shared files volume or
+  use the bucket.
+- **Long work on the worker**: uploads over 25MB, deliveries over 50,000 rows
+  and database copies run on the background worker, and the page follows
+  them. The upload limit is 100MB (a 99MB CSV read in 23 s).
+- **Workflows that recover**: per-task retries with doubling waits; "Pick up
+  from where it failed" reuses each unchanged task that succeeded; a cap on
+  runs per project. A worker that stops no longer fails a run silently.
+- **Rate limits** on sign-in, one-time codes, shared dashboard links and
+  webhooks, shared between gateways, with `Retry-After`.
+- **Traces** of requests and SQL statements over OpenTelemetry behind
+  `OTEL_ENABLED`; audit entries now carry the request's correlation id.
+- **Browser tests and accessibility in CI**: the golden path, and axe on
+  every page template in both themes.
+- **Limits stated**: System status lists the twelve limits the server
+  enforces.
+- **Fixed on the way**: picking a failed run up was refused on PostgreSQL;
+  a large read that failed left its dataset "being read"; editors had no
+  page heading; toolbars and tab strips hid controls at laptop widths; 125
+  messages counted "row(s)" and task messages used retired words.
+
 ## A6 — trust, help and support for buyers (2026-10-14)
 
 - **Help inside the product**: `/help`, built from `docs/user/` with the

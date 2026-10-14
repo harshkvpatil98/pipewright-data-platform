@@ -45,12 +45,15 @@ The supplied deployments (the Caddy setup and the Helm chart) serve Pipewright o
 Connectors refuse the cloud metadata service and the server itself, and can be told to refuse every address inside your network (`OUTBOUND_BLOCK_PRIVATE_NETWORKS`). Server-folder sources and destinations stay inside one folder the deployment chooses (`SERVER_FILES_ROOT`).
 
 **Does the web app set browser security headers?**
-Yes: pages cannot be framed by other sites, browsers may not guess content types, and addresses are not leaked to other sites when a link is followed.
+Yes: pages cannot be framed by other sites, browsers may not guess content types, and addresses are not leaked to other sites when a link is followed. On HTTPS the session cookie is marked secure.
+
+**Is there protection against guessing passwords?**
+Yes. Sign-in is limited per account (10 tries in 5 minutes) and per address (60 a minute), and so are one-time codes, shared dashboard links and inbound webhooks. A refused request says when to try again. The limits hold across every server, and **System status** lists them.
 
 ## Encryption
 
 **Are stored files encrypted?**
-When the deployment sets `STORAGE_ENCRYPTION_KEY`, every file Pipewright stores (uploads, datasets and their versions) is encrypted with AES-256-GCM before it is written. Files saved before the key was set are encrypted by running `platform-encrypt-storage` once. **System status** shows whether it is on. Without a key, files rely on the disk's own encryption.
+When the deployment sets `STORAGE_ENCRYPTION_KEY`, every file Pipewright stores (uploads, datasets and their versions) is encrypted with AES-256-GCM before it is written. Files saved before the key was set are encrypted by running `platform-encrypt-storage` once. **System status** shows whether it is on. Without a key, files rely on the disk's own encryption. Stored files can live on the server's disk or in an S3-compatible bucket; with a key, the bucket only ever holds encrypted files.
 
 **Are saved passwords and keys encrypted?**
 Yes, always. Passwords and keys for connections, destinations and alert channels are encrypted with the deployment's own key (`APP_SECRET_ENCRYPTION_KEY`). They can instead live in HashiCorp Vault, AWS Secrets Manager or Azure Key Vault, with only a reference stored.

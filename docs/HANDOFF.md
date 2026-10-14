@@ -113,7 +113,7 @@ was for that push, not a standing one.
 | 06 | Intelligence | `service-intelligence` | PII, join keys, entity resolution — **no model calls** |
 | 07 | Enterprise | `service-enterprise` | Tenancy, row/column security, retention, SSO, `/metrics` |
 
-**Migrations:** `apps/api-gateway/alembic/versions/`, 50 files, head is `0050_weekly_summaries`.
+**Migrations:** `apps/api-gateway/alembic/versions/`, 54 files, head is `0054_task_settings_hash`.
 
 ### Roadmap v2: in progress
 
@@ -188,6 +188,29 @@ production-readiness P9; the progress ledger in §8 tracks the rest.
   their requests into the configured database.
 - **The API answers 422 for a malformed id in a path**; the web app's
   `parseApiResponse` turns that into 404, so pages show "not found".
+- **SQLite's clock has one-second resolution; PostgreSQL's has
+  microseconds.** A comparison of two timestamps written in the same second
+  passes on SQLite and fails on PostgreSQL (A7: picking a run up was refused
+  for every run live while its test passed). Compare something other than
+  `updated_at`, or test against PostgreSQL.
+- **The dev stack does not reload.** After a migration run `alembic upgrade
+  head` from `apps/api-gateway` (with `.env` sourced and
+  `BACKEND_CORS_ORIGINS` re-exported); after a code change restart the
+  gateway and `scripts/worker.sh`, and check with `pgrep -f workflow_worker`
+  that the old worker processes are gone (stopping the shell can leave them
+  running old code).
+- **A page in a background browser tab never finishes streaming**: React
+  reveals streamed content on the next animation frame, which a hidden tab
+  never gets, so a crawler there sees fallbacks and extra headings. Walk
+  pages with Playwright (headless counts as visible).
+- **CI installs the newest versions the ranges allow** (SQLAlchemy 2.1.4
+  there, 2.0 here). A library that supports a narrower range than ours can
+  silently do nothing in CI and production; read CI's captured logs.
+- **Docker Hub refuses anonymous pulls of `minio/minio`** in CI; the job uses
+  `cgr.dev/chainguard/minio` with `server /data`.
+- **`next build` type-checks with `tsconfig.typecheck.json`**, not
+  `tsconfig.json`; `npx tsc --noEmit -p tsconfig.typecheck.json` is the same
+  check.
 
 ---
 
@@ -224,9 +247,10 @@ honesty; if you verify one, update its status here.
 | Old duplicate datasets are not merged | Since A4 an import's runs and a recipe's runs add versions to one dataset (`reusable_dataset`, `TransformationPipeline.output_dataset_id`). Datasets created one-per-run before that stay separate records; merging them would rewrite version history, so the Datasets list still folds same-named records into one row ("12 loads") |
 | The v1 source registry is hidden, not removed | `service-sources` (`/api/v1/projects/{id}/sources`, the "Register source" records) is no longer shown anywhere in the web app since A1; its API and tables stay for compatibility. A4 did not retire it: nothing reads it, and deleting the tables needs a decision about existing rows |
 | Column names appear in lineage and recipe definitions | Policies (A6) hold on every path that hands rows or values to a person; lineage and recipes describe the data's shape, so a denied column's name still appears there |
-| No rate limiting on sign-in or public addresses | Planned for A7 |
 | No warehouse destinations | Datasets deliver to PostgreSQL, MySQL, S3 (or a compatible store) and a server folder. Snowflake, BigQuery and Redshift are not destinations until a customer names one |
-| A database copy runs inside one request | `copy_database.run_copy` streams rows 1,000 at a time but holds the request until it finishes, up to 2,000,000 rows a table. A background copy with progress belongs with A7's scale work |
+| Uploads stop at 100MB | Reading a file takes about twenty times its size in memory (a 99MB CSV peaked at 1.98GB on the worker); the Helm worker gets 4Gi. Reading in pieces rather than whole would raise the ceiling and is not started. Larger data comes in through an import |
+| Checks and charts compute in the request | Bounded by the preview and dataset sizes; a check in a workflow runs on the worker. Only uploads over 25MB, deliveries over 50,000 rows and database copies are handed to the worker |
+| A stopped worker's run waits for its lease | 15 minutes for a workflow run (`WORKFLOW_LEASE_SECONDS`), 10 for a background run, before it is failed and can be picked up; a working worker renews the lease from a side thread (`shared_python/lease.py`). The A7 rehearsal expired it by hand |
 | Temporal SQL runs in SQLite over a copy | `AS OF` queries load the version's artifact into an in-memory SQLite table named `dataset`; the dialect is SQLite's, not the source's, and results are capped at 1,000 rows. Customer SQL sent to customer databases is never rewritten (settled decision #8) |
 | No pagination on version history or diff samples | Listings return every version; diff samples are capped at a declared 20 while counts stay exact. A dataset with thousands of versions would want cursors, which do not exist yet |
 | `today()` is the UTC date of the frozen instant | Before P7 it was the host's local date. Recorded in the run's execution context (`timezone: UTC`); a deliberate semantic change, stated rather than hidden |
@@ -271,8 +295,8 @@ definition, vocabulary, navigation tree, templates, voice guide, plus the
 quick-win defect fixes) and A1 (navigation and shell) are done as of
 2026-10-13, and A2 (golden path and onboarding) and A3 (Studio redesign) as
 of 2026-10-14, as are A4 (sources, destinations and migration) and A5 (copy,
-design system and consistency) and A6 (trust, help and support for
-buyers); A7 (scale and reliability) is next.** Each phase's section in the plan lists what shipped, the
+design system and consistency), A6 (trust, help and support for
+buyers) and A7 (scale and reliability); A8 (adoption pack) is next.** Each phase's section in the plan lists what shipped, the
 measured cold-user task results and what moved to later phases. Rules for anyone touching the web app now:
 
 - **`apps/web/src/lib/navigation.ts` is the navigation.** A new page goes into
@@ -384,6 +408,51 @@ measured cold-user task results and what moved to later phases. Rules for anyone
   tested" (`service_connectors/protocol.py`). The catalogue shows tested
   connectors first and the rest under "Available on request"; never relabel
   an untested connector as tested.
+- **Long work goes to the worker through `service_pipeline_runs/background.py`**
+  (A7): `background.register(run_type, handler, on_fail=...)` at import, a
+  request `queue`s a run with its `request_json` and answers at once, the
+  handler reports with `background.progress` (which renews the lease), and
+  `on_fail` marks whatever else the run was for (a large upload's dataset)
+  when it fails outside the handler's own care or its worker stops. Add the
+  module to `tick_background`'s imports in `workflow_worker.py`. The page
+  follows the run (`dataset-being-read.tsx`, the copy and delivery windows).
+  Thresholds: `IN_REQUEST_BYTES` (25MB uploads), `deliver.IN_REQUEST_ROWS`
+  (50,000), copies always.
+- **Stored files go through `build_storage_backend`** (`local` or `s3`,
+  wrapped for encryption when keyed). Relative `UPLOAD_ROOT_PATH` and
+  `SERVER_FILES_ROOT` are anchored to `apps/api-gateway`. Every gateway and
+  worker must see the same files: a bucket or one `ReadWriteMany` volume.
+- **Rate limits are `shared_python.rate_limit.hit(db, LIMIT, caller)`**, a
+  window row per key in the database, raising `TooManyRequestsError` (429,
+  `Retry-After`). Tests that sign in many times set `RATE_LIMITS_ENABLED=false`
+  or patch `hit`.
+- **The limits a buyer reads are `api_gateway/status.py` `ceilings()`**,
+  each read from the constant or setting that enforces it; a new enforced
+  limit belongs there (`test_ceilings.py`).
+- **Picking a workflow run up compares task fingerprints**
+  (`executor.settings_hash`: the task's type and settings), never timestamps:
+  a succeeded task is reused while it is unchanged and every task before it
+  was reused. A stalled or crashed run finishes through `_finish`, so it
+  notifies like any failed run. While a run works, `shared_python.lease.kept`
+  renews its lease from a side thread; without it, a run longer than its lease
+  was failed by a second worker while still running.
+- **Traces are `api_gateway/tracing.py`**, off unless `OTEL_ENABLED`; SQL
+  spans come from SQLAlchemy's engine events (`trace_statements`) because
+  the OpenTelemetry SQLAlchemy package refuses SQLAlchemy 2.1. The
+  correlation id is `X-Request-ID` (`CorrelationIdMiddleware`), on the span
+  and the audit entry.
+- **Browser tests are `apps/web/e2e/`** (Playwright, `npm run test:e2e
+  --workspace @platform/web` with `E2E_BASE_URL`): `auth.setup.ts` signs in
+  once (the sign-in rate limit would refuse a sign-in per test), tours are
+  marked done from `ALL_TOUR_IDS`, and `accessibility.spec.ts` fails a
+  serious or critical axe finding or a page without exactly one `h1`. An
+  editor whose name sits in a toolbar passes `heading` to `AppFrame`.
+- **Toolbars and tab strips wrap or fit; they do not scroll sideways**
+  (`ribbon.tsx`, `area-tabs.tsx`): a scrolled-away button is hidden from
+  everyone and unreachable by keyboard.
+- **`test_error_words.py` reads every string the services hold**: no "(s)"
+  count anywhere, and no retired word (node, rule, gate, pipeline...) in a
+  `message=`, `title=` or `summary=`.
 
 **The production-readiness sequence (P0–P9) is complete** as of 2026-09-23 —
 see `docs/plans/production-readiness-workflow.md` for what each phase delivered
@@ -839,3 +908,4 @@ Report honestly. If something is unverified, say so and add it to §7.
 | 2026-10-14 | `75332b59` | **Adoption-readiness A4 complete.** Spec U1–U6 written first. U1: an import's and a recipe's runs add versions to one dataset (`reusable_dataset`, `output_dataset_id`, migration 0047 with backfill). U2: imports from any connector that can read through `service_extraction/connector_sources.py` (settings validated and secrets encrypted per connector, list/preview/import/resume, `stream_json`, migration 0048); "Connect a source" catalogue with tiers. U3: `sql_writer.py` loads PostgreSQL and MySQL (replace / add rows / update matching rows, keys become the primary key, types inferred from values), S3 and a server folder through the SDK's file connectors, a preview before writing, each delivery a run; Destinations page rebuilt; "Send to → A destination". U4: Copy a database plans through the type lattice (lossy casts marked, not-carried items counted), creates tables with keys and NOT NULL, streams rows, reports per table. U5: download any version as CSV/Parquet with policies applied. Security found on the way: the local-files connector read any server path (now `SERVER_FILES_ROOT`), URL-fetching connectors could reach the metadata service and the server (now `shared_python/outbound.py`). Also fixed: delivered columns all TEXT, TIMESTAMPTZ discovered as TIMESTAMP, "timestamp(3) with time zone" unparsed, REST `//path` became a host. Measured live: REST source (tier 2) imported 3 rows; MySQL update-matching-rows twice gave 20 added then 20 updated / 0 added; PostgreSQL shop schema (3 tables) copied to MySQL with microseconds, JSON, exact decimals, keys and NOT NULL. `npm run verify` green: 6,407 Python passed / 591 skipped, 770 web, ESLint/tsc/build clean. Pushed to `main`. **Next: A5 (copy, design system and consistency).** |
 | 2026-10-14 | `75332b59` | **Adoption-readiness A5 complete.** Spec V1–V6 measured first (3,786 on-screen strings via the TS parser; 41 pages in the browser). V1: `lib/language.test.ts` (retired words, code names, HTTP paths, em-dashes, purpose ≤15 / description and tour step ≤25 words, capital and sentence case, UK spelling; replaces `wording.test.ts`) and `test_error_words.py` for raised API errors. V2: every flagged string rewritten; Run audit, Dataset audit, both comparisons and System status rebuilt in words with names from the API (`triggered_by_name`, `pipeline_name`, `dataset_names`; dataset audit names); run logs, audit/comparison notes, role descriptions, impact summaries and 29 error messages reworded at the source; Power BI/Tableau dialogs became "Send to"; raw-JSON "Try a change" and create-pipeline dialogs removed. V3: `service_governance/audit_words.py` turns all 165 audited routes into phrases and names the object; Audit Center outcome filter fixed (sent values no entry had). V4: 343 sub-12px sizes, 200 uppercase uses, 10 letter-spacings gone (`type-scale.test.ts`). V5: shared-ui Badge/Table/Tabs/Toast/StatTile/PageHeader/Overlay (+Modal drawer, compact EmptyState, icons); 33 tables, ~80 pills, 3 dialogs, 3 tab lists migrated (`components.test.ts`). V6: `docs/design-system.md`, light theme for demos. Measured: pages with sub-12px text 17→0, uppercase 16→0, raw ids 4→0, retired words 13→1 (vendor "endpoint" on Connectors). `npm run verify` green: 6,416 Python passed / 591 skipped, 783 web, ESLint/tsc/build clean. Pushed to `main`. **Next: A6 (trust, help and support for buyers).** |
 | 2026-10-14 | `75332b59` | **Adoption-readiness A6 complete.** Spec W1–W8 measured first. W1: `service_enterprise/policy_view.py` on every read path (dataset page, versions, SQL, charts, pivots, dashboards and public links, Studio preview and joins, assistant, comparisons, downloads, deliveries); `test_policies_everywhere.py` fails all six with policies off. W2: `/help` from `docs/user/` (12 pages), Help menu Documentation / What's new / Contact support (`SUPPORT_CONTACT`, `GET /status/support`), "Read more" from every tab; `help.test.ts`. W3: `test_api_guide.py` runs the guide's 12 curl requests in order. W4: catalogue of 50 tested connectors, 161 "Available on request", tier words rewritten. W5: org network allow-lists (migration 0049), `TRUSTED_PROXY_HOPS`, session policy shown, AES-256-GCM files at rest + `platform-encrypt-storage`. W6: incidents and failed workflows to email/Slack, weekly summary (migration 0050). W7: `docs/security.md` rewritten, `scripts/check-oidc.py` (tested against a local provider), security headers. W8: D1–D20 hold; fixed SSO nonce never compared and token-chosen algorithm, unlayered CSS cancelling every button/link utility, unfilled workflow tasks reading "ready to run", Deliver task PostgreSQL-only, add-task buttons off-screen, ribbon on four pages, tab strip squeezed by side panels, malformed ids crashing, raw platform roles, audit middleware writing tests into the configured DB. `npm run verify` green: 6,455 Python passed / 591 skipped, 797 web. Live OIDC still unproven (no tenant); rate limiting is A7. **Next: A7.** |
+| 2026-10-14 | `75332b59` | **Adoption-readiness A7 complete.** Spec X1–X10 measured first. X1 CI green (Linux notebook sandbox, dependency audit, image builds). X2 `STORAGE_BACKEND=s3` with encryption, two gateways on one bucket in CI (MinIO), Docker/Helm shared files. X3 `service_pipeline_runs/background.py` (queue, lease, progress, `on_fail`; migration 0053): uploads over 25MB, deliveries over 50,000 rows and database copies on the worker, pages follow them; upload limit 100MB. X4 per-task retries, pick up from where it failed (task fingerprints, migration 0054), runs per project. X5 rate limits (migration 0052). X6 OpenTelemetry behind `OTEL_ENABLED` (SQL spans from engine events). X7 p95 budgets in CI. X8 Playwright golden path and axe on every template in CI. X9 twelve limits on System status. X10 70 pages walked at two widths and the scale features rehearsed live. Found and fixed: pick-up refused for every run on PostgreSQL (`updated_at`, hidden by SQLite's clock); stalled or crashed workflow runs failed silently; a large read failing before it began left its dataset "being read"; failed reads showed no reason; worker memory limit equal to a 100MB read (now 4Gi); audit entries never recorded the correlation id; OTel SQLAlchemy refused SQLAlchemy 2.1 in CI; editors without a heading; toolbars and Trust's tabs hidden at laptop widths; 125 "(s)" counts and retired words in task messages. Measured: 99MB CSV through the page answered at once, rows shown in 23 s, worker peak 1.98GB; 1,003,735 rows to MySQL, request 106 ms, worker 21 s; worker killed mid-delivery, run failed and notified, picked up with the check reused and every row delivered. `npm run verify` green: 6,507 Python passed / 598 skipped, 806 web; with the connector servers and MinIO 6,536 / 569. Also: a run longer than its lease would have been failed by a second worker while working; `shared_python/lease.py` keeps it. Live OIDC still unproven. **Next: A8 (adoption pack).** |

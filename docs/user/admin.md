@@ -60,9 +60,10 @@ Each person also chooses, in the bell's settings, whether they want each message
 
 - whether the **background worker** (runs workflows and long jobs) and the **schedule ticker** (starts scheduled runs) are running, and when each last checked in;
 - how much work is waiting;
-- the platform's **security settings**: whether stored files are encrypted, the session limits, how many organisations have a network list, and whether single sign-on is set up.
+- the platform's **security settings**: whether stored files are encrypted and where they are kept, the session limits, how many organisations have a network list, and whether single sign-on is set up;
+- the **limits** this server enforces: the largest upload and when the background worker takes over, preview and import rows, rows a delivery writes while you wait, copy and SQL rows, workflow runs at once, task tries, notebook limits, sign-in attempts and shared links.
 
-A worker that stops opens an incident by itself.
+A worker that stops opens an incident by itself. Work it was doing is marked failed, with that reason, when its time runs out; a workflow run can then be picked up from where it failed.
 
 ## Audit
 
@@ -91,5 +92,11 @@ Set these in the gateway's environment. Changes take effect when the gateway res
 | `SERVER_FILES_ROOT` | The one folder on the server that server-folder sources and destinations may use. |
 | `OUTBOUND_BLOCK_PRIVATE_NETWORKS` | Refuse connectors that reach addresses inside your network. |
 | `OUTBOUND_ALLOW_LOOPBACK` | Allow connectors to reach the server itself. Off by default; for testing only. |
+| `MAX_UPLOAD_SIZE_BYTES` | The largest file people can upload (100MB by default). Files over 25MB are read by the background worker, which needs about twenty times the file's size in memory. |
+| `STORAGE_BACKEND` | Where stored files live: `local` (the server's disk, the default) or `s3` (a bucket, so several servers share them), with `STORAGE_S3_BUCKET`, `_PREFIX`, `_ENDPOINT_URL`, `_REGION`, `_ACCESS_KEY_ID` and `_SECRET_ACCESS_KEY`. |
+| `WORKFLOW_MAX_RUNS_PER_PROJECT` | How many workflow runs one project may have going at once (3); more wait their turn. |
+| `WORKFLOW_LEASE_SECONDS` | How long a run whose background worker stopped waits before it is marked failed and can be picked up (900, 15 minutes). |
+| `RATE_LIMITS_ENABLED` | Set to `false` only for a load test; sign-in and public addresses are limited otherwise. |
+| `OTEL_ENABLED`, `OTEL_EXPORTER_OTLP_ENDPOINT` | Send traces of each request and its database statements to an OpenTelemetry collector. Off by default. |
 
 The deployment guide in the repository covers installing, upgrading and sizing.

@@ -55,18 +55,23 @@ components, kept that way by tests. A6 made it ready for a buyer's review:
 help inside the product (`/help`, from [docs/user/](docs/user/)), an API
 guide whose examples a test runs, row and column policies on every read,
 network allow-lists, a stated session policy, files encrypted at rest, and
-failures that reach email and Slack. The progress ledger lives in [docs/HANDOFF.md](docs/HANDOFF.md).
+failures that reach email and Slack. A7 made it hold up under load: files in
+an S3-compatible bucket shared by several gateways, uploads up to 100MB and
+large deliveries and copies on the background worker with progress,
+workflows that retry and can be picked up where they failed, rate limits,
+OpenTelemetry traces, performance budgets and browser and accessibility tests
+in CI, and the server's limits stated on System status. The progress ledger lives in [docs/HANDOFF.md](docs/HANDOFF.md).
 
 At a glance, measured on `main`:
 
 | | |
 |---|---|
 | Python domain services | 24, in `services/` |
-| Database migrations | 48 Alembic revisions, head `0048_imports_from_any_connector` |
-| Web pages | 60 Next.js App Router pages |
-| Connectors | 211 — 50 tier 2 ("Tested", run against a container or fixture in CI), 161 tier 4 ("Unverified", written from vendor documentation) |
+| Database migrations | 54 Alembic revisions, head `0054_task_settings_hash` |
+| Web pages | 62 Next.js App Router pages |
+| Connectors | 211: 50 tier 2 ("Tested", run against a container or fixture in CI), 161 tier 4 ("Not yet tested", written from vendor documentation, offered on request) |
 | Transformation library | 20 pipeline step types plus a `tool` step over 173 tools in 11 categories |
-| Tests | 6,870 Python tests collected and 692 web tests ([results below](#running-tests)) |
+| Tests | 7,105 Python tests collected and 806 web tests ([results below](#running-tests)), plus 5 browser tests in CI |
 
 ## What the platform does
 
@@ -273,25 +278,26 @@ npm test          # tests only (pytest bundle, then Vitest)
 npm run smoke     # prerequisite and API checks for a running stack
 ```
 
-Measured on `main` on 2026-10-12 with `npm run verify` (macOS, Python 3.12,
-Node 22, with the connector test servers from `docker-compose.connectors.yml`
-running): ruff clean; **6,302 Python tests passed, 568 skipped, 0 failed**;
-**692 web tests passed** in 40 files; ESLint, `tsc` and the production build
+Measured on `main` on 2026-10-14 (macOS, Python 3.12, Node 22, with the
+connector test servers from `docker-compose.connectors.yml` and MinIO
+running): ruff clean; **6,536 Python tests passed, 569 skipped, 0 failed**;
+**806 web tests passed** in 63 files; ESLint, `tsc` and the production build
 clean. Skipped is not passed, so the skips are accounted for: 512 are
-ingestion-corpus cases that carry no expectation for the check in question, 51
-are other parametrized cases that do not apply (a stream that does not
-paginate, a frame tool with no single target column), 3 are notebook cell
+ingestion-corpus cases that carry no expectation for the check in question,
+43 are parametrized cases that do not apply (a frame tool with no single
+target column, a stream that does not paginate or declare a schema), 9 are
+tools whose behaviour on null input or shape is documented rather than
+computed and one S3 case with no template to leave empty, 3 are notebook cell
 tests (Python cells are disabled on macOS), 1 is the PostgreSQL CDC round trip
-(the test server runs `wal_level=replica`), and 1 is a generator case with
-nothing to check.
+(the test server runs `wal_level=replica`) and 1 needs a MariaDB server.
 
-CI runs the same gate on Ubuntu with Python 3.11 and real PostgreSQL, MySQL and
-MariaDB servers. Its `verify` job currently fails in
-`services/service-workbench/tests/test_sandbox.py`: on Linux every sandboxed
-cell, even `x = 1`, reaches the 15-second deadline, a path a macOS run never
-takes because there the memory limit cannot be applied at all. How to run the
-connector servers locally, and what else a local run does not cover, is in
-[CONTRIBUTING.md](CONTRIBUTING.md#what-a-local-run-does-not-cover).
+CI runs the same gate on Ubuntu with Python 3.11 and real PostgreSQL, MySQL,
+MariaDB and MinIO servers, builds the gateway and web production images,
+holds ten endpoints to p95 budgets against a seeded database
+(`scripts/perf-baseline.py --budgets`), and runs the Playwright suite (the
+golden path, and axe on every page template) against a production build. How
+to run the connector servers locally, and what else a local run does not
+cover, is in [CONTRIBUTING.md](CONTRIBUTING.md#what-a-local-run-does-not-cover).
 
 ## Deployment
 
@@ -332,10 +338,11 @@ first-time user meets soonest:
   real SMTP server or webhook.
 - **Streaming** covers inbound webhooks and PostgreSQL CDC only, at-least-once.
 - **Notebooks** run in the request (15 s per Python cell) rather than on the
-  worker. Python cells are disabled on macOS, and on Linux they currently stop
-  at the deadline because the sandbox's memory limit is applied after the
-  process has already exceeded it — the CI failure described under
-  [Running tests](#running-tests).
+  worker. Python cells are disabled on macOS, where the sandbox cannot limit
+  memory; on Linux they run.
+- **Uploads** stop at 100MB: reading a file takes about twenty times its size
+  in memory on the worker. Larger data comes in through a database or storage
+  import.
 - The [adoption review](docs/plans/adoption-readiness-workflow.md) lists 20
   user-facing defects (D1–D20) with file evidence and the phases (A0–A9) that
   address them; its status line says which are fixed.

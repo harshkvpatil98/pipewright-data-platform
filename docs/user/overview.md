@@ -14,15 +14,17 @@ To invite someone who has no account yet, ask a platform administrator to create
 
 ## Alerts
 
-Everything already appears in the bell at the top of the page. Alerts add other places: an email address or a Slack channel. For each, choose what it hears about:
+Everything already appears in the bell at the top of the page. Alerts add other places: an email address, a Slack channel, or a webhook that sends each event as signed JSON to your own systems ([how to receive one](api.md#webhooks)). For each, choose what it hears about:
 
 - a scheduled run, a recipe run or a delivery that failed or finished
 - an incident that opened
 - a workflow that failed or finished with problems
 - a weekly summary of the project
 
-Use **Test** to check a channel works before relying on it. A failure to send never affects the run itself.
+Use **Send a test** to check one works before relying on it. A failure to send never affects the run itself. A webhook shows its **Deliveries**, every try and its result.
 
 ## Settings
 
 Rename the project, describe what it is for, archive it when it is no longer used (it stays readable), or delete it with everything in it.
+
+**Move this project's work** downloads a bundle: one file with the project's recipes, checks, metrics, charts, dashboards, workflows and schedules, but none of its data or passwords. **Import a bundle** in another project, here or on another Pipewright, shows first what will be made and what will be left out and why. Things are matched by name: the datasets, imports and destinations the bundle uses must already exist in the project, or you choose stand-ins for them. Anything whose name the project already uses is left as it is.

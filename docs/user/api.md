@@ -158,6 +158,17 @@ curl -s "$PIPEWRIGHT/api/v1/projects/$PROJECT/datasets/$DATASET/download?format=
 
 The project's row and column policies apply to the API exactly as they do in the app: a token sees what its owner may see.
 
+## Moving a project's work
+
+A bundle is a project's recipes, checks, metrics, charts, dashboards, workflows and schedules in one JSON file, with no data or passwords. Download one:
+
+```bash
+curl -s "$PIPEWRIGHT/api/v1/projects/$PROJECT/bundle" \
+  -H "Authorization: Bearer $TOKEN" -o project-bundle.json
+```
+
+To bring it into another project, send it as `{"bundle": <the file>, "mapping": {}}` to `POST /api/v1/projects/$PROJECT/bundle/preview`, which says what would be made, what matched by name and what is missing, and changes nothing; then to `POST /api/v1/projects/$PROJECT/bundle/import`. For a dataset the project lacks, add a stand-in to `mapping`, for example `{"dataset:Orders": "<a dataset id in this project>"}`.
+
 ## Webhooks
 
 A webhook sends each event you choose to an address of yours, as it happens. Add one under **Overview → Alerts → Add an alert → A webhook**; its signing secret is shown once, after you save.

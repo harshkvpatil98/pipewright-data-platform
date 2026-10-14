@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { ProjectDetail } from "@platform/shared-types";
 
 import { AppShell } from "@/components/layout/app-shell";
+import { ProjectBundlePanel } from "@/features/projects/components/project-bundle-panel";
 import { ProjectSettingsPanel } from "@/features/projects/components/project-settings-panel";
 import { ApiError } from "@/lib/api/errors";
 import { serverApiFetch } from "@/lib/api/server";
@@ -30,9 +31,12 @@ export default async function ProjectSettingsPage({ params }: PageProps) {
     <AppShell
       currentUser={currentUser}
       title="Project settings"
-      subtitle="Rename, describe, archive or delete this project."
+      subtitle="Rename, describe, move, archive or delete this project."
     >
-      <ProjectSettingsPanel project={project} />
+      <div className="space-y-6">
+        <ProjectSettingsPanel project={project} />
+        <ProjectBundlePanel projectId={project.id} projectName={project.name} />
+      </div>
     </AppShell>
   );
 }

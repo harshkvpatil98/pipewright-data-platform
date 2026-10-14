@@ -92,6 +92,7 @@ _RULES: list[tuple[str, str, str]] = [
     ("POST", r"/bi-connections/{id}/test", "checked a BI tool connection"),
     ("POST", r"/notification-targets/{id}/test", "sent a test alert"),
     ("POST", r"/notification-targets/{id}/rotate-secret", "made a new signing secret for a webhook"),
+    ("POST", r"/bundle/import", "imported a bundle of recipes, checks and dashboards"),
     ("POST", r"/writeback/change-sets", "started editing a live table"),
     ("POST", r"/writeback/change-sets/{id}/edits", "edited a live table"),
     ("DELETE", r"/writeback/change-sets/{id}/edits/{id}", "undid an edit to a live table"),

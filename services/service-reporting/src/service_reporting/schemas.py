@@ -293,7 +293,37 @@ class PublicDashboardView(BaseModel):
     name: str
     description: str | None
     shared_at: datetime | None
+    #: How often an open page fetches it again; null means only when reloaded.
+    refresh_seconds: int | None = None
     tiles: list[PublicChartTile]
+
+
+class DashboardEmbedCreate(BaseModel):
+    #: Where it is shown, in the owner's words: "Customer portal".
+    name: str = Field(min_length=1, max_length=120)
+    days: int = 30
+
+
+class DashboardEmbedRead(BaseModel):
+    """An embed as its owner sees it. `token` and `url` are its own signed link
+    while it is on; `signing_secret` is only in the answer that made it."""
+
+    id: uuid.UUID
+    dashboard_id: uuid.UUID
+    name: str
+    state: Literal["on", "off", "expired"]
+    token: str | None
+    url: str | None
+    signing_secret: str | None = None
+    secret_hint: str
+    expires_at: datetime
+    revoked_at: datetime | None
+    last_opened_at: datetime | None
+    created_at: datetime
+
+
+class DashboardEmbedListResponse(BaseModel):
+    items: list[DashboardEmbedRead]
 
 
 class ReportCreate(BaseModel):

@@ -45,7 +45,7 @@ The supplied deployments (the Caddy setup and the Helm chart) serve Pipewright o
 Connectors refuse the cloud metadata service and the server itself, and can be told to refuse every address inside your network (`OUTBOUND_BLOCK_PRIVATE_NETWORKS`). Server-folder sources and destinations stay inside one folder the deployment chooses (`SERVER_FILES_ROOT`).
 
 **Does the web app set browser security headers?**
-Yes: pages cannot be framed by other sites, browsers may not guess content types, and addresses are not leaked to other sites when a link is followed. On HTTPS the session cookie is marked secure.
+Yes: pages cannot be framed by other sites (except an embedded dashboard, by the sites an administrator lists), browsers may not guess content types, and addresses are not leaked to other sites when a link is followed. On HTTPS the session cookie is marked secure.
 
 **Is there protection against guessing passwords?**
 Yes. Sign-in is limited per account (10 tries in 5 minutes) and per address (60 a minute), and so are one-time codes, shared dashboard links and inbound webhooks. A refused request says when to try again. The limits hold across every server, and **System status** lists them.

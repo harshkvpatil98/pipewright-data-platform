@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import { signInAgainHref } from "@/lib/auth/session-end";
 import { tokenExpiry } from "@/lib/auth/token-expiry";
+import { embedOrigins, frameAncestors } from "@/lib/embed-origins";
 
 const SESSION_COOKIE = "idp_access_token";
 
@@ -12,6 +13,14 @@ const SESSION_COOKIE = "idp_access_token";
  * so on the sign-in page, rather than arriving there unexplained.
  */
 export function proxy(request: NextRequest) {
+  if (request.nextUrl.pathname.startsWith("/embed/")) {
+    // An embedded dashboard needs no session; it may be framed by the sites
+    // an administrator lists, read now so a change needs only a restart.
+    const response = NextResponse.next();
+    response.headers.set("Content-Security-Policy", `frame-ancestors ${frameAncestors(embedOrigins())}`);
+    return response;
+  }
+
   const here = `${request.nextUrl.pathname}${request.nextUrl.search}`;
   const token = request.cookies.get(SESSION_COOKIE)?.value ?? "";
 
@@ -32,9 +41,11 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Every page that requires a session. Home, sign-in, shared dashboards and
-  // the system status page work without one and are left alone.
+  // Every page that requires a session, and embedded dashboards for their
+  // frame header. Home, sign-in, shared dashboards and the system status page
+  // work without one and are left alone.
   matcher: [
+    "/embed/:path*",
     "/projects/:path*",
     "/runs/:path*",
     "/datasets/:path*",

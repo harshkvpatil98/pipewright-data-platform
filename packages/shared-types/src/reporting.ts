@@ -201,7 +201,30 @@ export type PublicDashboardView = {
   name: string;
   description: string | null;
   shared_at: string | null;
+  /** How often an open page fetches it again; null means only when reloaded. */
+  refresh_seconds: number | null;
   tiles: PublicChartTile[];
+};
+
+/** How long an embed can last, in days (A8, Y4). */
+export const EMBED_DAYS = [1, 7, 30, 90, 365] as const;
+
+/** A dashboard shown on another site, by a signed link that runs out (A8, Y4). */
+export type DashboardEmbed = {
+  id: string;
+  dashboard_id: string;
+  name: string;
+  state: "on" | "off" | "expired";
+  /** Its own signed link while it is on. */
+  token: string | null;
+  url: string | null;
+  /** Only in the answer that made it. */
+  signing_secret: string | null;
+  secret_hint: string;
+  expires_at: string;
+  revoked_at: string | null;
+  last_opened_at: string | null;
+  created_at: string;
 };
 
 export type PivotResponse = {

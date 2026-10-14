@@ -67,6 +67,8 @@ _RULES: list[tuple[str, str, str]] = [
     ("POST", r"/runs/sample", "started a sample run"),
     ("POST", r"/dashboards/{id}/share", "shared a dashboard by link"),
     ("DELETE", r"/dashboards/{id}/share", "stopped sharing a dashboard"),
+    ("POST", r"/dashboards/{id}/embeds", "made a link to show a dashboard on another site"),
+    ("DELETE", r"/dashboards/{id}/embeds/{id}", "turned off a dashboard shown on another site"),
     ("POST", r"/changes", "asked for a change to be approved"),
     ("POST", r"/changes/{id}/approve", "approved a change request"),
     ("POST", r"/changes/{id}/reject", "turned down a change request"),

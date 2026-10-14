@@ -59,6 +59,10 @@ Important values:
 
 - `NEXT_PUBLIC_API_BASE_URL`
 - `API_INTERNAL_BASE_URL`
+- `TRUSTED_PROXY_HOPS`, the same as the gateway's, so each viewer of a shared
+  or embedded dashboard is rate limited on their own
+- optional `EMBED_ALLOWED_ORIGINS`: the sites that may frame an embedded
+  dashboard, read at start-up rather than build time
 - optional `NEXT_PUBLIC_APP_VERSION`
 - optional `NEXT_PUBLIC_GIT_SHA`
 - optional `NEXT_PUBLIC_BUILD_DATE`

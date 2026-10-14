@@ -134,6 +134,22 @@ describe("the pre-paint script", () => {
     expect(attributes.get("data-density")).toBe("dense");
   });
 
+  it("lets an embedded dashboard's ?theme= match the site around it (A8, Y4)", () => {
+    const run = (pathname: string, search: string) => {
+      const attributes = new Map<string, string>();
+      new Function("localStorage", "document", "location", NO_FLASH_SCRIPT)(
+        { getItem: (k: string) => ({ "pw.theme": "dark" })[k] ?? null },
+        { documentElement: { setAttribute: (n: string, v: string) => void attributes.set(n, v) } },
+        { pathname, search },
+      );
+      return attributes.get("data-theme");
+    };
+    expect(run("/embed/abc", "?theme=light")).toBe("light");
+    expect(run("/embed/abc", "?theme=system")).toBeUndefined();
+    expect(run("/embed/abc", "?theme=<b>")).toBe("dark");
+    expect(run("/projects/abc", "?theme=light")).toBe("dark");
+  });
+
   it("applies nothing when the stored theme is 'system'", () => {
     const attributes = new Map<string, string>();
     const store: Record<string, string> = { "pw.theme": "system" };

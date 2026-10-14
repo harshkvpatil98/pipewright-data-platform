@@ -7,6 +7,7 @@ import { DashboardViewPage } from "@/features/reporting/components/dashboard-vie
 import { ApiError } from "@/lib/api/errors";
 import { serverApiFetch } from "@/lib/api/server";
 import { requireCurrentUser } from "@/lib/auth/server";
+import { embedOrigins } from "@/lib/embed-origins";
 
 type PageProps = {
   params: Promise<{ projectId: string; dashboardId: string }>;
@@ -38,6 +39,7 @@ export default async function DashboardPage({ params }: PageProps) {
         projectId={projectId}
         initialDashboard={dashboard}
         charts={charts.items}
+        embedOrigins={embedOrigins()}
       />
     );
   } catch (error) {

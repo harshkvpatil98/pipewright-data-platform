@@ -38,6 +38,7 @@ from service_observability.models import (  # noqa: F401
 from service_reporting.models import (  # noqa: F401
     CatalogAnnotation,
     Dashboard,
+    DashboardEmbed,
     DashboardTile,
     GlossaryTerm,
     ReportDelivery,

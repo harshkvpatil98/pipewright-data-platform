@@ -29,7 +29,11 @@ An organisation can be limited to its own networks. Under **Admin → Organisati
 
 The page shows the address you are connecting from. A list that leaves out your own address is refused, because saving it would sign you out for good. Clear the list to allow any network again.
 
-If Pipewright sits behind a proxy or load balancer, set `TRUSTED_PROXY_HOPS` to the number of proxies in front of it, so it reads each person's real address rather than the proxy's.
+If Pipewright sits behind a proxy or load balancer, set `TRUSTED_PROXY_HOPS` to the number of proxies in front of it, so it reads each person's real address rather than the proxy's. Set it for the web too: it passes the address of each person viewing a shared or embedded dashboard on, so they are rate limited one by one.
+
+### Embedded dashboards
+
+A dashboard can be shown inside another site, such as a customer portal (see [embedding a dashboard](api.md#embedding-a-dashboard)). Only the sites listed in the web's `EMBED_ALLOWED_ORIGINS` may show it in a frame, separated by spaces: `https://portal.example.com https://*.partner.io`. With none listed, an embed link opens on its own but no other site can frame it. An address written wrongly is named on the dashboard's **Embed** panel.
 
 ## Connectors
 
@@ -75,14 +79,16 @@ A worker that stops opens an incident by itself. Work it was doing is marked fai
 
 ## Settings reference
 
-Set these in the gateway's environment. Changes take effect when the gateway restarts.
+Set these in the gateway's environment unless they say the web. Changes take effect when it restarts.
 
 | Setting | What it does |
 | --- | --- |
 | `SUPPORT_CONTACT` | An email address or web address shown under **Help → Contact support**. Unset, the menu points to [Getting help](index.md#getting-help). |
 | `STORAGE_ENCRYPTION_KEY` | Encrypts stored files (uploads, datasets, versions) with AES-256. Make one with `openssl rand -base64 32`, keep it with your other secrets, and run `platform-encrypt-storage` once to encrypt files saved before it was set. Losing the key loses the files. |
 | `APP_SECRET_ENCRYPTION_KEY` | Encrypts saved passwords and keys for connections, destinations and alert channels. |
-| `TRUSTED_PROXY_HOPS` | How many proxies sit in front of the gateway (0 by default). |
+| `TRUSTED_PROXY_HOPS` | How many proxies sit in front of the gateway (0 by default). Set the same for the web. |
+| `WEB_BASE_URL` | Where people open Pipewright, such as `https://pipewright.example.com`, for links in emails and embedded dashboards. |
+| `EMBED_ALLOWED_ORIGINS` | Set for the web: the sites that may show an embedded dashboard in a frame, separated by spaces. |
 | `AUTH_ACCESS_TOKEN_EXP_MINUTES` | Minutes without use before a session ends. |
 | `AUTH_SESSION_MAX_HOURS` | The longest any session lasts. |
 | `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_REDIRECT_URI` | Single sign-on. The redirect address ends in `/api/v1/auth/sso/callback`. |

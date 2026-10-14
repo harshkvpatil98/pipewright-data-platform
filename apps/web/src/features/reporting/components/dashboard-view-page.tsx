@@ -19,6 +19,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { DiscussionPanel } from "@/features/team/components/discussion-panel";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
+import type { EmbedOrigins } from "@/lib/embed-origins";
 import { cx } from "@/lib/utils";
 
 import {
@@ -36,6 +37,7 @@ import {
   toTilePayload,
 } from "../dashboard-layout";
 import { ChartView } from "./chart-view";
+import { DashboardEmbeds } from "./dashboard-embeds";
 import { DashboardSubscribe } from "./dashboard-subscribe";
 
 type DashboardViewPageProps = {
@@ -43,6 +45,8 @@ type DashboardViewPageProps = {
   projectId: string;
   initialDashboard: DashboardDetail;
   charts: SavedChart[];
+  /** The sites that may frame an embedded dashboard, read by the server. */
+  embedOrigins?: EmbedOrigins;
 };
 
 const FILTER_OPERATORS = [
@@ -77,6 +81,7 @@ export function DashboardViewPage({
   projectId,
   initialDashboard,
   charts,
+  embedOrigins = { allowed: [], ignored: [] },
 }: DashboardViewPageProps) {
   const [dashboard, setDashboard] = useState(initialDashboard);
   const [data, setData] = useState<DashboardDataResponse | null>(null);
@@ -303,6 +308,12 @@ export function DashboardViewPage({
                 </option>
               ))}
             </select>
+            <DashboardEmbeds
+              projectId={projectId}
+              dashboardId={dashboard.id}
+              dashboardName={dashboard.name}
+              origins={embedOrigins}
+            />
             <DashboardSubscribe
               projectId={projectId}
               dashboardId={dashboard.id}

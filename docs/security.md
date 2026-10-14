@@ -100,10 +100,27 @@ configures (settings, discovery, signing keys, client credentials, and with
   camera, microphone and location; every API answer with `nosniff`,
   `X-Frame-Options: DENY` and `Referrer-Policy: no-referrer`. On HTTPS the
   session cookie is set `Secure`. A content security policy is left to the
-  proxy, which knows the deployment's own addresses.
+  proxy, which knows the deployment's own addresses. The one exception is an
+  embedded dashboard (`/embed/<token>`), sent `Content-Security-Policy:
+  frame-ancestors 'self'` plus the sites in the web's `EMBED_ALLOWED_ORIGINS`
+  and no `X-Frame-Options`; entries that are not an `https://` site's address
+  (or `http://localhost`) are ignored and named on the Embed panel.
+  `apps/web/src/lib/security-headers.test.ts`, `embed-origins.test.ts`.
+- **Embedded dashboards.** Each embed has its own signing secret, kept
+  encrypted and shown once. A link is an HS256 JSON Web Token naming the embed,
+  with a required expiry and optional filters; the API reads the embed from the
+  token, then verifies it with that embed's secret, HS256 only, so a token
+  cannot choose its algorithm, or `none`. Filters are fixed by the signature
+  and added to every chart's; one on a column a chart lacks fails that chart
+  closed. Turning an embed off stops every link signed with its secret; an
+  expired link is a 410. Policies apply as for a public link. The page has no
+  session and sets no cookie. `apps/api-gateway/tests/test_dashboard_embeds.py`.
 - **Rate limits.** Password sign-in is limited per account and address (10
   in 5 minutes per account, 60 a minute per address), as are one-time code
-  redemption, public dashboard links and inbound webhooks. Counts are kept in
+  redemption, public dashboard links (shared and embedded) and inbound
+  webhooks. The web fetches public dashboards for their viewers and passes
+  each viewer's address on, read through its own `TRUSTED_PROXY_HOPS`, so
+  viewers are limited one by one rather than as the web's one address. Counts are kept in
   the database (`rate_limit_windows`, migration 0052) so every gateway shares
   them; a refusal is HTTP 429 with `Retry-After`. `shared_python/rate_limit.py`;
   `apps/api-gateway/tests/test_rate_limits.py` runs them through the HTTP

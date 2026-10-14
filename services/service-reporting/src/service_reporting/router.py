@@ -19,6 +19,9 @@ from service_reporting.schemas import (
     MetricUsageResponse,
     DashboardDataRequest,
     DashboardDataResponse,
+    DashboardEmbedCreate,
+    DashboardEmbedListResponse,
+    DashboardEmbedRead,
     AnnotationRead,
     AnnotationUpdate,
     CatalogSearchResponse,
@@ -59,6 +62,7 @@ from service_reporting.metrics import (
     preview_metric,
     update_metric,
 )
+from service_reporting.embeds import create_embed, embedded_dashboard, list_embeds, revoke_embed
 from service_reporting.service import (
     chart_catalog,
     create_chart,
@@ -273,6 +277,47 @@ def build_router(
         current_user: UserRead = Depends(get_current_user),
     ) -> DashboardRead:
         return unshare_dashboard(db, project_id, dashboard_id, current_user)
+
+    @router.get(
+        "/projects/{project_id}/dashboards/{dashboard_id}/embeds", response_model=DashboardEmbedListResponse
+    )
+    def list_dashboard_embeds(
+        project_id: uuid.UUID,
+        dashboard_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> DashboardEmbedListResponse:
+        """Where this dashboard is shown on other sites, each with its own link."""
+        return list_embeds(db, project_id, dashboard_id, current_user)
+
+    @router.post(
+        "/projects/{project_id}/dashboards/{dashboard_id}/embeds",
+        response_model=DashboardEmbedRead,
+        status_code=status.HTTP_201_CREATED,
+    )
+    def create_dashboard_embed(
+        project_id: uuid.UUID,
+        dashboard_id: uuid.UUID,
+        payload: DashboardEmbedCreate,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> DashboardEmbedRead:
+        """A signed link that runs out after `days`. The answer carries the
+        embed's signing secret, once, for a server that signs links of its own."""
+        return create_embed(db, project_id, dashboard_id, payload, current_user)
+
+    @router.delete(
+        "/projects/{project_id}/dashboards/{dashboard_id}/embeds/{embed_id}", response_model=DashboardEmbedRead
+    )
+    def revoke_dashboard_embed(
+        project_id: uuid.UUID,
+        dashboard_id: uuid.UUID,
+        embed_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> DashboardEmbedRead:
+        """Turn it off: every link signed with its secret stops at once."""
+        return revoke_embed(db, project_id, dashboard_id, embed_id, current_user)
 
     @router.delete(
         "/projects/{project_id}/dashboards/{dashboard_id}",
@@ -610,5 +655,20 @@ def build_public_router(
 
         rate_limit.hit(db, rate_limit.PUBLIC_DASHBOARD_PER_ADDRESS, request_address(request) or "unknown")
         return get_shared_dashboard(db, token=token, storage_backend=storage_backend)
+
+    @router.get("/public/embeds/{token}", response_model=PublicDashboardView)
+    def embedded_dashboard_view(
+        token: str,
+        request: Request,
+        db: Session = Depends(get_db),
+        storage_backend=Depends(get_storage_backend),
+    ) -> PublicDashboardView:
+        """A dashboard by its embed link (A8, Y4): 404 when the link is not
+        valid or the embed was turned off, 410 when it has run out."""
+        from service_auth.dependencies import request_address
+        from shared_python import rate_limit
+
+        rate_limit.hit(db, rate_limit.PUBLIC_DASHBOARD_PER_ADDRESS, request_address(request) or "unknown")
+        return embedded_dashboard(db, token=token, storage_backend=storage_backend)
 
     return router

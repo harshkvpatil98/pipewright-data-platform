@@ -479,9 +479,10 @@ export const AREAS: NavArea[] = [
         help: [
           "Pages of charts that answer one question together.",
           "Share a dashboard by link, or have it emailed on a schedule.",
+          "Embed it in another site, such as a customer portal.",
           "Filters at the top apply to every chart on it.",
         ],
-        keywords: "dashboard bi share link",
+        keywords: "dashboard bi share link embed iframe portal",
       },
       {
         id: "charts",

@@ -63,12 +63,14 @@ export function applyDensity(density: Density, root: HTMLElement): void {
  * Kept small and dependency-free because it is inlined into <head> and blocks
  * rendering. It reads localStorage only -- a fetch here would defeat the point.
  * Wrapped in try/catch because localStorage throws in private browsing on some
- * browsers, and a theme preference is never worth a blank page.
+ * browsers, and a theme preference is never worth a blank page. An embedded
+ * dashboard takes `?theme=` first, to match the site around it.
  */
 export const NO_FLASH_SCRIPT = `(function(){try{
 var t=localStorage.getItem(${JSON.stringify(THEME_STORAGE_KEY)});
 var d=localStorage.getItem(${JSON.stringify(DENSITY_STORAGE_KEY)});
 var e=document.documentElement;
+if(typeof location!=="undefined"&&location.pathname.indexOf("/embed/")===0){var q=new URLSearchParams(location.search).get("theme");if(q==="light"||q==="dark"||q==="system")t=q;}
 if(t==="light"||t==="dark")e.setAttribute("data-theme",t);
 if(d==="compact"||d==="dense")e.setAttribute("data-density",d);
 }catch(_){}})();`;

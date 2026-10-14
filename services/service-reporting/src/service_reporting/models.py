@@ -131,6 +131,37 @@ class Dashboard(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
 
 
+class DashboardEmbed(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """A dashboard shown inside another site (adoption-readiness A8, Y4).
+
+    Each embed has its own signing secret. Its links are signed with it and
+    carry an expiry, so a link cannot be stretched or pointed at another
+    dashboard; a partner's server can sign short links of its own, with fixed
+    filters, using the same secret. Turning the embed off stops every link
+    signed with it at once.
+    """
+
+    __tablename__ = "dashboard_embeds"
+    __table_args__ = (Index("ix_dashboard_embeds_dashboard_id", "dashboard_id"),)
+
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    dashboard_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("dashboards.id", ondelete="CASCADE"), nullable=False
+    )
+    #: Where it is shown, in the owner's words: "Customer portal".
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    #: Kept encrypted; shown once, when the embed is made.
+    signing_secret: Mapped[str] = mapped_column(Text, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_opened_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+
 class DashboardTile(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     """One tile's place on a dashboard: a chart, or a block of text."""
 

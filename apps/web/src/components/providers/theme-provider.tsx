@@ -72,7 +72,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // is a machine the person has not used before -- which is exactly the case
   // this is here to serve.
   useEffect(() => {
-    if (!getAccessToken()) return;
+    // An embedded dashboard keeps the theme its site asked for with ?theme=,
+    // whoever happens to be signed in to Pipewright in the same browser.
+    if (!getAccessToken() || window.location.pathname.startsWith("/embed/")) return;
     let cancelled = false;
 
     void apiFetch<Partial<Preferences>>("/auth/me/preferences")

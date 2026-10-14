@@ -24,6 +24,16 @@ config:
   # Where the browser reaches the API and where the web reaches it internally.
   NEXT_PUBLIC_API_BASE_URL: ""
   API_INTERNAL_BASE_URL: ""
+  # Where people open Pipewright (https://pipewright.example.com), for links in
+  # emails and embedded dashboards.
+  WEB_BASE_URL: ""
+  # How many proxies sit in front: 1 behind this chart's ingress, one more for
+  # a load balancer in front of that. The gateway reads each person's address
+  # through them; the web passes a dashboard viewer's address on the same way.
+  TRUSTED_PROXY_HOPS: "0"
+  # Other sites that may show an embedded dashboard in a frame, separated by
+  # spaces: "https://portal.example.com https://*.partner.io". Read by the web.
+  EMBED_ALLOWED_ORIGINS: ""
   # Traces over OTLP/HTTP: set OTEL_ENABLED to "true" and point
   # OTEL_EXPORTER_OTLP_ENDPOINT at a collector, e.g. "http://otel-collector:4318".
   # OTEL_ENABLED: "true"

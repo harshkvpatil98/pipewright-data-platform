@@ -35,8 +35,8 @@ function appRoutes(): { route: string; file: string }[] {
   return found;
 }
 
-/** Pages with no frame at all: signing in and public share links. */
-const FRAMELESS = new Set(["/login", "/sign-in", "/shared/dashboards/x"]);
+/** Pages with no frame at all: signing in, public share links and embedded dashboards. */
+const FRAMELESS = new Set(["/login", "/sign-in", "/shared/dashboards/x", "/embed/x"]);
 
 function isRedirectOnly(file: string): boolean {
   const source = readFileSync(file, "utf8");

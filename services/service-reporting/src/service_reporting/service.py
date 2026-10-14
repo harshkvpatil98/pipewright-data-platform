@@ -760,9 +760,17 @@ def get_shared_dashboard(db: Session, *, token: str, storage_backend) -> PublicD
     dashboard = db.scalar(select(Dashboard).where(Dashboard.share_token == token))
     if dashboard is None:
         raise NotFoundError("This shared dashboard is not available.")
+    return public_dashboard_view(db, dashboard, storage_backend)
 
+
+def public_dashboard_view(
+    db: Session, dashboard: Dashboard, storage_backend, *, fixed_filters: list[FilterInput] | None = None
+) -> PublicDashboardView:
+    """A dashboard as someone without an account sees it: a share link, or an
+    embed (A8, Y4), whose signed link may fix filters on every chart."""
     tiles, charts = _dashboard_tiles(db, dashboard)
     dashboard_filters = [FilterInput.model_validate(item) for item in (dashboard.filters_json or [])]
+    dashboard_filters += fixed_filters or []
 
     public_tiles: list[PublicChartTile] = []
     for tile in tiles:
@@ -796,6 +804,7 @@ def get_shared_dashboard(db: Session, *, token: str, storage_backend) -> PublicD
         name=dashboard.name,
         description=dashboard.description,
         shared_at=dashboard.shared_at,
+        refresh_seconds=dashboard.refresh_seconds,
         tiles=public_tiles,
     )
 

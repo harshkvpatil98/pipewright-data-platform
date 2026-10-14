@@ -199,6 +199,31 @@ def came_from_pipewright(secret: str, signature_header: str, body: bytes) -> boo
 
 Answer with any `2xx` once you have the event. An answer of `5xx`, `408` or `429`, or none within five seconds, is tried twice more, a minute and then five minutes later; any other answer is taken as a refusal and not repeated. **Deliveries** on the alert shows every try and its result, and **New secret** replaces the secret at once.
 
+## Embedding a dashboard
+
+A dashboard can be shown inside a page of your own site. Open the dashboard, choose **Embed**, say where it will be shown and how long it lasts, and **Make a link**. You get the code to paste into your page, its link, and a signing secret, shown once. Turn the embed off at any time and every link to it stops at once. Only sites that whoever runs Pipewright lists in `EMBED_ALLOWED_ORIGINS` may show it in a frame.
+
+The link made for you lasts as long as the embed. For a site where people sign in, make a short link as each page loads instead, signed with the embed's secret, and fix filters so each customer sees only their own rows. The link's token is a JSON Web Token signed with HS256, so any language's JWT library makes one. Its claims are the embed's `id`, an expiry, and any filters, which apply to every chart on the dashboard. In Python, with `pip install pyjwt`:
+
+```python
+import time
+
+import jwt
+
+
+def embed_src(pipewright: str, embed_id: str, secret: str, customer_id: str) -> str:
+    claims = {
+        "embed": embed_id,
+        "exp": int(time.time()) + 600,  # ten minutes
+        "filters": [{"column": "customer_id", "value": customer_id}],
+    }
+    return f"{pipewright}/embed/{jwt.encode(claims, secret, algorithm='HS256')}"
+```
+
+In Node, `jwt.sign({ embed, filters }, secret, { algorithm: "HS256", expiresIn: "10m" })` with the `jsonwebtoken` package makes the same token, and the Python client has `embed_link`. Nobody viewing the page can change a signed link, so they cannot widen its filters or stretch its expiry. A filter on a column a chart's data lacks shows that chart as not loaded, rather than every row. Filters take the dashboard's `operator`s (`equals` when left out, `in` with a list, and so on).
+
+Add `?title=0` to leave the dashboard's name off, and `?theme=light` or `?theme=dark` to match your page. A link that has run out says so and asks the viewer to reload the page it was on.
+
 ## The Python client and command line
 
 The repository's `clients/python` is a Python package with every API operation as a method and a `pipewright` command for the jobs people do most: list projects and datasets, upload and download, run a recipe or a workflow and wait for it, move a bundle, or call any operation.

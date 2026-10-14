@@ -722,6 +722,27 @@ class Operations:
         """
         return self._call("POST", f"/api/v1/projects/{project_id}/dashboards/{dashboard_id}/data", body=body)
 
+    def list_dashboard_embeds(self, project_id: str, dashboard_id: str) -> Any:
+        """Where this dashboard is shown on other sites, each with its own link.
+
+        GET /api/v1/projects/{project_id}/dashboards/{dashboard_id}/embeds
+        """
+        return self._call("GET", f"/api/v1/projects/{project_id}/dashboards/{dashboard_id}/embeds")
+
+    def create_dashboard_embed(self, project_id: str, dashboard_id: str, *, body: Any) -> Any:
+        """A signed link that runs out after `days`. The answer carries the embed's signing secret, once, for a server that signs links of its own.
+
+        POST /api/v1/projects/{project_id}/dashboards/{dashboard_id}/embeds
+        """
+        return self._call("POST", f"/api/v1/projects/{project_id}/dashboards/{dashboard_id}/embeds", body=body)
+
+    def revoke_dashboard_embed(self, project_id: str, dashboard_id: str, embed_id: str) -> Any:
+        """Turn it off: every link signed with its secret stops at once.
+
+        DELETE /api/v1/projects/{project_id}/dashboards/{dashboard_id}/embeds/{embed_id}
+        """
+        return self._call("DELETE", f"/api/v1/projects/{project_id}/dashboards/{dashboard_id}/embeds/{embed_id}")
+
     def share(self, project_id: str, dashboard_id: str) -> Any:
         """Share
 
@@ -2324,6 +2345,13 @@ class Operations:
         GET /api/v1/public/dashboards/{token}
         """
         return self._call("GET", f"/api/v1/public/dashboards/{token}")
+
+    def embedded_dashboard_view(self, token: str) -> Any:
+        """A dashboard by its embed link (A8, Y4): 404 when the link is not valid or the embed was turned off, 410 when it has run out.
+
+        GET /api/v1/public/embeds/{token}
+        """
+        return self._call("GET", f"/api/v1/public/embeds/{token}")
 
     def recent_runs(self, *, status: str | None = None, limit: int | None = None) -> Any:
         """Recent Runs

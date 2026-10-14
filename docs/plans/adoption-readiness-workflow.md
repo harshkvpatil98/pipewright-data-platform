@@ -1550,10 +1550,10 @@ product rather than in the code.
   rows, import rows, delivery rows written while you wait, copy rows, SQL
   rows, runs at once, task tries, notebook limits, sign-in attempts, shared
   links.
-- **X10, defects.** Every page walked again in a headless browser (70 pages
-  at 1280 and 1024 pixels: errors, raw values, sideways scrolling, unnamed
-  controls, clipped tabs, headings) and the scale features rehearsed for
-  real. Found and fixed: "Pick up from where it failed" was refused for every
+- **X10, defects.** Every page walked again in a headless browser (every
+  route at 1280 and 1024 pixels: errors, raw values, sideways scrolling,
+  unnamed controls, clipped tabs, headings; now `apps/web/e2e/walk-pages.mjs`
+  for the next phase) and the scale features rehearsed for real. Found and fixed: "Pick up from where it failed" was refused for every
   run on PostgreSQL (it compared `updated_at`, which each finished run
   moves); a stopped or crashed workflow run failed silently, saying "its
   lease expired"; a run longer than its lease (a workflow over 15 minutes, a

@@ -447,6 +447,13 @@ measured cold-user task results and what moved to later phases. Rules for anyone
   marked done from `ALL_TOUR_IDS`, and `accessibility.spec.ts` fails a
   serious or critical axe finding or a page without exactly one `h1`. An
   editor whose name sits in a toolbar passes `heading` to `AppFrame`.
+- **Walk every page at the end of a phase with `apps/web/e2e/walk-pages.mjs`**
+  (after `npx playwright test --project setup`; `--width 1024`, `--project`,
+  `--only`): it reads the routes from `src/app`, fills ids from a real
+  project, and reports error text, console errors, 5xx answers, sideways
+  scrolling, unnamed controls, cut-off tab lists and headings. A7's final
+  walk: 71 pages at 1280 and 1024, 0 problems, and the three detail pages
+  this project lacked walked from projects that had them.
 - **Toolbars and tab strips wrap or fit; they do not scroll sideways**
   (`ribbon.tsx`, `area-tabs.tsx`): a scrolled-away button is hidden from
   everyone and unreachable by keyboard.

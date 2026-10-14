@@ -17,6 +17,16 @@ const config = tseslint.config(
       },
     },
   },
+  {
+    // Scripts run by Node that also hand functions to the browser (e2e/walk-pages.mjs).
+    files: ["**/*.mjs"],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+      },
+    },
+  },
 );
 
 export default config;

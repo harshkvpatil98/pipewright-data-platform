@@ -8,6 +8,10 @@ import { expect, test, type Page } from "@playwright/test";
  */
 
 async function audit(page: Page, name: string): Promise<void> {
+  // A page's title comes from its metadata, which Next streams in after a
+  // client-side navigation; audit once it has arrived (a page with none
+  // fails here instead, by timing out).
+  await page.waitForFunction(() => document.title.trim().length > 0, null, { timeout: 15_000 });
   // Pages fade in, and colours ease between themes: measure the finished
   // page, not a frame half way through (axe reads the blended colour).
   await page.waitForFunction(() =>

@@ -7,6 +7,7 @@ import { helpLinkFor } from "@/lib/help/pages";
 import { tabHref, visibleTabs, type NavArea, type NavTab } from "@/lib/navigation";
 import { cx } from "@/lib/utils";
 import { Icon } from "@platform/shared-ui";
+import { t } from "@/lib/i18n";
 
 type AreaTabsProps = {
   area: NavArea;
@@ -31,7 +32,7 @@ export function AreaTabs({ area, activeTabId, projectId, isAdmin }: AreaTabsProp
       {tabs.length > 1 ? (
         <nav
           data-tour="area-tabs"
-          aria-label={`${area.label} pages`}
+          aria-label={t("shell.tabs.pages", { area: area.label })}
           className="flex min-w-0 flex-1 items-end gap-1 overflow-x-auto"
         >
           {tabs.map((tab) => {
@@ -113,21 +114,21 @@ function AboutThisPage({ area, tab }: { area: NavArea; tab: NavTab }) {
         onClick={() => setOpen((current) => !current)}
         aria-expanded={open}
         aria-controls="about-this-page"
-        aria-label="About this page"
-        title="About this page"
+        aria-label={t("shell.tabs.aboutThisPage")}
+        title={t("shell.tabs.aboutThisPage")}
         className={cx(
           "flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[13px] transition",
           open ? "bg-surface-2 text-ink" : "text-ink-3 hover:bg-surface-2 hover:text-ink",
         )}
       >
         <Icon name="help" size={15} />
-        <span className="hidden 2xl:inline">About this page</span>
+        <span className="hidden 2xl:inline">{t("shell.tabs.aboutThisPage")}</span>
       </button>
       {open ? (
         <div
           id="about-this-page"
           role="region"
-          aria-label={`About ${tab.label}`}
+          aria-label={t("shell.tabs.about", { tab: tab.label })}
           className="animate-fade-up absolute right-0 top-10 z-40 w-80 rounded-xl border border-line bg-[color:var(--panel-strong)] p-4 shadow-[var(--shadow-lg)]"
         >
           <div className="flex items-center gap-2">
@@ -152,7 +153,7 @@ function AboutThisPage({ area, tab }: { area: NavArea; tab: NavTab }) {
             className="mt-3 inline-flex items-center gap-1.5 text-[13px] font-medium text-accent hover:underline"
           >
             <Icon name="book" size={14} />
-            Read more in the help
+            {t("shell.tabs.readMore")}
           </Link>
         </div>
       ) : null}

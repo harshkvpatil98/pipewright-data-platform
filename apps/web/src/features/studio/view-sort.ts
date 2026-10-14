@@ -8,9 +8,10 @@
  * ("item 2" before "item 10", case ignored).
  */
 
+import { compareText } from "@/lib/format";
+
 export type ViewSort = { column: string; direction: "asc" | "desc" };
 
-const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
 
 function isEmpty(value: unknown): boolean {
   return value === null || value === undefined || value === "";
@@ -19,7 +20,7 @@ function isEmpty(value: unknown): boolean {
 function compare(left: unknown, right: unknown): number {
   if (typeof left === "number" && typeof right === "number") return left - right;
   if (typeof left === "boolean" && typeof right === "boolean") return Number(left) - Number(right);
-  return collator.compare(String(left), String(right));
+  return compareText(String(left), String(right));
 }
 
 export function sortForView<T extends Record<string, unknown>>(rows: T[], sort: ViewSort | null): T[] {

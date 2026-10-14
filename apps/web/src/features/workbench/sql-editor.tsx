@@ -12,6 +12,7 @@ import {
   toggleComment,
 } from "./editor-state";
 import type { Completion } from "./types";
+import { countOf } from "@/lib/format";
 
 /**
  * A SQL editor built from a textarea.
@@ -190,7 +191,7 @@ export function SqlEditor({
         <span>
           Line {caret.line}, column {caret.column}
         </span>
-        <span>{value.length.toLocaleString()} characters</span>
+        <span>{countOf(value.length, "character")}</span>
       </div>
 
       {suggestions.length > 0 ? (

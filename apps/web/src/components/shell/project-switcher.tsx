@@ -10,6 +10,7 @@ import { locate } from "@/lib/navigation";
 import type { ActiveProject } from "@/lib/use-active-project";
 import { cx } from "@/lib/utils";
 import { Icon, type IconName } from "@platform/shared-ui";
+import { t } from "@/lib/i18n";
 
 type ProjectSwitcherProps = {
   active: ActiveProject | null;
@@ -60,7 +61,7 @@ export function ProjectSwitcher({ active, projects, loading, onOpen }: ProjectSw
           setOpen((current) => !current);
         }}
         aria-expanded={open}
-        aria-label={active ? `Project: ${active.name}. Switch project` : "Choose a project"}
+        aria-label={active ? t("shell.projectSwitcher.current", { name: active.name }) : t("shell.projectSwitcher.choose")}
         className={cx(
           "flex h-9 max-w-[220px] items-center gap-2 rounded-lg border px-2.5 transition",
           open
@@ -70,7 +71,7 @@ export function ProjectSwitcher({ active, projects, loading, onOpen }: ProjectSw
       >
         <Icon name="folder" size={15} className="shrink-0 text-muted" />
         <span className={cx("truncate text-[13px]", active ? "font-medium text-ink" : "text-ink-3")}>
-          {active?.name ?? "Choose a project"}
+          {active?.name ?? t("shell.projectSwitcher.choose")}
         </span>
         <Icon name="chevronDown" size={12} className="shrink-0 text-muted" />
       </button>
@@ -78,14 +79,14 @@ export function ProjectSwitcher({ active, projects, loading, onOpen }: ProjectSw
       {open ? (
         <div className="animate-fade-up absolute left-0 top-11 z-50 w-72 overflow-hidden rounded-xl border border-line bg-[color:var(--panel-strong)] shadow-[var(--shadow-lg)] backdrop-blur-xl">
           <div className="border-b border-line px-3 py-2 text-[12px] font-medium text-ink-3">
-            Switch project
+            {t("shell.projectSwitcher.switch")}
           </div>
           <div className="max-h-72 overflow-y-auto p-1.5">
             {loading && projects.length === 0 ? (
-              <p className="px-2.5 py-4 text-center text-[13px] text-muted">Loading…</p>
+              <p className="px-2.5 py-4 text-center text-[13px] text-muted">{t("shell.projectSwitcher.loading")}</p>
             ) : projects.length === 0 ? (
               <p className="px-2.5 py-4 text-center text-[13px] text-muted">
-                No projects yet.
+                {t("shell.projectSwitcher.none")}
               </p>
             ) : (
               projects.map((project) => (
@@ -112,14 +113,14 @@ export function ProjectSwitcher({ active, projects, loading, onOpen }: ProjectSw
           <div className="border-t border-line p-1.5">
             {active ? (
               <MenuLink href={`/projects/${active.id}/settings`} icon="settings" onClick={() => setOpen(false)}>
-                Project settings
+                {t("shell.projectSwitcher.settings")}
               </MenuLink>
             ) : null}
             <MenuLink href="/projects" icon="grid" onClick={() => setOpen(false)}>
-              All projects
+              {t("shell.projectSwitcher.all")}
             </MenuLink>
             <MenuLink href="/projects?new=1" icon="plus" onClick={() => setOpen(false)}>
-              New project
+              {t("shell.projectSwitcher.new")}
             </MenuLink>
           </div>
         </div>

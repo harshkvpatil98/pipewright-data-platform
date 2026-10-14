@@ -32,7 +32,7 @@ import {
   type CellValue,
   type Tray,
 } from "./change-tray";
-import { countOf } from "@/lib/format";
+import { countOf, formatCount } from "@/lib/format";
 
 type Connection = { id: string; name: string; connector_type: string; status: string };
 type DiscoveredTable = { schema_name: string | null; name: string; qualified_name: string };
@@ -473,7 +473,7 @@ export function TableEditorPage({
       ribbon={ribbon}
       statusItems={[
         { id: "table", label: "Table", value: shape?.table ?? "none" },
-        { id: "rows", label: "Rows", value: page ? page.total.toLocaleString() : "—" },
+        { id: "rows", label: "Rows", value: page ? formatCount(page.total) : "—" },
         { id: "pending", label: "Staged", value: String(pending) },
         { id: "env", label: "Environment", value: projectEnvironment },
       ]}
@@ -614,7 +614,7 @@ export function TableEditorPage({
             <div className="flex items-center justify-between text-xs text-muted">
               <span>
                 Rows {page.total === 0 ? 0 : offset + 1}–
-                {Math.min(offset + page.rows.length, page.total)} of {page.total.toLocaleString()}
+                {Math.min(offset + page.rows.length, page.total)} of {formatCount(page.total)}
               </span>
               <div className="flex gap-2">
                 <Button

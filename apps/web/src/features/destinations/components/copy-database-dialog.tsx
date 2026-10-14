@@ -29,6 +29,7 @@ import {
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { cx } from "@/lib/utils";
+import { countOf } from "@/lib/format";
 
 type ColumnPlan = {
   name: string;
@@ -449,7 +450,7 @@ export function CopyDatabaseDialog({ open, onClose, projectId, connectionId }: C
               report.status === "succeeded" ? "border-success-line bg-success-soft text-success" : "border-danger-line bg-danger-soft text-danger",
             )}
           >
-            {report.status === "succeeded" ? "Copied" : "Some tables did not copy"}: {report.rows_copied.toLocaleString()} rows
+            {report.status === "succeeded" ? "Copied" : "Some tables did not copy"}: {countOf(report.rows_copied, "row")}
             in {report.tables.filter((table) => table.status === "succeeded").length} of {report.tables.length} tables.
           </p>
           <ul className="space-y-2">
@@ -468,7 +469,7 @@ export function CopyDatabaseDialog({ open, onClose, projectId, connectionId }: C
                     )}
                   >
                     {table.status === "succeeded"
-                      ? `${table.rows_copied.toLocaleString()} rows`
+                      ? countOf(table.rows_copied, "row")
                       : table.status === "skipped"
                         ? "Left alone"
                         : "Did not copy"}

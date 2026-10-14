@@ -33,7 +33,7 @@ import type {
   StatementResult,
   TableInfo,
 } from "./types";
-import { countOf } from "@/lib/format";
+import { countOf, formatLocalDateTime } from "@/lib/format";
 
 type Props = {
   currentUser: AuthUser;
@@ -260,7 +260,7 @@ export function WorkbenchPage({
       const created = await apiFetch<{ id: string; name: string }>(`${base}/notebooks`, {
         method: "POST",
         body: JSON.stringify({
-          name: `From the workbench, ${new Date().toLocaleString()}`,
+          name: `From the workbench, ${formatLocalDateTime(new Date())}`,
           connection_id: connectionId || null,
           cells: [{ kind: "sql", source: text, output_name: "result" }],
         }),
@@ -625,7 +625,7 @@ export function WorkbenchPage({
                   </h2>
                   {explain.estimated_rows !== null ? (
                     <span className="text-xs text-muted">
-                      about {explain.estimated_rows.toLocaleString()} rows
+                      about {countOf(explain.estimated_rows, "row")}
                     </span>
                   ) : null}
                   <button
@@ -686,7 +686,7 @@ export function WorkbenchPage({
                       />
                       {shown.truncated ? (
                         <p className="border-t border-line px-3 py-1 text-[12px] text-muted">
-                          Showing the first {shown.rows.length.toLocaleString()} rows. Add a LIMIT
+                          Showing the first {countOf(shown.rows.length, "row")}. Add a LIMIT
                           to see a specific part.
                         </p>
                       ) : null}

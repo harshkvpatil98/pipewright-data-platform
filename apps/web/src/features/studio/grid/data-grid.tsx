@@ -59,6 +59,7 @@ import {
   type GridPalette,
 } from "@/features/studio/grid/grid-theme";
 import { Badge } from "@platform/shared-ui";
+import { countOf, formatCount } from "@/lib/format";
 
 export type GridColumn = {
   name: string;
@@ -886,9 +887,9 @@ export function DataGrid({
       ) : null}
 
       <div className="flex shrink-0 items-center gap-4 border-t border-line bg-surface px-3 py-1.5 text-[12px] text-muted">
-        <span className="tabular">{rows.length.toLocaleString()} rows</span>
+        <span className="tabular">{countOf(rows.length, "row")}</span>
         <span className="tabular">{columns.length} columns</span>
-        {selectedCount > 1 ? <span className="tabular">{selectedCount.toLocaleString()} selected</span> : null}
+        {selectedCount > 1 ? <span className="tabular">{formatCount(selectedCount)} selected</span> : null}
         {stale ? (
           <Badge tone="warning">
             Showing the last result that ran
@@ -936,13 +937,13 @@ function ColumnProfileCard({
 
       <dl className="mb-2.5 grid grid-cols-2 gap-x-3 gap-y-1 text-[12px]">
         <dt className="text-ink-3">Values</dt>
-        <dd className="tabular text-right text-ink">{profile.values.toLocaleString()}</dd>
+        <dd className="tabular text-right text-ink">{formatCount(profile.values)}</dd>
         <dt className="text-ink-3">Empty</dt>
         <dd className="tabular text-right text-ink">{percent(profile.empties)}</dd>
         <dt className="text-ink-3">Null</dt>
         <dd className="tabular text-right text-ink">{percent(profile.nulls)}</dd>
         <dt className="text-ink-3">Distinct</dt>
-        <dd className="tabular text-right text-ink">{profile.distinct.toLocaleString()}</dd>
+        <dd className="tabular text-right text-ink">{formatCount(profile.distinct)}</dd>
         {profile.numeric ? (
           <>
             <dt className="text-ink-3">Min</dt>

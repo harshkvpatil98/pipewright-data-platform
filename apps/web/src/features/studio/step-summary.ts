@@ -2,6 +2,7 @@ import {
   CAST_TYPE_LABELS,
   OPERATOR_LABELS,
 } from "@/features/studio/step-catalog";
+import { formatCount } from "@/lib/format";
 
 /**
  * What a step acts on, in a few words, for its line in the steps list:
@@ -64,7 +65,7 @@ export function describeStep(
       return `${by}, ${config.ascending === false ? "Z to A" : "A to Z"}`;
     }
     case "limit_rows":
-      return typeof config.count === "number" ? `first ${config.count.toLocaleString()}` : "";
+      return typeof config.count === "number" ? `first ${formatCount(config.count)}` : "";
     case "join_datasets":
       return datasetNames.get(text("right_dataset_id")) ?? "";
     case "union_datasets":

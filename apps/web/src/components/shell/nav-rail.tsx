@@ -6,6 +6,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { areaHref, type AreaId, type NavArea } from "@/lib/navigation";
 import { cx } from "@/lib/utils";
 import { Icon } from "@platform/shared-ui";
+import { t } from "@/lib/i18n";
 
 type NavRailProps = {
   areas: NavArea[];
@@ -78,7 +79,7 @@ export function NavRail({
   return (
     <nav
       data-tour="nav-rail"
-      aria-label="Primary"
+      aria-label={t("shell.rail.label")}
       className={cx(
         "flex shrink-0 flex-col overflow-y-auto border-r border-line bg-[color:var(--sidebar)] py-3 transition-[width] duration-[var(--duration-base)] ease-[var(--ease-out)]",
         expanded ? "w-[208px] px-3" : "w-[60px] items-center px-2",
@@ -86,9 +87,9 @@ export function NavRail({
     >
       {expanded ? (
         <div className="mb-2 px-3" title={projectName}>
-          <div className="text-[12px] text-muted">Project</div>
+          <div className="text-[12px] text-muted">{t("shell.rail.project")}</div>
           <div className="truncate text-[13px] font-medium text-ink-2">
-            {projectName ?? "None open"}
+            {projectName ?? t("shell.rail.noneOpen")}
           </div>
         </div>
       ) : null}
@@ -106,14 +107,14 @@ export function NavRail({
         <button
           type="button"
           onClick={onToggle}
-          aria-label={expanded ? "Collapse navigation" : "Expand navigation"}
+          aria-label={expanded ? t("shell.rail.collapseNavigation") : t("shell.rail.expandNavigation")}
           className={cx(
             "flex items-center rounded-xl text-muted transition hover:bg-surface-2 hover:text-ink",
             expanded ? "w-full gap-3 px-3 py-2.5" : "h-10 w-10 justify-center",
           )}
         >
           <Icon name={expanded ? "chevronLeft" : "chevronRight"} size={17} />
-          {expanded ? <span className="text-[13px]">Collapse</span> : null}
+          {expanded ? <span className="text-[13px]">{t("shell.rail.collapse")}</span> : null}
         </button>
       </div>
     </nav>

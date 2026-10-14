@@ -6,6 +6,8 @@
  * so the caller can scale it with CSS.
  */
 
+import { formatCount } from "@/lib/format";
+
 export const CHART_WIDTH = 100;
 export const CHART_HEIGHT = 28;
 
@@ -57,7 +59,7 @@ function round(value: number): number {
 export function formatMetric(value: number | null, unit: string | null): string {
   if (value === null || !Number.isFinite(value)) return "—";
   if (unit === "%") return `${value.toFixed(1)}%`;
-  if (Math.abs(value) >= 1000) return value.toLocaleString(undefined, { maximumFractionDigits: 0 });
+  if (Math.abs(value) >= 1000) return formatCount(value);
   if (Number.isInteger(value)) return String(value);
   return value.toFixed(2);
 }

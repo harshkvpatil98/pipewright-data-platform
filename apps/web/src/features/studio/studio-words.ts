@@ -1,4 +1,5 @@
 import type { ExecutionPlan } from "@/features/studio/details-drawer";
+import { countOf, formatCount } from "@/lib/format";
 
 /** "Runs here", or "3 of 4 steps run in PostgreSQL": the plan in one phrase. */
 export function planPhrase(plan: ExecutionPlan | null): string | null {
@@ -11,6 +12,6 @@ export function planPhrase(plan: ExecutionPlan | null): string | null {
 
 /** "All 49 rows", or "First 50 of 1,234 rows" when the preview is part of the result. */
 export function previewScope(shown: number, total: number): string {
-  if (shown >= total) return `All ${total.toLocaleString()} row${total === 1 ? "" : "s"}`;
-  return `First ${shown.toLocaleString()} of ${total.toLocaleString()} rows`;
+  if (shown >= total) return `All ${countOf(total, "row")}`;
+  return `First ${formatCount(shown)} of ${countOf(total, "row")}`;
 }

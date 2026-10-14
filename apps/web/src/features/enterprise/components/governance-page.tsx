@@ -18,7 +18,7 @@ import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { apiFetch } from "@/lib/api/client";
 import { sentenceLabel } from "@/lib/labels";
 import { extractErrorMessage } from "@/lib/api/errors";
-import { countOf, formatDate } from "@/lib/format";
+import { countOf, formatCount, formatDate } from "@/lib/format";
 import { cx } from "@/lib/utils";
 
 type GovernancePageProps = {
@@ -235,7 +235,7 @@ export function GovernancePageView({
                       kept {policy.retain_days} day{policy.retain_days === 1 ? "" : "s"}
                       {policy.last_run_at ? ` · last run ${formatDate(policy.last_run_at)}` : ""}
                       {policy.last_deleted_count
-                        ? ` · removed ${policy.last_deleted_count.toLocaleString()}`
+                        ? ` · removed ${formatCount(policy.last_deleted_count)}`
                         : ""}
                     </div>
                   </div>
@@ -267,7 +267,7 @@ export function GovernancePageView({
                     {total.subject_name}
                   </span>
                   <span className="shrink-0 tabular text-[12px] text-ink-3">
-                    {total.rows_processed.toLocaleString()} rows
+                    {countOf(total.rows_processed, "row")}
                   </span>
                   <span className="shrink-0 tabular text-[12px] text-muted">
                     {total.compute_seconds}s

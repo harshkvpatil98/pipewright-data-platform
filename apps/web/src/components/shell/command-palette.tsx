@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { cx } from "@/lib/utils";
 import { Icon, type IconName, Overlay } from "@platform/shared-ui";
+import { t } from "@/lib/i18n";
 
 export type Command = {
   id: string;
@@ -132,7 +133,7 @@ export function CommandPalette({ open, onClose, commands }: CommandPaletteProps)
   };
 
   return (
-    <Overlay open onClose={onClose} label="Command palette" placement="top" layer="palette">
+    <Overlay open onClose={onClose} label={t("shell.palette.label")} placement="top" layer="palette">
       <div
         className="animate-fade-up relative w-full max-w-xl overflow-hidden rounded-2xl border border-line bg-[color:var(--panel-strong)] shadow-[var(--shadow-lg)] backdrop-blur-xl"
         onKeyDown={onKeyDown}
@@ -144,20 +145,22 @@ export function CommandPalette({ open, onClose, commands }: CommandPaletteProps)
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             autoFocus
-            placeholder="Search pages, data and actions…"
+            placeholder={t("shell.palette.placeholder")}
             style={{ outline: "none" }}
             className="h-14 flex-1 bg-transparent text-sm text-ink placeholder:text-muted"
-            aria-label="Search pages and actions"
+            aria-label={t("shell.palette.searchLabel")}
           />
           <kbd className="shrink-0 rounded border border-line bg-surface px-1.5 py-0.5 font-mono text-[12px] text-ink-3">
-            esc
+            {t("shell.palette.esc")}
           </kbd>
         </div>
 
         <div ref={listRef} className="max-h-[52vh] overflow-y-auto p-2">
           {results.length === 0 ? (
             <p className="px-3 py-8 text-center text-sm text-muted">
-              Nothing matches “{query}”.
+              {t("shell.palette.nothingMatchesBefore")}
+              {query}
+              {t("shell.palette.nothingMatchesAfter")}
             </p>
           ) : (
             results.map((command, index) => (
@@ -202,10 +205,10 @@ export function CommandPalette({ open, onClose, commands }: CommandPaletteProps)
 
         <div className="flex items-center gap-4 border-t border-line px-4 py-2.5 text-[12px] text-muted">
           <span className="flex items-center gap-1.5">
-            <kbd className="rounded border border-line px-1 font-mono">↑↓</kbd> navigate
+            <kbd className="rounded border border-line px-1 font-mono">↑↓</kbd> {t("shell.palette.navigate")}
           </span>
           <span className="flex items-center gap-1.5">
-            <kbd className="rounded border border-line px-1 font-mono">↵</kbd> open
+            <kbd className="rounded border border-line px-1 font-mono">↵</kbd> {t("shell.palette.open")}
           </span>
         </div>
       </div>

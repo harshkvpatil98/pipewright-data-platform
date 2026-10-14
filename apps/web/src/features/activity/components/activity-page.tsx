@@ -11,6 +11,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { cx } from "@/lib/utils";
+import { formatDay, formatTime } from "@/lib/format";
 
 const KIND_WORDS: Record<ActivityKind, string> = {
   changes: "Changes",
@@ -27,8 +28,6 @@ const LEVEL_DOT: Record<ActivityItem["level"], string> = {
   error: "bg-danger",
 };
 
-const dayFormatter = new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-const timeFormatter = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit" });
 
 /** "Today", "Yesterday", or the date, in the viewer's own time zone. */
 export function dayLabel(at: string, now: Date = new Date()): string {
@@ -37,7 +36,7 @@ export function dayLabel(at: string, now: Date = new Date()): string {
   const days = Math.round((start(now) - start(day)) / 86_400_000);
   if (days === 0) return "Today";
   if (days === 1) return "Yesterday";
-  return dayFormatter.format(day);
+  return formatDay(day);
 }
 
 /** Items grouped under their day, keeping the stream's order. */
@@ -147,7 +146,7 @@ export function ActivityPageView({
                     {item.detail ? <div className="mt-0.5 break-words text-[12.5px] text-ink-3">{item.detail}</div> : null}
                   </div>
                   <time dateTime={item.at} className="shrink-0 text-[12px] text-ink-3">
-                    {timeFormatter.format(new Date(item.at))}
+                    {formatTime(item.at)}
                   </time>
                 </li>
               ))}

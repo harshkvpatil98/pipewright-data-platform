@@ -27,7 +27,7 @@ import {
 import { apiFetch } from "@/lib/api/client";
 import { downloadFromApi } from "@/lib/api/download";
 import { extractErrorMessage } from "@/lib/api/errors";
-import { formatDateTime, formatDurationMs, formatNumber } from "@/lib/format";
+import { countOf, formatDateTime, formatDurationMs, formatNumber } from "@/lib/format";
 import { cx } from "@/lib/utils";
 
 type DatasetVersionHistoryPanelProps = {
@@ -577,7 +577,7 @@ export function DatasetVersionHistoryPanel({
                   ? ` (the newest at ${formatDateTime(queryResult.requested_as_of)})`
                   : null}
                 {" · "}
-                {queryResult.row_count.toLocaleString()} row{queryResult.row_count === 1 ? "" : "s"}
+                {countOf(queryResult.row_count, "row")}
                 {queryResult.truncated ? ` (capped at ${queryResult.row_limit})` : null}
                 {" · "}
                 {formatDurationMs(queryResult.duration_ms)}
@@ -667,7 +667,7 @@ function DiffStat({
     <div className="rounded-xl border border-line bg-sunken px-3 py-2.5">
       <div className="text-[12px] text-muted">{label}</div>
       <div className="mt-0.5 text-xl font-semibold text-ink">
-        {value === null ? "—" : value.toLocaleString()}
+        {value === null ? "—" : formatNumber(value)}
       </div>
       {note ? <div className="text-[12px] text-muted">{note}</div> : null}
     </div>

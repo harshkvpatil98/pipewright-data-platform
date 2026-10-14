@@ -8,6 +8,7 @@ import { Button, Modal } from "@platform/shared-ui";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { cx } from "@/lib/utils";
+import { viewerTimeZone } from "@/lib/format";
 
 type DashboardSubscribeProps = {
   projectId: string;
@@ -91,7 +92,7 @@ export function DashboardSubscribe({
           source_id: dashboardId,
           file_format: format,
           cron_expression: chosen.cron,
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          timezone: viewerTimeZone(),
           recipients: [address],
         }),
       });
@@ -168,7 +169,7 @@ export function DashboardSubscribe({
                 </button>
               ))}
             </div>
-            <p className="text-[12px] text-muted">In your timezone ({Intl.DateTimeFormat().resolvedOptions().timeZone}).</p>
+            <p className="text-[12px] text-muted">In your time zone ({viewerTimeZone()}).</p>
           </div>
           <div className="space-y-1">
             <span className="text-[12px] text-muted">As</span>

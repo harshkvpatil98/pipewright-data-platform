@@ -18,7 +18,7 @@ import { humanDuration } from "@/lib/runtime-health";
 import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
-import { formatDate } from "@/lib/format";
+import { formatDate, viewerTimeZone } from "@/lib/format";
 import { cx } from "@/lib/utils";
 
 type WorkflowListPageProps = {
@@ -55,7 +55,7 @@ export function WorkflowListPage({
     description: "",
     trigger: "manual" as "manual" | "cron",
     cron: "0 6 * * *",
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+    timezone: viewerTimeZone(),
   });
 
   const create = useCallback(async () => {

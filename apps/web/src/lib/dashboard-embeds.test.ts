@@ -19,8 +19,8 @@ describe("dashboard embeds", () => {
 
   it("says whether it is on, off, or ran out", () => {
     const expires_at = "2026-11-14T10:00:00Z";
-    expect(embedState({ state: "on", expires_at, revoked_at: null })).toBe("On until Nov 14, 2026");
+    expect(embedState({ state: "on", expires_at, revoked_at: null })).toBe("On until 14 Nov 2026");
     expect(embedState({ state: "off", expires_at, revoked_at: expires_at })).toBe("Turned off");
-    expect(embedState({ state: "expired", expires_at, revoked_at: null })).toBe("Ran out on Nov 14, 2026");
+    expect(embedState({ state: "expired", expires_at, revoked_at: null })).toBe("Ran out on 14 Nov 2026");
   });
 });

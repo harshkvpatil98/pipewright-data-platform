@@ -10,6 +10,7 @@ import type { Tool } from "@/features/studio/tools/tool-catalogue";
 import { friendlyStepMessage } from "@/lib/labels";
 import { cx } from "@/lib/utils";
 import { Icon } from "@platform/shared-ui";
+import { countOf, formatCount, formatSignedCount } from "@/lib/format";
 
 export type TimelineStep = { uid: string; step_type: string; config: Record<string, unknown> };
 
@@ -76,7 +77,7 @@ export function StepsTimeline({
       <ol className="relative">
         <Endpoint
           label={sourceName ?? "No data chosen"}
-          detail={source ? `${source.rows.toLocaleString()} rows · ${source.columns} columns` : null}
+          detail={source ? `${countOf(source.rows, "row")} · ${countOf(source.columns, "column")}` : null}
           kind="source"
         />
 
@@ -246,7 +247,7 @@ export function StepsTimeline({
 
         <Endpoint
           label="Result"
-          detail={result ? `${result.rows.toLocaleString()} rows · ${result.columns} columns` : null}
+          detail={result ? `${countOf(result.rows, "row")} · ${countOf(result.columns, "column")}` : null}
           kind="result"
         />
       </ol>
@@ -328,12 +329,12 @@ function Delta({ outcome }: { outcome?: StepOutcome }) {
   const columns = outcome.columns_after - outcome.columns_before;
   if (rows === 0 && columns === 0) return null;
   const parts: string[] = [];
-  if (rows !== 0) parts.push(`${rows > 0 ? "+" : "−"}${Math.abs(rows).toLocaleString()} row${Math.abs(rows) === 1 ? "" : "s"}`);
-  if (columns !== 0) parts.push(`${columns > 0 ? "+" : "−"}${Math.abs(columns)} col${Math.abs(columns) === 1 ? "" : "s"}`);
+  if (rows !== 0) parts.push(`${formatSignedCount(rows)} ${Math.abs(rows) === 1 ? "row" : "rows"}`);
+  if (columns !== 0) parts.push(`${formatSignedCount(columns)} ${Math.abs(columns) === 1 ? "col" : "cols"}`);
   return (
     <span
       className={cx("tabular shrink-0 text-[12px]", rows < 0 || columns < 0 ? "text-warning" : "text-ink-3")}
-      title={`${outcome.rows_before.toLocaleString()} → ${outcome.rows_after.toLocaleString()} rows`}
+      title={`${formatCount(outcome.rows_before)} → ${countOf(outcome.rows_after, "row")}`}
     >
       {parts.join(", ")}
     </span>

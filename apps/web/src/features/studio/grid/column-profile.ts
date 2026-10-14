@@ -11,6 +11,8 @@
  * whole is the dishonest option, so `rowsProfiled` travels with the result.
  */
 
+import { countOf, formatCount } from "@/lib/format";
+
 export type ValueClass = "value" | "empty" | "null";
 
 export type ColumnProfile = {
@@ -136,8 +138,8 @@ export function describeProfile(profile: ColumnProfile): string {
   const percent = (n: number) => `${Math.round((n / profile.rowsProfiled) * 100)}%`;
   if (profile.nulls > 0) parts.push(`${percent(profile.nulls)} null`);
   if (profile.empties > 0) parts.push(`${percent(profile.empties)} empty`);
-  parts.push(`${profile.distinct.toLocaleString()} distinct`);
-  const rows = `${profile.rowsProfiled.toLocaleString()} row${profile.rowsProfiled === 1 ? "" : "s"}`;
+  parts.push(`${formatCount(profile.distinct)} distinct`);
+  const rows = countOf(profile.rowsProfiled, "row");
   const scope = profile.complete ? rows : `first ${rows}`;
   return `${parts.join(" · ")} (${scope})`;
 }

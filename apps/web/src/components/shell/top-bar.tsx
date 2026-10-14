@@ -17,6 +17,7 @@ import { appConfig } from "@/lib/config";
 import { platformRoleLabel } from "@/lib/labels";
 import type { Crumb } from "@/lib/navigation";
 import { cx } from "@/lib/utils";
+import { t } from "@/lib/i18n";
 
 export type { Crumb };
 
@@ -92,7 +93,7 @@ export function TopBar({
     router.refresh();
   };
 
-  const mod = isMac ? "⌘" : "Ctrl";
+  const mod = isMac ? "⌘" : t("shell.keys.ctrl");
   const displayName = currentUser?.display_name?.trim() || currentUser?.username;
   const initials = (displayName ?? "?")
     .split(/\s+/)
@@ -117,7 +118,7 @@ export function TopBar({
       <ProjectSwitcher {...projectSwitcher} />
 
       <nav
-        aria-label="Breadcrumb"
+        aria-label={t("shell.topBar.breadcrumb")}
         className="hidden min-w-0 flex-1 items-center gap-1.5 overflow-hidden lg:flex"
       >
         {crumbs.map((crumb, index) => (
@@ -157,17 +158,17 @@ export function TopBar({
         className="group hidden h-9 min-w-[220px] items-center gap-2.5 rounded-xl border border-line bg-surface px-3 text-left transition duration-[var(--duration-fast)] hover:border-line-strong hover:bg-surface-2 md:flex"
       >
         <Icon name="search" size={15} className="text-muted transition group-hover:text-ink-2" />
-        <span className="flex-1 text-[13px] text-muted">Search pages and data…</span>
+        <span className="flex-1 text-[13px] text-muted">{t("shell.topBar.searchPlaceholder")}</span>
         <kbd className="rounded border border-line bg-surface px-1.5 py-0.5 font-mono text-[12px] text-ink-3">
           {mod}K
         </kbd>
       </button>
 
-      <Tooltip label="Search" shortcut={`${mod} K`} side="bottom">
+      <Tooltip label={t("shell.topBar.search")} shortcut={`${mod} K`} side="bottom">
         <button
           type="button"
           onClick={onOpenCommand}
-          aria-label="Search"
+          aria-label={t("shell.topBar.search")}
           className="flex h-9 w-9 items-center justify-center rounded-xl text-ink-3 transition hover:bg-surface-2 hover:text-ink md:hidden"
         >
           <Icon name="search" size={17} />
@@ -176,10 +177,10 @@ export function TopBar({
 
       <ThemeToggle />
 
-      <Tooltip label="Notifications" side="bottom">
+      <Tooltip label={t("shell.topBar.notifications")} side="bottom">
         <Link
           href="/notifications"
-          aria-label="Notifications"
+          aria-label={t("shell.topBar.notifications")}
           className="flex h-9 w-9 items-center justify-center rounded-xl text-ink-3 transition hover:bg-surface-2 hover:text-ink"
         >
           <Icon name="bell" size={17} />
@@ -187,12 +188,12 @@ export function TopBar({
       </Tooltip>
 
       <div ref={helpRef} className="relative">
-        <Tooltip label="Help" side="bottom">
+        <Tooltip label={t("shell.topBar.help")} side="bottom">
           <button
             type="button"
             data-tour="help-trigger"
             onClick={() => setHelpOpen((open) => !open)}
-            aria-label="Help"
+            aria-label={t("shell.topBar.help")}
             aria-expanded={helpOpen}
             className={cx(
               "flex h-9 w-9 items-center justify-center rounded-xl transition",
@@ -206,11 +207,11 @@ export function TopBar({
           <div className="animate-fade-up absolute right-0 top-11 z-50 w-64 overflow-hidden rounded-xl border border-line bg-[color:var(--panel-strong)] p-1.5 shadow-[var(--shadow-lg)] backdrop-blur-xl">
             <Link href="/help" onClick={() => setHelpOpen(false)} className={MENU_ITEM}>
               <Icon name="book" size={15} className="text-[color:var(--accent-muted)]" />
-              Documentation
+              {t("shell.topBar.documentation")}
             </Link>
             <Link href="/help/whats-new" onClick={() => setHelpOpen(false)} className={MENU_ITEM}>
               <Icon name="sparkles" size={15} className="text-[color:var(--accent-muted)]" />
-              What&apos;s new
+              {t("shell.topBar.whatsNew")}
             </Link>
             <MenuButton
               icon="compass"
@@ -219,7 +220,7 @@ export function TopBar({
                 onReplayTour();
               }}
             >
-              Show me around
+              {t("shell.topBar.showMeAround")}
             </MenuButton>
             <MenuButton
               icon="keyboard"
@@ -228,7 +229,7 @@ export function TopBar({
                 setShortcutsOpen(true);
               }}
             >
-              Keyboard shortcuts
+              {t("shell.topBar.keyboardShortcuts")}
             </MenuButton>
             <div className="my-1 border-t border-line" />
             <a
@@ -239,12 +240,12 @@ export function TopBar({
               className={MENU_ITEM}
             >
               <Icon name="code" size={15} className="text-[color:var(--accent-muted)]" />
-              <span className="flex-1">API reference</span>
+              <span className="flex-1">{t("shell.topBar.apiReference")}</span>
               <Icon name="external" size={13} className="text-muted" />
             </a>
             <Link href="/system-status" onClick={() => setHelpOpen(false)} className={MENU_ITEM}>
               <Icon name="activity" size={15} className="text-[color:var(--accent-muted)]" />
-              System status
+              {t("shell.topBar.systemStatus")}
             </Link>
             {support?.href ? (
               <a
@@ -256,14 +257,14 @@ export function TopBar({
               >
                 <Icon name="mail" size={15} className="text-[color:var(--accent-muted)]" />
                 <span className="min-w-0 flex-1">
-                  Contact support
+                  {t("shell.topBar.contactSupport")}
                   <span className="block truncate text-[12px] text-ink-3">{support.contact}</span>
                 </span>
               </a>
             ) : (
               <Link href="/help#getting-help" onClick={() => setHelpOpen(false)} className={MENU_ITEM}>
                 <Icon name="mail" size={15} className="text-[color:var(--accent-muted)]" />
-                Contact support
+                {t("shell.topBar.contactSupport")}
               </Link>
             )}
           </div>
@@ -274,7 +275,7 @@ export function TopBar({
         <button
           type="button"
           onClick={() => setMenuOpen((open) => !open)}
-          aria-label="Your account"
+          aria-label={t("shell.topBar.yourAccount")}
           aria-expanded={menuOpen}
           className="flex h-9 items-center gap-2 rounded-xl border border-line bg-surface pl-1 pr-2.5 transition hover:border-line-strong hover:bg-surface-2"
         >
@@ -287,7 +288,7 @@ export function TopBar({
           <div className="animate-fade-up absolute right-0 top-11 z-50 w-60 overflow-hidden rounded-xl border border-line bg-[color:var(--panel-strong)] shadow-[var(--shadow-lg)] backdrop-blur-xl">
             <div className="border-b border-line px-3 py-2.5">
               <div className="truncate text-[13px] font-medium text-ink">
-                {displayName ?? "Not signed in"}
+                {displayName ?? t("shell.topBar.notSignedIn")}
               </div>
               {currentUser ? (
                 <div className="mt-0.5 truncate text-[12px] text-muted">
@@ -300,7 +301,7 @@ export function TopBar({
                 <>
                   <Link href="/settings" onClick={() => setMenuOpen(false)} className={MENU_ITEM}>
                     <Icon name="settings" size={15} className="text-ink-3" />
-                    Your settings
+                    {t("shell.topBar.yourSettings")}
                   </Link>
                   <button
                     type="button"
@@ -308,13 +309,13 @@ export function TopBar({
                     className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] text-danger transition hover:bg-danger-soft"
                   >
                     <Icon name="close" size={15} />
-                    Sign out
+                    {t("shell.topBar.signOut")}
                   </button>
                 </>
               ) : (
                 <Link href="/login" onClick={() => setMenuOpen(false)} className={MENU_ITEM}>
                   <Icon name="arrowRight" size={15} className="text-ink-3" />
-                  Sign in
+                  {t("shell.topBar.signIn")}
                 </Link>
               )}
             </div>
@@ -324,16 +325,16 @@ export function TopBar({
 
       <Modal
         open={shortcutsOpen}
-        title="Keyboard shortcuts"
+        title={t("shell.topBar.keyboardShortcuts")}
         onClose={() => setShortcutsOpen(false)}
         widthClassName="max-w-md"
       >
         <dl className="space-y-2.5 text-[14px]">
           {[
-            [`${mod} K`, "Search pages, data and actions"],
-            [`${mod} \\`, "Show or hide the navigation labels"],
-            ["?", "Show me around"],
-            ["Esc", "Close a menu or dialog"],
+            [`${mod} K`, t("shell.topBar.shortcutSearch")],
+            [`${mod} \\`, t("shell.topBar.shortcutLabels")],
+            ["?", t("shell.topBar.showMeAround")],
+            [t("shell.keys.esc"), t("shell.topBar.shortcutClose")],
           ].map(([keys, what]) => (
             <div key={keys} className="flex items-center justify-between gap-4">
               <dt className="text-ink-2">{what}</dt>

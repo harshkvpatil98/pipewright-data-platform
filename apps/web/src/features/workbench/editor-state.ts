@@ -9,6 +9,8 @@
  * Keeping them here means they are unit tested rather than clicked through.
  */
 
+import { countOf, formatCount } from "@/lib/format";
+
 export type Statement = {
   index: number;
   sql: string;
@@ -179,9 +181,9 @@ export function describeRun(result: {
   const rows = ran.reduce((total, s) => total + s.row_count, 0);
   const affected = ran.reduce((total, s) => total + (s.rows_affected ?? 0), 0);
 
-  const parts: string[] = [`${ran.length} statement${ran.length === 1 ? "" : "s"}`];
-  if (rows) parts.push(`${rows.toLocaleString()} row${rows === 1 ? "" : "s"}`);
-  if (affected) parts.push(`${affected.toLocaleString()} changed`);
+  const parts: string[] = [countOf(ran.length, "statement")];
+  if (rows) parts.push(countOf(rows, "row"));
+  if (affected) parts.push(`${formatCount(affected)} changed`);
   if (failed) parts.push(`${failed} failed`);
   if (failed && !result.committed) parts.push("rolled back");
   parts.push(formatDuration(result.duration_ms));

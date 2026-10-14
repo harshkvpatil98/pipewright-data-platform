@@ -28,6 +28,7 @@ import {
   validate,
 } from "./notebook-state";
 import type { Connection } from "./types";
+import { countOf, formatCount } from "@/lib/format";
 
 type Notebook = {
   id: string;
@@ -487,8 +488,8 @@ function CellOutput({ result }: { result: CellResult }) {
       ) : null}
       {result.truncated ? (
         <p className="px-3 py-1 text-[12px] text-muted">
-          Showing the first {result.rows.length.toLocaleString()} of{" "}
-          {result.row_count.toLocaleString()} rows.
+          Showing the first {formatCount(result.rows.length)} of{" "}
+          {countOf(result.row_count, "row")}.
         </p>
       ) : null}
     </div>

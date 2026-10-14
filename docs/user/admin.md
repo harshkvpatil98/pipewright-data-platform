@@ -77,6 +77,10 @@ A worker that stops opens an incident by itself. Work it was doing is marked fai
 
 `scripts/backup.sh` copies the database and the stored files. Run it with `--verify` to also restore the copy into a scratch database and count the rows: a backup nobody has restored is a hope, not a backup. Run it on a schedule.
 
+## Languages
+
+Pipewright is in English, with dates and numbers written the British way ("15 Oct 2026", "1,200"). The words of the top bar, the menus, the side navigation and every page's name, description and help come from one file, `apps/web/messages/en.json`; dates and numbers are written in one place, by the locale that file names. Another language would be a copy of that file with the same keys and a build that uses it. The rest of each page's words are still written in English in the code, so a full translation needs them moved into the file first.
+
 ## Settings reference
 
 Set these in the gateway's environment unless they say the web. Changes take effect when it restarts.

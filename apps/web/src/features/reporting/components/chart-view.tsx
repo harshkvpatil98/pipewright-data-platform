@@ -27,6 +27,7 @@ import {
   TableHeaderCell,
   TableRow,
 } from "@platform/shared-ui";
+import { formatNumber } from "@/lib/format";
 
 /**
  * Series colours come from theme tokens, so they follow light/dark.
@@ -79,7 +80,7 @@ function KpiView({ data, className }: { data: ChartData; className?: string }) {
       )}
     >
       <div className="text-[44px] font-semibold leading-none text-ink">
-        {typeof value === "number" ? value.toLocaleString() : (value ?? "—")}
+        {typeof value === "number" ? formatNumber(value) : (value ?? "—")}
       </div>
       <div className="mt-2 text-[12.5px] capitalize text-muted">
         {data.series[0]?.name.replace(/_/g, " ")}
@@ -100,8 +101,8 @@ function KpiView({ data, className }: { data: ChartData; className?: string }) {
             <span>no data for {delta.previous_label}</span>
           ) : (
             <span>
-              {pct ?? (delta.change === null ? "—" : `${delta.change > 0 ? "+" : ""}${delta.change.toLocaleString()}`)}
-              <span className="text-muted"> vs {delta.previous_label} ({delta.previous.toLocaleString()})</span>
+              {pct ?? (delta.change === null ? "—" : `${delta.change > 0 ? "+" : ""}${formatNumber(delta.change)}`)}
+              <span className="text-muted"> vs {delta.previous_label} ({formatNumber(delta.previous)})</span>
             </span>
           )}
         </div>
@@ -198,7 +199,7 @@ function PieView({
               fontWeight={600}
               fill="var(--ink)"
             >
-              {total.toLocaleString()}
+              {formatNumber(total)}
             </text>
             <text x={100} y={116} textAnchor="middle" fontSize={12} fill="var(--muted)">
               total
@@ -222,7 +223,7 @@ function PieView({
           </li>
         ))}
         <li className="border-t border-line pt-1.5 text-[12px] text-muted">
-          Total {total.toLocaleString()}
+          Total {formatNumber(total)}
         </li>
       </ul>
     </div>

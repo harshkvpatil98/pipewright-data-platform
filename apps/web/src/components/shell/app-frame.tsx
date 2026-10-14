@@ -25,6 +25,7 @@ import {
 } from "@/lib/navigation";
 import { readRecent, recordRecent } from "@/lib/recent";
 import { useActiveProject } from "@/lib/use-active-project";
+import { t } from "@/lib/i18n";
 
 const RAIL_STORAGE_KEY = "pipewright.rail.expanded";
 const INSPECTOR_STORAGE_KEY = "pipewright.inspector.open";
@@ -152,7 +153,7 @@ export function AppFrame({
       navigation.push({
         id: `nav-${page.path}`,
         label: page.label,
-        group: "Go to",
+        group: t("shell.palette.goTo"),
         icon: page.icon,
         href: page.path,
         description: page.description,
@@ -165,7 +166,7 @@ export function AppFrame({
         .map((item) => ({
           id: `recent-${item.href}`,
           label: item.label,
-          group: `Recent · ${item.where}`,
+          group: t("shell.palette.recent", { where: item.where }),
           icon: "clock" as const,
           href: item.href,
         })),
@@ -173,29 +174,29 @@ export function AppFrame({
       ...projects.map((project) => ({
         id: `project-${project.id}`,
         label: project.name,
-        group: "Open project",
+        group: t("shell.palette.openProject"),
         icon: "folder" as const,
         href: `/projects/${project.id}`,
       })),
       {
         id: "action-new-project",
-        label: "New project",
-        group: "Actions",
+        label: t("shell.palette.newProject"),
+        group: t("shell.palette.actions"),
         icon: "plus" as const,
         href: "/projects?new=1",
       },
       {
         id: "action-tour",
-        label: "Show me around",
-        group: "Help",
+        label: t("shell.palette.showMeAround"),
+        group: t("shell.palette.help"),
         icon: "sparkles" as const,
         keywords: "tour help guide",
         run: () => start(welcomeTour, WELCOME_TOUR_ID),
       },
       {
         id: "action-toggle-rail",
-        label: railExpanded ? "Hide navigation labels" : "Show navigation labels",
-        group: "View",
+        label: railExpanded ? t("shell.palette.hideLabels") : t("shell.palette.showLabels"),
+        group: t("shell.palette.view"),
         icon: "menu" as const,
         run: toggleRail,
       },
@@ -203,8 +204,8 @@ export function AppFrame({
         ? [
             {
               id: "action-toggle-inspector",
-              label: inspectorOpen ? "Hide the side panel" : "Show the side panel",
-              group: "View",
+              label: inspectorOpen ? t("shell.palette.hideSidePanel") : t("shell.palette.showSidePanel"),
+              group: t("shell.palette.view"),
               icon: "panelRight" as const,
               run: toggleInspector,
             },

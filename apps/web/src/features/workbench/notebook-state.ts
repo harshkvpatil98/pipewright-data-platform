@@ -6,6 +6,8 @@
  * testing without a browser.
  */
 
+import { countOf } from "@/lib/format";
+
 export type CellKind = "sql" | "python" | "recipe" | "markdown";
 
 export type Cell = {
@@ -144,7 +146,7 @@ export function describeCell(result: CellResult): string {
   if (result.error) return "failed";
   const parts: string[] = [];
   if (result.columns.length) {
-    parts.push(`${result.row_count.toLocaleString()} row${result.row_count === 1 ? "" : "s"}`);
+    parts.push(countOf(result.row_count, "row"));
   }
   if (result.output_name) parts.push(`→ ${result.output_name}`);
   parts.push(result.duration_ms < 1 ? "<1 ms" : `${Math.round(result.duration_ms)} ms`);

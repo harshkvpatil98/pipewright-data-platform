@@ -10,7 +10,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { OperationalError } from "@/components/operational/operational-messages";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
-import { formatDate } from "@/lib/format";
+import { formatCount, formatDate } from "@/lib/format";
 
 type DatasetsSearchPageProps = {
   currentUser: AuthUser;
@@ -129,7 +129,7 @@ export function DatasetsSearchPageView({ currentUser, initialDatasets }: Dataset
                       </Link>
                     </TableCell>
                     <TableCell className="tabular-nums text-ink-3">
-                      {dataset.row_count?.toLocaleString() ?? "—"}
+                      {dataset.row_count == null ? "—" : formatCount(dataset.row_count)}
                     </TableCell>
                     <TableCell className="text-ink-3">{dataset.file_type ?? "—"}</TableCell>
                     <TableCell className="text-xs text-ink-3">{formatDate(dataset.created_at)}</TableCell>

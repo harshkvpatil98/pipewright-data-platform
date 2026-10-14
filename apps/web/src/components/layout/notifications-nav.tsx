@@ -9,6 +9,7 @@ import type { UserNotificationListResponse } from "@platform/shared-types";
 import { apiFetch } from "@/lib/api/client";
 import { cx } from "@/lib/utils";
 import { Badge } from "@platform/shared-ui";
+import { t } from "@/lib/i18n";
 
 export function NotificationsNavLink() {
   const pathname = usePathname();
@@ -40,7 +41,7 @@ export function NotificationsNavLink() {
         {unread > 99 ? "99+" : unread}
       </Badge>
     ) : (
-      <span className="text-[12px] text-muted">In-app</span>
+      <span className="text-[12px] text-muted">{t("shell.notifications.inApp")}</span>
     );
 
   return (
@@ -53,7 +54,7 @@ export function NotificationsNavLink() {
           : "border-line text-ink-2 hover:border-line hover:bg-surface hover:text-ink",
       )}
     >
-      <span>Notifications</span>
+      <span>{t("shell.notifications.label")}</span>
       {badge}
     </Link>
   );

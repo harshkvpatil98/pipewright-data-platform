@@ -16,6 +16,7 @@ import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { cx } from "@/lib/utils";
+import { countOf } from "@/lib/format";
 
 type CatalogPageProps = {
   currentUser: AuthUser;
@@ -156,7 +157,7 @@ export function CatalogPageView({
                         </Badge>
                       ))}
                       {hit.row_count !== null ? (
-                        <span>{hit.row_count.toLocaleString()} rows</span>
+                        <span>{countOf(hit.row_count, "row")}</span>
                       ) : null}
                     </div>
                     {hit.matched_columns.length > 0 ? (

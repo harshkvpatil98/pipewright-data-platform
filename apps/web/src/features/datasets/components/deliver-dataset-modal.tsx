@@ -25,6 +25,7 @@ import { KIND_BY_TYPE } from "@/features/destinations/destination-kinds";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { cx } from "@/lib/utils";
+import { countOf, formatCount } from "@/lib/format";
 
 type DeliverDatasetModalProps = {
   open: boolean;
@@ -60,7 +61,7 @@ type DeliveryRun = {
 };
 
 function rowsWords(count: number): string {
-  return `${count.toLocaleString()} ${count === 1 ? "row" : "rows"}`;
+  return countOf(count, "row");
 }
 
 /** The finished delivery, read from the run the worker wrote. */
@@ -288,7 +289,7 @@ export function DeliverDatasetModal({ open, onClose, projectId, datasetId, datas
           <p className="mt-1">{result.message}</p>
           {result.status === "succeeded" && result.mode === "update" ? (
             <p className="mt-1">
-              {result.rows_updated.toLocaleString()} updated, {result.rows_added.toLocaleString()} added.
+              {formatCount(result.rows_updated)} updated, {formatCount(result.rows_added)} added.
             </p>
           ) : null}
           {result.warnings.map((warning) => (
@@ -393,7 +394,7 @@ export function DeliverDatasetModal({ open, onClose, projectId, datasetId, datas
             {preview ? (
               <>
                 <p className="mt-1 break-all text-[13px] text-ink-2">
-                  {preview.rows.toLocaleString()} rows to <span className="font-mono text-[12px]">{preview.target}</span>
+                  {countOf(preview.rows, "row")} to <span className="font-mono text-[12px]">{preview.target}</span>
                 </p>
                 <ul className="mt-2 flex flex-wrap gap-1.5">
                   {preview.columns.map((column) => (

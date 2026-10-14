@@ -33,6 +33,7 @@ import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { friendlyStepMessage } from "@/lib/labels";
 import { cx } from "@/lib/utils";
+import { countOf, formatCount, formatShortDate, formatTime } from "@/lib/format";
 
 type PreviewResponse = {
   preview_rows: Record<string, unknown>[];
@@ -411,7 +412,7 @@ export function StudioPage({ currentUser, projectId, datasets, initialDatasetId,
       toast.notify({
         tone: "success",
         title: "Recipe ran",
-        description: `The result, ${result.dataset.row_count?.toLocaleString() ?? "?"} rows, is saved as “${result.dataset.name}”.`,
+        description: `The result${result.dataset.row_count == null ? "" : `, ${countOf(result.dataset.row_count, "row")},`} is saved as “${result.dataset.name}”.`,
         actions: [
           { label: "Open the result", onClick: () => router.push(`/projects/${projectId}/datasets/${result.dataset.id}`) },
           { label: "Schedule it", onClick: () => router.push(`/projects/${projectId}/schedules?new=1`) },
@@ -668,7 +669,7 @@ export function StudioPage({ currentUser, projectId, datasets, initialDatasetId,
                     <>
                       <span aria-hidden="true">·</span>
                       <span className="tabular">
-                        {preview.row_count_before.toLocaleString()} → {preview.row_count_after.toLocaleString()} rows after
+                        {formatCount(preview.row_count_before)} → {countOf(preview.row_count_after, "row")} after
                         these steps
                       </span>
                     </>
@@ -816,10 +817,8 @@ export function StudioPage({ currentUser, projectId, datasets, initialDatasetId,
 /** "14:05 today", or "3 Oct, 14:05" for an older draft. */
 function draftTime(at: number): string {
   const when = new Date(at);
-  const time = when.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-  return when.toDateString() === new Date().toDateString()
-    ? `${time} today`
-    : `${when.toLocaleDateString(undefined, { day: "numeric", month: "short" })}, ${time}`;
+  const time = formatTime(when);
+  return when.toDateString() === new Date().toDateString() ? `${time} today` : `${formatShortDate(when)}, ${time}`;
 }
 
 function IconButton({

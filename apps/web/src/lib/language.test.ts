@@ -108,7 +108,35 @@ function shownStrings(): Shown[] {
   return found;
 }
 
-const SHOWN = shownStrings();
+/**
+ * The catalogue's words (A8, Y7): the shell and the navigation read them
+ * through `t()`, so the parse above no longer sees them. Each is given the
+ * place it is shown in, so the same rules hold.
+ */
+function catalogueStrings(): Shown[] {
+  const found: Shown[] = [];
+  const walk = (node: unknown, key: string) => {
+    if (typeof node === "string") {
+      if (key === "locale" || key.startsWith("$") || key.endsWith(".keywords")) return;
+      const context = /^nav\..*\.label$/.test(key)
+        ? "NavTab.label"
+        : key.endsWith(".description")
+          ? "Catalogue.description"
+          : key.startsWith("shell.keys.") || /^shell\.palette\.(navigate|open|esc|nothingMatches\w+)$/.test(key)
+            ? "Catalogue.fragment"
+            : "Catalogue.label";
+      found.push({ file: "messages/en.json", line: 0, text: node.replace(/\s+/g, " ").trim(), context: `${context}:${key}`, leading: true });
+    } else if (Array.isArray(node)) {
+      node.forEach((line) => found.push({ file: "messages/en.json", line: 0, text: String(line), context: `Catalogue.help:${key}`, leading: true }));
+    } else if (node && typeof node === "object") {
+      for (const [part, value] of Object.entries(node)) walk(value, key ? `${key}.${part}` : part);
+    }
+  };
+  walk(JSON.parse(readFileSync(fileURLToPath(new URL("../../messages/en.json", import.meta.url)), "utf8")), "");
+  return found;
+}
+
+const SHOWN = [...shownStrings(), ...catalogueStrings()];
 
 /**
  * Exceptions, each with its reason. A word belongs here only when it is the
@@ -132,6 +160,7 @@ function offenders(test: (item: Shown) => boolean): string[] {
 describe("on-screen language", () => {
   it("reads at least the strings it means to", () => {
     expect(SHOWN.length).toBeGreaterThan(2500);
+    expect(SHOWN.filter((item) => item.file === "messages/en.json").length).toBeGreaterThan(250);
     expect(SHOWN.filter((item) => item.context === "AppShell.subtitle").length).toBeGreaterThan(40);
     expect(SHOWN.filter((item) => item.file.endsWith("tour/tours.ts") && item.context === "prop:body").length).toBeGreaterThan(10);
   });
@@ -165,7 +194,8 @@ describe("on-screen language", () => {
   it("keeps a page's purpose line to 15 words and a description to 25", () => {
     const words = (text: string) => text.split(/\s+/).filter(Boolean).length;
     expect(offenders((item) => item.context === "AppShell.subtitle" && words(item.text) > 15)).toEqual([]);
-    expect(offenders((item) => /\.description$/.test(item.context) && words(item.text) > 25)).toEqual([]);
+    expect(offenders((item) => /\.description(:|$)/.test(item.context) && words(item.text) > 25)).toEqual([]);
+    expect(offenders((item) => item.context.startsWith("Catalogue.help:") && words(item.text) > 25)).toEqual([]);
     expect(offenders((item) => item.file.endsWith("tour/tours.ts") && item.context === "prop:body" && words(item.text) > 25)).toEqual([]);
   });
 
@@ -180,12 +210,14 @@ describe("on-screen language", () => {
       if (words.length < 2 || words.length > 7) return false;
       return words.slice(1).some((word) => /^\p{Lu}\p{Ll}/u.test(word) && !PROPER.has(word));
     };
-    const SHORT_PLACES = /^(Button|h1|h2|h3|h4|button|Link|SectionPanel\.title|Modal\.title|AppShell\.title|EmptyState\.title|Badge|TableHeaderCell)$/;
-    expect(offenders((item) => SHORT_PLACES.test(item.context) && titleCase(item.text))).toEqual([]);
+    const SHORT_PLACES = /^(Button|h1|h2|h3|h4|button|Link|SectionPanel\.title|Modal\.title|AppShell\.title|EmptyState\.title|Badge|TableHeaderCell|NavTab\.label:.*|Catalogue\.label:.*)$/;
+    // Each sentence on its own: "Project: Sales. Switch project" is two.
+    const anyTitleCase = (text: string) => text.split(/[.!?]\s+/).some(titleCase);
+    expect(offenders((item) => SHORT_PLACES.test(item.context) && anyTitleCase(item.text))).toEqual([]);
   });
 
   it("starts every label, button and heading with a capital", () => {
-    const LABEL_PLACES = /^(Button|Badge|TableHeaderCell|h1|h2|h3|SectionPanel\.title|Modal\.title|AppShell\.title|EmptyState\.title)$/;
+    const LABEL_PLACES = /^(Button|Badge|TableHeaderCell|h1|h2|h3|SectionPanel\.title|Modal\.title|AppShell\.title|EmptyState\.title|NavTab\.label:.*|Catalogue\.label:.*)$/;
     expect(offenders((item) => item.leading && LABEL_PLACES.test(item.context) && /^[a-z]/.test(item.text))).toEqual([]);
   });
 

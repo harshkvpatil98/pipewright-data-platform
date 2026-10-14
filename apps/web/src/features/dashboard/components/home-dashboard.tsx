@@ -18,6 +18,7 @@ import { extractErrorMessage } from "@/lib/api/errors";
 import { serviceLabel } from "@/lib/service-labels";
 import { cx } from "@/lib/utils";
 import { Badge, Icon, type IconName, useToast } from "@platform/shared-ui";
+import { formatCount } from "@/lib/format";
 
 type HomeDashboardProps = {
   currentUser: AuthUser | null;
@@ -590,7 +591,7 @@ function Kpi({
         />
       </div>
       <div className="tabular text-ink mt-3 text-[30px] leading-none font-semibold tracking-tight">
-        {value.toLocaleString()}
+        {formatCount(value)}
       </div>
       <div className={cx("mt-2 text-[12px]", toneText)}>{caption}</div>
     </Link>

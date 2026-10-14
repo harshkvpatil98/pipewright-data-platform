@@ -1,0 +1,522 @@
+{
+  "$comment": "Every word of the shell and the navigation, in English. A language is a copy of this file with the same keys (A8, Y7); docs/user/admin.md says how to add one.",
+  "locale": "en-GB",
+  "shell": {
+    "keys": {
+      "ctrl": "Ctrl",
+      "esc": "Esc"
+    },
+    "topBar": {
+      "breadcrumb": "Breadcrumb",
+      "searchPlaceholder": "Search pages and data…",
+      "search": "Search",
+      "notifications": "Notifications",
+      "help": "Help",
+      "documentation": "Documentation",
+      "whatsNew": "What's new",
+      "showMeAround": "Show me around",
+      "keyboardShortcuts": "Keyboard shortcuts",
+      "apiReference": "API reference",
+      "systemStatus": "System status",
+      "contactSupport": "Contact support",
+      "yourAccount": "Your account",
+      "notSignedIn": "Not signed in",
+      "yourSettings": "Your settings",
+      "signOut": "Sign out",
+      "signIn": "Sign in",
+      "shortcutSearch": "Search pages, data and actions",
+      "shortcutLabels": "Show or hide the navigation labels",
+      "shortcutClose": "Close a menu or dialog"
+    },
+    "palette": {
+      "goTo": "Go to",
+      "recent": "Recent · {where}",
+      "openProject": "Open project",
+      "newProject": "New project",
+      "actions": "Actions",
+      "showMeAround": "Show me around",
+      "help": "Help",
+      "hideLabels": "Hide navigation labels",
+      "showLabels": "Show navigation labels",
+      "view": "View",
+      "hideSidePanel": "Hide the side panel",
+      "showSidePanel": "Show the side panel",
+      "label": "Command palette",
+      "placeholder": "Search pages, data and actions…",
+      "searchLabel": "Search pages and actions",
+      "nothingMatchesBefore": "Nothing matches “",
+      "nothingMatchesAfter": "”.",
+      "navigate": "navigate",
+      "open": "open",
+      "esc": "esc"
+    },
+    "tabs": {
+      "pages": "{area} pages",
+      "aboutThisPage": "About this page",
+      "about": "About {tab}",
+      "readMore": "Read more in the help"
+    },
+    "rail": {
+      "label": "Primary",
+      "project": "Project",
+      "noneOpen": "None open",
+      "collapseNavigation": "Collapse navigation",
+      "expandNavigation": "Expand navigation",
+      "collapse": "Collapse"
+    },
+    "projectSwitcher": {
+      "current": "Project: {name}. Switch project",
+      "choose": "Choose a project",
+      "switch": "Switch project",
+      "loading": "Loading…",
+      "none": "No projects yet.",
+      "settings": "Project settings",
+      "all": "All projects",
+      "new": "New project"
+    },
+    "notifications": {
+      "inApp": "In-app",
+      "label": "Notifications"
+    }
+  },
+  "nav": {
+    "areas": {
+      "overview": {
+        "label": "Overview",
+        "description": "This project at a glance, and who is in it."
+      },
+      "data": {
+        "label": "Data",
+        "description": "Bring data in and find what is already here."
+      },
+      "build": {
+        "label": "Build",
+        "description": "Clean, combine and reshape data."
+      },
+      "automate": {
+        "label": "Automate",
+        "description": "Run work on a schedule and deliver the results."
+      },
+      "trust": {
+        "label": "Trust",
+        "description": "Check the data, act on problems and control access."
+      },
+      "share": {
+        "label": "Share",
+        "description": "Charts, dashboards and reports for everyone else."
+      },
+      "admin": {
+        "label": "Admin",
+        "description": "People, organisations and the platform itself."
+      },
+      "workspace": {
+        "label": "Home",
+        "description": "Everything you can see, across projects."
+      }
+    },
+    "tabs": {
+      "overview": {
+        "overview": {
+          "label": "Overview",
+          "description": "What to do next, recent data and recent runs.",
+          "keywords": "project home start checklist getting started",
+          "help": [
+            "Follow the checklist to get a project working, one step at a time.",
+            "See the newest data and the last few runs.",
+            "Add data from here at any time."
+          ]
+        },
+        "activity": {
+          "label": "Activity",
+          "description": "What happened in this project, newest first.",
+          "keywords": "activity feed history timeline what happened recent changes log",
+          "help": [
+            "Changes, runs, incidents, comments and alerts in one list, with who and when.",
+            "Choose a kind to see only that.",
+            "Each line links to what it is about."
+          ]
+        },
+        "people": {
+          "label": "People",
+          "description": "Who can see and change this project.",
+          "keywords": "members access roles invite team share",
+          "help": [
+            "Add people who already have an account, and choose what each can do.",
+            "Viewers can look, operators can run things, editors can change them, admins can manage people.",
+            "Removing someone takes away their access to this project only."
+          ]
+        },
+        "alerts": {
+          "label": "Alerts",
+          "description": "Where failures and reports are sent: email, Slack or a webhook.",
+          "keywords": "notification targets slack email webhook",
+          "help": [
+            "Send failures and finished reports to an email address, a Slack channel or your own systems.",
+            "Everything already appears in the bell at the top; this adds other places.",
+            "Use Send a test to check one works before relying on it."
+          ]
+        },
+        "settings": {
+          "label": "Settings",
+          "description": "Rename, move, archive or delete this project.",
+          "keywords": "project settings rename archive delete export import bundle move copy",
+          "help": [
+            "Rename the project or describe what it is for.",
+            "Move its recipes, checks, charts and workflows to another project with a bundle.",
+            "Archive it when it is no longer used, or delete it when you are sure."
+          ]
+        }
+      },
+      "data": {
+        "sources": {
+          "label": "Sources",
+          "description": "Upload files, connect databases and receive live data.",
+          "keywords": "connect database connection import extraction upload file stream webhook cdc",
+          "help": [
+            "Upload a file: Pipewright shows how it will read it before anything is saved.",
+            "Connect a database, browse its tables and import the ones you need.",
+            "Set imports to bring in only new rows, so each run is quick."
+          ]
+        },
+        "datasets": {
+          "label": "Datasets",
+          "description": "Every table of data in this project.",
+          "keywords": "tables data files",
+          "help": [
+            "Every table of data in this project, one row per name.",
+            "Open one to see its rows and columns, clean it in Studio, or send it somewhere.",
+            "Filter by where the data came from, or find one by name."
+          ]
+        },
+        "catalog": {
+          "label": "Catalog",
+          "description": "Search datasets by name, column or tag, and keep the glossary.",
+          "keywords": "catalogue glossary search find tags owner certified",
+          "help": [
+            "Search datasets by name, by column or by what someone wrote about them.",
+            "Keep a glossary so a word like “active customer” means one thing.",
+            "Owners and certified datasets show here once people mark them."
+          ]
+        }
+      },
+      "build": {
+        "studio": {
+          "label": "Studio",
+          "description": "Clean and reshape a dataset step by step, seeing the result as you go.",
+          "keywords": "transform clean shape recipe grid spreadsheet steps",
+          "help": [
+            "Pick a dataset and add steps: filter rows, fix text, add columns and more.",
+            "Click a step to change it. Right-click a column for steps that suit it.",
+            "Every change shows in the preview straight away, and undo takes it back.",
+            "Your original data is never changed; save the steps as a recipe to reuse them."
+          ]
+        },
+        "recipes": {
+          "label": "Recipes",
+          "description": "Saved recipes: the steps that turn one dataset into another.",
+          "keywords": "pipelines saved transformations",
+          "help": [
+            "Recipes are saved sets of steps that turn one dataset into another.",
+            "Open one to change its steps in the Studio, or run it to make a fresh result.",
+            "Put a recipe on a schedule so it runs by itself."
+          ]
+        },
+        "sql": {
+          "label": "SQL",
+          "description": "Write SQL against a connected database.",
+          "keywords": "workbench query editor sql",
+          "help": [
+            "Write SQL against a connected database and see the results.",
+            "It reads by default; writing needs an administrator.",
+            "Save queries you use often."
+          ]
+        },
+        "notebooks": {
+          "label": "Notebooks",
+          "description": "SQL, recipe and note cells that run top to bottom.",
+          "keywords": "notebook python cells",
+          "help": [
+            "Mix SQL, recipe and text cells that run from top to bottom.",
+            "Each cell can use the result of the cells above it.",
+            "Save a notebook to run it again later."
+          ]
+        },
+        "table-editor": {
+          "label": "Table editor",
+          "description": "Edit rows in a connected database table, with a preview before saving.",
+          "keywords": "write back edit rows database table",
+          "help": [
+            "Change rows in a connected database table directly.",
+            "You see every change, and how many rows it affects, before it is saved.",
+            "Only tables with a clear way to identify each row can be edited."
+          ]
+        }
+      },
+      "automate": {
+        "workflows": {
+          "label": "Workflows",
+          "description": "Tasks that run in order, by hand or on a schedule.",
+          "keywords": "dag orchestration tasks backfill",
+          "help": [
+            "Chain tasks in order: import, clean, check, deliver.",
+            "If a check fails, the tasks after it stop, so bad data goes nowhere.",
+            "Run a workflow by hand or on a timetable."
+          ]
+        },
+        "schedules": {
+          "label": "Schedules",
+          "description": "Run recipes and deliveries at set times.",
+          "keywords": "cron recurring daily hourly",
+          "help": [
+            "Run a recipe or a delivery by itself at the times you choose.",
+            "Pause a schedule without losing it.",
+            "Run now tries it straight away without changing its timetable."
+          ]
+        },
+        "runs": {
+          "label": "Runs",
+          "description": "Everything that has run in this project, newest first.",
+          "keywords": "history jobs failures audit",
+          "help": [
+            "Everything that has run in this project, newest first.",
+            "Filter to failed runs to see what needs attention.",
+            "Open a run to see exactly what it did."
+          ]
+        },
+        "destinations": {
+          "label": "Destinations",
+          "description": "Databases and file stores that receive your data.",
+          "keywords": "publish export deliver postgres s3",
+          "help": [
+            "Databases and file stores your data can be delivered to.",
+            "Test a destination before sending data to it.",
+            "Deliveries can run by hand, on a schedule or in a workflow."
+          ]
+        },
+        "bi-tools": {
+          "label": "BI tools",
+          "description": "Send datasets to Power BI or Tableau.",
+          "keywords": "bi connections power bi tableau publish",
+          "help": [
+            "Connect Power BI or Tableau.",
+            "Send a dataset to them from the dataset’s Send to menu.",
+            "Test the connection before relying on it."
+          ]
+        }
+      },
+      "trust": {
+        "checks": {
+          "label": "Checks",
+          "description": "Rules your data must pass, and their results.",
+          "keywords": "data quality rules tests validation quarantine",
+          "help": [
+            "Checks are rules your data must pass, such as “every order has an email”.",
+            "Run them on a dataset to see which rows fail.",
+            "Failing rows can be set aside in their own dataset while the rest carries on."
+          ]
+        },
+        "comparisons": {
+          "label": "Comparisons",
+          "description": "Saved statistical comparisons between two datasets.",
+          "keywords": "saved tests statistical compare testing",
+          "help": [
+            "Saved statistical comparisons between two datasets.",
+            "Run one again after the data changes to see if it still holds."
+          ]
+        },
+        "incidents": {
+          "label": "Incidents",
+          "description": "Problems that need a person, from failed checks to late data.",
+          "keywords": "alerts problems freshness anomalies",
+          "help": [
+            "Problems that need a person: failed checks, late data, unusual numbers.",
+            "Acknowledge one to show someone is on it; resolve it when fixed.",
+            "Incidents close by themselves when the problem clears."
+          ]
+        },
+        "schema-changes": {
+          "label": "Schema changes",
+          "description": "Columns added, removed or retyped at a source.",
+          "keywords": "drift schema columns breaking",
+          "help": [
+            "Columns added, removed or retyped at a source since the last import.",
+            "Breaking changes are marked, because they can stop recipes working.",
+            "Acknowledge a change once you have dealt with it."
+          ]
+        },
+        "policies": {
+          "label": "Policies",
+          "description": "Who sees which rows and columns, and how long data is kept.",
+          "keywords": "governance security masking retention erasure gdpr",
+          "help": [
+            "Hide rows or columns from some people, or mask sensitive values.",
+            "Decide how long old runs and history are kept.",
+            "Handle requests to correct or erase someone’s personal data."
+          ]
+        },
+        "approvals": {
+          "label": "Approvals",
+          "description": "Changes waiting for someone to approve them.",
+          "keywords": "change requests review approve",
+          "help": [
+            "In projects that need approval, changes wait here for someone to accept them.",
+            "Running things is never blocked; only changing what they are.",
+            "Comment on a change before approving or rejecting it."
+          ]
+        },
+        "audit": {
+          "label": "Audit log",
+          "description": "Who changed what in this project, and when.",
+          "keywords": "audit history activity log",
+          "help": [
+            "Who changed what in this project, and when.",
+            "Refused attempts are recorded too.",
+            "Filter by person or by what happened."
+          ]
+        }
+      },
+      "share": {
+        "dashboards": {
+          "label": "Dashboards",
+          "description": "Pages of charts you can share by link or by email.",
+          "keywords": "dashboard bi share link embed iframe portal",
+          "help": [
+            "Pages of charts that answer one question together.",
+            "Share a dashboard by link, or have it emailed on a schedule.",
+            "Embed it in another site, such as a customer portal.",
+            "Filters at the top apply to every chart on it."
+          ]
+        },
+        "charts": {
+          "label": "Charts",
+          "description": "Ask a question of a dataset and save the answer as a chart.",
+          "keywords": "chart graph visualise visualize plot",
+          "help": [
+            "Pick a dataset, what to group by and what to add up.",
+            "The preview updates as you change it.",
+            "Save a chart, then put it on a dashboard."
+          ]
+        },
+        "reports": {
+          "label": "Reports",
+          "description": "Files sent by email or Slack on a schedule.",
+          "keywords": "scheduled reports export excel pdf csv email",
+          "help": [
+            "Send a dataset, chart or dashboard as a file on a timetable.",
+            "Excel, CSV, PDF or a web page, by email or Slack.",
+            "Each report keeps a history of what was sent."
+          ]
+        },
+        "metrics": {
+          "label": "Metrics",
+          "description": "Numbers defined once, so every chart agrees.",
+          "keywords": "semantic layer measures kpi definitions",
+          "help": [
+            "Define an important number once, such as net revenue.",
+            "Charts and reports built on a metric always agree.",
+            "Changing a definition keeps a history of the old ones."
+          ]
+        }
+      },
+      "admin": {
+        "accounts": {
+          "label": "Accounts",
+          "description": "Everyone who can sign in: invite, reset, deactivate.",
+          "keywords": "users people invite admin sign in",
+          "help": [
+            "Everyone who can sign in to this platform.",
+            "Invite someone, reset a password, or turn an account off.",
+            "Project access is set inside each project, under People."
+          ]
+        },
+        "organisations": {
+          "label": "Organisations",
+          "description": "Separate groups of people and projects.",
+          "keywords": "organizations tenants tenancy",
+          "help": [
+            "Keep separate groups of people and projects apart.",
+            "A small team usually needs none."
+          ]
+        },
+        "audit": {
+          "label": "Audit (all projects)",
+          "description": "Every change across every project, with export.",
+          "keywords": "audit center export compliance",
+          "help": [
+            "Every change in every project, in one place.",
+            "Filter it, and export it for an auditor."
+          ]
+        },
+        "connectors": {
+          "label": "Connectors",
+          "description": "Every kind of source the platform can connect to.",
+          "keywords": "connector catalogue integrations saas",
+          "help": [
+            "Every kind of source Pipewright can connect to.",
+            "Each shows how well it is tested, so you know what to expect."
+          ]
+        },
+        "status": {
+          "label": "System status",
+          "description": "Whether the platform and its background work are healthy.",
+          "keywords": "health status workers uptime",
+          "help": [
+            "Whether the platform and its background work are running.",
+            "Check here first when runs or schedules seem stuck."
+          ]
+        }
+      },
+      "workspace": {
+        "home": {
+          "label": "Home",
+          "description": "What needs attention, and where you left off.",
+          "keywords": "start dashboard welcome",
+          "help": [
+            "What needs attention across your projects.",
+            "Jump back into a project, or start a new one."
+          ]
+        },
+        "projects": {
+          "label": "Projects",
+          "description": "All projects you can open, and a new one.",
+          "keywords": "workspaces new project",
+          "help": [
+            "Every project you can open.",
+            "Start a new project for a new team or subject."
+          ]
+        },
+        "runs": {
+          "label": "All runs",
+          "description": "Recent runs across every project.",
+          "keywords": "history failures",
+          "help": [
+            "Recent runs across every project you can open.",
+            "Filter to failures to see what needs attention anywhere."
+          ]
+        },
+        "datasets": {
+          "label": "Find a dataset",
+          "description": "Search datasets across every project.",
+          "keywords": "search tables",
+          "help": [
+            "Find a dataset by name across every project you can open."
+          ]
+        }
+      }
+    },
+    "pages": {
+      "help": {
+        "label": "Help",
+        "description": "How to use Pipewright: getting started, each area, the glossary and the API."
+      },
+      "notifications": {
+        "label": "Notifications",
+        "description": "Messages about your runs, reports and mentions."
+      },
+      "settings": {
+        "label": "Your settings",
+        "description": "Appearance, password, two-factor sign-in and API tokens."
+      }
+    }
+  }
+}

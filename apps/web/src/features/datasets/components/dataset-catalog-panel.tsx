@@ -15,6 +15,7 @@ import { Badge, Button, Icon, SectionPanel } from "@platform/shared-ui";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { cx } from "@/lib/utils";
+import { formatDate } from "@/lib/format";
 
 type DatasetCatalogPanelProps = {
   projectId: string;
@@ -357,7 +358,7 @@ export function DatasetCatalogPanel({ projectId, datasetId, columns }: DatasetCa
               <p className="text-[12px] text-muted">
                 Certified by {annotation.certified_by_username}
                 {annotation.certified_at
-                  ? ` on ${new Date(annotation.certified_at).toLocaleDateString()}`
+                  ? ` on ${formatDate(annotation.certified_at)}`
                   : ""}
                 .
               </p>

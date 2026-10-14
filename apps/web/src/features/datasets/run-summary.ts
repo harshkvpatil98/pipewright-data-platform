@@ -5,6 +5,7 @@ import type {
   PipelineRunSummary,
   SamplePipelineRunSummary,
 } from "@platform/shared-types";
+import { countOf } from "@/lib/format";
 
 export function isDatasetIngestionRunSummary(
   summary: PipelineRunSummary | null | undefined,
@@ -104,7 +105,7 @@ export function getPipelineRunSecondaryText(run: PipelineRunRecord): string {
       extraction.job?.name,
       extraction.connection?.name ? `from ${extraction.connection.name}` : undefined,
       typeof extraction.rows_added === "number"
-        ? `${extraction.rows_added.toLocaleString("en")} new row${extraction.rows_added === 1 ? "" : "s"}`
+        ? countOf(extraction.rows_added, "new row")
         : undefined,
     ].filter(Boolean);
     if (parts.length > 0) return parts.join(" · ");

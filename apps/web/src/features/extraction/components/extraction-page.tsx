@@ -35,7 +35,7 @@ import { groupDatasets, originHints } from "@/lib/dataset-origin";
 import { apiFetch } from "@/lib/api/client";
 import { tierTone } from "@/lib/labels";
 import { extractErrorMessage } from "@/lib/api/errors";
-import { countOf, formatDate, formatNumber } from "@/lib/format";
+import { countOf, formatCount, formatDate, formatNumber } from "@/lib/format";
 import { cx } from "@/lib/utils";
 
 type ExtractionPageProps = {
@@ -425,7 +425,7 @@ export function ExtractionPageView({
           : "";
       const shaping = placement + rewritten;
       setFeedback(
-        `Imported ${countOf(result.rows_extracted, "row")}: ${result.rows_added.toLocaleString()} added, ${result.rows_updated.toLocaleString()} updated. The dataset now has ${countOf(result.total_rows, "row")}.${shaping}`,
+        `Imported ${countOf(result.rows_extracted, "row")}: ${formatCount(result.rows_added)} added, ${formatCount(result.rows_updated)} updated. The dataset now has ${countOf(result.total_rows, "row")}.${shaping}`,
       );
     }
   };

@@ -21,7 +21,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { apiDownload, apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
-import { countOf, formatDate } from "@/lib/format";
+import { countOf, formatDate, viewerTimeZone } from "@/lib/format";
 import { fileFormatLabel } from "@/lib/labels";
 import { cx } from "@/lib/utils";
 
@@ -111,9 +111,7 @@ export function ReportsPageView({
           source_id: sourceId,
           file_format: format,
           cron_expression: cron || null,
-          timezone: cron
-            ? Intl.DateTimeFormat().resolvedOptions().timeZone
-            : null,
+          timezone: cron ? viewerTimeZone() : null,
           notification_target_id: targetId || null,
           recipients: recipients
             .split(/[,\s;]+/)

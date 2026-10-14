@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { cx } from "@/lib/utils";
 import { Icon } from "@platform/shared-ui";
+import { t } from "@/lib/i18n";
 
 export type StatusItem = {
   id: string;
@@ -113,7 +114,7 @@ export function Inspector({ open, onToggle, title, children }: InspectorProps) {
           type="button"
           data-tour="inspector-toggle"
           onClick={onToggle}
-          aria-label={open ? "Hide the side panel" : "Show the side panel"}
+          aria-label={open ? t("shell.palette.hideSidePanel") : t("shell.palette.showSidePanel")}
           aria-expanded={open}
           className="flex h-7 w-7 items-center justify-center rounded-lg text-muted transition hover:bg-surface-2 hover:text-ink"
         >

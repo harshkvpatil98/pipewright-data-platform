@@ -33,7 +33,7 @@ type TourContextValue = {
 
 const TourContext = createContext<TourContextValue | null>(null);
 
-const STORAGE_PREFIX = "pipewright.tour.";
+export const STORAGE_PREFIX = "pipewright.tour.";
 const CARD_WIDTH = 340;
 const GAP = 14;
 

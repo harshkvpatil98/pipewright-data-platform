@@ -180,3 +180,81 @@ jobs:
         if: failure()
         run: tail -100 apps/api-gateway/gateway.log
 
+  # The golden path and the accessibility checks, in a real browser, against
+  # the production web build and a gateway on a fresh database (A7, X8).
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: browser
+          POSTGRES_USER: platform
+          POSTGRES_PASSWORD: platform
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U platform -d browser"
+          --health-interval 10s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://platform:platform@127.0.0.1:5432/browser
+      AUTH_JWT_SECRET: ci-browser-signing-secret-0123456789abcdef0123
+      BACKEND_CORS_ORIGINS: '["http://127.0.0.1:3000"]'
+      NEXT_PUBLIC_API_BASE_URL: http://127.0.0.1:8000/api/v1
+      API_INTERNAL_BASE_URL: http://127.0.0.1:8000/api/v1
+      # 127.0.0.1 throughout: "localhost" can resolve to IPv6 first.
+      E2E_BASE_URL: http://127.0.0.1:3000
+      E2E_USERNAME: browser-runner
+      E2E_PASSWORD: browser-runner-password
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install Node dependencies
+        run: npm ci
+      - name: Bootstrap Python venv
+        run: bash ./scripts/ci-bootstrap-python-venv.sh
+      - name: Migrate, add the test account, start the gateway
+        working-directory: apps/api-gateway
+        run: |
+          ../../.venv/bin/alembic -c alembic.ini upgrade head
+          ../../.venv/bin/platform-bootstrap-user --username "$E2E_USERNAME" --password "$E2E_PASSWORD" --role admin
+          nohup ../../.venv/bin/uvicorn api_gateway.main:app --host 127.0.0.1 --port 8000 > gateway.log 2>&1 &
+          for attempt in $(seq 1 60); do
+            curl -sf http://127.0.0.1:8000/api/v1/health/live && break
+            sleep 1
+          done
+      - name: Build and start the web app
+        run: |
+          npm run build --workspace @platform/web
+          nohup npm run start --workspace @platform/web -- --hostname 127.0.0.1 --port 3000 > web.log 2>&1 &
+          for attempt in $(seq 1 60); do
+            curl -sf http://127.0.0.1:3000/login > /dev/null && break
+            sleep 1
+          done
+      - name: Install the browser
+        working-directory: apps/web
+        run: npx playwright install --with-deps chromium
+      - name: Golden path and accessibility
+        working-directory: apps/web
+        run: npx playwright test
+      - name: Logs and report on failure
+        if: failure()
+        run: |
+          tail -80 apps/api-gateway/gateway.log || true
+          tail -80 web.log || true
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report
+          if-no-files-found: ignore
+

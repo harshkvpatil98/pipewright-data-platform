@@ -61,3 +61,8 @@ apps/web/CLAUDE.md
 /docs/agent-context.md
 .claude/
 .mcp.json
+
+# Browser test output (apps/web, Playwright).
+apps/web/test-results/
+apps/web/playwright-report/
+apps/web/e2e/.auth/

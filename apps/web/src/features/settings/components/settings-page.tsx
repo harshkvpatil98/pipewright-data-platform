@@ -6,7 +6,8 @@ import type { AuthUser } from "@platform/shared-types";
 
 import { AppFrame } from "@/components/shell/app-frame";
 import { useTour } from "@/components/tour/tour-provider";
-import { WELCOME_TOUR_ID, welcomeTour } from "@/components/tour/tours";
+import { STORAGE_PREFIX } from "@/components/tour/tour-provider";
+import { ALL_TOUR_IDS, WELCOME_TOUR_ID, welcomeTour } from "@/components/tour/tours";
 import { AppearanceControls } from "@/features/preferences/components/appearance-controls";
 import { NotificationPreferences } from "@/features/notifications/components/notification-preferences";
 import { AccountSecurity } from "@/features/settings/components/account-security";
@@ -22,7 +23,9 @@ type SettingsPageProps = {
   currentUser: AuthUser;
 };
 
-const TOUR_KEYS = ["pipewright.tour.welcome-v1", "pipewright.tour.studio-v1"];
+// From the tour ids themselves: listing keys here by hand left "Reset tours"
+// clearing the old v1 keys after every tour moved to v2, so it reset nothing.
+const TOUR_KEYS = ALL_TOUR_IDS.map((id) => `${STORAGE_PREFIX}${id}`);
 const LAYOUT_KEYS = ["pipewright.rail.expanded", "pipewright.inspector.open"];
 
 export function SettingsPageView({ currentUser }: SettingsPageProps) {

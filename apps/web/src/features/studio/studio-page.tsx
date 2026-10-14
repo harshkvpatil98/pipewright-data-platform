@@ -746,7 +746,15 @@ export function StudioPage({ currentUser, projectId, datasets, initialDatasetId,
                   onSortChange={(next) => setViewSort(next)}
                   onColumnMenu={(column) => openPalette(column)}
                   stale={error !== null}
-                  emptyMessage={steps.length > 0 ? "These steps leave no rows. Try loosening a filter." : "Loading the preview…"}
+                  emptyMessage={
+                    // No preview yet, or a new one on its way: not a claim
+                    // about the data. Only a finished, empty result is.
+                    !preview || loading
+                      ? "Loading the preview…"
+                      : steps.length > 0
+                        ? "These steps leave no rows. Try loosening a filter."
+                        : "This dataset has no rows."
+                  }
                 />
               )}
             </div>

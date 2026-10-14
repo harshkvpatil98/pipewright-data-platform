@@ -126,3 +126,7 @@ export const schedulesTour: TourStep[] = [
     body: "Each schedule shows when it runs next and how the last run went. Run now tries it straight away without changing its timetable.",
   },
 ];
+
+
+/** Every tour, for "Reset tours" in Your settings and for tests that skip them. */
+export const ALL_TOUR_IDS = [WELCOME_TOUR_ID, STUDIO_TOUR_ID, DATA_QUALITY_TOUR_ID, SCHEDULES_TOUR_ID];

@@ -23,12 +23,17 @@ export function getAccessToken(): string | null {
   return value || null;
 }
 
+/** Served over HTTPS, the session cookie is never sent over plain HTTP. */
+function secureFlag(): string {
+  return window.location?.protocol === "https:" ? "; secure" : "";
+}
+
 export function setAccessToken(token: string): void {
   if (typeof window === "undefined") {
     return;
   }
   window.localStorage.setItem(ACCESS_TOKEN_KEY, token);
-  document.cookie = `${ACCESS_TOKEN_COOKIE}=${token}; path=/; samesite=lax`;
+  document.cookie = `${ACCESS_TOKEN_COOKIE}=${token}; path=/; samesite=lax${secureFlag()}`;
 }
 
 export function clearAccessToken(): void {
@@ -36,5 +41,5 @@ export function clearAccessToken(): void {
     return;
   }
   window.localStorage.removeItem(ACCESS_TOKEN_KEY);
-  document.cookie = `${ACCESS_TOKEN_COOKIE}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; samesite=lax`;
+  document.cookie = `${ACCESS_TOKEN_COOKIE}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; samesite=lax${secureFlag()}`;
 }

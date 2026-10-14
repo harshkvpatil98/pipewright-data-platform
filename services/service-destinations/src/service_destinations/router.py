@@ -11,7 +11,7 @@ from service_auth.schemas import UserRead
 from service_destinations.bi_publish_service import publish_dataset_to_power_bi
 from service_destinations.copy_database import plan_copy, start_copy
 from service_destinations.copy_schemas import CopyPlan, CopyRequest, CopyStarted
-from service_destinations.deliver import deliver_dataset, preview_delivery
+from service_destinations.deliver import preview_delivery, start_delivery
 from service_destinations.publish_schemas import (
     DeliveryPreview,
     DeliveryRequest,
@@ -183,7 +183,8 @@ def build_router(
         current_user: UserRead = Depends(get_current_user),
         storage_backend: Any = Depends(get_storage_backend),
     ) -> DeliveryResult:
-        return deliver_dataset(db, project_id, dataset_id, payload, current_user, storage_backend)
+        """Small datasets are written now; a large one is queued for the worker (status "queued")."""
+        return start_delivery(db, project_id, dataset_id, payload, current_user, storage_backend)
 
     @router.post(
         "/projects/{project_id}/datasets/{dataset_id}/publish/power-bi",

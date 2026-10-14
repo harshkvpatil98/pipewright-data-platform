@@ -46,6 +46,43 @@ const FILE_MODES: { value: DeliveryMode; label: string; detail: string }[] = [
   { value: "append", label: "Add to the file", detail: "Keep what is there and add these rows." },
 ];
 
+type DeliveryRun = {
+  status: string;
+  logs_json: { events?: { message?: string }[] } | null;
+  summary_json: {
+    rows_written?: number;
+    rows_updated?: number;
+    rows_added?: number;
+    table_created?: boolean | null;
+    warnings?: string[];
+    error?: string;
+  } | null;
+};
+
+function rowsWords(count: number): string {
+  return `${count.toLocaleString()} ${count === 1 ? "row" : "rows"}`;
+}
+
+/** The finished delivery, read from the run the worker wrote. */
+export function resultFromRun(started: DeliveryResult, run: DeliveryRun): DeliveryResult {
+  const summary = run.summary_json ?? {};
+  const messages = (run.logs_json?.events ?? []).map((event) => event.message ?? "").filter(Boolean);
+  const written = summary.rows_written ?? 0;
+  const succeeded = run.status === "succeeded";
+  return {
+    ...started,
+    status: succeeded ? "succeeded" : "failed",
+    message: succeeded
+      ? `Delivered ${rowsWords(written)} to ${started.target}.`
+      : summary.error ?? messages.at(-1) ?? "The delivery stopped before it began.",
+    rows_written: succeeded ? written : 0,
+    rows_updated: succeeded ? summary.rows_updated ?? 0 : 0,
+    rows_added: succeeded ? summary.rows_added ?? 0 : 0,
+    table_created: summary.table_created ?? null,
+    warnings: summary.warnings ?? [],
+  };
+}
+
 /** A database-safe table name from a dataset name: "Sample customers" → "sample_customers". */
 export function tableNameFor(datasetName: string): string {
   const cleaned = datasetName
@@ -73,11 +110,13 @@ export function DeliverDatasetModal({ open, onClose, projectId, datasetId, datas
   const [previewProblem, setPreviewProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<DeliveryResult | null>(null);
+  const [progress, setProgress] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
     setResult(null);
+    setProgress([]);
     setError(null);
     let cancelled = false;
     apiFetch<DestinationListResponse>(`/projects/${projectId}/destinations`)
@@ -143,6 +182,34 @@ export function DeliverDatasetModal({ open, onClose, projectId, datasetId, datas
     };
   }, [open, request, result, projectId, datasetId, delivers, mode, keys.length]);
 
+  // A large dataset is written by the background worker: follow its run.
+  const queued = result?.status === "queued" ? result : null;
+  useEffect(() => {
+    if (!queued) return;
+    let cancelled = false;
+    let timer: number | undefined;
+    const poll = async () => {
+      try {
+        const run = await apiFetch<DeliveryRun>(`/projects/${projectId}/runs/${queued.run_id}`);
+        if (cancelled) return;
+        const messages = (run.logs_json?.events ?? []).map((event) => event.message ?? "").filter(Boolean);
+        if (messages.length) setProgress(messages);
+        if (run.status === "succeeded" || run.status === "failed") {
+          setResult(resultFromRun(queued, run));
+          return;
+        }
+      } catch {
+        // A missed poll is not news; the next one tries again.
+      }
+      if (!cancelled) timer = window.setTimeout(poll, 2000);
+    };
+    timer = window.setTimeout(poll, 500);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [queued, projectId]);
+
   const deliver = async () => {
     if (!request) return;
     setBusy(true);
@@ -153,6 +220,7 @@ export function DeliverDatasetModal({ open, onClose, projectId, datasetId, datas
         body: JSON.stringify(request),
       });
       setResult(delivered);
+      if (delivered.status === "queued") setProgress([delivered.message]);
     } catch (caught) {
       setError(extractErrorMessage(caught));
     } finally {
@@ -174,7 +242,7 @@ export function DeliverDatasetModal({ open, onClose, projectId, datasetId, datas
               See the run
             </Link>
             <Button size="sm" onClick={onClose}>
-              Done
+              {queued ? "Close" : "Done"}
             </Button>
           </div>
         ) : destinations && destinations.length > 0 ? (
@@ -196,7 +264,19 @@ export function DeliverDatasetModal({ open, onClose, projectId, datasetId, datas
         </p>
       ) : null}
 
-      {result ? (
+      {queued ? (
+        <div role="status" className="rounded-2xl border border-line bg-sunken px-4 py-3 text-[14px] text-ink-2">
+          <p className="font-medium text-ink">Delivering in the background</p>
+          <ul className="mt-1 space-y-0.5">
+            {progress.map((line, index) => (
+              <li key={`${index}-${line}`}>{line}</li>
+            ))}
+          </ul>
+          <p className="mt-2 text-[13px] text-ink-3">
+            You can close this window. The delivery carries on; the Runs page and your notifications say how it went.
+          </p>
+        </div>
+      ) : result ? (
         <div
           role="status"
           className={cx(

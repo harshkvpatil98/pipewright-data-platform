@@ -129,6 +129,52 @@ def test_a_delivery_is_recorded_as_a_run(db, world, server_files) -> None:
     assert run.summary_json["destination"]["label"] == "Server folder"
 
 
+def test_a_small_delivery_from_the_page_is_written_at_once(db, world, server_files) -> None:
+    from service_destinations.deliver import start_delivery
+
+    folder = _destination(db, world, "local_export", {"path": "exports"})
+    result = start_delivery(db, world["project"].id, world["dataset"].id,
+                            DeliveryRequest(destination_id=folder.id, file_name="now.csv"), world["user"], world["storage"])
+    assert result.status == "succeeded" and result.rows_written == 3
+    assert (server_files / "exports" / "now.csv").exists()
+
+
+def test_a_large_delivery_from_the_page_is_written_by_the_worker(db, world, server_files, monkeypatch) -> None:
+    """Above the threshold the request answers at once and the worker writes
+    it, with progress on the run the dialog follows (A7, X3)."""
+    from service_destinations import deliver
+    from service_pipeline_runs import background
+
+    monkeypatch.setattr(deliver, "IN_REQUEST_ROWS", 2)  # the dataset has 3 rows
+    folder = _destination(db, world, "local_export", {"path": "exports"})
+    started = deliver.start_delivery(db, world["project"].id, world["dataset"].id,
+                                     DeliveryRequest(destination_id=folder.id, file_name="later.csv"),
+                                     world["user"], world["storage"])
+    assert started.status == "queued"
+    assert started.target.endswith("exports/later.csv")
+    assert not (server_files / "exports" / "later.csv").exists()
+    assert db.get(PipelineRun, started.run_id).status == "queued"
+
+    finished = background.run_next(db, storage_backend=world["storage"], settings=None, owner="test-worker")
+    assert finished.id == started.run_id and finished.status == "succeeded"
+    assert len(pd.read_csv(server_files / "exports" / "later.csv")) == 3
+    messages = [event["message"] for event in finished.logs_json["events"]]
+    assert messages[0].startswith("Waiting for the background worker to deliver 3 rows")
+    assert "Writing 3 rows" in " ".join(messages)
+    assert finished.summary_json["rows_written"] == 3
+
+
+def test_a_large_delivery_is_refused_at_once_when_it_cannot_work(db, world, server_files, monkeypatch) -> None:
+    from service_destinations import deliver
+
+    monkeypatch.setattr(deliver, "IN_REQUEST_ROWS", 2)
+    folder = _destination(db, world, "local_export", {"path": "exports"})
+    with pytest.raises(BadRequestError, match="needs a database"):
+        deliver.start_delivery(db, world["project"].id, world["dataset"].id,
+                               DeliveryRequest(destination_id=folder.id, file_name="x.csv", mode="update",
+                                               key_columns=["order_id"]), world["user"], world["storage"])
+
+
 def test_a_folder_outside_the_server_files_folder_cannot_be_saved(db, world, server_files) -> None:
     with pytest.raises(BadRequestError, match="Only folders inside"):
         _destination(db, world, "local_export", {"path": "/etc"})

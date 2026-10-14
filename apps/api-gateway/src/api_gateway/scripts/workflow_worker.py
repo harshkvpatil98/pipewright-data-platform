@@ -53,12 +53,13 @@ def _beat(interval: float, status: str = "running") -> None:
 
 
 def tick_background(max_runs: int) -> int:
-    """Do queued background runs (large uploads, database copies; A7, X3).
+    """Do queued background runs (large uploads, deliveries, database copies; A7, X3).
 
     The modules that register them are imported here so a worker knows every
     kind the gateway can queue.
     """
     import service_destinations.copy_database  # noqa: F401 - registers database copies
+    import service_destinations.deliver  # noqa: F401 - registers large deliveries
     import service_ingestion.service  # noqa: F401 - registers large uploads
     from service_pipeline_runs import background
 

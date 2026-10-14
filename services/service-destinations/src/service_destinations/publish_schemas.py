@@ -119,7 +119,8 @@ class DeliveryPreview(BaseModel):
 
 class DeliveryResult(BaseModel):
     run_id: uuid.UUID
-    status: Literal["succeeded", "failed"]
+    # "queued": a large dataset the background worker is writing; follow the run.
+    status: Literal["succeeded", "failed", "queued"]
     target: str
     mode: str
     message: str

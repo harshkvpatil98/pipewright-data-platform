@@ -12,13 +12,16 @@ One entry point for every kind of destination that receives data:
 types, or the file and its format) without writing anything or connecting.
 `deliver_dataset` writes it and records the delivery as a run, so the Runs
 page and the notification say what went where.
+
+From the page, `start_delivery` writes a small dataset at once and hands a
+large one to the background worker (A7, X3), so a long write never outlasts
+the request; the dialog follows the run until it finishes.
 """
 
 from __future__ import annotations
 
 import re
 import uuid
-from datetime import UTC, datetime
 from typing import Any
 
 import pandas as pd
@@ -37,6 +40,7 @@ from service_destinations.publish_schemas import (
 from service_destinations.service import get_destination_model
 from service_destinations.sql_writer import ENGINES, column_kind, plan_table, plural, write_frame
 from service_notifications.outcomes import notify_manual_dataset_publish
+from service_pipeline_runs import background
 from service_pipeline_runs.service import (
     create_pipeline_run,
     mark_pipeline_run_failed,
@@ -48,6 +52,9 @@ from shared_python.errors import ApplicationError, BadRequestError, NotFoundErro
 from shared_python.server_files import OutsideServerFiles, confine
 
 RUN_TYPE = "dataset_delivery"
+#: Up to this many rows a delivery from the page is written in the request;
+#: above it the background worker writes it.
+IN_REQUEST_ROWS = 50_000
 FILE_TYPES = {"s3": "S3", "local_export": "Server folder"}
 LABELS = {**ENGINES, **FILE_TYPES}
 
@@ -100,13 +107,25 @@ def _file_columns(frame: pd.DataFrame) -> list[DeliveryColumn]:
     ]
 
 
-def _plan(destination: DestinationConfig, frame: pd.DataFrame, payload: DeliveryRequest, dataset_name: str):
+def _check_request(destination: DestinationConfig, payload: DeliveryRequest) -> None:
+    """What can be refused before any data is read."""
     if destination.status != "active":
         raise BadRequestError("This destination is turned off.")
     kind = destination.destination_type
     if kind in ENGINES:
         if not (payload.table_name or "").strip():
             raise BadRequestError("Name the table to deliver to.")
+    elif kind in FILE_TYPES:
+        if payload.mode == "update":
+            raise BadRequestError("Files can be replaced or added to; updating matching rows needs a database.")
+    else:
+        raise BadRequestError("This destination does not receive datasets.")
+
+
+def _plan(destination: DestinationConfig, frame: pd.DataFrame, payload: DeliveryRequest, dataset_name: str):
+    _check_request(destination, payload)
+    kind = destination.destination_type
+    if kind in ENGINES:
         config = dict(destination.config_json or {})
         plan = plan_table(
             frame, destination_type=kind, table=payload.table_name or "", schema=config.get("schema"),
@@ -115,8 +134,6 @@ def _plan(destination: DestinationConfig, frame: pd.DataFrame, payload: Delivery
         columns = [DeliveryColumn(**column.to_dict()) for column in plan.columns]
         return "table", plan.qualified, columns, list(plan.notes), plan
     if kind in FILE_TYPES:
-        if payload.mode == "update":
-            raise BadRequestError("Files can be replaced or added to; updating matching rows needs a database.")
         file_name = _file_name(payload.file_name, dataset_name, payload.file_format)
         target = _file_target(destination, dict(destination.config_json or {}), file_name)
         notes = [
@@ -183,19 +200,26 @@ def deliver_dataset(
     db: Session, project_id: uuid.UUID, dataset_id: uuid.UUID, payload: DeliveryRequest,
     current_user: UserRead, storage: Any, *, notify_on_complete: bool = True,
 ) -> DeliveryResult:
+    """Deliver now, in this process (a workflow task, a test, a small dataset from the page)."""
     ensure_owned_project(db, project_id, current_user.id)
     destination = get_destination_model(db, project_id, payload.destination_id)
     dataset = get_dataset_model_for_project(db, project_id, dataset_id)
     frame = _visible(db, project_id, dataset, current_user, _load_frame(dataset, storage))
     kind, target, _columns, _notes, plan_or_file = _plan(destination, frame, payload, dataset.name)
 
-    events: list[dict[str, Any]] = [{
-        "stage": "queued", "message": f"Delivery to {target} accepted.",
-        "recorded_at": datetime.now(UTC).isoformat(),
-    }]
     run = create_pipeline_run(db, project_id=project_id, current_user=current_user, run_type=RUN_TYPE,
-                              logs_json={"events": events})
-    mark_pipeline_run_running(db, run=run, logs_json={"events": events})
+                              logs_json={"events": [background.event("queued", f"Delivery to {target} accepted.")]})
+    mark_pipeline_run_running(db, run=run)
+    return _write(db, run=run, destination=destination, dataset=dataset, frame=frame, payload=payload,
+                  kind=kind, target=target, plan_or_file=plan_or_file, notify_on_complete=notify_on_complete)
+
+
+def _write(
+    db: Session, *, run: Any, destination: DestinationConfig, dataset: Any, frame: pd.DataFrame,
+    payload: DeliveryRequest, kind: str, target: str, plan_or_file: Any, notify_on_complete: bool,
+) -> DeliveryResult:
+    """Write the planned delivery and finish its run."""
+    events = list((run.logs_json or {}).get("events", []))
     summary: dict[str, Any] = {
         "dataset_id": str(dataset.id), "dataset_name": dataset.name,
         "destination": {"id": str(destination.id), "name": destination.name,
@@ -216,7 +240,7 @@ def deliver_dataset(
             rows, warnings = _write_file(destination, config, frame, plan_or_file, payload)
             summary.update(rows_written=rows, rows_updated=0, rows_added=rows, table_created=None, warnings=warnings)
     except ApplicationError as exc:
-        events.append({"stage": "failed", "message": str(exc.detail), "recorded_at": datetime.now(UTC).isoformat()})
+        events.append(background.event("failed", str(exc.detail)))
         summary["error"] = str(exc.detail)
         run_read = mark_pipeline_run_failed(db, run=run, summary_json=summary, logs_json={"events": events})
         if notify_on_complete:
@@ -225,8 +249,7 @@ def deliver_dataset(
         return DeliveryResult(run_id=run.id, status="failed", target=target, mode=payload.mode,
                               message=str(exc.detail), rows_written=0, rows_updated=0, rows_added=0)
 
-    events.append({"stage": "succeeded", "message": f"Wrote {plural(summary['rows_written'], 'row')} to {target}.",
-                   "recorded_at": datetime.now(UTC).isoformat()})
+    events.append(background.event("succeeded", f"Wrote {plural(summary['rows_written'], 'row')} to {target}."))
     run_read = mark_pipeline_run_succeeded(db, run=run, summary_json=summary, logs_json={"events": events})
     if notify_on_complete:
         notify_manual_dataset_publish(db, run_read=run_read, success=True)
@@ -238,3 +261,67 @@ def deliver_dataset(
         rows_added=summary["rows_added"], table_created=summary.get("table_created"),
         warnings=list(summary.get("warnings") or []),
     )
+
+
+def _target_words(destination: DestinationConfig, payload: DeliveryRequest, dataset_name: str) -> str:
+    """Where it is going, said before the data is read."""
+    if destination.destination_type in ENGINES:
+        schema = (destination.config_json or {}).get("schema")
+        table = (payload.table_name or "").strip()
+        return f"{schema}.{table}" if schema else table
+    return _file_target(destination, dict(destination.config_json or {}),
+                        _file_name(payload.file_name, dataset_name, payload.file_format))
+
+
+def start_delivery(
+    db: Session, project_id: uuid.UUID, dataset_id: uuid.UUID, payload: DeliveryRequest,
+    current_user: UserRead, storage: Any,
+) -> DeliveryResult:
+    """A delivery from the page: written now when small, by the worker when large."""
+    ensure_owned_project(db, project_id, current_user.id)
+    dataset = get_dataset_model_for_project(db, project_id, dataset_id)
+    if (dataset.row_count or 0) <= IN_REQUEST_ROWS:
+        return deliver_dataset(db, project_id, dataset_id, payload, current_user, storage)
+
+    destination = get_destination_model(db, project_id, payload.destination_id)
+    _check_request(destination, payload)
+    if not dataset.file_path or not dataset.file_type:
+        raise BadRequestError("This dataset has no stored data to deliver yet.")
+    target = _target_words(destination, payload, dataset.name)
+    run = create_pipeline_run(db, project_id=project_id, current_user=current_user, run_type=RUN_TYPE,
+                              logs_json={"events": []})
+    background.queue(
+        db, run=run,
+        request={"dataset_id": str(dataset.id), "delivery": payload.model_dump(mode="json")},
+        message=f"Waiting for the background worker to deliver {plural(dataset.row_count or 0, 'row')} to {target}.",
+    )
+    return DeliveryResult(
+        run_id=run.id, status="queued", target=target, mode=payload.mode,
+        message=f"Delivering {plural(dataset.row_count or 0, 'row')} to {target} in the background.",
+        rows_written=0, rows_updated=0, rows_added=0,
+    )
+
+
+def deliver_queued(db: Session, run: Any, storage_backend: Any, settings: Any) -> None:
+    """The worker's half of a delivery started from the page."""
+    from service_auth.models import User
+
+    owner = db.get(User, run.triggered_by_user_id)
+    if owner is None:
+        raise BadRequestError("The person who started this delivery no longer has an account.")
+    current_user = UserRead.model_validate(owner, from_attributes=True)
+    request = run.request_json or {}
+    payload = DeliveryRequest.model_validate(request["delivery"])
+    dataset = get_dataset_model_for_project(db, run.project_id, uuid.UUID(request["dataset_id"]))
+    destination = get_destination_model(db, run.project_id, payload.destination_id)
+
+    background.progress(db, run, "reading", f"Reading {dataset.name}.")
+    # What leaves is no more than the person who started it may see, as in the request.
+    frame = _visible(db, run.project_id, dataset, current_user, _load_frame(dataset, storage_backend))
+    kind, target, _columns, _notes, plan_or_file = _plan(destination, frame, payload, dataset.name)
+    background.progress(db, run, "writing", f"Writing {plural(len(frame), 'row')} to {target}.")
+    _write(db, run=run, destination=destination, dataset=dataset, frame=frame, payload=payload,
+           kind=kind, target=target, plan_or_file=plan_or_file, notify_on_complete=True)
+
+
+background.register(RUN_TYPE, deliver_queued)

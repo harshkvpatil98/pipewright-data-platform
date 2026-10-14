@@ -551,7 +551,8 @@ export type DeliveryPreview = {
 
 export type DeliveryResult = {
   run_id: string;
-  status: "succeeded" | "failed";
+  /** "queued": a large dataset the background worker is writing; follow the run. */
+  status: "succeeded" | "failed" | "queued";
   target: string;
   mode: DeliveryMode;
   message: string;

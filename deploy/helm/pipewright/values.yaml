@@ -78,9 +78,11 @@ gateway:
   replicaCount: 2
   service:
     port: 8000
+  # An upload is held while it is saved (and encrypted, with a key), so the
+  # gateway needs about three times the largest upload on top of itself.
   resources:
-    requests: { cpu: 100m, memory: 256Mi }
-    limits: { cpu: "1", memory: 512Mi }
+    requests: { cpu: 100m, memory: 512Mi }
+    limits: { cpu: "1", memory: 1536Mi }
   autoscaling:
     enabled: false
     minReplicas: 2
@@ -106,9 +108,9 @@ worker:
   replicaCount: 1
   intervalSeconds: 5
   # The worker reads uploads over 25MB, delivers large datasets and copies
-  # databases. Reading a file takes about twenty times its size in memory
-  # (measured: 1.98GB for a 99MB CSV of 2 million rows), more for files of
-  # many short text values, so 4Gi covers the default 100MB upload limit
+  # databases. Reading a CSV takes about nine times its size in memory (A8:
+  # measured on 104MB and 200MB files), more for files of many short text
+  # values, so 4Gi covers the default 200MB upload limit
   # (MAX_UPLOAD_SIZE_BYTES) with room. Lower that limit for a smaller worker.
   resources:
     requests: { cpu: 250m, memory: 1Gi }

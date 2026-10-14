@@ -92,7 +92,7 @@ Set these in the gateway's environment. Changes take effect when the gateway res
 | `SERVER_FILES_ROOT` | The one folder on the server that server-folder sources and destinations may use. |
 | `OUTBOUND_BLOCK_PRIVATE_NETWORKS` | Refuse connectors that reach addresses inside your network. |
 | `OUTBOUND_ALLOW_LOOPBACK` | Allow connectors to reach the server itself. Off by default; for testing only. |
-| `MAX_UPLOAD_SIZE_BYTES` | The largest file people can upload (100MB by default). Files over 25MB are read by the background worker, which needs about twenty times the file's size in memory. |
+| `MAX_UPLOAD_SIZE_BYTES` | The largest file people can upload (200MB by default). Files over 25MB are read by the background worker, which needs about nine times the file's size in memory. |
 | `STORAGE_BACKEND` | Where stored files live: `local` (the server's disk, the default) or `s3` (a bucket, so several servers share them), with `STORAGE_S3_BUCKET`, `_PREFIX`, `_ENDPOINT_URL`, `_REGION`, `_ACCESS_KEY_ID` and `_SECRET_ACCESS_KEY`. |
 | `WORKFLOW_MAX_RUNS_PER_PROJECT` | How many workflow runs one project may have going at once (3); more wait their turn. |
 | `WORKFLOW_LEASE_SECONDS` | How long a run whose background worker stopped waits before it is marked failed and can be picked up (180, three minutes). A working worker renews it, however long the run. |

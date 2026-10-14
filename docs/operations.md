@@ -70,16 +70,17 @@ Starting points; measure with the perf baseline (below) and adjust.
 
 | Scale | Gateway | Web | Worker | Postgres |
 | --- | --- | --- | --- | --- |
-| Trial / single team | 1 × 0.5 vCPU / 512Mi | 1 × 0.5 vCPU / 512Mi | 1 × 1 vCPU / 4Gi | 1 vCPU / 2Gi |
-| Small (≤50 users) | 2 × 1 vCPU / 1Gi | 2 × 0.5 vCPU / 512Mi | 1–2 × 2 vCPU / 4Gi | 2 vCPU / 4Gi, SSD |
-| Medium (≤500 users) | 3–6 (HPA) × 1 vCPU / 1Gi | 3–6 (HPA) | 2–4 × 2 vCPU / 4Gi | 4–8 vCPU / 16Gi, read replica for reporting |
+| Trial / single team | 1 × 0.5 vCPU / 1.5Gi | 1 × 0.5 vCPU / 512Mi | 1 × 1 vCPU / 4Gi | 1 vCPU / 2Gi |
+| Small (≤50 users) | 2 × 1 vCPU / 1.5Gi | 2 × 0.5 vCPU / 512Mi | 1–2 × 2 vCPU / 4Gi | 2 vCPU / 4Gi, SSD |
+| Medium (≤500 users) | 3–6 (HPA) × 1 vCPU / 1.5Gi | 3–6 (HPA) | 2–4 × 2 vCPU / 4Gi | 4–8 vCPU / 16Gi, read replica for reporting |
 
-**Memory follows the largest file.** Reading a file takes about twenty times
-its size (measured: 1.98GB on the worker for a 99MB CSV of 2 million rows; the
-gateway peaked at 479MB receiving it). Files of many short text values take
-more. Give the worker about forty times the upload limit (4GB for the default
-100MB), or lower `MAX_UPLOAD_SIZE_BYTES` to fit the worker you have; System
-status shows the limit in force.
+**Memory follows the largest file.** Reading a CSV takes about nine times its
+size on the worker (measured: 1.86GB for a 199MB CSV of 3,957,935 rows, read
+in 37 s; it was twenty times before A8), and the gateway about three times
+while it saves the upload (714MB for the same file). Files of many short text
+values take more. Give the worker about twenty times the upload limit (4GB for
+the default 200MB) and the gateway 1.5GB, or lower `MAX_UPLOAD_SIZE_BYTES` to
+fit what you have; System status shows the limit in force.
 
 Tune the connection pool (`DB_POOL_SIZE`, `DB_MAX_OVERFLOW`) so
 `gateway_replicas × (pool + overflow)` stays under Postgres `max_connections`.

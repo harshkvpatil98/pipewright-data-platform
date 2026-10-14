@@ -56,7 +56,7 @@ help inside the product (`/help`, from [docs/user/](docs/user/)), an API
 guide whose examples a test runs, row and column policies on every read,
 network allow-lists, a stated session policy, files encrypted at rest, and
 failures that reach email and Slack. A7 made it hold up under load: files in
-an S3-compatible bucket shared by several gateways, uploads up to 100MB and
+an S3-compatible bucket shared by several gateways, uploads up to 200MB and
 large deliveries and copies on the background worker with progress,
 workflows that retry and can be picked up where they failed, rate limits,
 OpenTelemetry traces, performance budgets and browser and accessibility tests
@@ -340,9 +340,9 @@ first-time user meets soonest:
 - **Notebooks** run in the request (15 s per Python cell) rather than on the
   worker. Python cells are disabled on macOS, where the sandbox cannot limit
   memory; on Linux they run.
-- **Uploads** stop at 100MB: reading a file takes about twenty times its size
-  in memory on the worker. Larger data comes in through a database or storage
-  import.
+- **Uploads** stop at 200MB by default: reading a CSV takes about nine times
+  its size in memory on the worker. Larger data comes in through a database or
+  storage import.
 - The [adoption review](docs/plans/adoption-readiness-workflow.md) lists 20
   user-facing defects (D1–D20) with file evidence and the phases (A0–A9) that
   address them; its status line says which are fixed.

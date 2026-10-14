@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import csv
 import io
+import re
 from typing import Any
 
 import pandas as pd
@@ -24,6 +25,7 @@ from service_ingestion.readers.base import ReadResult, normalise_columns
 from service_ingestion.sniff import pipeline
 from service_ingestion.sniff.delimiter import count_fields
 from service_ingestion.sniff.evidence import Certainty, Finding, certain
+from service_ingestion.sniff.lines import offset_of_line
 from shared_python.words import count_of
 
 #: Ragged rows sampled for the report. Enough to see the pattern; a file where
@@ -45,35 +47,51 @@ def read_delimited(
 
     findings = [encoding_finding, dialect.finding, dialect.quote_finding, layout.finding]
 
-    lines = text.splitlines()
-    body = lines[layout.skip_rows:]
-    if not body:
-        raise BadRequestError("There are no rows after the header.")
-
+    # The body starts after the preamble. Lines are walked one at a time, never
+    # held as a list: two million line strings cost more than the file (A8).
+    # Counted as the header sniff counts lines, so `skip_rows` means the same.
+    body_start = offset_of_line(text, layout.skip_rows)
     expected = len(layout.columns) if layout.columns else None
     ragged: list[tuple[int, int]] = []
-    kept: list[str] = []
-    for offset, line in enumerate(body):
+    rows = 0
+    for offset, line in enumerate(_lines(text, body_start)):
         if not line.strip():
             continue
+        rows += 1
         if expected and offset > 0:
             width = count_fields(line, dialect.delimiter, dialect.quote_char, dialect.escape_char)
             # A trailing delimiter produces one extra empty field on every row;
             # that is a dialect quirk rather than a ragged row.
             if width != expected and not (width == expected + 1 and line.rstrip().endswith(dialect.delimiter)):
                 ragged.append((layout.skip_rows + offset + 1, width))
-        kept.append(line)
-        if limit and len(kept) > limit + 1:
+        if limit and rows > limit + 1:
             break
+    if not rows:
+        raise BadRequestError("There are no rows after the header.")
 
     previous = csv.field_size_limit()
     try:
         csv.field_size_limit(FIELD_LIMIT)
+        # pandas' C parser, given UTF-8 bytes, needs about a quarter of the
+        # memory of the Python one given a string (which holds every character
+        # in four bytes) and is three times faster: 490MB rather than 1.85GB
+        # for a 99MB file. A delimiter it cannot take keeps the Python parser.
+        fast = len(dialect.delimiter) == 1 and (dialect.escape_char is None or len(dialect.escape_char) == 1)
+        if fast and body_start == 0 and encoding_finding.value in ("utf-8", "ascii"):
+            # Already UTF-8 from the first byte: no need for a second copy.
+            source: Any = io.BytesIO(payload)
+        elif fast:
+            source = io.BytesIO(text[body_start:].encode("utf-8"))
+        else:
+            source = io.StringIO(text[body_start:])
+        # The decoded text has done its work (sniffing, counting ragged rows);
+        # let it go before the parse, the step that needs the most memory.
+        del text
         # The names come from `header.py`, which has already made them distinct
         # and usable. Letting pandas dedupe instead produces `amount.1`, which
         # looks like a real column name and is not the one the file used.
         frame = pd.read_csv(
-            io.StringIO("\n".join(kept)),
+            source,
             sep=dialect.delimiter,
             quotechar=dialect.quote_char,
             escapechar=dialect.escape_char,
@@ -83,7 +101,10 @@ def read_delimited(
             dtype=str,
             keep_default_na=False,
             na_values=[],
-            engine="python",
+            skip_blank_lines=True,
+            engine="c" if fast else "python",
+            # Bytes that are not UTF-8 read as U+FFFD, as the decoding above did.
+            **({"encoding": "utf-8", "encoding_errors": "replace"} if fast else {}),
             # Ragged rows are counted above and reported; dropping them here
             # keeps the frame rectangular without pretending they never existed.
             on_bad_lines="skip",
@@ -131,6 +152,20 @@ def read_delimited(
         findings=findings,
         warnings=warnings,
     )
+
+
+def _lines(text: str, start: int = 0):
+    """The lines of `text` from `start`, one at a time, like `splitlines`."""
+    position = start
+    for match in _LINE_BREAK.finditer(text, start):
+        yield text[position:match.start()]
+        position = match.end()
+    if position < len(text):
+        yield text[position:]
+
+
+#: The breaks pandas' parser also honours: \r\n, \r and \n.
+_LINE_BREAK = re.compile(r"\r\n|\r|\n")
 
 
 def read_fixed_width(

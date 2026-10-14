@@ -20,7 +20,7 @@ An administrator invites people under **Admin → Accounts**; each sets their ow
 Each project gives every member one role: viewer, operator, editor or admin ([what each can do](admin.md#accounts)). Every request is checked against the role on the project it touches, in one place, so a new page cannot forget the check. Platform administration needs the platform administrator role.
 
 **Has single sign-on been tested against a real provider?**
-Yes. Every change signs in through a live Keycloak provider in the test pipeline: the provider's own sign-in page, the token checks, and the account made with the role its group maps to. Okta and Entra ID use the same protocol but have not been tried here; `scripts/check-oidc.py` checks the provider you configure, end to end, and should be run before relying on it.
+Yes. Every change is tested by signing in through a live Keycloak provider: the provider's own sign-in page, the token checks, and the account made with the role its group maps to. Okta and Entra ID use the same protocol but have not been tried here; `scripts/check-oidc.py` checks the provider you configure, end to end, and should be run before relying on it.
 
 ## Sessions
 

@@ -103,7 +103,9 @@ def detect(
     text: str, *, delimiter: str, quote: str = '"', sample_lines: int = 60
 ) -> HeaderResult:
     """Which line is the header, or that there is not one."""
-    lines = [line for line in text.splitlines()[: sample_lines + MAX_PREAMBLE_LINES]]
+    from service_ingestion.sniff.lines import head_lines
+
+    lines = head_lines(text, sample_lines + MAX_PREAMBLE_LINES)
     non_blank = [(index, line) for index, line in enumerate(lines) if line.strip()]
     if not non_blank:
         return HeaderResult(

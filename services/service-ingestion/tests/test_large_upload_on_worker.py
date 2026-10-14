@@ -123,3 +123,15 @@ def test_a_large_delimited_file_is_worked_out_from_its_first_part() -> None:
     assert part.endswith(b"\n")  # cut at a line end, never mid-row
     assert _sample(big, "orders.parquet") == (big, None)  # only delimited text is cut
     assert _sample(b"id\n1\n", "small.csv") == (b"id\n1\n", None)
+
+
+def test_the_start_of_a_file_is_enough_to_work_it_out_when_its_size_is_given() -> None:
+    """The web app sends a large CSV's first 5MB and its size (A8): the part is
+    cut at its last whole line and the note names the real size."""
+    from service_ingestion.analysis_service import _sample
+
+    start = b"id,name\n" + b"".join(f"{i},row {i}\n".encode() for i in range(1000)) + b"1000,ro"  # cut mid-row
+    part, full = _sample(start, "orders.csv", total_bytes=250 * 1024 * 1024)
+    assert full == 250 * 1024 * 1024
+    assert part.endswith(b"999,row 999\n")
+    assert _sample(start, "orders.parquet", total_bytes=10**9) == (start, None)  # only delimited text is cut

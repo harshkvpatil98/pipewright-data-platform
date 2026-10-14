@@ -1,4 +1,4 @@
-const defaultMaxUploadSizeBytes = 100 * 1024 * 1024;
+const defaultMaxUploadSizeBytes = 200 * 1024 * 1024;
 
 function parseMaxUploadSize(value: string | undefined): number {
   const parsed = Number(value);

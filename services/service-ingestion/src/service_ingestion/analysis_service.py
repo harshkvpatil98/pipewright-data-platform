@@ -42,8 +42,16 @@ ANALYSIS_SAMPLE_BYTES = 5 * 1024 * 1024
 _DELIMITED = (".csv", ".tsv", ".txt", ".psv", ".dat")
 
 
-def _sample(payload: bytes, file_name: str) -> tuple[bytes, int | None]:
-    """The part of the file analysed, and the full size when that is only a part."""
+def _sample(payload: bytes, file_name: str, total_bytes: int | None = None) -> tuple[bytes, int | None]:
+    """The part of the file analysed, and the full size when that is only a part.
+
+    `total_bytes` is the whole file's size when the caller sent only its start
+    (the web app does for a large delimited file, A8): the part is cut at its
+    last full line and the note gives the real size.
+    """
+    if total_bytes and total_bytes > len(payload) and file_name.lower().endswith(_DELIMITED):
+        cut = payload.rfind(b"\n")
+        return (payload[: cut + 1] if cut > 0 else payload), total_bytes
     if len(payload) <= ANALYSIS_SAMPLE_BYTES or not file_name.lower().endswith(_DELIMITED):
         return payload, None
     cut = payload.rfind(b"\n", 0, ANALYSIS_SAMPLE_BYTES)
@@ -62,12 +70,13 @@ def analyse_upload(
     current_user: UserRead,
     spec_id: uuid.UUID | None = None,
     overrides: dict[str, Any] | None = None,
+    total_bytes: int | None = None,
 ) -> dict[str, Any]:
     """Work out how to read a file. Stores nothing."""
     ensure_owned_project(db, project_id, current_user.id)
     if not payload:
         raise BadRequestError("The uploaded file is empty.")
-    payload, full_size = _sample(payload, file_name)
+    payload, full_size = _sample(payload, file_name, total_bytes)
 
     saved: IngestSpecRecord | None = None
     applied: spec_module.IngestSpec | None = None
@@ -120,7 +129,7 @@ def analyse_upload(
 
     if full_size is not None:
         notes = [
-            f"Worked out from the first {len(payload) // (1024 * 1024)} MB of this "
+            f"Worked out from the first {max(1, round(len(payload) / (1024 * 1024)))} MB of this "
             f"{full_size // (1024 * 1024)} MB file. Importing reads every row.",
             *notes,
         ]

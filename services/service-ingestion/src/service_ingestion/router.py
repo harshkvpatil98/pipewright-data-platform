@@ -90,6 +90,7 @@ def build_router(
     async def analyze_dataset(
         project_id: uuid.UUID,
         spec_id: uuid.UUID | None = Query(default=None),
+        total_bytes: int | None = Query(default=None, ge=1),
         file: UploadFile = File(...),
         db = Depends(get_db),
         current_user: UserRead = Depends(get_current_user),
@@ -103,7 +104,9 @@ def build_router(
         """
         try:
             upload = await read_upload_file(file)
-            if len(upload.file_bytes) > settings.max_upload_size_bytes:
+            # A large delimited file arrives as its first part with its size
+            # (`total_bytes`), so the whole file need not cross the network twice.
+            if max(len(upload.file_bytes), total_bytes or 0) > settings.max_upload_size_bytes:
                 raise BadRequestError('Uploaded file exceeds the configured maximum size.')
             return AnalyseResponse(
                 **analysis_service.analyse_upload(
@@ -114,6 +117,7 @@ def build_router(
                     payload=upload.file_bytes,
                     current_user=current_user,
                     spec_id=spec_id,
+                    total_bytes=total_bytes,
                 )
             )
         finally:

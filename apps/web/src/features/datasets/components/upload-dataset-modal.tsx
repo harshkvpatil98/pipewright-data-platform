@@ -27,6 +27,10 @@ type UploadDatasetModalProps = {
   projectId: string;
 };
 
+/** How much of a large delimited file the analysis reads (the server's ANALYSIS_SAMPLE_BYTES). */
+const ANALYSIS_SAMPLE_BYTES = 5 * 1024 * 1024;
+const DELIMITED = /\.(csv|tsv|txt|psv|dat)$/i;
+
 export function UploadDatasetModal({ open, onClose, projectId }: UploadDatasetModalProps) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -94,12 +98,17 @@ export function UploadDatasetModal({ open, onClose, projectId }: UploadDatasetMo
    */
   const analyse = async (target: File) => {
     const formData = new FormData();
-    formData.append("file", target);
+    // A large delimited file is worked out from its start, so only that part
+    // is sent, with the whole file's size for the note (A8). The import still
+    // sends, and reads, every row.
+    const partial = target.size > ANALYSIS_SAMPLE_BYTES && DELIMITED.test(target.name);
+    formData.append("file", partial ? new File([target.slice(0, ANALYSIS_SAMPLE_BYTES)], target.name) : target);
+    const query = partial ? `?total_bytes=${target.size}` : "";
     try {
       setAnalysing(true);
       setError(null);
       const response = await apiFetch<AnalyseUploadResponse>(
-        `/projects/${projectId}/datasets/analyze`,
+        `/projects/${projectId}/datasets/analyze${query}`,
         { method: "POST", body: formData },
       );
       setAnalysis(response);

@@ -71,8 +71,10 @@ def split_lines(text: str, *, limit: int = SAMPLE_LINES) -> list[str]:
     physical lines, which is exactly the case `count_fields` has to survive, and
     joining them here would hide it.
     """
+    from service_ingestion.sniff.lines import iter_lines
+
     lines: list[str] = []
-    for raw in text.splitlines():
+    for raw in iter_lines(text):
         if raw.strip():
             lines.append(raw)
         if len(lines) >= limit:

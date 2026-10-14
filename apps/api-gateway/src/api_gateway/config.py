@@ -93,7 +93,7 @@ class Settings(BaseSettings):
     storage_encryption_key: str | None = None
     # Files over 25MB are read by the background worker (A7); it needs about
     # fifteen times a file's size in memory while it reads one.
-    max_upload_size_bytes: int = 100 * 1024 * 1024
+    max_upload_size_bytes: int = 200 * 1024 * 1024
     # Every format the ingestion readers handle. The extension is a gate, not a
     # decision: the sniffer reads the bytes and overrules the name, so a
     # workbook renamed `.csv` still loads correctly -- but an extension nobody

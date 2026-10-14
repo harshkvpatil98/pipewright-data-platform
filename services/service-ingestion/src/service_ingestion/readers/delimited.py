@@ -24,6 +24,7 @@ from service_ingestion.readers.base import ReadResult, normalise_columns
 from service_ingestion.sniff import pipeline
 from service_ingestion.sniff.delimiter import count_fields
 from service_ingestion.sniff.evidence import Certainty, Finding, certain
+from shared_python.words import count_of
 
 #: Ragged rows sampled for the report. Enough to see the pattern; a file where
 #: every row is ragged has a different problem than one where row 4,812 is.
@@ -107,13 +108,13 @@ def read_delimited(
                 certainty=Certainty.CERTAIN,
                 confidence=1.0,
                 reason=(
-                    f"{len(ragged)} row(s) do not have {expected} fields and were skipped. "
+                    f"{count_of(len(ragged), 'row')} do not have {expected} fields and were skipped. "
                     "A footer total or a stray delimiter usually explains it."
                 ),
                 evidence=[sample],
             )
         )
-        warnings.append(f"{len(ragged)} ragged row(s) were skipped.")
+        warnings.append(f"{count_of(len(ragged), 'ragged row')} were skipped.")
     else:
         findings.append(certain("ragged_rows", 0, "Every row has the same number of fields."))
 
@@ -223,7 +224,7 @@ def _infer_boundaries(lines: list[str]) -> tuple[list[tuple[int, int]], Finding]
         certainty=Certainty.LIKELY if len(boundaries) > 1 else Certainty.UNCERTAIN,
         confidence=0.85 if len(boundaries) > 1 else 0.4,
         reason=(
-            f"{len(boundaries)} column(s) found from positions that are blank on "
+            f"{count_of(len(boundaries), 'column')} found from positions that are blank on "
             "essentially every line."
         ),
         evidence=sample[:3],

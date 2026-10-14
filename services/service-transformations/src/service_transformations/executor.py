@@ -44,6 +44,7 @@ from service_transformations.steps import (
     StepContext,
 )
 from service_transformations.validators import validate_steps_json
+from shared_python.words import count_of
 
 #: The name the working frame is bound to inside the IR tree.
 WORKING = "__working__"
@@ -306,7 +307,7 @@ def _introduced_nulls(before: pd.DataFrame, after: pd.DataFrame) -> list[str]:
         gained = int(after[column].isna().sum()) - int(before[column].isna().sum())
         if gained > 0:
             messages.append(
-                f"Column '{column}' has {gained} more empty value(s) after this step "
+                f"Column '{column}' has {count_of(gained, 'more empty value')} after this step "
                 f"({int(after[column].isna().sum())} of {len(after)} rows are empty now)."
             )
     return messages

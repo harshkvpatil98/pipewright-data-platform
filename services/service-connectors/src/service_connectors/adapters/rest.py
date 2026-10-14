@@ -36,6 +36,7 @@ from service_connectors.protocol import (
     with_tier_note,
 )
 from shared_python.outbound import OutboundBlocked, check_host
+from shared_python.words import count_of
 
 PAGINATION_STRATEGIES = ("none", "page", "offset", "cursor", "next_url", "link_header")
 AUTH_METHODS = ("none", "bearer", "api_key_header", "api_key_query", "basic")
@@ -476,7 +477,7 @@ class RestConnector:
         return with_tier_note(
             TestResult(
                 success=True,
-                message=f"Connected. {len(records)} record(s) in the first response.",
+                message=f"Connected. {count_of(len(records), 'record')} in the first response.",
                 latency_ms=latency,
                 server_version=response.headers.get("server"),
                 warnings=warnings,
@@ -670,7 +671,7 @@ class GraphQlConnector(RestConnector):
 
         return TestResult(
             success=True,
-            message=f"Query ran. {len(records)} record(s) returned.",
+            message=f"Query ran. {count_of(len(records), 'record')} returned.",
             latency_ms=round((time.perf_counter() - started) * 1000, 2),
         )
 

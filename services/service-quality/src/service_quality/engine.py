@@ -112,7 +112,7 @@ def evaluate_ruleset(
                 status="failed",
                 evaluated_rows=int(len(dataframe)),
                 failed_rows=0,
-                message=f"Rule could not be evaluated: {exc.detail}",
+                message=f"This check could not be worked out: {exc.detail}",
                 details={"configuration_error": True},
             )
             warnings.append(f"Rule '{name}' is misconfigured: {exc.detail}")

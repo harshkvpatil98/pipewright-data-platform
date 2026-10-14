@@ -29,6 +29,7 @@ from shared_python.types import lattice as pw
 
 from service_ingestion.sniff import numbers as number_sniff
 from service_ingestion.sniff.columns import EXCEL_ERRORS
+from shared_python.words import count_of
 
 #: The version of the spec format. Stored with every spec so a spec written
 #: today can still be read after the shape changes -- a stored decision that
@@ -197,7 +198,7 @@ def apply(frame: pd.DataFrame, spec: IngestSpec) -> tuple[pd.DataFrame, list[str
         converted, failures = _convert(series, column_spec)
         if failures:
             notes.append(
-                f"'{column_spec.name}': {len(failures)} value(s) did not read as "
+                f"'{column_spec.name}': {count_of(len(failures), 'value')} did not read as "
                 f"{column_spec.type} and are null — e.g. {', '.join(failures[:3])}."
             )
         out[column_spec.rename or column_spec.name] = converted

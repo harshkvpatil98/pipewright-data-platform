@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 from service_auth.schemas import UserRead
 from shared_python.errors import ApplicationError, BadRequestError
 from shared_python.logging import get_logger
+from shared_python.words import count_of
 
 logger = get_logger(__name__)
 
@@ -46,14 +47,24 @@ class NodeResult:
     pipeline_run_id: uuid.UUID | None = None
 
 
+#: What each setting a task needs is, in the words of the task's form.
+_SETTING_WORDS = {
+    "extraction_job_id": "the import it runs",
+    "pipeline_id": "the recipe it runs",
+    "dataset_id": "the dataset it uses",
+    "destination_id": "the destination it delivers to",
+}
+
+
 def _require_uuid(config: dict[str, Any], key: str) -> uuid.UUID:
     raw = config.get(key)
+    words = _SETTING_WORDS.get(key, f"its {key.replace('_', ' ')} setting")
     if not raw:
-        raise BadRequestError(f"This node is missing '{key}'.")
+        raise BadRequestError(f"Choose {words} for this task.")
     try:
         return uuid.UUID(str(raw))
     except (ValueError, TypeError) as exc:
-        raise BadRequestError(f"'{key}' must be a valid id.") from exc
+        raise BadRequestError(f"Choose {words} again for this task; the one saved is not recognised.") from exc
 
 
 def resolve_dataset(config: dict[str, Any], context: NodeContext) -> uuid.UUID:
@@ -68,11 +79,11 @@ def resolve_dataset(config: dict[str, Any], context: NodeContext) -> uuid.UUID:
         output = context.outputs.get(str(upstream_key))
         if not output:
             raise BadRequestError(
-                f"This node reads from '{upstream_key}', which produced no output."
+                f"This task uses what the task '{upstream_key}' made, but that task made nothing."
             )
         dataset_id = output.get("dataset_id")
         if not dataset_id:
-            raise BadRequestError(f"Upstream node '{upstream_key}' did not produce a dataset.")
+            raise BadRequestError(f"This task uses the dataset the task '{upstream_key}' made, but it made none.")
         return uuid.UUID(str(dataset_id))
 
     return _require_uuid(config, "dataset_id")
@@ -96,7 +107,7 @@ def run_extraction_node(config: dict[str, Any], context: NodeContext) -> NodeRes
     return NodeResult(
         success=True,
         message=(
-            f"Extracted {result.rows_extracted} row(s); "
+            f"Imported {count_of(result.rows_extracted, 'row')}: "
             f"{result.rows_added} added, {result.rows_updated} updated."
         ),
         output={
@@ -126,7 +137,7 @@ def run_transformation_node(config: dict[str, Any], context: NodeContext) -> Nod
     )
     return NodeResult(
         success=True,
-        message=f"Pipeline produced dataset '{result.dataset.name}'.",
+        message=f"The recipe made “{result.dataset.name}”.",
         output={
             "dataset_id": str(result.dataset.id),
             "row_count": result.dataset.row_count,
@@ -188,11 +199,11 @@ def run_quality_gate_node(config: dict[str, Any], context: NodeContext) -> NodeR
             # same nightly failure groups but a different rule does not.
             fingerprint_parts=(dataset_id, ",".join(sorted(failing))),
             source_kind="quality",
-            title=f"Quality gate failing on {len(failing)} rule(s)",
+            title=f"{count_of(len(failing), 'check')} failing in a workflow",
             summary=(
                 f"{', '.join(failing[:3])}"
                 + (f" and {len(failing) - 3} more" if len(failing) > 3 else "")
-                + f" failed across {evaluation.rows_in} row(s)."
+                + f" failed across {count_of(evaluation.rows_in, 'row')}."
             ),
             severity="high",
             dataset_id=dataset_id,
@@ -201,18 +212,18 @@ def run_quality_gate_node(config: dict[str, Any], context: NodeContext) -> NodeR
         return NodeResult(
             success=False,
             message=(
-                f"Quality gate failed: {evaluation.error_failures} error-severity rule(s) "
-                f"did not pass across {evaluation.rows_in} row(s)."
+                f"Checks failed: {count_of(evaluation.error_failures, 'check')} that must pass did not, "
+                f"on {count_of(evaluation.rows_in, 'row')}."
             ),
             output=output,
         )
 
     suffix = (
-        f" ({evaluation.warning_failures} warning(s))" if evaluation.warning_failures else ""
+        f", with {count_of(evaluation.warning_failures, 'warning')}" if evaluation.warning_failures else ""
     )
     return NodeResult(
         success=True,
-        message=f"Quality gate passed: {evaluation.rules_evaluated} rule(s) checked{suffix}.",
+        message=f"Checks passed: {count_of(evaluation.rules_evaluated, 'check')} run{suffix}.",
         output=output,
     )
 
@@ -330,7 +341,7 @@ def run_drift_gate_node(config: dict[str, Any], context: NodeContext) -> NodeRes
             context,
             fingerprint_parts=(dataset_id,),
             source_kind="drift",
-            title="Schema drift blocked a workflow run",
+            title="A schema change stopped a workflow run",
             summary=summary,
             severity="critical" if severity == "breaking" else "high",
             dataset_id=dataset_id,
@@ -338,7 +349,7 @@ def run_drift_gate_node(config: dict[str, Any], context: NodeContext) -> NodeRes
         )
         return NodeResult(
             success=False,
-            message=f"Drift gate failed ({severity}): {summary}",
+            message=f"Stopped by a schema change ({severity}): {summary}",
             output=output,
         )
 
@@ -422,7 +433,7 @@ def run_reverse_etl_node(config: dict[str, Any], context: NodeContext) -> NodeRe
 
     connector_type = str(config.get("connector_type") or "").strip()
     if not connector_type:
-        raise BadRequestError("This node is missing 'connector_type'.")
+        raise BadRequestError("Choose where this task writes to.")
 
     connector = get_connector(connector_type)
     if not connector.spec.supports("write"):
@@ -434,7 +445,7 @@ def run_reverse_etl_node(config: dict[str, Any], context: NodeContext) -> NodeRe
     mode = str(config.get("mode") or "replace")
     target = str(config.get("target") or "").strip()
     if not target:
-        raise BadRequestError("This node is missing 'target': where to write.")
+        raise BadRequestError("Name the file or table this task writes to.")
 
     dataset_id = resolve_dataset(config, context)
     step_context = build_step_context(
@@ -466,7 +477,7 @@ def run_reverse_etl_node(config: dict[str, Any], context: NodeContext) -> NodeRe
 def run_notify_node(config: dict[str, Any], context: NodeContext) -> NodeResult:
     from service_notifications.service import create_user_notification
 
-    message = str(config.get("message") or "Workflow reached a notify step.")
+    message = str(config.get("message") or "The workflow reached this message.")
     level = str(config.get("level") or "info")
     create_user_notification(
         context.db,
@@ -497,13 +508,16 @@ def execute_node(node_type: str, config: dict[str, Any], context: NodeContext) -
     """Run one node, converting expected failures into a failed result."""
     handler = NODE_HANDLERS.get(node_type)
     if handler is None:
-        return NodeResult(success=False, message=f"Unsupported node type '{node_type}'.")
+        return NodeResult(success=False, message=f"This kind of task ({node_type}) cannot run here.")
 
     try:
         return handler(config or {}, context)
     except ApplicationError as exc:
         # A misconfigured or failing step is an outcome the graph routes on.
         return NodeResult(success=False, message=str(exc.detail))
-    except Exception as exc:  # noqa: BLE001 - one bad node must not kill the run
+    except Exception:  # noqa: BLE001 - one bad task must not stop the run
         logger.exception("workflow_node_unexpected_error node_type=%s", node_type)
-        return NodeResult(success=False, message=f"Unexpected error: {exc.__class__.__name__}")
+        return NodeResult(
+            success=False,
+            message="This task stopped because of an unexpected error on the server. The details are in the server's log.",
+        )

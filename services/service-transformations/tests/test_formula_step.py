@@ -105,7 +105,7 @@ class TestBadRowsAreCountedNotFatal:
         # "The other 1 were fine" was wrong: that row's input was empty, so it
         # was never a candidate. The denominator is the eligible rows.
         _, warnings = applied({"target_column": "n", "formula": "VALUE([name])"})
-        assert any("of the 2 row(s) that had values" in w for w in warnings)
+        assert any("of the 2 rows that had values" in w for w in warnings)
 
     def test_a_clean_formula_warns_about_nothing(self) -> None:
         _, warnings = applied({"target_column": "t", "formula": "[qty] * 2"})

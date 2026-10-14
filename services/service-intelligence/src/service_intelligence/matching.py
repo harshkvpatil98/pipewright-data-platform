@@ -24,6 +24,7 @@ import re
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 from typing import Any, Iterable
+from shared_python.words import count_of
 
 # Business-entity noise that carries no identity.
 _SUFFIXES = (
@@ -230,8 +231,8 @@ def _summarise(report: MatchReport, threshold: float) -> str:
         )
     affected = sum(candidate.to_dict()["row_count"] for candidate in report.candidates)
     return (
-        f"{len(report.candidates)} pair(s) in '{report.column}' look like the same thing "
-        f"written differently, covering {affected} row(s). Nothing has been merged."
+        f"{count_of(len(report.candidates), 'pair')} in '{report.column}' look like the same thing "
+        f"written differently, covering {count_of(affected, 'row')}. Nothing has been merged."
     )
 
 

@@ -29,6 +29,7 @@ from dataclasses import dataclass
 from typing import Any, Iterable
 
 from service_ingestion.sniff.evidence import Candidate, Certainty, Finding, certain
+from shared_python.words import count_of
 
 #: Symbols stripped before a value is read as a number.
 CURRENCY = "$€£¥₹₽¢₩₪R "
@@ -271,7 +272,7 @@ def detect(values: Iterable[str], *, column: str = "") -> NumberFormat:
             certainty=Certainty.UNCERTAIN,
             confidence=0.6,
             reason=(
-                f"'{separator}' is followed by three digits in {grouped} value(s) and by "
+                f"'{separator}' is followed by three digits in {count_of(grouped, 'value')} and by "
                 f"a different length in {fractional}. Reading the majority."
             ),
             candidates=[

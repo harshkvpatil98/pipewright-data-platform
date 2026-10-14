@@ -17,6 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any
+from shared_python.words import count_of
 
 # How far either side of the change to look. Wider than this and everything
 # correlates with everything.
@@ -185,13 +186,13 @@ def _summarise(
     if not candidates:
         days = int(window.total_seconds() // 86400) or 1
         return (
-            f"{change_description} Nothing else was recorded within {days} day(s), "
+            f"{change_description} Nothing else was recorded within {count_of(days, 'day')}, "
             "so the cause is upstream of anything this platform can see."
         )
 
     best = candidates[0]
     tail = (
-        f" {len(candidates) - 1} other change(s) happened nearby."
+        f" {count_of(len(candidates) - 1, 'other change')} happened nearby."
         if len(candidates) > 1
         else ""
     )

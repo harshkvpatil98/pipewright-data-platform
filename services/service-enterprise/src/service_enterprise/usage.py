@@ -16,6 +16,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any
+from shared_python.words import count_of
 
 SUBJECT_TYPES = ("pipeline", "workflow", "extraction_job", "report", "dataset")
 
@@ -76,7 +77,7 @@ class UsageReport:
 
     def summary(self) -> str:
         if not self.totals:
-            return f"Nothing has run in the last {self.period_days} day(s)."
+            return f"Nothing has run in the last {count_of(self.period_days, 'day')}."
 
         biggest = self.totals[0]
         share = (
@@ -84,7 +85,7 @@ class UsageReport:
         )
         return (
             f"{self.rows_processed:,} rows and {self.compute_seconds:,.0f} compute seconds "
-            f"in {self.period_days} day(s). '{biggest.subject_name}' accounts for "
+            f"in {count_of(self.period_days, 'day')}. '{biggest.subject_name}' accounts for "
             f"{share:.0f}% of the rows."
         )
 

@@ -45,6 +45,7 @@ from sqlalchemy.orm import Session
 from service_datasets.models import Dataset, DatasetVersion, DatasetVersionPin
 from shared_python.errors import ConflictError
 from shared_python.logging import get_logger
+from shared_python.words import count_of
 
 logger = get_logger(__name__)
 
@@ -368,7 +369,7 @@ def prune_due(
 
     if report.artifacts_pending:
         report.notes.append(
-            f"{report.artifacts_pending} pruned version(s) still have bytes to remove; "
+            f"{count_of(report.artifacts_pending, 'pruned version')} still have bytes to remove; "
             "the next sweep retries."
         )
     return report
@@ -396,7 +397,7 @@ def sweep_project_versions(
     if dry_run:
         report = PruneReport(would_schedule=count)
         report.notes.append(
-            f"{count} superseded version(s) would be scheduled for removal after a "
+            f"{count_of(count, 'superseded version')} would be scheduled for removal after a "
             f"{int(PRUNE_GRACE.total_seconds() // 60)}-minute grace period."
         )
         return report
@@ -405,7 +406,7 @@ def sweep_project_versions(
     report.scheduled = count
     if count:
         report.notes.append(
-            f"{count} superseded version(s) scheduled; they are removed on a later sweep "
+            f"{count_of(count, 'superseded version')} scheduled; they are removed on a later sweep "
             f"once their {int(PRUNE_GRACE.total_seconds() // 60)}-minute grace period ends."
         )
     return report

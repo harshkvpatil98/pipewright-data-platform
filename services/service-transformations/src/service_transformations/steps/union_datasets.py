@@ -8,6 +8,7 @@ import pandas as pd
 from service_transformations.steps.common import ensure_config_keys
 from service_transformations.steps.context import StepContext
 from shared_python.errors import BadRequestError
+from shared_python.words import count_of
 
 MAX_UNION_RESULT_ROWS = 5_000_000
 
@@ -73,7 +74,7 @@ def apply_union_datasets(
             raise BadRequestError(f"'{label}' shares no columns with the current dataset.")
         left, right = dataframe[shared], other[shared]
         if only_left or only_right:
-            warnings.append(f"Kept the {len(shared)} shared column(s); non-shared columns were dropped.")
+            warnings.append(f"Kept the {count_of(len(shared), 'shared column')}; non-shared columns were dropped.")
     elif only_left or only_right:
         warnings.append(
             f"Datasets have different columns; missing values are null "
@@ -92,6 +93,6 @@ def apply_union_datasets(
         combined = combined.drop_duplicates().reset_index(drop=True)
         removed = before - len(combined)
         if removed:
-            warnings.append(f"Removed {removed} duplicate row(s) after the union.")
+            warnings.append(f"Removed {count_of(removed, 'duplicate row')} after the union.")
 
     return combined.reset_index(drop=True), warnings

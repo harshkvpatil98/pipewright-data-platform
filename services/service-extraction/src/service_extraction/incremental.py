@@ -22,7 +22,7 @@ import pandas as pd
 
 from service_extraction.connectors.sql_database import quote_identifier
 from shared_python.errors import BadRequestError
-from shared_python.words import listing, noun
+from shared_python.words import count_of, listing, noun
 
 WATERMARK_PARAM = "pw_watermark"
 
@@ -180,7 +180,7 @@ def merge_frames(
     duplicate_count = int(len(combined)) - int(len(combined.drop_duplicates(subset=keys, keep="last")))
     if duplicate_count:
         combined = combined.drop_duplicates(subset=keys, keep="last").reset_index(drop=True)
-        warnings.append(f"Kept the last of {duplicate_count} duplicate key(s) within the batch.")
+        warnings.append(f"Kept the last of {count_of(duplicate_count, 'duplicate key')} within the batch.")
 
     return MergeOutcome(
         dataframe=combined.reset_index(drop=True),

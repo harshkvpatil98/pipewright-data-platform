@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any
+from shared_python.words import count_of
 
 # Type changes that usually keep working but can change comparison or rounding
 # behaviour. Anything not listed here is treated as breaking.
@@ -155,11 +156,11 @@ def detect_schema_drift(
 
     parts: list[str] = []
     if added:
-        parts.append(f"{len(added)} column(s) added")
+        parts.append(f"{count_of(len(added), 'column')} added")
     if removed:
-        parts.append(f"{len(removed)} column(s) removed")
+        parts.append(f"{count_of(len(removed), 'column')} removed")
     if type_changes:
-        parts.append(f"{len(type_changes)} type change(s)")
+        parts.append(f"{count_of(len(type_changes), 'type change')}")
     if reordered and not parts:
         parts.append("column order changed")
 

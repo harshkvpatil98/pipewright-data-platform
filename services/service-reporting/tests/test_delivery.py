@@ -111,11 +111,11 @@ def test_a_report_posts_to_its_slack_target_with_a_link(db, world, senders):
     [post] = senders["slack"]
     assert post["config"]["webhook_url"] == "https://hooks.example/abc"
     assert "*Weekly sales is ready*" in post["text"] and "[ops]" in post["text"]
-    assert filename in post["text"] and "3 row(s)" in post["text"]
+    assert filename in post["text"] and "3 rows" in post["text"]
     assert f"https://pw.example/projects/{world['project'].id}/reports" in post["text"]
     kinds = {(c["channel"], c["ok"]) for c in delivery.channels}
     assert ("in_app", True) in kinds and ("slack", True) in kinds
-    assert delivery.message == "3 row(s). · Slack: posted"
+    assert delivery.message == "3 rows · Slack: posted"
     assert delivery.status == "succeeded"
 
 
@@ -125,13 +125,13 @@ def test_recipients_each_get_the_file_attached_and_one_failure_is_stated(db, wor
     assert [m["to"] for m in senders["email"]] == ["a@acme.com", "b@acme.com"]
     [(name, payload, media)] = senders["email"][0]["attachments"]
     assert name.endswith(".xlsx") and media.startswith("application/vnd.openxmlformats") and payload[:2] == b"PK"
-    assert delivery.message == "3 row(s). · email: 2 sent"
+    assert delivery.message == "3 rows · Email: 2 sent"
 
     senders["email_ok"] = False
     *_rest, failed = run_report(db, world["project"].id, report.id, world["actor"], _Storage())
     # Generation still succeeded; delivery did not, and the record says so.
     assert failed.status == "succeeded"
-    assert failed.message == "3 row(s). · email: 0 sent, 2 failed"
+    assert failed.message == "3 rows · Email: 0 sent, 2 failed"
     assert all("SMTP is not configured" in c["detail"] for c in failed.channels if c["channel"] == "email")
     history = list_deliveries(db, world["project"].id, report.id, world["actor"])
     assert [d.message for d in history.items][0] == failed.message
@@ -143,7 +143,7 @@ def test_a_failed_slack_post_is_recorded_not_raised(db, world, senders):
     *_rest, delivery = run_report(db, world["project"].id, report.id, world["actor"], _Storage())
     slack = next(c for c in delivery.channels if c["channel"] == "slack")
     assert slack["ok"] is False and "410" in slack["detail"]
-    assert delivery.message == "3 row(s). · Slack: failed"
+    assert delivery.message == "3 rows · Slack: failed"
 
 
 def test_a_disabled_or_foreign_target_is_refused_or_reported(db, world, senders):

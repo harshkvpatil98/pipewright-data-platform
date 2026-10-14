@@ -495,7 +495,7 @@ CASES: tuple[Case, ...] = (
             extra_sheets={"Returns": pd.DataFrame([{"id": 9}])},
         ),
         "Several sheets. Reading the first and ignoring the rest loses data.",
-        expect_format="excel", expect_reason="sheet(s)",
+        expect_format="excel", expect_reason="2 sheets",
     ),
     Case(
         "excel-preamble", "titled.xlsx",

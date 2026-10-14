@@ -83,9 +83,9 @@ class BlastRadius:
 
     def explain(self) -> str:
         if not self.needs_confirmation:
-            return f"{self.rows_affected:,} row(s) of {self.table_rows:,}."
+            return f"{count_of(self.rows_affected, 'row')} of {self.table_rows:,}."
         return (
-            f"{self.rows_affected:,} row(s) of {self.table_rows:,} "
+            f"{count_of(self.rows_affected, 'row')} of {self.table_rows:,} "
             f"({self.share:.0%} of the table). Confirm by typing the table name."
         )
 

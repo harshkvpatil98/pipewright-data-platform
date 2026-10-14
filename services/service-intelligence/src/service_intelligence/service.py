@@ -37,6 +37,7 @@ from service_intelligence.schemas import (
     RuleSuggestionRead,
     RuleSuggestionResponse,
 )
+from shared_python.words import count_of
 
 # Enough rows to judge a column by; more is slower without being more accurate.
 SAMPLE_ROWS = 5_000
@@ -117,7 +118,7 @@ def scan_pii(
         )
     else:
         summary = (
-            f"{len(findings)} column(s) in {dataset.name} look like personal data"
+            f"{count_of(len(findings), 'column')} in {dataset.name} look like personal data"
             + (f", {len(high)} of them clearly." if high else ", none of them clearly.")
             + " Nothing has been masked."
         )
@@ -502,7 +503,7 @@ def draft_documentation(
         dataset=DraftRead(**dataset_draft.to_dict()),
         columns=[DraftRead(**draft.to_dict()) for draft in column_drafts],
         summary=(
-            f"A draft description of {dataset.name} and {len(column_drafts)} column(s), "
+            f"A draft description of {dataset.name} and {count_of(len(column_drafts), 'column')}, "
             "assembled from facts already recorded. Edit before accepting."
         ),
     )

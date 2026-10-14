@@ -24,6 +24,7 @@ from shared_python.types import lattice as pw
 
 from service_ingestion.sniff import dates, numbers
 from service_ingestion.sniff.evidence import Candidate, Certainty, Finding
+from shared_python.words import count_of
 
 #: Strings that conventionally mean "no value". Matched case-insensitively.
 #: `-` and `0` are deliberately absent: `-` is a minus sign often enough, and a
@@ -183,7 +184,7 @@ def profile_column(
             certainty=Certainty.LIKELY,
             confidence=0.95,
             reason=(
-                f"{len(padded)} value(s) have a leading zero, so this is an identifier "
+                f"{count_of(len(padded), 'value')} have a leading zero, so this is an identifier "
                 "rather than a number. Reading it as a number would turn "
                 f"{padded[0]!r} into {padded[0].lstrip('0') or '0'}."
                 + (
@@ -260,9 +261,9 @@ def profile_column(
         certainty=Certainty.LIKELY,
         confidence=1.0,
         reason=(
-            f"Text, {min(widths)}–{max(widths)} characters, {distinct} distinct value(s)"
+            f"Text, {min(widths)}–{max(widths)} characters, {count_of(distinct, 'distinct value')}"
             + (
-                f". {len(numericish)} value(s) look numeric but not enough to call the "
+                f". {count_of(len(numericish), 'value')} look numeric but not enough to call the "
                 "column numeric"
                 if numericish
                 else ""

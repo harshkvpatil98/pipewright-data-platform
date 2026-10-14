@@ -28,6 +28,7 @@ from shared_python.errors import BadRequestError
 
 from service_ingestion.readers.base import ReadResult, normalise_columns
 from service_ingestion.sniff.evidence import Candidate, Certainty, Finding, certain
+from shared_python.words import count_of
 
 #: Namespace prefix in a tag: `{http://...}Order`. Stripped for column names,
 #: reported once so the namespace is not simply lost.
@@ -148,7 +149,7 @@ def read_xml(
                 reason=(
                     f"<{record_name}> repeats {ranked[0][1]} times, so each one is a row"
                     + (
-                        f". {len(ranked) - 1} other element(s) also repeat; change this if one "
+                        f". {count_of(len(ranked) - 1, 'other element')} also repeat; change this if one "
                         "of those is the record."
                         if len(ranked) > 1
                         else "."
@@ -196,7 +197,7 @@ def read_xml(
                 "xml_attributes",
                 attributes,
                 (
-                    f"{len(attributes)} column(s) come from attributes rather than elements, "
+                    f"{count_of(len(attributes), 'column')} come from attributes rather than elements, "
                     "marked with @. Identifiers usually live there."
                 ),
                 evidence=attributes[:6],

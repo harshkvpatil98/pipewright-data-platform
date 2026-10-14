@@ -31,6 +31,7 @@ from service_notifications.senders import email_sender as _email
 from service_notifications.senders import slack_sender as _slack
 from service_notifications.service import create_user_notification
 from shared_python.logging import get_logger
+from shared_python.words import count_of
 
 logger = get_logger(__name__)
 
@@ -87,7 +88,7 @@ def deliver_report(
     )
     size = _human_size(len(content))
     headline = f"{report.name} is ready"
-    detail = f"{filename} — {row_count:,} row(s), {size}."
+    detail = f"{filename} — {count_of(row_count, 'row')}, {size}."
     body = detail + (f"\n\nOpen the reports page: {link}" if link else "")
 
     # 1. In-app, for the person who set it up.
@@ -161,8 +162,8 @@ def deliver_report(
 
 
 def summarise(channels: list[dict[str, Any]], row_count: int) -> str:
-    """"12 rows. Slack: posted · email: 2 sent, 1 failed" -- the truth, short."""
-    parts = [f"{row_count:,} row(s)."]
+    """"12 rows · Slack: posted · Email: 2 sent, 1 failed" -- the truth, short."""
+    parts = [count_of(row_count, "row")]
     slack = [c for c in channels if c["channel"] == "slack"]
     if slack:
         parts.append("Slack: " + ("posted" if all(c["ok"] for c in slack) else "failed"))
@@ -170,11 +171,11 @@ def summarise(channels: list[dict[str, Any]], row_count: int) -> str:
     if emails:
         sent = sum(1 for c in emails if c["ok"])
         failed = len(emails) - sent
-        text = f"email: {sent} sent"
+        text = f"Email: {sent} sent"
         if failed:
             text += f", {failed} failed"
         parts.append(text)
     broken = [c for c in channels if c["channel"] == "target" or (not c["ok"] and c["channel"] not in {"slack", "email", "in_app"})]
     if broken:
-        parts.append("target: " + broken[0]["detail"])
+        parts.append("Target: " + broken[0]["detail"])
     return " · ".join(parts)

@@ -31,6 +31,7 @@ from shared_python.types import lattice as pw
 
 from service_ingestion.readers.base import ReadResult, declared_profile, normalise_columns
 from service_ingestion.sniff.evidence import Candidate, Certainty, Finding, certain
+from shared_python.words import count_of
 
 #: SQL types, mapped onto the Phase 08 lattice. The dump's own word for the
 #: type is kept in the finding, so `mediumint` is not silently "an integer".
@@ -376,8 +377,8 @@ def read_sql_dump(
             "sql_dump",
             name,
             (
-                f"{len(with_rows)} table(s) in this dump; reading '{name}'. "
-                f"{inserts} INSERT statement(s) parsed, {other} other statement(s) ignored. "
+                f"{count_of(len(with_rows), 'table')} in this dump; reading '{name}'. "
+                f"{count_of(inserts, 'INSERT statement')} parsed, {count_of(other, 'other statement')} ignored. "
                 "Nothing in the file was executed."
             ),
             evidence=sorted(with_rows)[:10],
@@ -392,7 +393,7 @@ def read_sql_dump(
                 confidence=0.6,
                 reason=(
                     f"'{name}' has the most rows, so it was read. Each of the other "
-                    f"{len(with_rows) - 1} table(s) can become its own dataset."
+                    f"{count_of(len(with_rows) - 1, 'table')} can become its own dataset."
                 ),
                 candidates=[
                     Candidate(other_name, len(other_table.rows) / max(len(table.rows), 1),
@@ -444,7 +445,7 @@ def read_sql_dump(
         declared_columns=declared,
         tables=sorted(with_rows),
         warnings=(
-            [f"{other} statement(s) other than CREATE TABLE and INSERT were ignored."]
+            [f"{count_of(other, 'statement')} other than CREATE TABLE and INSERT were ignored."]
             if other
             else []
         ),

@@ -40,6 +40,7 @@ from shared_python.errors import BadRequestError
 from service_workbench import sandbox
 from service_workbench.execute import run_script
 from service_workbench.safety import SessionPolicy
+from shared_python.words import count_of
 
 CELL_KINDS = ("sql", "python", "recipe", "markdown")
 
@@ -246,7 +247,7 @@ def _run_sql(
 
 def _describe_writes(script: Any) -> str:
     affected = sum(s.rows_affected or 0 for s in script.statements)
-    return f"{len(script.statements)} statement(s) ran; {affected} row(s) affected."
+    return f"{count_of(len(script.statements), 'statement')} ran; {count_of(affected, 'row')} affected."
 
 
 def _run_python(cell: Cell, outcome: CellResult, space: Namespace, row_preview: int) -> None:

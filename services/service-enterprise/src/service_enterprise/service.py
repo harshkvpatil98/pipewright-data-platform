@@ -834,17 +834,17 @@ def run_retention(
     if not plans:
         summary = "No retention policies are set for this project."
     elif total_deleted:
-        summary = f"Deleted {total_deleted:,} record(s) across {len(plans)} policy(ies)."
+        summary = f"Deleted {count_of(total_deleted, 'record')} across {count_of(len(plans), 'policy', 'policies')}."
         if scheduled_versions:
-            summary += f" Scheduled {scheduled_versions:,} dataset version(s) for removal."
+            summary += f" Scheduled {count_of(scheduled_versions, 'dataset version')} for removal."
     elif scheduled_versions:
         summary = (
-            f"Scheduled {scheduled_versions:,} superseded dataset version(s) for removal "
+            f"Scheduled {count_of(scheduled_versions, 'superseded dataset version')} for removal "
             "after the grace period. Nothing else was past its retention."
         )
     elif total_matched:
         summary = (
-            f"{total_matched:,} record(s) are past their retention, and every policy is in "
+            f"{count_of(total_matched, 'record')} are past their retention, and every policy is in "
             "report-only mode. Nothing was deleted."
         )
     else:

@@ -133,9 +133,9 @@ def test_the_summary_says_what_was_restricted():
     )
     _frame, applied = apply_policies(FRAME, [policy], role="viewer")
     summary = applied.summary()
-    assert "2 row(s) hidden" in summary
-    assert "1 column(s) masked" in summary
-    assert "1 column(s) removed" in summary
+    assert "2 rows hidden" in summary
+    assert "1 column masked" in summary
+    assert "1 column removed" in summary
     assert "Regional" in summary
 
 

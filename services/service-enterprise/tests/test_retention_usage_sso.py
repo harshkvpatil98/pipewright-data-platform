@@ -115,7 +115,7 @@ def test_an_erasure_report_says_where_the_person_was_found():
         datasets_searched=3,
         hits=[ColumnHit("orders", "email", 4)],
     )
-    assert "Found in 1 place(s) across 4 row(s)" in report.summary()
+    assert "Found in 1 place across 4 rows" in report.summary()
     assert "orders.email" in report.summary()
 
 
@@ -155,7 +155,7 @@ def test_a_usage_report_names_the_biggest_consumer():
 
 def test_an_empty_usage_report_says_nothing_ran():
     report = UsageReport(period_days=7, since=datetime.now(UTC))
-    assert "Nothing has run in the last 7 day(s)" in report.summary()
+    assert "Nothing has run in the last 7 days" in report.summary()
 
 
 # ---- telemetry ----

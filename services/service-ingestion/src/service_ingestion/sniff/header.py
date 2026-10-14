@@ -29,6 +29,7 @@ from typing import Any
 
 from service_ingestion.sniff.delimiter import count_fields
 from service_ingestion.sniff.evidence import Candidate, Certainty, Finding, certain
+from shared_python.words import count_of
 
 #: How far into the file a header may be. Past this it is not a preamble, it is
 #: a different file with something appended.
@@ -224,7 +225,7 @@ def detect(
             confidence=best.score,
             reason=(
                 f"Header on line {line_index + 1}"
-                + (f", after {line_index} line(s) of preamble" if line_index else "")
+                + (f", after {count_of(line_index, 'line')} of preamble" if line_index else "")
                 + f". {best.reason.split(': ', 1)[-1]}."
             ),
             candidates=ranked[:4],

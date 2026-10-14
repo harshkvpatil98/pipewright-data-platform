@@ -183,7 +183,7 @@ def test_a_missing_target_is_reported_clearly(db: Session, world: dict, tmp_path
         _context(db, world["project"]),
     )
     assert result.success is False
-    assert "target" in result.message
+    assert "Name the file or table" in result.message
 
 
 def test_the_connector_config_is_validated_before_anything_is_written(

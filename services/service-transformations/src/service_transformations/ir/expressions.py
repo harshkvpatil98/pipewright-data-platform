@@ -30,6 +30,7 @@ from shared_python.types import (
     widen,
 )
 from shared_python.types.lattice import DATE, UNKNOWN
+from shared_python.words import count_of
 
 
 class Expr:
@@ -192,9 +193,9 @@ class Signature:
 
     def arity_description(self) -> str:
         if self.max_args is None:
-            return f"at least {self.min_args} argument(s)"
+            return f"at least {count_of(self.min_args, 'argument')}"
         if self.min_args == self.max_args:
-            return f"exactly {self.min_args} argument(s)"
+            return f"exactly {count_of(self.min_args, 'argument')}"
         return f"{self.min_args}-{self.max_args} arguments"
 
     def result_type(self, args: list[PWType]) -> PWType:

@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import pandas as pd
+from shared_python.words import count_of
 
 SEVERITIES: tuple[str, ...] = ("error", "warning")
 
@@ -56,9 +57,13 @@ def from_mask(mask: pd.Series, *, message_when_failed: str, message_when_passed:
         status="failed" if failed_rows else "passed",
         evaluated_rows=evaluated_rows,
         failed_rows=failed_rows,
-        message=message_when_failed.format(failed=failed_rows, total=evaluated_rows)
+        # {rows} is the count with its noun ("1 row", "1,200 rows"); {failed}
+        # and {total} are the bare numbers.
+        message=message_when_failed.format(
+            failed=f"{failed_rows:,}", total=f"{evaluated_rows:,}", rows=count_of(evaluated_rows, "row")
+        )
         if failed_rows
-        else message_when_passed.format(total=evaluated_rows),
+        else message_when_passed.format(total=f"{evaluated_rows:,}", rows=count_of(evaluated_rows, "row")),
         failure_mask=mask,
         details=details,
     )

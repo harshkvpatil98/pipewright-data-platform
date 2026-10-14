@@ -85,9 +85,9 @@ def test_summary_counts_each_kind_of_change() -> None:
         schema(("id", "int"), ("drop_me", "string"), ("amount", "int")),
         schema(("id", "int"), ("amount", "float"), ("added", "string")),
     )
-    assert "1 column(s) added" in report.summary
-    assert "1 column(s) removed" in report.summary
-    assert "1 type change(s)" in report.summary
+    assert "1 column added" in report.summary
+    assert "1 column removed" in report.summary
+    assert "1 type change" in report.summary
 
 
 def test_report_serialises_for_storage() -> None:

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any
+from shared_python.words import count_of
 
 # A column that has never been null in a decent number of rows is worth
 # asserting on. Fewer rows than this and "never null" is not yet a pattern.
@@ -182,6 +183,6 @@ def summarise(suggestions: list[RuleSuggestion]) -> str:
         )
     high = sum(1 for item in suggestions if item.confidence == "high")
     return (
-        f"{len(suggestions)} rule(s) the profile already justifies, {high} of them "
+        f"{count_of(len(suggestions), 'rule')} the profile already justifies, {high} of them "
         "on patterns strong enough that a violation would be news."
     )

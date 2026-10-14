@@ -101,7 +101,7 @@ def test_combining_nothing_gives_an_empty_frame():
 def test_test_counts_what_matches(folder: Path):
     result = LocalFileConnector().test(_config(folder, pattern="*.csv"))
     assert result.success
-    assert "1 file(s)" in result.message
+    assert "1 file" in result.message
 
 
 def test_a_pattern_matching_nothing_is_reported_but_not_an_error(folder: Path):

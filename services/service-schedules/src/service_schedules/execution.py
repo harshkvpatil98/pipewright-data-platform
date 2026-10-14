@@ -70,7 +70,7 @@ def execute_schedule_operation(
             )
             return ScheduleExecutionOutcome(
                 success=True,
-                message="Transformation pipeline run completed.",
+                message="The recipe ran.",
                 triggered_run=result.run,
                 transformation=result,
                 postgres_publish=None,

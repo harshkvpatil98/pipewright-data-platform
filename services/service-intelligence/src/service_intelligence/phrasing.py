@@ -22,6 +22,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from typing import Any, Sequence
+from shared_python.words import count_of
 
 # The aggregations a sentence can name, and what the engine calls them.
 AGGREGATION_WORDS: dict[str, str] = {
@@ -422,7 +423,7 @@ def _summarise(result: ParseResult, columns: Sequence[str]) -> str:
     if result.not_understood:
         missed = "; ".join(f"'{phrase}'" for phrase in result.not_understood)
         return (
-            f"Built {len(result.steps)} step(s). Could not read: {missed} — "
+            f"Built {count_of(len(result.steps), 'step')}. Could not read: {missed} — "
             "that part was left out rather than guessed at."
         )
-    return f"Built {len(result.steps)} step(s) from that."
+    return f"Built {count_of(len(result.steps), 'step')} from that."

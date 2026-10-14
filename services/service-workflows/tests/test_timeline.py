@@ -60,7 +60,7 @@ def test_evenly_spread_work_gets_a_different_sentence():
         ],
     )
     assert "the slowest was" in timeline.summary
-    assert "9.0s across 3 node(s)" in timeline.summary
+    assert "9.0s across 3 tasks" in timeline.summary
 
 
 def test_a_skipped_node_keeps_its_place_in_the_sequence():

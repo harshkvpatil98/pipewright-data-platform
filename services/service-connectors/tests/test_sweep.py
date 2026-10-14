@@ -436,7 +436,7 @@ class TestTheStreamCap:
         assert report.truncated[0]["total"] == 4
         # The sentence that becomes the schedule's last-run message.
         line = report.summary_line()
-        assert "2 further stream(s)" in line
+        assert "2 further streams" in line
         assert "not looked at" in line
 
     def test_a_sweep_within_the_cap_says_nothing_extra(

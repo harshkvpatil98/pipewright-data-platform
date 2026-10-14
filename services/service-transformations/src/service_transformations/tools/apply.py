@@ -19,6 +19,7 @@ from shared_python.types.inference import infer_pw_type
 from service_transformations.ir import pandas_backend
 from service_transformations.ir.nodes import IRError, Node, Scan
 from service_transformations.tools import build as build_tool, get
+from shared_python.words import count_of
 
 #: The name the working frame is bound to while a tool runs.
 SOURCE = "__frame__"
@@ -87,6 +88,6 @@ def _warnings(
     if not lost:
         return []
     return [
-        f"{spec.title} could not read {lost:,} of {eligible:,} value(s) in "
+        f"{spec.title} could not read {lost:,} of {count_of(eligible, 'value')} in "
         f"{source!r}; those rows are now empty."
     ]

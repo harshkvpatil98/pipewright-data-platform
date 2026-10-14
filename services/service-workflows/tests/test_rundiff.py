@@ -83,7 +83,7 @@ def test_nodes_are_matched_by_key_not_position():
     by_key = {node.node_key: node for node in diff.nodes}
     assert by_key["validate"].verdict == "added"
     assert by_key["publish"].verdict == "same"
-    assert "node(s) added or removed" in diff.summary
+    assert "1 task added or removed" in diff.summary
 
 
 def test_a_node_present_only_in_the_older_run_is_removed():

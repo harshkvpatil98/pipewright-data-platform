@@ -457,7 +457,7 @@ def run_extraction_job(
             run=run,
             log_events=log_events,
             stage=current_stage,
-            message="An unexpected error occurred during extraction.",
+            message="The import stopped with an unexpected error.",
         )
         raise InternalServerError("The import stopped with an unexpected error. Try again; if it repeats, check the source connection.") from exc
 

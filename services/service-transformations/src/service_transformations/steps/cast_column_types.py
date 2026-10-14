@@ -12,6 +12,7 @@ from service_transformations.steps.common import (
     ensure_config_keys,
     require_mapping,
 )
+from shared_python.words import count_of
 
 
 def validate_cast_column_types(dataframe: pd.DataFrame, config: dict[str, Any]) -> dict[str, str]:
@@ -54,7 +55,7 @@ def apply_cast_column_types(
             transformed[column_name] = numeric.astype("Int64")
             if introduced_nulls:
                 warnings.append(
-                    f"Casting column '{column_name}' to int introduced {introduced_nulls} null value(s)."
+                    f"Casting column '{column_name}' to int introduced {count_of(introduced_nulls, 'null value')}."
                 )
             continue
 
@@ -64,7 +65,7 @@ def apply_cast_column_types(
             transformed[column_name] = numeric
             if introduced_nulls:
                 warnings.append(
-                    f"Casting column '{column_name}' to float introduced {introduced_nulls} null value(s)."
+                    f"Casting column '{column_name}' to float introduced {count_of(introduced_nulls, 'null value')}."
                 )
             continue
 
@@ -74,7 +75,7 @@ def apply_cast_column_types(
             transformed[column_name] = parsed
             if introduced_nulls:
                 warnings.append(
-                    f"Casting column '{column_name}' to datetime introduced {introduced_nulls} null value(s)."
+                    f"Casting column '{column_name}' to datetime introduced {count_of(introduced_nulls, 'null value')}."
                 )
             continue
 
@@ -82,7 +83,7 @@ def apply_cast_column_types(
         transformed[column_name] = parsed_boolean
         if introduced_nulls:
             warnings.append(
-                f"Casting column '{column_name}' to boolean introduced {introduced_nulls} null value(s)."
+                f"Casting column '{column_name}' to boolean introduced {count_of(introduced_nulls, 'null value')}."
             )
 
     return transformed, warnings

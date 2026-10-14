@@ -15,6 +15,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
+from shared_python.words import count_of
 
 
 @dataclass
@@ -138,7 +139,7 @@ def build_timeline(
         )
     else:
         summary = (
-            f"{_humanise(total_ms)} across {len(entries)} node(s); "
+            f"{_humanise(total_ms)} across {count_of(len(entries), 'task')}; "
             f"the slowest was '{slowest.node_name}' at {_humanise(slowest.duration_ms)}."
         )
 

@@ -138,7 +138,7 @@ def score_dataset(dataset: SearchableDataset, tokens: list[str]) -> SearchHit | 
         if hits:
             score += WEIGHT_COLUMN
             matched_columns.extend(hits)
-            reasons.append(f"has column(s) matching '{token}'")
+            reasons.append(f"has a column matching '{token}'")
 
         if token in description:
             score += WEIGHT_DESCRIPTION

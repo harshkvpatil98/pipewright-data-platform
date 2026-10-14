@@ -87,6 +87,7 @@ from service_reporting.schemas import (
     TermUpdate,
     TileRead,
 )
+from shared_python.words import count_of
 
 logger = get_logger(__name__)
 
@@ -1099,7 +1100,7 @@ def run_report(
     delivery.row_count = result.row_count
     delivery.file_size_bytes = len(result.content)
     delivery.generated_ms = round((time.perf_counter() - started) * 1000, 2)
-    delivery.message = f"{result.row_count} row(s)."
+    delivery.message = f"{count_of(result.row_count, 'row')}."
 
     report.last_status = "succeeded"
     report.last_error = None

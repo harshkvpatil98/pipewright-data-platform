@@ -13,6 +13,7 @@ from service_transformations.steps.common import (
     ensure_config_keys,
     require_string_list,
 )
+from shared_python.words import count_of
 
 
 def validate_parse_dates(dataframe: pd.DataFrame, config: dict[str, Any]) -> tuple[list[str], str | None, str]:
@@ -56,7 +57,7 @@ def apply_parse_dates(dataframe: pd.DataFrame, config: dict[str, Any]) -> tuple[
             introduced = count_introduced_nulls(series, parsed)
             if introduced:
                 warnings.append(
-                    f"parse_dates with coerce produced {introduced} null value(s) in column '{column}'."
+                    f"parse_dates with coerce produced {count_of(introduced, 'null value')} in column '{column}'."
                 )
         transformed[column] = parsed
 

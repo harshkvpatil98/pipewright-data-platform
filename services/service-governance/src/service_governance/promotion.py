@@ -26,6 +26,7 @@ from sqlalchemy.orm import Session
 from shared_python.errors import BadRequestError, NotFoundError
 
 from service_governance.versions import _restorers, current_snapshot, record_version
+from shared_python.words import count_of
 
 # Config keys whose values are ids belonging to the source project.
 REFERENCE_KEYS = (
@@ -199,7 +200,7 @@ def promote_resource(
 
     if remapped.unresolved:
         summary = (
-            f"Promoted '{name}', but {len(remapped.unresolved)} reference(s) had no match in the "
+            f"Promoted '{name}', but {count_of(len(remapped.unresolved), 'reference')} had no match in the "
             "target project and were left empty. Fill them in before running it."
         )
     else:

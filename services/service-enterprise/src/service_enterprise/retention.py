@@ -23,6 +23,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pandas as pd
+from shared_python.words import count_of
 
 # What can have a retention policy, and what deleting it means.
 RETAINABLE = {
@@ -89,7 +90,7 @@ class DeletionPlan:
                 f"than {self.cutoff.date()}. Nothing was deleted -- this policy is in "
                 "report-only mode."
             )
-        return f"Deleted {self.deleted:,} record(s) older than {self.cutoff.date()}."
+        return f"Deleted {count_of(self.deleted, 'record')} older than {self.cutoff.date()}."
 
     def _versions_summary(self) -> str:
         detail = self.detail or {}
@@ -98,7 +99,7 @@ class DeletionPlan:
             if would == 0:
                 return f"No superseded version older than {self.cutoff.date()} to remove."
             return (
-                f"{would:,} superseded version(s) are older than {self.cutoff.date()}. Nothing "
+                f"{count_of(would, 'superseded version')} are older than {self.cutoff.date()}. Nothing "
                 "was scheduled -- this policy is in report-only mode."
             )
         parts: list[str] = []
@@ -106,9 +107,9 @@ class DeletionPlan:
         pruned = int(detail.get("pruned", 0))
         rescued = int(detail.get("rescued", 0))
         if scheduled:
-            parts.append(f"scheduled {scheduled:,} superseded version(s) for removal after the grace period")
+            parts.append(f"scheduled {count_of(scheduled, 'superseded version')} for removal after the grace period")
         if pruned:
-            parts.append(f"removed {pruned:,} version(s) whose grace period had ended")
+            parts.append(f"removed {count_of(pruned, 'version')} whose grace period had ended")
         if rescued:
             parts.append(f"kept {rescued:,} that were pinned or current again by then")
         if not parts:
@@ -172,18 +173,18 @@ class ErasureReport:
     def summary(self) -> str:
         if not self.hits and not self.unsearchable:
             return (
-                f"Searched {self.datasets_searched} dataset(s). This person does not appear "
+                f"Searched {count_of(self.datasets_searched, 'dataset')}. This person does not appear "
                 "in any of them."
             )
         parts = []
         if self.hits:
             places = ", ".join(f"{hit.dataset_name}.{hit.column}" for hit in self.hits[:4])
             parts.append(
-                f"Found in {len(self.hits)} place(s) across {self.rows_affected} row(s): {places}"
+                f"Found in {count_of(len(self.hits), 'place')} across {count_of(self.rows_affected, 'row')}: {places}"
             )
         if self.unsearchable:
             parts.append(
-                f"{len(self.unsearchable)} dataset(s) could not be searched and were skipped"
+                f"{count_of(len(self.unsearchable), 'dataset')} could not be searched and were skipped"
             )
         return ". ".join(parts) + "."
 

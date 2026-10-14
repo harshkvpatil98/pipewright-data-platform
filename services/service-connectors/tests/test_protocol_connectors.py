@@ -170,7 +170,7 @@ class TestOData:
     def test_the_service_document_is_the_connection_test(self, server: str) -> None:
         result = ODataConnector().test(self._config(server))
         assert result.success, result.message
-        assert "2 entity set(s)" in result.message
+        assert "offers 2 tables" in result.message
         assert result.server_version == "4.0"
 
     def test_discovery_reads_the_service_s_own_list(self, server: str) -> None:

@@ -27,6 +27,7 @@ from dataclasses import dataclass, field
 from typing import Any, Sequence
 
 import pandas as pd
+from shared_python.words import count_of
 
 # How a column is hidden, when it is.
 COLUMN_ACTIONS = ("allow", "mask", "hash", "redact", "deny")
@@ -125,11 +126,11 @@ class AppliedPolicy:
             return "You are seeing everything in this dataset."
         parts: list[str] = []
         if self.rows_hidden:
-            parts.append(f"{self.rows_hidden:,} row(s) hidden")
+            parts.append(f"{count_of(self.rows_hidden, 'row')} hidden")
         if self.columns_masked:
-            parts.append(f"{len(self.columns_masked)} column(s) masked")
+            parts.append(f"{count_of(len(self.columns_masked), 'column')} masked")
         if self.columns_removed:
-            parts.append(f"{len(self.columns_removed)} column(s) removed")
+            parts.append(f"{count_of(len(self.columns_removed), 'column')} removed")
         joined = ", ".join(parts[:-1]) + (" and " + parts[-1] if len(parts) > 1 else parts[0])
         return f"{joined[0].upper()}{joined[1:]} by {', '.join(self.policies_applied)}."
 

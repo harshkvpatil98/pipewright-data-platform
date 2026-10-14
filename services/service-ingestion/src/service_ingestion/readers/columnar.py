@@ -23,6 +23,7 @@ from shared_python.types import lattice as pw
 
 from service_ingestion.readers.base import ReadResult, declared_profile, normalise_columns
 from service_ingestion.sniff.evidence import certain
+from shared_python.words import count_of
 
 
 def _arrow_type(field: Any) -> PWType:
@@ -109,7 +110,7 @@ def _from_arrow(table: Any, source: str, *, limit: int | None) -> ReadResult:
                 "embedded_schema",
                 source,
                 (
-                    f"{source} carries its own schema: {len(schema)} column(s) with declared "
+                    f"{source} carries its own schema: {count_of(len(schema), 'column')} with declared "
                     "types. Nothing was inferred."
                 ),
                 evidence=[f"{field.name}: {field.type}" for field in schema][:8],
@@ -154,7 +155,7 @@ def read_parquet(
             "row_groups",
             source.num_row_groups,
             (
-                f"{source.metadata.num_rows:,} rows in {source.num_row_groups} row group(s); "
+                f"{source.metadata.num_rows:,} rows in {count_of(source.num_row_groups, 'row group')}; "
                 "a preview reads only the groups it needs."
             ),
         )
@@ -214,7 +215,7 @@ def read_avro(
             certain(
                 "embedded_schema",
                 "Avro",
-                f"Avro carries its own schema: {len(fields)} field(s). Nothing was inferred.",
+                f"Avro carries its own schema: {count_of(len(fields), 'field')}. Nothing was inferred.",
                 evidence=[f"{field.get('name')}: {field.get('type')}" for field in fields][:8],
             )
         ],

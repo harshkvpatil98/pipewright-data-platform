@@ -7,6 +7,7 @@ import pandas as pd
 from service_transformations.expressions import evaluate_expression
 from service_transformations.steps.common import ensure_config_keys
 from shared_python.errors import BadRequestError
+from shared_python.words import count_of
 
 
 def validate_derive_column(
@@ -143,7 +144,7 @@ def _apply_formula(
             # not a smaller version of the truth, it is a different claim.
             warnings.append(
                 f"The formula for '{target}' could not be computed for "
-                f"{unresolved:,} of the {eligible:,} row(s) that had values; "
+                f"{unresolved:,} of the {count_of(eligible, 'row')} that had values; "
                 "those are null."
             )
         elif eligible == 0:

@@ -43,6 +43,7 @@ from service_connectors.protocol import (
     WriteResult,
 )
 from shared_python.server_files import OutsideServerFiles, confine
+from shared_python.words import count_of
 
 # Reading a thousand files into one frame is not a pipeline, it is an outage.
 MAX_FILES_PER_READ = 200
@@ -151,14 +152,14 @@ class _FileConnectorBase:
 
         unreadable = [file.path for file in files if format_for_path(file.path) is None]
         warnings = (
-            [f"{len(unreadable)} file(s) have an unrecognised format and will be skipped."]
+            [f"{count_of(len(unreadable), 'file')} have an unrecognised format and will be skipped."]
             if unreadable
             else []
         )
         return with_tier_note(
             TestResult(
                 success=True,
-                message=f"Found {len(files)} file(s).",
+                message=f"Found {count_of(len(files), 'file')}.",
                 latency_ms=latency,
                 warnings=warnings,
             ),
@@ -246,7 +247,7 @@ class _FileConnectorBase:
         return WriteResult(
             rows_written=len(outgoing),
             mode=mode,
-            message=f"Wrote {len(outgoing)} row(s) to '{path}'.",
+            message=f"Wrote {count_of(len(outgoing), 'row')} to '{path}'.",
             warnings=warnings,
         )
 

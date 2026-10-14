@@ -26,6 +26,7 @@ from shared_python.errors import BadRequestError
 
 from service_ingestion.readers.base import ReadResult, normalise_columns
 from service_ingestion.sniff.evidence import Finding, certain
+from shared_python.words import count_of
 
 
 def read_sas(
@@ -45,7 +46,7 @@ def read_sas(
             certain(
                 "format",
                 "sas",
-                f"A SAS dataset of {len(frame.columns)} variable(s).",
+                f"A SAS dataset of {count_of(len(frame.columns), 'variable')}.",
                 evidence=[str(column) for column in frame.columns][:8],
             )
         ],
@@ -70,7 +71,7 @@ def read_stata(
         certain(
             "format",
             "stata",
-            f"A Stata dataset of {len(frame.columns)} variable(s).",
+            f"A Stata dataset of {count_of(len(frame.columns), 'variable')}.",
         )
     ]
 
@@ -81,7 +82,7 @@ def read_stata(
                 "variable_labels",
                 described,
                 (
-                    f"{len(described)} variable(s) carry a description. They are kept as "
+                    f"{count_of(len(described), 'variable')} carry a description. They are kept as "
                     "column documentation rather than discarded."
                 ),
                 evidence=[f"{name}: {label}" for name, label in list(described.items())[:5]],
@@ -94,7 +95,7 @@ def read_stata(
                 "value_labels",
                 {name: len(mapping) for name, mapping in value_labels.items()},
                 (
-                    f"{len(value_labels)} column(s) have coded values with labels "
+                    f"{count_of(len(value_labels), 'column')} have coded values with labels "
                     "(1 = 'Strongly agree'). The codes are what the file holds; use a "
                     "map-values step to substitute the labels."
                 ),

@@ -14,6 +14,7 @@ import sys
 
 from api_gateway.config import settings
 from shared_python.storage.factory import build_storage_backend
+from shared_python.words import count_of
 
 
 def main() -> None:
@@ -24,7 +25,7 @@ def main() -> None:
             "Set it (32 random bytes, base64), restart the platform, then run this again."
         )
     done, already = backend.encrypt_existing()
-    print(f"Encrypted {done} file(s); {already} were already encrypted.")
+    print(f"Encrypted {count_of(done, 'file')}; {already} were already encrypted.")
     sys.exit(0)
 
 

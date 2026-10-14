@@ -30,6 +30,7 @@ from shared_python.errors import BadRequestError
 
 from service_ingestion.readers.base import ReadResult, normalise_columns
 from service_ingestion.sniff.evidence import Candidate, Certainty, Finding, certain
+from shared_python.words import count_of
 
 #: How deep into a document the record array is looked for.
 MAX_DEPTH = 6
@@ -113,7 +114,7 @@ def read_json(
                     "json_shape",
                     "array_of_scalars",
                     (
-                        f"An array containing {len(scalars)} non-object value(s); each becomes "
+                        f"An array containing {count_of(len(scalars), 'non-object value')}; each becomes "
                         "a row with a single 'value' column."
                     ),
                     evidence=[json.dumps(item)[:60] for item in scalars[:3]],
@@ -165,7 +166,7 @@ def read_json(
             reason=(
                 f"The records are the {count}-object array at '{path}'"
                 + (
-                    f". {len(alternatives) - 1} other array(s) are present; change the path "
+                    f". {count_of(len(alternatives) - 1, 'other array')} are present; change the path "
                     "if one of those is the table."
                     if len(alternatives) > 1
                     else "."
@@ -206,7 +207,7 @@ def read_jsonl(
         raise BadRequestError("No line of this file parses as JSON.")
 
     findings: list[Finding] = [
-        certain("json_shape", "jsonl", f"{len(records)} record(s), one JSON object per line.")
+        certain("json_shape", "jsonl", f"{count_of(len(records), 'record')}, one JSON object per line.")
     ]
     if malformed:
         findings.append(
@@ -216,7 +217,7 @@ def read_jsonl(
                 certainty=Certainty.CERTAIN,
                 confidence=1.0,
                 reason=(
-                    f"{len(malformed)} line(s) are not valid JSON and were skipped. A truncated "
+                    f"{count_of(len(malformed), 'line')} are not valid JSON and were skipped. A truncated "
                     "final line is the usual cause when a file was still being written."
                 ),
                 evidence=[f"line {number}: {message}" for number, message in malformed[:5]],
@@ -240,7 +241,7 @@ def read_yaml(
     records = [item if isinstance(item, dict) else {"value": item} for item in records]
     return _frame_from(
         records,
-        [certain("json_shape", "yaml", f"A YAML document holding {len(records)} record(s).")],
+        [certain("json_shape", "yaml", f"A YAML document holding {count_of(len(records), 'record')}.")],
         {"shape": "yaml"},
         limit,
     )
@@ -303,7 +304,7 @@ def _frame_from(
                 "nested_arrays",
                 arrays,
                 (
-                    f"{len(arrays)} column(s) hold arrays, kept as JSON text. Use the "
+                    f"{count_of(len(arrays), 'column')} hold arrays, kept as JSON text. Use the "
                     "'explode' tool to turn one into rows — it changes what a row means, "
                     "so it is a transformation rather than a reading decision."
                 ),
@@ -320,7 +321,7 @@ def _frame_from(
                 certainty=Certainty.CERTAIN,
                 confidence=1.0,
                 reason=(
-                    f"{len(heterogeneous)} field(s) are absent from some records. They become "
+                    f"{count_of(len(heterogeneous), 'field')} are absent from some records. They become "
                     "null where absent, which is what a missing key means."
                 ),
                 evidence=[f"{name}: in {count} of {len(records)}" for name, count in heterogeneous[:6]],

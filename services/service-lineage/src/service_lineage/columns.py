@@ -387,7 +387,7 @@ def _handle_derive_column(lineage: StepLineage, config: dict[str, Any], _resolve
     known = [source for source in sources if source in lineage.input_columns]
     if sources and not known:
         lineage.notes.append(
-            f"'{target}' is computed from name(s) not present at this step: {', '.join(sources)}."
+            f"'{target}' is worked out from columns that are not there at this step: {', '.join(sources)}."
         )
     for source in known:
         _edge(lineage, source, target, "derive")

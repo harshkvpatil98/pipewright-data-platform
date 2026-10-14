@@ -100,7 +100,7 @@ class TestSqlCells:
             policy=SessionPolicy(allow_writes=True),
         )
         assert result.cells[0].ok, result.cells[0].error
-        assert "1 row(s) affected" in result.cells[0].stdout
+        assert "1 row affected" in result.cells[0].stdout
 
     def test_a_sql_cell_without_a_connection_says_so(self) -> None:
         result = run_notebook([Cell(kind="sql", source="SELECT 1")])

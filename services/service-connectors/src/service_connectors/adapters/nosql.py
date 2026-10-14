@@ -29,6 +29,7 @@ from service_connectors.protocol import (
     TestResult,
     with_tier_note,
 )
+from shared_python.words import count_of
 
 # How many documents to look at when working out what the columns are. A
 # collection with no schema needs a sample; the whole thing would be a scan.
@@ -131,7 +132,7 @@ class MongoConnector:
 
         return TestResult(
             success=True,
-            message=f"Connected. {len(names)} collection(s) in this database.",
+            message=f"Connected. {count_of(len(names), 'collection')} in this database.",
             latency_ms=round((time.perf_counter() - started) * 1000, 2),
             server_version=str(info.get("version")) if isinstance(info, dict) else None,
         )
@@ -257,7 +258,7 @@ class DynamoConnector:
 
         return TestResult(
             success=True,
-            message=f"Connected. {len(tables)} table(s) visible.",
+            message=f"Connected. {count_of(len(tables), 'table')} visible.",
             latency_ms=round((time.perf_counter() - started) * 1000, 2),
         )
 

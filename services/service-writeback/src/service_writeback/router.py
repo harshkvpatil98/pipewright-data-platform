@@ -33,6 +33,7 @@ from service_writeback.schemas import (
     StatementRead,
     TableShapeRead,
 )
+from shared_python.words import count_of
 
 
 def _identity_read(identity: RowIdentity) -> RowIdentityRead:
@@ -92,7 +93,7 @@ def _describe(kind: str, payload: dict) -> str:
     if kind == "set_cell":
         return f"Set {column} to {payload.get('value')!r} where {key}"
     if kind == "insert_row":
-        return f"Insert a row ({len(payload.get('values') or {})} value(s))"
+        return f"Insert a row ({count_of(len(payload.get('values') or {}), 'value')})"
     if kind == "delete_row":
         return f"Delete the row where {key}"
     if kind == "add_column":

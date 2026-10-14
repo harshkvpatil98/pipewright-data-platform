@@ -22,7 +22,7 @@ from service_transformations.ir.expressions import (
     is_aggregate,
     supported_in,
 )
-from shared_python.words import listing, noun
+from shared_python.words import count_of, listing, noun
 
 Schema = dict[str, PWType]
 
@@ -276,7 +276,7 @@ class Sort(Node):
         return [self.input]
 
     def __str__(self) -> str:
-        return f"Sort({len(self.keys)} key(s))"
+        return f"Sort({count_of(len(self.keys), 'key')})"
 
 
 @dataclass(frozen=True)

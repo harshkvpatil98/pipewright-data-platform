@@ -8,6 +8,7 @@ import pandas as pd
 from service_transformations.steps.common import ensure_columns_exist, ensure_config_keys, require_string_list
 from service_transformations.steps.context import StepContext
 from shared_python.errors import BadRequestError
+from shared_python.words import count_of
 
 SUPPORTED_JOIN_TYPES = ("inner", "left", "right", "outer")
 
@@ -117,7 +118,7 @@ def apply_join_datasets(
         warnings.append(f"Join with '{label}' matched no rows; check that the key columns line up.")
     elif settings["how"] == "inner" and len(merged) < left_rows:
         warnings.append(
-            f"Inner join dropped {left_rows - len(merged)} unmatched row(s) from the left dataset."
+            f"Inner join dropped {count_of(left_rows - len(merged), 'unmatched row')} from the left dataset."
         )
 
     return merged.reset_index(drop=True), warnings

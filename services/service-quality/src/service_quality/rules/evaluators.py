@@ -11,6 +11,7 @@ import pandas as pd
 from service_quality.rules.base import RuleEvaluation, from_mask, passed
 from service_transformations.expressions import evaluate_expression
 from shared_python.errors import BadRequestError
+from shared_python.words import count_of
 
 MAX_REGEX_LENGTH = 500
 
@@ -45,8 +46,8 @@ def evaluate_not_null(dataframe: pd.DataFrame, config: dict[str, Any]) -> RuleEv
     mask = dataframe[column].isna()
     return from_mask(
         mask,
-        message_when_failed=f"{{failed}} of {{total}} row(s) have a null '{column}'.",
-        message_when_passed=f"All {{total}} row(s) have a value for '{column}'.",
+        message_when_failed=f"{{failed}} of {{rows}} have no value for '{column}'.",
+        message_when_passed=f"Every row has a value for '{column}' ({{rows}} checked).",
         column=column,
     )
 
@@ -59,8 +60,8 @@ def evaluate_unique(dataframe: pd.DataFrame, config: dict[str, Any]) -> RuleEval
     label = ", ".join(columns)
     return from_mask(
         mask,
-        message_when_failed=f"{{failed}} of {{total}} row(s) share a duplicate value for ({label}).",
-        message_when_passed=f"All {{total}} row(s) are unique on ({label}).",
+        message_when_failed=f"{{failed}} of {{rows}} repeat a value of {label} that another row has.",
+        message_when_passed=f"Every row has its own value of {label} ({{rows}} checked).",
         columns=columns,
     )
 
@@ -85,8 +86,8 @@ def evaluate_allowed_values(dataframe: pd.DataFrame, config: dict[str, Any]) -> 
     observed = sorted({str(value) for value in series.dropna().unique() if str(value) not in comparable})[:20]
     return from_mask(
         mask,
-        message_when_failed=f"{{failed}} of {{total}} row(s) have a value outside the allowed set for '{column}'.",
-        message_when_passed=f"All {{total}} row(s) use allowed values for '{column}'.",
+        message_when_failed=f"{{failed}} of {{rows}} have a value of '{column}' that is not on the list.",
+        message_when_passed=f"Every value of '{column}' is on the list ({{rows}} checked).",
         column=column,
         unexpected_values=observed,
     )
@@ -114,8 +115,8 @@ def evaluate_range(dataframe: pd.DataFrame, config: dict[str, Any]) -> RuleEvalu
 
     return from_mask(
         mask,
-        message_when_failed=f"{{failed}} of {{total}} row(s) fall outside the allowed range for '{column}'.",
-        message_when_passed=f"All {{total}} row(s) are within range for '{column}'.",
+        message_when_failed=f"{{failed}} of {{rows}} have a value of '{column}' outside the range.",
+        message_when_passed=f"Every value of '{column}' is within the range ({{rows}} checked).",
         column=column,
         min=minimum,
         max=maximum,
@@ -144,8 +145,8 @@ def evaluate_regex_match(dataframe: pd.DataFrame, config: dict[str, Any]) -> Rul
 
     return from_mask(
         mask,
-        message_when_failed=f"{{failed}} of {{total}} row(s) do not match the required pattern for '{column}'.",
-        message_when_passed=f"All {{total}} row(s) match the pattern for '{column}'.",
+        message_when_failed=f"{{failed}} of {{rows}} have a value of '{column}' that does not fit the pattern.",
+        message_when_passed=f"Every value of '{column}' fits the pattern ({{rows}} checked).",
         column=column,
         pattern=pattern,
     )
@@ -167,8 +168,8 @@ def evaluate_expression_rule(dataframe: pd.DataFrame, config: dict[str, Any]) ->
 
     return from_mask(
         mask,
-        message_when_failed="{failed} of {total} row(s) fail the expression assertion.",
-        message_when_passed="All {total} row(s) satisfy the expression assertion.",
+        message_when_failed="{failed} of {rows} do not meet the condition.",
+        message_when_passed="Every row meets the condition ({rows} checked).",
         expression=expression,
     )
 
@@ -190,7 +191,7 @@ def evaluate_row_count(dataframe: pd.DataFrame, config: dict[str, Any]) -> RuleE
             status="failed",
             evaluated_rows=total,
             failed_rows=total,
-            message=f"Dataset has {total} row(s) but {' and '.join(problems)}.",
+            message=f"The dataset has {count_of(total, 'row')} but {' and '.join(problems)}.",
             details={"row_count": total, "min": minimum, "max": maximum},
         )
     return passed(total, f"Dataset row count ({total}) is within the expected range.", row_count=total)

@@ -41,6 +41,7 @@ from shared_python.security.config_crypto import decrypt_sensitive_fields
 from service_connectors.models import ConnectorSchemaSnapshot
 from service_connectors.registry import get, known_types
 from service_connectors.watch import declared_schema, normalise_type
+from shared_python.words import count_of
 
 logger = get_logger(__name__)
 
@@ -141,21 +142,21 @@ class SweepReport:
 
         unwatched = sum(int(entry["unwatched"]) for entry in self.truncated)
         tail = (
-            f" {unwatched} further stream(s) were past the per-connection limit "
+            f" {count_of(unwatched, 'further stream')} were past the per-connection limit "
             f"of {MAX_STREAMS_PER_CONNECTION} and were not looked at."
             if unwatched
             else ""
         )
         if not self.drifted:
             return (
-                f"Checked {sum(1 for r in self.results if r.checked)} stream(s) across "
-                f"{self.connections} connection(s); no schema changes." + tail
+                f"Checked {count_of(sum(1 for r in self.results if r.checked), 'stream')} across "
+                f"{count_of(self.connections, 'connection')}; no schema changes." + tail
             )
         breaking = len(self.breaking)
         return (
-            f"{len(self.drifted)} stream(s) changed"
+            f"{count_of(len(self.drifted), 'stream')} changed"
             + (f", {breaking} breaking" if breaking else "")
-            + f", across {self.connections} connection(s)." + tail
+            + f", across {count_of(self.connections, 'connection')}." + tail
         )
 
 

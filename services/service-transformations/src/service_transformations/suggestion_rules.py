@@ -5,6 +5,7 @@ import uuid
 from typing import Any
 
 from service_transformations.suggestion_schemas import TransformationSourceSignal, TransformationSuggestion
+from shared_python.words import count_of
 
 _NS = uuid.UUID('6ba7b810-9dad-11d1-80b4-00c04fd430c8')
 
@@ -105,7 +106,7 @@ def _remove_duplicates_suggestion(dataset_id: uuid.UUID, profile_json: dict[str,
         step_type='remove_duplicates',
         title='Remove duplicate rows',
         explanation=(
-            f'Profile reports {dup} duplicate row(s) ({profile_json.get("duplicate_row_percentage", 0)}% of rows). '
+            f'Profile reports {count_of(dup, "duplicate row")} ({profile_json.get("duplicate_row_percentage", 0)}% of rows). '
             'Deduplicate while keeping the first occurrence of each row.'
         ),
         confidence='high' if dup > 1 else 'medium',

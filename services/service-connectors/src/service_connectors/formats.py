@@ -24,6 +24,7 @@ from typing import Any, BinaryIO
 import pandas as pd
 
 from shared_python.errors import BadRequestError
+from shared_python.words import count_of
 
 
 @dataclass(frozen=True)
@@ -430,7 +431,7 @@ def _read_json_log(payload: bytes) -> pd.DataFrame:
     frame = pd.json_normalize(rows) if rows else pd.DataFrame()
     if skipped:
         frame.attrs["warnings"] = [
-            f"{skipped:,} line(s) were not JSON and were skipped."
+            f"{count_of(skipped, 'line')} were not JSON and were skipped."
         ]
     return frame
 
@@ -461,7 +462,7 @@ def _read_combined_log(payload: bytes) -> pd.DataFrame:
     frame = pd.DataFrame(rows)
     if skipped:
         frame.attrs["warnings"] = [
-            f"{skipped:,} line(s) did not match the combined log format and were skipped."
+            f"{count_of(skipped, 'line')} did not match the combined log format and were skipped."
         ]
     return frame
 

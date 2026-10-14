@@ -194,7 +194,7 @@ def test_test_reports_what_it_found(server: str):
         {"base_url": server, "path": "/items", "records_path": "data.items"}
     )
     assert result.success
-    assert "record(s)" in result.message
+    assert "records" in result.message
     assert result.latency_ms is not None
 
 

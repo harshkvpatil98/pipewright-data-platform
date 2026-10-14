@@ -32,6 +32,7 @@ from service_connectors.protocol import (
     Tier,
     with_tier_note,
 )
+from shared_python.words import count_of
 
 #: The credential settings both protocols share. Neither standard says anything
 #: about authentication, so this is the REST connector's own vocabulary.
@@ -168,7 +169,7 @@ class ODataConnector(RestConnector):
         return with_tier_note(
             TestResult(
                 success=True,
-                message=f"Connected. {len(sets)} entity set(s) published.",
+                message=f"Connected. The service offers {count_of(len(sets), 'table')}.",
                 latency_ms=latency,
                 server_version=response.headers.get("odata-version"),
                 warnings=[] if sets else ["The service root lists no entity sets."],

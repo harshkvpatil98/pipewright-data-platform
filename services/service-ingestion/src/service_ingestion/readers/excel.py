@@ -31,6 +31,7 @@ from shared_python.errors import BadRequestError
 from service_ingestion.readers.base import ReadResult, normalise_columns
 from service_ingestion.sniff.columns import EXCEL_ERRORS
 from service_ingestion.sniff.evidence import Candidate, Certainty, Finding, certain
+from shared_python.words import count_of
 
 
 def read_excel(
@@ -65,7 +66,7 @@ def read_excel(
         certain(
             "format",
             "excel",
-            f"A workbook of {len(sheet_names)} sheet(s); reading '{sheet_name}'.",
+            f"A workbook of {count_of(len(sheet_names), 'sheet')}; reading '{sheet_name}'.",
             evidence=sheet_names[:10],
         )
     ]
@@ -92,7 +93,7 @@ def read_excel(
                 "merged_cells",
                 len(merged),
                 (
-                    f"{len(merged)} merged range(s) found. Their value has been copied "
+                    f"{count_of(len(merged), 'merged range')} found. Their value has been copied "
                     "across every cell of the range, which is what the sheet shows and "
                     "what a table needs."
                 ),
@@ -143,7 +144,7 @@ def read_excel(
                 certainty=Certainty.CERTAIN,
                 confidence=1.0,
                 reason=(
-                    f"{errors} cell(s) hold a formula error such as #REF!. They are values "
+                    f"{count_of(errors, 'cell')} hold a formula error such as #REF!. They are values "
                     "the workbook could not compute, not data — treat them as missing."
                 ),
                 evidence=list(EXCEL_ERRORS),

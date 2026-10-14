@@ -5,6 +5,7 @@ from typing import Any
 import pandas as pd
 
 from service_transformations.steps.common import ensure_columns_exist, ensure_config_keys, require_string_list
+from shared_python.words import count_of
 
 
 def validate_select_columns(dataframe: pd.DataFrame, config: dict[str, Any]) -> list[str]:
@@ -20,6 +21,6 @@ def apply_select_columns(dataframe: pd.DataFrame, config: dict[str, Any]) -> tup
     warnings: list[str] = []
     if removed_count:
         warnings.append(
-            f"select_columns removed {removed_count} column(s) from the preview dataset."
+            f"select_columns removed {count_of(removed_count, 'column')} from the preview dataset."
         )
     return dataframe.loc[:, columns].copy(), warnings

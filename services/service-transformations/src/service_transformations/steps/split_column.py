@@ -6,7 +6,7 @@ import pandas as pd
 
 from service_transformations.steps.common import ensure_columns_exist, ensure_config_keys, require_string_list
 from shared_python.errors import BadRequestError
-from shared_python.words import listing
+from shared_python.words import count_of, listing
 
 
 def validate_split_column(dataframe: pd.DataFrame, config: dict[str, Any]) -> tuple[str, str, list[str], bool]:
@@ -54,8 +54,8 @@ def apply_split_column(dataframe: pd.DataFrame, config: dict[str, Any]) -> tuple
     produced = len(parts.columns)
     if produced < len(into):
         warnings.append(
-            f"Splitting '{column}' produced at most {produced} part(s); "
-            f"the remaining target column(s) are null."
+            f"Splitting '{column}' produced at most {count_of(produced, 'part')}; "
+            "the other new columns are empty."
         )
 
     if drop_original:

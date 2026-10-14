@@ -24,6 +24,7 @@ from shared_python.errors import BadRequestError
 
 from service_writeback.edits import DDL_KINDS, Edit, EditKind, validate_all
 from service_writeback.identity import TableShape
+from shared_python.words import count_of
 
 
 class Unsupported(BadRequestError):
@@ -283,7 +284,7 @@ def _insert_row(engine: Engine, shape: TableShape, edit: Edit, index: int) -> St
             f"({', '.join(_quote(engine, name) for name in columns)}) VALUES ({placeholders})"
         ),
         params=markers,
-        describes=f"insert 1 row with {len(columns)} value(s)",
+        describes=f"insert 1 row with {count_of(len(columns), 'value')}",
         expected_rows=1,
     )
 

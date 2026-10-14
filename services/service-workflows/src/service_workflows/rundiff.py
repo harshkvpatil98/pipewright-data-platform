@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any
+from shared_python.words import count_of
 
 # Numeric outputs worth comparing, in the order a person would read them.
 COMPARED_OUTPUTS: tuple[str, ...] = (
@@ -223,13 +224,13 @@ def _summarise(diffs: list[NodeDiff]) -> str:
         first = status_changed[0]
         return (
             f"'{first.node_name}' went from {first.left_status} to {first.right_status}"
-            + (f", and {len(status_changed) - 1} other node(s) changed status." if len(status_changed) > 1 else ".")
+            + (f", and {count_of(len(status_changed) - 1, 'other task')} changed status." if len(status_changed) > 1 else ".")
         )
     if output_changed:
         first = output_changed[0]
         return f"Same statuses, different data: '{first.node_name}' {first.changes[0]}."
     if structure:
-        return f"The workflow itself changed between these runs: {len(structure)} node(s) added or removed."
+        return f"The workflow itself changed between these runs: {count_of(len(structure), 'task')} added or removed."
     if slower:
         first = slower[0]
         return f"Same results, but '{first.node_name}' took {first.duration_change_percentage:.0f}% longer."

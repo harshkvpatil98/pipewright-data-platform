@@ -50,5 +50,7 @@ def test_on_a_request_and_its_statements_are_traced_with_the_correlation_id() ->
     request = next(span for span in spans if span.name == "GET /api/v1/things")
     assert request.attributes["pipewright.correlation_id"] == "req-123"
     assert request.resource.attributes["service.name"] == "pipewright-test"
-    assert any(span.name.startswith("SELECT") or span.attributes.get("db.statement") for span in spans)
+    statements = [span for span in spans if span.attributes.get("db.statement") == "SELECT 1"]
+    assert statements and statements[0].attributes["db.system"] == "sqlite"
+    assert statements[0].parent is not None and statements[0].parent.trace_id == request.context.trace_id
     assert not any("health" in span.name for span in spans)  # polled constantly; left out

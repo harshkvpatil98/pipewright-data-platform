@@ -34,7 +34,6 @@ def install_tracing(application: Any, engine: Any, settings: Any, *, exporter: A
     try:
         from opentelemetry import trace
         from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-        from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
         from opentelemetry.sdk.resources import Resource
         from opentelemetry.sdk.trace import TracerProvider
         from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
@@ -62,6 +61,49 @@ def install_tracing(application: Any, engine: Any, settings: Any, *, exporter: A
     # The correlation id is put on each request's span by
     # shared_python.tracing.CorrelationIdMiddleware, inside this one.
     FastAPIInstrumentor.instrument_app(application, tracer_provider=provider, excluded_urls=EXCLUDED_URLS)
-    SQLAlchemyInstrumentor().instrument(engine=engine, tracer_provider=provider)
+    trace_statements(engine, provider.get_tracer("pipewright.database"))
     logger.info("tracing_installed service=%s", getattr(settings, "otel_service_name", "pipewright-gateway"))
     return provider
+
+
+def trace_statements(engine: Any, tracer: Any) -> None:
+    """A span for each SQL statement, from SQLAlchemy's own engine events.
+
+    The OpenTelemetry SQLAlchemy package refuses SQLAlchemy 2.1 and later
+    ("nothing can be instrumented"), which a fresh install gets, so database
+    spans silently vanished there (found in A7 CI). The engine events are the
+    same on every version this platform supports.
+    """
+    from opentelemetry import trace
+    from opentelemetry.trace import Status, StatusCode
+    from sqlalchemy import event
+
+    system = engine.dialect.name
+    database = engine.url.database or ""
+
+    @event.listens_for(engine, "before_cursor_execute")
+    def _start(conn, cursor, statement, parameters, context, executemany):  # noqa: ANN001
+        verb = (statement.lstrip().split(None, 1) or ["SQL"])[0].upper()
+        span = tracer.start_span(
+            f"{verb} {database}".strip(),
+            kind=trace.SpanKind.CLIENT,
+            attributes={"db.system": system, "db.name": database, "db.statement": statement[:2000]},
+        )
+        if context is not None:
+            context._pipewright_span = span
+
+    @event.listens_for(engine, "after_cursor_execute")
+    def _end(conn, cursor, statement, parameters, context, executemany):  # noqa: ANN001
+        span = getattr(context, "_pipewright_span", None)
+        if span is not None:
+            span.end()
+            context._pipewright_span = None
+
+    @event.listens_for(engine, "handle_error")
+    def _failed(exception_context):  # noqa: ANN001
+        context = exception_context.execution_context
+        span = getattr(context, "_pipewright_span", None)
+        if span is not None:
+            span.set_status(Status(StatusCode.ERROR, str(exception_context.original_exception)[:200]))
+            span.end()
+            context._pipewright_span = None

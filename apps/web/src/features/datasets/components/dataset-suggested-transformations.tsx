@@ -149,23 +149,11 @@ export function DatasetSuggestedTransformations({
           {suggestions.map((s) => {
             const isSelected = selectedSuggestionIds.includes(s.suggestion_id);
             return (
+              // A checkbox, not a clickable card: the card used to be a
+              // button with two buttons inside it, which a screen reader
+              // cannot make sense of (axe: nested-interactive, A7).
               <div
                 key={s.suggestion_id}
-                role="button"
-                tabIndex={0}
-                onClick={() =>
-                  setSelectedSuggestionIds((current) =>
-                    toggleSuggestionSelection(current, s.suggestion_id),
-                  )
-                }
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    setSelectedSuggestionIds((current) =>
-                      toggleSuggestionSelection(current, s.suggestion_id),
-                    );
-                  }
-                }}
                 className={[
                   "flex flex-col gap-3 rounded-2xl border p-4 transition md:flex-row md:items-start md:justify-between",
                   isSelected
@@ -173,52 +161,33 @@ export function DatasetSuggestedTransformations({
                     : "border-line bg-sunken hover:border-line-strong hover:bg-surface",
                 ].join(" ")}
               >
-                <div className="min-w-0 space-y-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span
-                      className={[
-                        "inline-flex h-5 w-5 items-center justify-center rounded border text-[12px] font-semibold",
-                        isSelected
-                          ? "border-accent-line bg-accent-soft text-accent"
-                          : "border-line-strong bg-transparent text-transparent",
-                      ].join(" ")}
-                    >
-                      ✓
-                    </span>
-                    <span className="font-medium text-ink">{s.title}</span>
-                    <Badge tone={confidenceTone(s.confidence)}>
-                      {s.confidence === "high"
-                        ? "Very likely helpful"
-                        : s.confidence === "medium"
-                          ? "Probably helpful"
-                          : "Worth a look"}
-                    </Badge>
-                  </div>
-                  <p className="text-sm leading-6 text-ink-3">{s.explanation}</p>
-                </div>
-                <div className="flex shrink-0 flex-col gap-2 md:items-end">
-                  <Button
-                    variant={isSelected ? "secondary" : "ghost"}
-                    size="sm"
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
+                <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() =>
                       setSelectedSuggestionIds((current) =>
                         toggleSuggestionSelection(current, s.suggestion_id),
-                      );
-                    }}
-                  >
-                    {isSelected ? "Selected" : "Select"}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setJsonModal(s);
-                    }}
-                  >
+                      )
+                    }
+                    className="mt-1 h-4 w-4 shrink-0 accent-[color:var(--accent)]"
+                  />
+                  <span className="min-w-0 space-y-2">
+                    <span className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium text-ink">{s.title}</span>
+                      <Badge tone={confidenceTone(s.confidence)}>
+                        {s.confidence === "high"
+                          ? "Very likely helpful"
+                          : s.confidence === "medium"
+                            ? "Probably helpful"
+                            : "Worth a look"}
+                      </Badge>
+                    </span>
+                    <span className="block text-sm leading-6 text-ink-3">{s.explanation}</span>
+                  </span>
+                </label>
+                <div className="flex shrink-0 flex-col gap-2 md:items-end">
+                  <Button variant="ghost" size="sm" type="button" onClick={() => setJsonModal(s)}>
                     Show the step
                   </Button>
                 </div>

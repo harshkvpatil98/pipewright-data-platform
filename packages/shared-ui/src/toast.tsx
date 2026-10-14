@@ -98,7 +98,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-medium">{toast.title}</div>
                 {toast.description ? (
-                  <div className="mt-0.5 text-xs leading-5 opacity-80">{toast.description}</div>
+                  <div className="mt-0.5 text-[13px] leading-5">{toast.description}</div>
                 ) : null}
                 {toast.actions?.length ? (
                   <div className="mt-2 flex flex-wrap gap-2">
@@ -110,7 +110,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                           dismiss(toast.id);
                           action.onClick();
                         }}
-                        className="rounded-lg border border-current px-2.5 py-1 text-[12px] font-medium opacity-90 transition hover:opacity-100"
+                        className="rounded-lg border border-current px-2.5 py-1 text-[12px] font-medium transition hover:bg-[color:var(--surface)]"
                       >
                         {action.label}
                       </button>

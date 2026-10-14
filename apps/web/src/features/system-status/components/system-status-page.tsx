@@ -393,9 +393,9 @@ export function SystemStatusPage({ currentUser }: { currentUser?: AuthUser | nul
       {platform ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <div className={`h-full rounded-2xl border px-4 py-4 ${toneClasses(overallTone)}`}>
-            <div className="text-[12px] opacity-80">Overall</div>
+            <div className="text-[12px]">Overall</div>
             <div className="mt-2 text-lg font-semibold">{sentenceLabel(platform.status)}</div>
-            <div className="mt-1 text-[13px] opacity-90">Checked {formatDateTime(platform.checked_at)}</div>
+            <div className="mt-1 text-[13px]">Checked {formatDateTime(platform.checked_at)}</div>
           </div>
           <div className="h-full rounded-2xl border border-line bg-surface px-4 py-4 text-sm text-ink">
             <div className="text-[12px] text-muted">Running as</div>

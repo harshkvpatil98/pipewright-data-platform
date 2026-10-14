@@ -160,7 +160,7 @@ def temporal_query(
 
 
 def _load_frame(storage: Any, version: DatasetVersion, *, fallback_type: str | None) -> pd.DataFrame:
-    from service_ingestion.parsers import parse_tabular_file
+    from service_ingestion.read_copy import frame_of
 
     try:
         stored = storage.read_bytes(version.file_path)
@@ -168,9 +168,10 @@ def _load_frame(storage: Any, version: DatasetVersion, *, fallback_type: str | N
         raise BadRequestError(
             f"Version {version.version_number}'s saved data could not be read."
         ) from exc
-    return parse_tabular_file(
-        file_bytes=stored, file_type=version.file_type or fallback_type or "csv"
-    ).dataframe
+    return frame_of(
+        storage, version.file_path, stored, file_type=version.file_type or fallback_type or "csv",
+        spec=version.ingest_spec_json,
+    )
 
 
 def _sqlite_safe(frame: pd.DataFrame) -> pd.DataFrame:

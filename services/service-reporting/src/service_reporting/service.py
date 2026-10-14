@@ -121,24 +121,31 @@ def _load_frame(db: Session, project_id: uuid.UUID, dataset_id: uuid.UUID, stora
     metric, dashboard, report and public link reads through here, so a policy
     that hides a column or rows from a role hides them from its numbers too."""
     from service_enterprise.policy_view import narrow_frame
-    from service_ingestion.parsers import parse_tabular_file
+    from service_ingestion.read_copy import frame_of
 
     dataset = _get_dataset(db, project_id, dataset_id)
     if not dataset.file_path or not dataset.file_type:
         raise BadRequestError(f"'{dataset.name}' has no stored file to read.")
+    # Refused from the recorded count before anything is read: a 4-million-row
+    # dataset took 28 seconds to be told no (A8).
+    _within_chart_limit(dataset.name, dataset.row_count or 0)
 
     try:
         payload = storage_backend.read_bytes(dataset.file_path)
     except FileNotFoundError as exc:
         raise BadRequestError(f"The stored file for '{dataset.name}' is missing.") from exc
 
-    frame = parse_tabular_file(file_bytes=payload, file_type=dataset.file_type).dataframe
-    if len(frame) > MAX_SOURCE_ROWS:
-        raise BadRequestError(
-            f"'{dataset.name}' has {len(frame):,} rows, above the {MAX_SOURCE_ROWS:,} "
-            "limit for charting. Summarise it in a recipe first."
-        )
+    frame = frame_of(storage_backend, dataset.file_path, payload, file_type=dataset.file_type, spec=dataset.ingest_spec_json)
+    _within_chart_limit(dataset.name, len(frame))
     return narrow_frame(db, project_id, dataset_id, reader, frame)
+
+
+def _within_chart_limit(name: str, rows: int) -> None:
+    if rows > MAX_SOURCE_ROWS:
+        raise BadRequestError(
+            f"'{name}' has {rows:,} rows, more than the {MAX_SOURCE_ROWS:,} a chart reads. "
+            "Make a smaller dataset with a recipe first, for example one that groups or filters it."
+        )
 
 
 def _to_query(payload: QueryInput) -> Query:

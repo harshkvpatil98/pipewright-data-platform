@@ -42,6 +42,9 @@ class RecordingStorage:
             raise OSError("storage is unreachable")
         self.deleted.append(relative_path)
 
+    def exists(self, relative_path: str) -> bool:
+        return False  # it holds no files, so no read copies (A8) to remove either
+
 
 @pytest.fixture()
 def db() -> Iterator[Session]:

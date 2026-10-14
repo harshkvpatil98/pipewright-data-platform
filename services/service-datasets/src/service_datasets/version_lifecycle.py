@@ -355,6 +355,9 @@ def prune_due(
             continue
         try:
             storage.delete(version.file_path)
+            from service_ingestion.read_copy import forget_copy
+
+            forget_copy(storage, version.file_path)
         except FileNotFoundError:
             pass  # already gone -- a resumed sweep after a crash mid-delete
         except Exception:  # noqa: BLE001 - leave it for the next pass, and say so

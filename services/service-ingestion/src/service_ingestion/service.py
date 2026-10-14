@@ -15,6 +15,7 @@ from service_ingestion.contracts import build_upload_path, validate_upload_file
 from service_ingestion.parsers import parse_tabular_file
 from service_ingestion.profiling import build_preview, build_profile, infer_schema
 from service_ingestion.schemas import DatasetUploadResponse, IngestionUpload
+from service_ingestion.read_copy import forget_copy, keep_copy
 from service_pipeline_runs import background
 from service_pipeline_runs.service import (
     _serialize_run,
@@ -342,6 +343,12 @@ def _read_upload(
         )
         for warning in parsed.warnings:
             log_events.append(_log_event('parse', warning))
+        # A columnar copy for every later read, made from what was just read
+        # with the settings being saved, so the first chart need not parse.
+        keep_copy(
+            storage_backend, stored_artifact.relative_path, file_bytes, parsed.dataframe,
+            file_type=file_type, spec=parsed.spec,
+        )
 
         current_stage = 'profile'
         schema_json = infer_schema(dataframe=parsed.dataframe)
@@ -460,6 +467,7 @@ def _read_upload(
         )
         if storage_backend.exists(relative_path):
             storage_backend.delete(relative_path)
+            forget_copy(storage_backend, relative_path)
         raise BadRequestError(dataset_detail.ingestion_error or 'Ingestion failed.') from exc
     except Exception as exc:
         logger.exception(
@@ -500,6 +508,7 @@ def _read_upload(
         )
         if storage_backend.exists(relative_path):
             storage_backend.delete(relative_path)
+            forget_copy(storage_backend, relative_path)
         raise InternalServerError(safe_error) from exc
 
 

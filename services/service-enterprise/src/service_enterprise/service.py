@@ -493,18 +493,20 @@ def delete_policy(
 
 
 def _load_frame(db: Session, project_id: uuid.UUID, dataset_id: uuid.UUID, storage) -> pd.DataFrame:
-    from service_ingestion.parsers import parse_tabular_file
+    from service_ingestion.read_copy import frame_of
 
     dataset = _get_dataset(db, project_id, dataset_id)
     if not dataset.file_path or not dataset.file_type:
         raise BadRequestError(f"'{dataset.name}' has no stored file to read.")
+    if (dataset.row_count or 0) > MAX_ANALYSED_ROWS:  # told before anything is read (A8)
+        raise BadRequestError(f"'{dataset.name}' is too large for this preview.")
 
     try:
         payload = storage.read_bytes(dataset.file_path)
     except FileNotFoundError as exc:
         raise BadRequestError(f"The stored file for '{dataset.name}' is missing.") from exc
 
-    frame = parse_tabular_file(file_bytes=payload, file_type=dataset.file_type).dataframe
+    frame = frame_of(storage, dataset.file_path, payload, file_type=dataset.file_type, spec=dataset.ingest_spec_json)
     if len(frame) > MAX_ANALYSED_ROWS:
         raise BadRequestError(f"'{dataset.name}' is too large for this preview.")
     return frame
@@ -1034,6 +1036,10 @@ def _store_frame(storage, path: str, frame: pd.DataFrame) -> bytes:
     `hasattr` guard did exactly that silent skip against the real backend.)
     """
     payload = frame.to_csv(index=False).encode()
+    # The read copy holds the old values; it must not outlive the rewrite.
+    from service_ingestion.read_copy import forget_copy
+
+    forget_copy(storage, path, strict=True)
     if hasattr(storage, "save_upload"):
         storage.save_upload(relative_path=path, file_bytes=payload)
     elif hasattr(storage, "write_bytes"):
@@ -1101,14 +1107,16 @@ def _erase_destructively(
     the data. A version whose artifact cannot be read is reported blocked by
     name — never silently skipped.
     """
-    from service_ingestion.parsers import parse_tabular_file
     from service_ingestion.profiling import build_preview, build_profile
+    from service_ingestion.read_copy import frame_of
     from shared_python.storage import content_digest
 
     head_bytes = _store_frame(storage, dataset.file_path, redacted)
     head_digest = content_digest(head_bytes)
     head_preview = build_preview(dataframe=redacted, limit=50)
     dataset.file_type = "csv"
+    # Now Pipewright's own CSV: read automatically, not with the upload's settings.
+    dataset.ingest_spec_json = None
     dataset.preview_json = head_preview
     dataset.profile_json = build_profile(
         dataframe=redacted, sample_limit=5, file_size_bytes=len(head_bytes)
@@ -1129,14 +1137,15 @@ def _erase_destructively(
             # recorded hash and preview true to the new bytes.
             version.content_hash = head_digest
             version.file_type = "csv"
+            version.ingest_spec_json = None
             version.preview_json = dict(head_preview)
             continue
         try:
             stored = storage.read_bytes(version.file_path)
-            v_frame = parse_tabular_file(
-                file_bytes=stored,
-                file_type=version.file_type or dataset.file_type or "csv",
-            ).dataframe
+            v_frame = frame_of(
+                storage, version.file_path, stored,
+                file_type=version.file_type or dataset.file_type or "csv", spec=version.ingest_spec_json,
+            )
         except Exception:  # noqa: BLE001 - an unreadable version is reported, not skipped
             report.blocked.append(
                 {
@@ -1156,6 +1165,7 @@ def _erase_destructively(
         v_bytes = _store_frame(storage, version.file_path, v_redacted)
         version.content_hash = content_digest(v_bytes)
         version.file_type = "csv"
+        version.ingest_spec_json = None
         version.preview_json = build_preview(dataframe=v_redacted, limit=50)
 
     report.erased.append(dataset.name)

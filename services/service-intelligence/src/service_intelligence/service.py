@@ -57,18 +57,23 @@ def _load_frame(db: Session, project_id: uuid.UUID, dataset_id: uuid.UUID, stora
     """A dataset's rows, narrowed to what this person may see: the assistant
     shows sample values, so it must not show what a policy hides (A6, W1)."""
     from service_enterprise.policy_view import Reader, narrow_frame
-    from service_ingestion.parsers import parse_tabular_file
+    from service_ingestion.read_copy import frame_of
 
     dataset = _get_dataset(db, project_id, dataset_id)
     if not dataset.file_path or not dataset.file_type:
         raise BadRequestError(f"'{dataset.name}' has no stored file to analyse.")
+    if (dataset.row_count or 0) > MAX_ANALYSED_ROWS:  # told before anything is read (A8)
+        raise BadRequestError(
+            f"'{dataset.name}' has {dataset.row_count:,} rows, above the {MAX_ANALYSED_ROWS:,} "
+            "limit for this analysis."
+        )
 
     try:
         payload = storage.read_bytes(dataset.file_path)
     except FileNotFoundError as exc:
         raise BadRequestError(f"The stored file for '{dataset.name}' is missing.") from exc
 
-    frame = parse_tabular_file(file_bytes=payload, file_type=dataset.file_type).dataframe
+    frame = frame_of(storage, dataset.file_path, payload, file_type=dataset.file_type, spec=dataset.ingest_spec_json)
     if len(frame) > MAX_ANALYSED_ROWS:
         raise BadRequestError(
             f"'{dataset.name}' has {len(frame):,} rows, above the {MAX_ANALYSED_ROWS:,} "

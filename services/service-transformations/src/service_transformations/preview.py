@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from service_auth.schemas import UserRead
 from service_datasets.service import get_dataset_model_for_project
-from service_ingestion.parsers import parse_tabular_file
+from service_ingestion.read_copy import frame_of
 from service_projects.contracts import ensure_owned_project
 from service_transformations.dataset_access import build_step_context
 from service_transformations.executor import apply_transformation_steps_with_outcomes
@@ -51,8 +51,8 @@ def preview_dataset_transformations(
 
     # A preview hands rows to a person, so it starts from what they may see.
     reader = Reader.for_user(db, project_id, current_user)
-    parsed = parse_tabular_file(file_bytes=file_bytes, file_type=dataset.file_type)
-    source_frame = narrow_frame(db, project_id, dataset.id, reader, parsed.dataframe.copy())
+    frame = frame_of(storage_backend, dataset.file_path, file_bytes, file_type=dataset.file_type, spec=dataset.ingest_spec_json)
+    source_frame = narrow_frame(db, project_id, dataset.id, reader, frame.copy())
 
     limit = getattr(settings, "preview_row_limit", 50) if settings is not None else 50
     if not isinstance(limit, int) or limit < 1:

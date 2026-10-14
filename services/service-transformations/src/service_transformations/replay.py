@@ -272,14 +272,16 @@ def compare_versions(
                 rows_original=original.row_count, rows_replay=replay.row_count,
             )
 
-    from service_ingestion.parsers import parse_tabular_file
+    from service_ingestion.read_copy import frame_of
 
-    before = parse_tabular_file(
-        file_bytes=storage_backend.read_bytes(original.file_path), file_type=original.file_type or "csv"
-    ).dataframe
-    after = parse_tabular_file(
-        file_bytes=storage_backend.read_bytes(replay.file_path), file_type=replay.file_type or "csv"
-    ).dataframe
+    before = frame_of(
+        storage_backend, original.file_path, storage_backend.read_bytes(original.file_path),
+        file_type=original.file_type or "csv", spec=original.ingest_spec_json,
+    )
+    after = frame_of(
+        storage_backend, replay.file_path, storage_backend.read_bytes(replay.file_path),
+        file_type=replay.file_type or "csv", spec=replay.ingest_spec_json,
+    )
 
     differences: list[str] = []
     columns_equal = list(before.columns) == list(after.columns)

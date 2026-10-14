@@ -19,7 +19,7 @@ from service_datasets.service import (
     reusable_dataset,
 )
 from service_ingestion.contracts import build_derived_dataset_path
-from service_ingestion.parsers import parse_tabular_file
+from service_ingestion.read_copy import frame_of
 from service_ingestion.profiling import build_preview, build_profile, infer_schema
 from service_notifications.outcomes import notify_manual_transformation_run
 from service_pipeline_runs.service import (
@@ -119,6 +119,9 @@ def run_saved_transformation_pipeline(
     # head and freezes the clock now.
     if replay is not None:
         base_file_path, base_file_type = replay.base_file_path, replay.base_file_type
+        from service_datasets.service import stored_file_spec
+
+        base_spec = stored_file_spec(db, base_file_path)
         evaluated_at = replay.evaluated_at
         steps_json = replay.steps
         input_pins: list[VersionPin] = [replay.base_pin, *replay.step_pins]
@@ -126,6 +129,7 @@ def run_saved_transformation_pipeline(
         run_type = "dataset_transformation_replay"
     else:
         base_file_path, base_file_type = base_dataset.file_path, base_dataset.file_type
+        base_spec = base_dataset.ingest_spec_json
         # The real clock unless something outside already froze one (a replay
         # does, through ReplayPlan; a caller wanting several runs to share an
         # instant can too). Either way the run evaluates at exactly this value.
@@ -185,8 +189,9 @@ def run_saved_transformation_pipeline(
         current_stage = "parse"
         log_events.append(_log_event("parse", "Reading its rows."))
         mark_pipeline_run_running(db, run=run, logs_json=_build_log_events(log_events))
-        parsed = parse_tabular_file(file_bytes=file_bytes, file_type=base_file_type)
-        source_frame = parsed.dataframe.copy()
+        source_frame = frame_of(
+            storage_backend, base_file_path, file_bytes, file_type=base_file_type, spec=base_spec
+        ).copy()
         row_count_before = int(len(source_frame))
         column_count_before = int(len(source_frame.columns))
 

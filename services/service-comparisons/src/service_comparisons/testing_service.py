@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from service_auth.schemas import UserRead
 from service_datasets.models import Dataset
 from service_datasets.service import get_dataset_model_for_project
-from service_ingestion.parsers import parse_tabular_file
+from service_ingestion.read_copy import frame_of
 from service_projects.contracts import ensure_owned_project
 from shared_python.errors import BadRequestError, NotFoundError
 
@@ -55,8 +55,7 @@ def _load_dataframe(dataset: Dataset, storage_backend: Any) -> pd.DataFrame:
         ) from exc
     except OSError as exc:
         raise BadRequestError(f"Unable to read dataset file: {exc}") from exc
-    parsed = parse_tabular_file(file_bytes=file_bytes, file_type=dataset.file_type)
-    return parsed.dataframe
+    return frame_of(storage_backend, dataset.file_path, file_bytes, file_type=dataset.file_type, spec=dataset.ingest_spec_json)
 
 
 def _column_in_schema(names: set[str], requested: str) -> bool:

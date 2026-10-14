@@ -160,6 +160,10 @@ class DatasetVersion(UUIDPrimaryKeyMixin, Base):
     #: temporal read shows the data as it was then. Null for a version recorded
     #: before this column existed.
     preview_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    #: How this version's file is read: the settings confirmed when it was
+    #: imported, or null for a file Pipewright wrote itself (a recipe's output,
+    #: an erasure's rewrite) and read automatically (A8).
+    ingest_spec_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     pipeline_run_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("pipeline_runs.id", ondelete="SET NULL"), nullable=True
     )

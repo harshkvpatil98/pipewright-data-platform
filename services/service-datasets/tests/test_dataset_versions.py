@@ -432,6 +432,9 @@ class _TrackingStorage:
     def delete(self, path: str) -> None:
         self.deleted.append(path)
 
+    def exists(self, path: str) -> bool:
+        return False  # it holds no files, so no read copies (A8) to remove either
+
 
 def test_deleting_a_dataset_reclaims_every_version_artifact(db: Session, world: dict):
     # Without this, the head file is reclaimed but every older snapshot leaks

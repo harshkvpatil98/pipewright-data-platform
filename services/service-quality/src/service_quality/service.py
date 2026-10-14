@@ -18,7 +18,7 @@ from service_datasets.service import (
     get_dataset_model_for_project,
 )
 from service_ingestion.contracts import build_derived_dataset_path
-from service_ingestion.parsers import parse_tabular_file
+from service_ingestion.read_copy import frame_of
 from service_ingestion.profiling import build_preview, build_profile, infer_schema
 from service_projects.contracts import ensure_owned_project
 from service_quality.engine import RulesetResult, evaluate_rule, evaluate_ruleset
@@ -56,7 +56,9 @@ def _load_dataset_frame(db: Session, project_id: uuid.UUID, dataset_id: uuid.UUI
         ) from exc
     except OSError as exc:
         raise BadRequestError(f"Unable to read dataset file: {exc}") from exc
-    return dataset, parse_tabular_file(file_bytes=file_bytes, file_type=dataset.file_type).dataframe
+    return dataset, frame_of(
+        storage_backend, dataset.file_path, file_bytes, file_type=dataset.file_type, spec=dataset.ingest_spec_json
+    )
 
 
 def get_rule_for_project(db: Session, project_id: uuid.UUID, rule_id: uuid.UUID) -> DataQualityRule:

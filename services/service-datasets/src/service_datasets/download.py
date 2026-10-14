@@ -67,7 +67,7 @@ def download_dataset(
     dataset = get_dataset_model_for_project(db, project_id, dataset_id)
 
     if version_number is None:
-        file_path, file_type = dataset.file_path, dataset.file_type
+        file_path, file_type, spec = dataset.file_path, dataset.file_type, dataset.ingest_spec_json
         suffix = ""
     else:
         version = db.scalar(
@@ -81,7 +81,7 @@ def download_dataset(
             raise BadRequestError(
                 f"Version {version_number}'s data was removed by the retention policy; its record remains."
             )
-        file_path, file_type = version.file_path, version.file_type
+        file_path, file_type, spec = version.file_path, version.file_type, version.ingest_spec_json
         suffix = f"-v{version_number}"
 
     if not file_path or not file_type:
@@ -92,9 +92,9 @@ def download_dataset(
         raise NotFoundError("This dataset's stored file is missing.") from exc
 
     from service_enterprise.service import visible_frame
-    from service_ingestion.parsers import parse_tabular_file
+    from service_ingestion.read_copy import frame_of
 
-    frame = parse_tabular_file(file_bytes=raw, file_type=file_type).dataframe
+    frame = frame_of(storage, file_path, raw, file_type=file_type, spec=spec)
     frame, _applied = visible_frame(db, project_id, dataset.id, current_user, frame)
 
     media_type, extension = FORMATS[export_format]

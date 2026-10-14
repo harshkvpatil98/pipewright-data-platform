@@ -72,9 +72,9 @@ def _load_frame(dataset: Any, storage: Any) -> pd.DataFrame:
         raw = storage.read_bytes(dataset.file_path)
     except FileNotFoundError as exc:
         raise NotFoundError("This dataset's stored file is missing.") from exc
-    from service_ingestion.parsers import parse_tabular_file
+    from service_ingestion.read_copy import frame_of
 
-    return parse_tabular_file(file_bytes=raw, file_type=dataset.file_type).dataframe
+    return frame_of(storage, dataset.file_path, raw, file_type=dataset.file_type, spec=dataset.ingest_spec_json)
 
 
 def _file_name(raw: str | None, dataset_name: str, file_format: str) -> str:

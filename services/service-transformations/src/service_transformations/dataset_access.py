@@ -13,8 +13,8 @@ from typing import Any
 import pandas as pd
 from sqlalchemy.orm import Session
 
-from service_datasets.service import get_dataset_model_for_project
-from service_ingestion.parsers import parse_tabular_file
+from service_datasets.service import get_dataset_model_for_project, stored_file_spec
+from service_ingestion.read_copy import frame_of
 from service_transformations.steps.context import StepContext
 from shared_python.errors import BadRequestError
 
@@ -74,7 +74,9 @@ def build_step_context(
                 f"Dataset '{dataset.name}' exceeds the configured maximum size for this operation."
             )
 
-        frame = parse_tabular_file(file_bytes=file_bytes, file_type=file_type).dataframe
+        # A pinned version is read with its own settings, the head with the dataset's.
+        spec = stored_file_spec(db, file_path) if key in overrides else dataset.ingest_spec_json
+        frame = frame_of(storage_backend, file_path, file_bytes, file_type=file_type, spec=spec)
         if reader is not None:
             from service_enterprise.policy_view import narrow_frame
 

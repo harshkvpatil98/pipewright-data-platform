@@ -31,7 +31,7 @@ from service_extraction.models import ExtractionJob
 from service_extraction.schemas import ExtractionJobRead, ExtractionRunResponse
 from service_extraction.service import get_connection_for_project, get_job_for_project, resolve_job_query
 from service_ingestion.contracts import build_derived_dataset_path
-from service_ingestion.parsers import parse_tabular_file
+from service_ingestion.read_copy import frame_of
 from service_ingestion.profiling import build_preview, build_profile, infer_schema
 from service_pipeline_runs.service import (
     create_pipeline_run,
@@ -105,7 +105,7 @@ def _load_existing_frame(job: ExtractionJob, db: Session, storage_backend: Any) 
         file_bytes = storage_backend.read_bytes(dataset.file_path)
     except (FileNotFoundError, OSError):
         return pd.DataFrame()
-    return parse_tabular_file(file_bytes=file_bytes, file_type=dataset.file_type).dataframe
+    return frame_of(storage_backend, dataset.file_path, file_bytes, file_type=dataset.file_type, spec=dataset.ingest_spec_json)
 
 
 def run_extraction_job(

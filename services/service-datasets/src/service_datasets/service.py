@@ -195,11 +195,23 @@ def get_dataset_version_preview(
     )
 
 
+def stored_file_spec(db: Session, path: str) -> dict[str, object] | None:
+    """How the stored file at `path` is read: its version's confirmed import
+    settings, or its dataset's for a head with no version record (A8)."""
+    version = db.scalar(
+        select(DatasetVersion).where(DatasetVersion.file_path == path).order_by(DatasetVersion.version_number.desc()).limit(1)
+    )
+    if version is not None:
+        return version.ingest_spec_json
+    dataset = db.scalar(select(Dataset).where(Dataset.file_path == path).limit(1))
+    return dataset.ingest_spec_json if dataset is not None else None
+
+
 def _read_version_frame(storage_backend, version: DatasetVersion, fallback_type: str | None):
     """Parse one version's artifact, or say plainly which version cannot be read."""
     # Function-level import: ingestion imports this module's finalize seam, so a
     # module-level import back would be the cycle the hook rule exists to avoid.
-    from service_ingestion.parsers import parse_tabular_file
+    from service_ingestion.read_copy import frame_of
 
     require_readable(version)
     try:
@@ -208,9 +220,10 @@ def _read_version_frame(storage_backend, version: DatasetVersion, fallback_type:
         raise BadRequestError(
             f"Version {version.version_number}'s saved data could not be read."
         ) from exc
-    return parse_tabular_file(
-        file_bytes=stored, file_type=version.file_type or fallback_type or "csv"
-    ).dataframe
+    return frame_of(
+        storage_backend, version.file_path, stored, file_type=version.file_type or fallback_type or "csv",
+        spec=version.ingest_spec_json,
+    )
 
 
 def diff_dataset_versions(
@@ -294,7 +307,7 @@ def rollback_dataset_version(
             "nothing to roll back."
         )
 
-    from service_ingestion.parsers import parse_tabular_file
+    from service_ingestion.read_copy import frame_of
 
     # §4: hold the target open -- durably, before any bytes are read -- so a
     # retention sweep in another session cannot remove it underneath the copy.
@@ -315,7 +328,7 @@ def rollback_dataset_version(
         raise BadRequestError(
             f"Version {version_number}'s saved data could not be read."
         ) from exc
-    frame = parse_tabular_file(file_bytes=payload_bytes, file_type=file_type).dataframe
+    frame = frame_of(storage_backend, target.file_path, payload_bytes, file_type=file_type, spec=target.ingest_spec_json)
 
     # The original bytes are copied verbatim -- no parse-and-reserialize round
     # trip -- so the restored head's digest equals the target's recorded digest,
@@ -345,6 +358,8 @@ def rollback_dataset_version(
         ),
         row_count=int(len(frame)),
         column_count=int(len(frame.columns)),
+        # The restored bytes are the target's own, read the way it was.
+        ingest_spec_json=target.ingest_spec_json,
         content_hash=content_digest(payload_bytes),
         created_by_user_id=current_user.id,
     )
@@ -437,6 +452,9 @@ def delete_dataset(
             continue
         try:
             storage_backend.delete(path)
+            from service_ingestion.read_copy import forget_copy
+
+            forget_copy(storage_backend, path)
         except Exception:  # noqa: BLE001 - the row is gone; this is cleanup, not the request
             logger.warning(
                 "dataset_artifact_not_removed dataset_id=%s path=%s", dataset_id, path
@@ -657,11 +675,12 @@ def apply_dataset_materialization_success(
     dataset.status = "ready"
     dataset.ingestion_error = None
     dataset.last_profiled_at = datetime.now(UTC)
-    if ingest_spec_json is not None:
-        # How the file was read, kept with the dataset: "why is this column
-        # text" needs an answer, and re-reading the same file needs the same
-        # answers rather than a fresh inference over different data.
-        dataset.ingest_spec_json = ingest_spec_json
+    # How the head file is read, kept with the dataset and its version:
+    # re-reading the same file needs the same answers rather than a fresh
+    # inference. Set every time, to null for a file Pipewright wrote itself:
+    # keeping an earlier upload's settings once a recipe's output became the
+    # head would read that output wrongly (A8).
+    dataset.ingest_spec_json = ingest_spec_json
 
     version = DatasetVersion(
         dataset_id=dataset.id,
@@ -674,6 +693,7 @@ def apply_dataset_materialization_success(
         column_count=column_count,
         schema_json=schema_json,
         preview_json=preview_json,
+        ingest_spec_json=ingest_spec_json,
         pipeline_run_id=pipeline_run_id,
         created_by_user_id=created_by_user_id,
     )

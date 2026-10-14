@@ -126,6 +126,8 @@ class AuditEntry(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     outcome: Mapped[str] = mapped_column(String(16), nullable=False)
     correlation_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    #: The name of what a deletion removed, read before it went (A8, Y6).
+    object_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
 
 
 class Comment(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -135,6 +137,8 @@ class Comment(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __table_args__ = (
         Index("ix_comments_target", "target_type", "target_id", "created_at"),
         Index("ix_comments_project_id", "project_id"),
+        # A project's activity, newest first (A8, Y6).
+        Index("ix_comments_project_created", "project_id", "created_at"),
     )
 
     project_id: Mapped[uuid.UUID] = mapped_column(

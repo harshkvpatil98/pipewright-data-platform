@@ -56,6 +56,9 @@ def build_current_user_dependency(get_db: Callable[..., Session], settings) -> C
                 )
             # An organisation's network list covers scripts as well as people.
             check_network(db, user, request_address(request, settings))
+            # Who it was, for the audit log: an API token is not a JWT the log
+            # can read for itself (A8, Y6: script changes were "Someone").
+            request.state.audit_actor = (user.id, user.username)
             return UserRead.model_validate(user)
 
         token = decode_access_token(
@@ -73,6 +76,7 @@ def build_current_user_dependency(get_db: Callable[..., Session], settings) -> C
         if token.ver != user.token_version:
             raise UnauthorizedError("This session has ended. Sign in again.")
         check_network(db, user, request_address(request, settings))
+        request.state.audit_actor = (user.id, user.username)
         return UserRead.model_validate(user)
 
     return get_current_user

@@ -477,6 +477,13 @@ class Operations:
         """
         return self._call("DELETE", f"/api/v1/projects/{project_id}")
 
+    def read_project_activity(self, project_id: str, *, kind: list[Any] | None = None, offset: int | None = None, limit: int | None = None) -> Any:
+        """What happened in the project, newest first: changes, runs, incidents, comments and alerts, with who and when. Repeat `kind` to choose several.
+
+        GET /api/v1/projects/{project_id}/activity
+        """
+        return self._call("GET", f"/api/v1/projects/{project_id}/activity", query={"kind": kind, "offset": offset, "limit": limit})
+
     def read_audit(self, project_id: str, *, outcome: str | None = None, limit: int | None = None) -> Any:
         """Read Audit
 

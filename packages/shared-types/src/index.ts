@@ -8,3 +8,4 @@ export * from "./pipeline";
 export * from "./reporting";
 export * from "./team";
 export * from "./workflows";
+export * from "./activity";

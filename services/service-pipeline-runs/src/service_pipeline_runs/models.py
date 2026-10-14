@@ -28,6 +28,8 @@ class PipelineRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         Index("ix_pipeline_runs_status", "status"),
         Index("ix_pipeline_runs_run_type", "run_type"),
         Index("ix_pipeline_runs_pipeline_id", "pipeline_id"),
+        # A project's activity, newest first (A8, Y6).
+        Index("ix_pipeline_runs_project_completed", "project_id", "completed_at"),
     )
 
     project_id: Mapped[uuid.UUID] = mapped_column(

@@ -209,6 +209,8 @@ class IncidentEvent(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __table_args__ = (
         Index("ix_incident_events_incident_id", "incident_id", "sequence"),
         Index("ix_incident_events_project_id", "project_id"),
+        # A project's activity, newest first (A8, Y6).
+        Index("ix_incident_events_project_created", "project_id", "created_at"),
     )
 
     incident_id: Mapped[uuid.UUID] = mapped_column(

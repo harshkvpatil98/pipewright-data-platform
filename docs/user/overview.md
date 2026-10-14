@@ -6,6 +6,10 @@ A project's front page: what to do next, the newest data and the latest runs.
 
 The checklist shows the five steps that get a project working (add data, clean it, check it, automate it, share it) and ticks each one as you finish it. Below it are the newest datasets and the last few runs. **Add data** is always here.
 
+## Activity
+
+Everything that happened in the project, newest first, in one list: changes people made, runs that finished or failed, incidents that opened or were resolved, comments, and alerts on measures. Each line says who and when, and links to what it is about. Choose a kind to see only that. The list goes back 2,000 items; the [audit log](trust.md#audit-log) keeps every change, including attempts that were refused.
+
 ## People
 
 Add people who already have an account and choose what each can do. See [roles](glossary.md#roles). Removing someone takes away their access to this project only; their account and their other projects are untouched.

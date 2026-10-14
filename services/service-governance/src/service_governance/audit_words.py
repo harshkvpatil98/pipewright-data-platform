@@ -238,14 +238,43 @@ def _target(path: str) -> tuple[str, uuid.UUID] | None:
 class _Entry(Protocol):
     id: uuid.UUID
     path: str
+    resource_type: str | None
+    resource_id: str | None
+
+
+def target_of(entry: _Entry) -> tuple[str, uuid.UUID] | None:
+    """The thing a recorded request touched, as ("dashboards", <id>): what it
+    made, when it made something the log knows the name of, else the deepest
+    named thing in its path."""
+    made, kind = getattr(entry, "resource_id", None), getattr(entry, "resource_type", None)
+    if made and kind and made not in entry.path and f"{kind}s" in _NAME_COLUMNS:
+        try:
+            return f"{kind}s", uuid.UUID(made)
+        except ValueError:
+            pass
+    return _target(entry.path)
+
+
+def current_name(db: Session, path: str) -> str | None:
+    """The name, now, of the deepest named thing in a request's path."""
+    target = _target(path)
+    if target is None:
+        return None
+    table_name, column = _NAME_COLUMNS[target[0]]
+    table = Base.metadata.tables.get(table_name)
+    if table is None or column not in table.c:
+        return None
+    name = db.execute(select(table.c[column]).where(table.c.id == target[1])).scalar()
+    return str(name) if name else None
 
 
 def object_names(db: Session, entries: list[_Entry]) -> dict[uuid.UUID, str]:
-    """The current name of what each entry touched, by entry id; missing when it has gone."""
+    """The current name of what each entry touched, by entry id; for a deletion,
+    the name it had before it went; missing when it has gone otherwise."""
     wanted: dict[str, set[uuid.UUID]] = defaultdict(set)
     targets: dict[uuid.UUID, tuple[str, uuid.UUID]] = {}
     for entry in entries:
-        target = _target(entry.path)
+        target = target_of(entry)
         if target is not None:
             targets[entry.id] = target
             wanted[target[0]].add(target[1])
@@ -258,4 +287,9 @@ def object_names(db: Session, entries: list[_Entry]) -> dict[uuid.UUID, str]:
         for row_id, name in db.execute(select(table.c.id, table.c[column]).where(table.c.id.in_(ids))).all():
             if name:
                 names[(noun, row_id)] = str(name)
-    return {entry_id: names[target] for entry_id, target in targets.items() if target in names}
+    found = {entry_id: names[target] for entry_id, target in targets.items() if target in names}
+    for entry in entries:
+        kept = getattr(entry, "object_name", None)
+        if entry.id not in found and kept:
+            found[entry.id] = kept
+    return found

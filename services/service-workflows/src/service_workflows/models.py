@@ -120,6 +120,8 @@ class WorkflowRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __table_args__ = (
         Index("ix_workflow_runs_workflow_id", "workflow_id"),
         Index("ix_workflow_runs_project_created", "project_id", "created_at"),
+        # A project's activity, newest first (A8, Y6).
+        Index("ix_workflow_runs_project_finished", "project_id", "finished_at"),
         # The claim query filters on status and orders by queued_at.
         Index("ix_workflow_runs_status_queued", "status", "queued_at"),
         Index("ix_workflow_runs_workflow_logical", "workflow_id", "logical_date"),

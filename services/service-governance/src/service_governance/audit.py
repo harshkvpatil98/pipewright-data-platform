@@ -15,6 +15,7 @@ transaction may have rolled back, and the attempt still happened.
 
 from __future__ import annotations
 
+import json
 import re
 import time
 import uuid
@@ -169,6 +170,35 @@ def resource_hint(path: str) -> tuple[str | None, str | None]:
     return kind, (ids[-1] if ids else None)
 
 
+#: An answer this large is not a newly made thing's record; it is passed on unread.
+CREATED_BODY_LIMIT = 1_000_000
+
+
+def created_resource(path: str, body: bytes) -> tuple[str | None, str | None]:
+    """The kind and id of what a 201 answer says was made, if it says.
+
+    The request's path cannot name it (it did not exist yet), so without this
+    the log said "created a recipe" with the dataset it was made on as its
+    subject (A8, Y6). An upload's answer carries the dataset it made.
+    """
+    try:
+        answer = json.loads(body)
+    except ValueError:
+        return None, None
+    if not isinstance(answer, dict):
+        return None, None
+    made = answer.get("id")
+    kind: str | None = None
+    if made is None and isinstance(answer.get("dataset"), dict):
+        made, kind = answer["dataset"].get("id"), "dataset"
+    if not isinstance(made, str) or not _UUID_PATTERN.fullmatch(made):
+        return None, None
+    if kind is None:
+        nouns = [segment for segment in path.split("/") if segment and not _UUID_PATTERN.fullmatch(segment)]
+        kind = nouns[-1].rstrip("s") if nouns else None
+    return kind, made
+
+
 def project_id_from(path: str) -> uuid.UUID | None:
     match = _PROJECT_PATTERN.search(path)
     if match is None:
@@ -198,20 +228,51 @@ class AuditMiddleware(BaseHTTPMiddleware):
         if not is_audited(request.method, request.url.path):
             return await call_next(request)
 
+        # What a deletion removes cannot be named once it has gone, so its
+        # name is read first (A8, Y6: "deleted a dataset", but which?).
+        name_before = self._name_before(request.url.path) if request.method == "DELETE" else None
+
         started = time.perf_counter()
         response = await call_next(request)
         duration_ms = int((time.perf_counter() - started) * 1000)
 
+        created: tuple[str | None, str | None] = (None, None)
+        if (
+            request.method == "POST"
+            and response.status_code == 201
+            and "json" in response.headers.get("content-type", "")
+            and int(response.headers.get("content-length") or 0) <= CREATED_BODY_LIMIT
+        ):
+            # Read the answer to learn what was made, then pass the same bytes on.
+            body = b"".join([chunk async for chunk in response.body_iterator])  # type: ignore[attr-defined]
+            created = created_resource(request.url.path, body)
+            passed_on = Response(content=body, status_code=response.status_code, background=response.background)
+            passed_on.raw_headers = list(response.raw_headers)
+            response = passed_on
+
         try:
-            self._record(request, response, duration_ms)
+            self._record(request, response, duration_ms, created=created, name_before=name_before)
         except Exception:  # noqa: BLE001 - a log must never break the request
             logger.exception("audit_write_failed path=%s", request.url.path)
 
         return response
 
-    def _record(self, request: Request, response: Response, duration_ms: int) -> None:
+    def _name_before(self, path: str) -> str | None:
+        return _name_before_lookup(self._session_factory, path)
+
+    def _record(
+        self,
+        request: Request,
+        response: Response,
+        duration_ms: int,
+        *,
+        created: tuple[str | None, str | None] = (None, None),
+        name_before: str | None = None,
+    ) -> None:
         path = request.url.path
         kind, resource_id = resource_hint(path)
+        if created[1] is not None:
+            kind, resource_id = created
         actor_id, actor_name = _actor(request)
 
         session = self._session_factory()
@@ -232,6 +293,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
                     # header nothing set, so no entry had its id (found in A7).
                     correlation_id=response.headers.get("x-request-id"),
                     duration_ms=duration_ms,
+                    object_name=name_before[:200] if name_before else None,
                 )
             )
             session.commit()  # type: ignore[attr-defined]
@@ -239,13 +301,30 @@ class AuditMiddleware(BaseHTTPMiddleware):
             session.close()  # type: ignore[attr-defined]
 
 
-def _actor(request: Request) -> tuple[uuid.UUID | None, str | None]:
-    """Who made the request, read from the token without verifying it.
+def _name_before_lookup(session_factory: Callable[[], object], path: str) -> str | None:
+    from service_governance.audit_words import current_name
 
-    The signature was already checked by the auth dependency for anything that
-    reached a handler; for a request that was rejected, recording the claimed
-    identity is more useful than recording nobody.
+    session = session_factory()
+    try:
+        return current_name(session, path)  # type: ignore[arg-type]
+    except Exception:  # noqa: BLE001 - a name is a courtesy; the log is not
+        logger.exception("audit_name_lookup_failed path=%s", path)
+        return None
+    finally:
+        session.close()  # type: ignore[attr-defined]
+
+
+def _actor(request: Request) -> tuple[uuid.UUID | None, str | None]:
+    """Who made the request: as the sign-in check found them, or else read from
+    the token without verifying it.
+
+    The sign-in check notes the person it accepted, a session or an API token
+    alike. For a request refused before that, recording the claimed identity
+    is more useful than recording nobody.
     """
+    found = getattr(request.state, "audit_actor", None)
+    if isinstance(found, tuple) and len(found) == 2:
+        return found
     token = request.headers.get("authorization", "")
     if token.lower().startswith("bearer "):
         token = token[7:].strip()

@@ -20,7 +20,6 @@ from __future__ import annotations
 import math
 import uuid
 from datetime import UTC, datetime
-from typing import Any
 
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
@@ -469,18 +468,3 @@ def delete_alert(
     ensure_owned_project(db, project_id, current_user.id)
     db.delete(_alert(db, project_id, dataset_id, alert_id))
     db.commit()
-
-
-def events_since(db: Session, project_id: uuid.UUID, *, limit: int) -> list[dict[str, Any]]:
-    """A project's newest alert events, for its activity (A8, Y6)."""
-    rows = db.scalars(
-        select(MetricAlertEvent)
-        .where(MetricAlertEvent.project_id == project_id)
-        .order_by(MetricAlertEvent.created_at.desc())
-        .limit(limit)
-    ).all()
-    return [
-        {"id": row.id, "kind": row.kind, "title": row.title, "message": row.message, "created_at": row.created_at,
-         "dataset_id": row.dataset_id}
-        for row in rows
-    ]

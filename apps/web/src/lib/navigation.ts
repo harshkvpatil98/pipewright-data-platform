@@ -91,6 +91,20 @@ export const AREAS: NavArea[] = [
         keywords: "project home start checklist getting started",
       },
       {
+        id: "activity",
+        label: "Activity",
+        icon: "activity",
+        path: "/activity",
+        persona: "data owner",
+        description: "What happened in this project, newest first.",
+        help: [
+          "Changes, runs, incidents, comments and alerts in one list, with who and when.",
+          "Choose a kind to see only that.",
+          "Each line links to what it is about.",
+        ],
+        keywords: "activity feed history timeline what happened recent changes log",
+      },
+      {
         id: "people",
         label: "People",
         icon: "users",

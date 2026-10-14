@@ -23,3 +23,11 @@ def test_every_limit_says_something() -> None:
     for item in ceilings(settings):
         assert item.name and item.value
         assert "—" not in item.name + item.value + item.detail
+
+
+def test_the_background_hand_over_points_are_the_ones_used() -> None:
+    from service_destinations.deliver import IN_REQUEST_ROWS
+
+    stated = _by_name(ceilings(settings))
+    assert stated["Rows a delivery writes while you wait"].value == f"{IN_REQUEST_ROWS:,}"
+    assert "25 MB" in stated["Largest file you can upload"].detail

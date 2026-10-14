@@ -215,6 +215,7 @@ def ceilings(settings) -> list[Ceiling]:
     copy of it, so this list cannot drift from what actually happens.
     """
     from service_destinations.copy_database import MAX_ROWS_PER_TABLE
+    from service_destinations.deliver import IN_REQUEST_ROWS
     from service_ingestion.service import IN_REQUEST_BYTES
     from service_extraction.schemas import ExtractionJobBase
     from service_workbench import sandbox
@@ -246,7 +247,16 @@ def ceilings(settings) -> list[Ceiling]:
             value=f"Up to {import_rows:,}" if import_rows else "No fixed limit",
             detail="Each import sets its own limit below this.",
         ),
-        Ceiling(name="Rows a database copy takes from each table", value=f"{MAX_ROWS_PER_TABLE:,}"),
+        Ceiling(
+            name="Rows a delivery writes while you wait",
+            value=f"{IN_REQUEST_ROWS:,}",
+            detail="A larger dataset is delivered by the background worker, and the delivery window shows how far it has got.",
+        ),
+        Ceiling(
+            name="Rows a database copy takes from each table",
+            value=f"{MAX_ROWS_PER_TABLE:,}",
+            detail="Copies run on the background worker, table by table, with progress.",
+        ),
         Ceiling(name="Rows a SQL query over a version returns", value=f"{SQL_ROWS:,}"),
         Ceiling(
             name="Workflow runs of one project at the same time",

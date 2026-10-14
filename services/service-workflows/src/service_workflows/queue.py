@@ -27,6 +27,7 @@ from service_workflows.cron import advance_after_fire, due_workflows
 from service_workflows.executor import _finish, execute_workflow_run
 from service_workflows.models import Workflow, WorkflowRun
 from shared_python.errors import BadRequestError, NotFoundError
+from shared_python.lease import kept
 from shared_python.logging import get_logger
 
 logger = get_logger(__name__)
@@ -190,9 +191,13 @@ def run_next(
         return None
 
     try:
-        return execute_workflow_run(
-            db, run=run, storage_backend=storage_backend, settings=settings
-        )
+        # A workflow can run for longer than its lease; keep it from a side
+        # thread so another worker does not fail it as stalled (A7).
+        with kept(db.get_bind(), table=WorkflowRun.__table__, row_id=run.id, owner=run.claim_owner_id,
+                  lease_seconds=lease_seconds(settings)):
+            return execute_workflow_run(
+                db, run=run, storage_backend=storage_backend, settings=settings
+            )
     except Exception as exc:  # noqa: BLE001 - a worker must survive any single run
         logger.exception("workflow_run_crashed run_id=%s", run.id)
         return _record_crash(db, run_id=run.id, exc=exc)

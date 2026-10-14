@@ -24,6 +24,7 @@ from sqlalchemy.orm import Session
 
 from service_pipeline_runs.models import PipelineRun
 from shared_python.errors import ApplicationError
+from shared_python.lease import kept
 from shared_python.logging import get_logger
 
 logger = get_logger(__name__)
@@ -138,7 +139,12 @@ def run_next(db: Session, *, storage_backend: Any, settings: Any, owner: str) ->
         return None
     handler = _HANDLERS[run.run_type]
     try:
-        handler(db, run, storage_backend, settings)
+        # A write of millions of rows reports no progress for minutes; the
+        # lease is kept from a side thread so another worker does not fail
+        # it as stalled while it works.
+        with kept(db.get_bind(), table=PipelineRun.__table__, row_id=run.id, owner=run.claim_owner_id,
+                  lease_seconds=LEASE_SECONDS):
+            handler(db, run, storage_backend, settings)
     except ApplicationError as exc:
         db.rollback()
         _fail(db, run.id, str(exc.detail))

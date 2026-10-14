@@ -63,6 +63,72 @@ class DatasetMetric(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     logical_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class MetricAlert(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """A line a dataset's measure should not cross (adoption-readiness A8, Y5).
+
+    Checked whenever the dataset's measures are recorded, which is whenever
+    it gets new data. `state` remembers whether it was last outside its line,
+    so a measure that stays high alerts once, and again only after it has
+    come back.
+    """
+
+    __tablename__ = "metric_alerts"
+    __table_args__ = (Index("ix_metric_alerts_dataset", "dataset_id"),)
+
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    dataset_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("datasets.id", ondelete="CASCADE"), nullable=False
+    )
+    metric_key: Mapped[str] = mapped_column(String(48), nullable=False)
+    # Null for dataset-wide measures such as row_count.
+    column_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    #: above, below, or changes_by (a percentage of the last value).
+    condition: Mapped[str] = mapped_column(String(16), nullable=False)
+    threshold: Mapped[float] = mapped_column(Float, nullable=False)
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
+    #: ok or crossed.
+    state: Mapped[str] = mapped_column(String(16), nullable=False, default="ok", server_default="ok")
+    last_value: Mapped[float | None] = mapped_column(Float, nullable=True)
+    last_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+
+class MetricAlertEvent(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """An alert crossing its line, or coming back.
+
+    Written in the same transaction as the measures that caused it, and sent
+    by the background worker once that transaction has committed, so data
+    that was rolled back never sends an alert. Kept as the alert's history.
+    """
+
+    __tablename__ = "metric_alert_events"
+    __table_args__ = (
+        Index("ix_metric_alert_events_project_created", "project_id", "created_at"),
+        Index("ix_metric_alert_events_unsent", "sent_at"),
+    )
+
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    alert_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("metric_alerts.id", ondelete="CASCADE"), nullable=False
+    )
+    dataset_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("datasets.id", ondelete="CASCADE"), nullable=False
+    )
+    #: crossed or cleared.
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    value: Mapped[float] = mapped_column(Float, nullable=False)
+    previous_value: Mapped[float | None] = mapped_column(Float, nullable=True)
+    title: Mapped[str] = mapped_column(String(240), nullable=False)
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class FreshnessPolicy(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     """A promise about how old a dataset is allowed to get."""
 

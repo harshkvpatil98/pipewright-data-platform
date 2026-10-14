@@ -80,7 +80,7 @@ export function LineagePageView({
           className="inline-flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-[12px] text-ink-2 transition hover:bg-surface-2"
         >
           <Icon name="activity" size={12} />
-          Metrics
+          Data health
         </Link>
       </div>
 

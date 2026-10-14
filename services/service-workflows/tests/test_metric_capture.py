@@ -224,3 +224,48 @@ def test_a_failed_node_records_no_usage(
     )
     execute_workflow_run(db, run=world["run"], storage_backend=None, settings=None)
     assert db.query(UsageRecord).count() == 0
+
+
+def test_measures_written_with_the_data_are_tied_to_the_run_not_written_twice(
+    db: Session, world: dict, actor: UserRead, monkeypatch: pytest.MonkeyPatch
+):
+    """New data records its measures as it is written (A8, Y5); the run marks them as its own."""
+    from service_observability.service import record_dataset_metrics
+
+    dataset = world["dataset"]
+
+    def _writes_data(_node_type, _config, _context) -> NodeResult:
+        record_dataset_metrics(db, project_id=dataset.project_id, dataset_id=dataset.id, profile=PROFILE)
+        dataset.last_profiled_at = datetime.now(UTC)
+        return NodeResult(success=True, message="ok", output={"dataset_id": str(dataset.id)})
+
+    monkeypatch.setattr(executor_module, "execute_node", _writes_data)
+    execute_workflow_run(db, run=world["run"], storage_backend=None, settings=None)
+
+    metrics = db.query(DatasetMetric).all()
+    assert len(metrics) == 6, "one set of measures, not two"
+    assert {metric.workflow_run_id for metric in metrics} == {world["run"].id}
+    assert {metric.logical_date.replace(tzinfo=UTC) for metric in metrics} == {datetime(2026, 3, 1, tzinfo=UTC)}
+
+
+def test_an_unchanged_dataset_adds_no_point(
+    db: Session, world: dict, actor: UserRead, monkeypatch: pytest.MonkeyPatch
+):
+    """The same numbers again say nothing, and would read as "no change" to an alert."""
+    monkeypatch.setattr(
+        executor_module, "execute_node", _handler({"dataset_id": str(world["dataset"].id)})
+    )
+    execute_workflow_run(db, run=world["run"], storage_backend=None, settings=None)
+    first = db.query(DatasetMetric).count()
+
+    again = WorkflowRun(
+        workflow_id=world["workflow"].id,
+        project_id=world["project"].id,
+        status="queued",
+        trigger="manual",
+        queued_at=datetime.now(UTC),
+    )
+    db.add(again)
+    db.commit()
+    execute_workflow_run(db, run=again, storage_backend=None, settings=None)
+    assert first == 6 and db.query(DatasetMetric).count() == first

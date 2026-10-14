@@ -63,6 +63,17 @@ def _retry_webhooks(db) -> None:
         logger.exception("webhook_retry_failed")
 
 
+def _send_metric_alerts(db) -> None:
+    """Send alert crossings written since the last tick (A8, Y5). Best effort."""
+    from service_observability.alerts import send_due
+
+    try:
+        send_due(db)
+    except Exception:  # noqa: BLE001 - an alert problem must not stop the worker
+        db.rollback()
+        logger.exception("metric_alert_send_failed")
+
+
 def tick_background(max_runs: int) -> int:
     """Do queued background runs (large uploads, deliveries, database copies; A7, X3).
 
@@ -78,6 +89,7 @@ def tick_background(max_runs: int) -> int:
     try:
         background.release_stalled(db)
         _retry_webhooks(db)
+        _send_metric_alerts(db)
         done = 0
         while done < max_runs and not _stopping:
             run = background.run_next(

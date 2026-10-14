@@ -14,6 +14,8 @@ ALLOWED_EXTERNAL_NOTIFICATION_EVENT_TYPES: frozenset[str] = frozenset(
         "workflow_run_failed",
         "workflow_run_partial",
         "weekly_summary",
+        # A8 (Y5): a dataset's measure crossed the line its alert draws, or came back.
+        "metric_alert",
     }
 )
 

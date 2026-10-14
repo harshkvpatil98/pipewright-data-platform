@@ -171,7 +171,7 @@ To bring it into another project, send it as `{"bundle": <the file>, "mapping": 
 
 ## Webhooks
 
-A webhook sends each event you choose to an address of yours, as it happens. Add one under **Overview → Alerts → Add an alert → A webhook**; its signing secret is shown once, after you save.
+A webhook sends each event you choose to an address of yours, as it happens. Add one under **Overview → Alerts → Add a channel → A webhook**; its signing secret is shown once, after you save.
 
 Each event is a `POST` with a JSON body:
 
@@ -197,7 +197,7 @@ def came_from_pipewright(secret: str, signature_header: str, body: bytes) -> boo
     return recent and hmac.compare_digest(expected, parts["v1"])
 ```
 
-Answer with any `2xx` once you have the event. An answer of `5xx`, `408` or `429`, or none within five seconds, is tried twice more, a minute and then five minutes later; any other answer is taken as a refusal and not repeated. **Deliveries** on the alert shows every try and its result, and **New secret** replaces the secret at once.
+Answer with any `2xx` once you have the event. An answer of `5xx`, `408` or `429`, or none within five seconds, is tried twice more, a minute and then five minutes later; any other answer is taken as a refusal and not repeated. **Deliveries** on the channel shows every try and its result, and **New secret** replaces the secret at once.
 
 ## Embedding a dashboard
 

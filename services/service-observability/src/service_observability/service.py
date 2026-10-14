@@ -91,17 +91,21 @@ def record_dataset_metrics(
     logical_date: datetime | None = None,
     now: datetime | None = None,
 ) -> int:
-    """Write one profile's worth of measurements to the history.
+    """Write one profile's worth of measurements to the history, and check the
+    dataset's alerts against them (A8, Y5).
 
     Returns how many were recorded. Called from run paths, so it never raises
     on an empty or malformed profile -- a missing measurement should not fail a
     run that otherwise worked.
     """
+    from service_observability.alerts import check_alerts, previous_values
+
     samples = metrics_from_profile(profile)
     if not samples:
         return 0
 
     captured_at = _now(now)
+    previous = previous_values(db, dataset_id)
     db.add_all(
         [
             DatasetMetric(
@@ -118,6 +122,8 @@ def record_dataset_metrics(
             for sample in samples
         ]
     )
+    db.flush()
+    check_alerts(db, dataset_id=dataset_id, samples=samples, previous=previous, now=captured_at)
     db.flush()
     return len(samples)
 

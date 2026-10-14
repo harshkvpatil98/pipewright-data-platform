@@ -29,6 +29,39 @@ export type MetricHistory = {
   series: MetricSeries[];
 };
 
+/** A line a dataset's measure should not cross (A8, Y5). */
+export type MetricAlertCondition = "above" | "below" | "changes_by";
+
+export type MetricAlert = {
+  id: string;
+  dataset_id: string;
+  metric_key: string;
+  column_name: string | null;
+  condition: MetricAlertCondition;
+  threshold: number;
+  enabled: boolean;
+  state: "ok" | "crossed";
+  /** "Alert when the row count is above 1,000". */
+  sentence: string;
+  last_value: number | null;
+  last_checked_at: string | null;
+  created_at: string;
+};
+
+export type MetricAlertEvent = {
+  id: string;
+  alert_id: string;
+  kind: "crossed" | "cleared";
+  value: number;
+  previous_value: number | null;
+  title: string;
+  message: string;
+  created_at: string;
+  sent_at: string | null;
+};
+
+export type MetricAlertListResponse = { items: MetricAlert[]; events: MetricAlertEvent[] };
+
 export type MetricCaptureResult = {
   dataset_id: string;
   metrics_recorded: number;

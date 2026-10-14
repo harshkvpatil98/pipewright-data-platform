@@ -175,3 +175,55 @@ class IncidentAssignRequest(BaseModel):
 
 class IncidentCommentRequest(BaseModel):
     message: str = Field(min_length=1, max_length=2000)
+
+
+# ---- metric alerts (A8, Y5) ----
+
+AlertCondition = Literal["above", "below", "changes_by"]
+
+
+class MetricAlertCreate(BaseModel):
+    metric_key: str = Field(min_length=1, max_length=48)
+    column_name: str | None = Field(default=None, max_length=128)
+    condition: AlertCondition
+    threshold: float
+
+
+class MetricAlertUpdate(BaseModel):
+    condition: AlertCondition | None = None
+    threshold: float | None = None
+    enabled: bool | None = None
+
+
+class MetricAlertEventRead(BaseModel):
+    id: uuid.UUID
+    alert_id: uuid.UUID
+    kind: Literal["crossed", "cleared"]
+    value: float
+    previous_value: float | None
+    title: str
+    message: str
+    created_at: datetime
+    sent_at: datetime | None
+
+
+class MetricAlertRead(BaseModel):
+    id: uuid.UUID
+    dataset_id: uuid.UUID
+    metric_key: str
+    column_name: str | None
+    condition: AlertCondition
+    threshold: float
+    enabled: bool
+    state: Literal["ok", "crossed"]
+    #: "Alert when the row count is above 1,000".
+    sentence: str
+    last_value: float | None
+    last_checked_at: datetime | None
+    created_at: datetime
+
+
+class MetricAlertListResponse(BaseModel):
+    items: list[MetricAlertRead]
+    #: The newest crossings and recoveries of this dataset's alerts.
+    events: list[MetricAlertEventRead]

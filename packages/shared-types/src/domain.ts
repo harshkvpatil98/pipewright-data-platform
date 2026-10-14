@@ -1203,6 +1203,7 @@ export const EXTERNAL_NOTIFICATION_EVENT_TYPES = [
   "dataset_publish_succeeded",
   "transformation_run_failed",
   "transformation_run_succeeded",
+  "metric_alert",
 ] as const;
 
 export type ExternalNotificationEventType = (typeof EXTERNAL_NOTIFICATION_EVENT_TYPES)[number];

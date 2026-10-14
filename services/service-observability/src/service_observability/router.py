@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from service_auth.schemas import UserRead
 
+from service_observability.alerts import create_alert, delete_alert, list_alerts, update_alert
 from service_observability.anomaly import DEFAULT_SENSITIVITY
 from service_observability.schemas import (
     AnomalyScanResponse,
@@ -21,6 +22,10 @@ from service_observability.schemas import (
     IncidentCommentRequest,
     IncidentDetail,
     IncidentListResponse,
+    MetricAlertCreate,
+    MetricAlertListResponse,
+    MetricAlertRead,
+    MetricAlertUpdate,
     MetricCaptureResponse,
     MetricHistoryResponse,
 )
@@ -88,6 +93,66 @@ def build_router(
         current_user: UserRead = Depends(get_current_user),
     ) -> MetricCaptureResponse:
         return capture_dataset_metrics(db, project_id, dataset_id, current_user)
+
+    # ---- alerts on measures (A8, Y5) ----
+
+    @router.get(
+        "/projects/{project_id}/datasets/{dataset_id}/metric-alerts",
+        response_model=MetricAlertListResponse,
+    )
+    def list_metric_alerts(
+        project_id: uuid.UUID,
+        dataset_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> MetricAlertListResponse:
+        """The dataset's alerts, and the newest times they crossed their line or came back."""
+        return list_alerts(db, project_id, dataset_id, current_user)
+
+    @router.post(
+        "/projects/{project_id}/datasets/{dataset_id}/metric-alerts",
+        response_model=MetricAlertRead,
+        status_code=status.HTTP_201_CREATED,
+    )
+    def create_metric_alert(
+        project_id: uuid.UUID,
+        dataset_id: uuid.UUID,
+        payload: MetricAlertCreate,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> MetricAlertRead:
+        """Alert when a measure is above or below a value, or changes by more than a
+        percentage. Checked against the newest measures at once, then each time they
+        are recorded."""
+        return create_alert(db, project_id, dataset_id, payload, current_user)
+
+    @router.patch(
+        "/projects/{project_id}/datasets/{dataset_id}/metric-alerts/{alert_id}",
+        response_model=MetricAlertRead,
+    )
+    def update_metric_alert(
+        project_id: uuid.UUID,
+        dataset_id: uuid.UUID,
+        alert_id: uuid.UUID,
+        payload: MetricAlertUpdate,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> MetricAlertRead:
+        return update_alert(db, project_id, dataset_id, alert_id, payload, current_user)
+
+    @router.delete(
+        "/projects/{project_id}/datasets/{dataset_id}/metric-alerts/{alert_id}",
+        status_code=status.HTTP_204_NO_CONTENT,
+    )
+    def delete_metric_alert(
+        project_id: uuid.UUID,
+        dataset_id: uuid.UUID,
+        alert_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> Response:
+        delete_alert(db, project_id, dataset_id, alert_id, current_user)
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
 
     @router.get(
         "/projects/{project_id}/datasets/{dataset_id}/anomalies",

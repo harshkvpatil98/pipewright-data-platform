@@ -699,7 +699,34 @@ def apply_dataset_materialization_success(
     )
     db.add(version)
     db.flush()
+    _record_measures(db, dataset=dataset, profile_json=profile_json, pipeline_run_id=pipeline_run_id)
     return version
+
+
+def _record_measures(
+    db: Session, *, dataset: Dataset, profile_json: dict[str, object], pipeline_run_id: uuid.UUID | None
+) -> None:
+    """Record the new data's measures and check its alerts (A8, Y5).
+
+    Every upload, import, recipe run, rollback and erasure passes through
+    here, so a dataset's history and its alerts follow every change, not only
+    the ones a workflow makes. In the same transaction as the new version, so
+    data that is rolled back leaves no measures and sends no alert. Best
+    effort, in a savepoint: a measurement problem never fails the data.
+    """
+    try:
+        from service_observability.service import record_dataset_metrics
+
+        with db.begin_nested():
+            record_dataset_metrics(
+                db,
+                project_id=dataset.project_id,
+                dataset_id=dataset.id,
+                profile=profile_json,
+                pipeline_run_id=pipeline_run_id,
+            )
+    except Exception:  # noqa: BLE001 - see docstring
+        logger.exception("measure_capture_failed dataset_id=%s", dataset.id)
 
 
 def finalize_dataset_materialization_success(

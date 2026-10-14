@@ -276,7 +276,7 @@ def execute_workflow_run(
                 # A metric history only exists if something writes to it every
                 # run. Doing it here, once, covers every node type that
                 # produces a dataset rather than each handler remembering to.
-                _capture_metrics(db, run=run, output=result.output)
+                _capture_metrics(db, run=run, output=result.output, since=started)
                 _record_usage(db, run=run, node=node, output=result.output, started=started, finished=finished)
             else:
                 run.nodes_failed += 1
@@ -347,8 +347,15 @@ def _record_usage(
         logger.exception("usage_record_failed run_id=%s", run.id)
 
 
-def _capture_metrics(db: Session, *, run: WorkflowRun, output: dict[str, Any]) -> None:
-    """Record this run's numbers for the dataset a node just produced.
+def _capture_metrics(db: Session, *, run: WorkflowRun, output: dict[str, Any], since: datetime) -> None:
+    """Tie this run to the numbers of the dataset a task just produced.
+
+    A task that wrote new data had its measures recorded, and its alerts
+    checked, as the data was written (A8, Y5); those are marked with this run
+    and the slot it stands for, so a backfill charts where it belongs. A
+    dataset never measured since it last changed is measured now. One already
+    measured and unchanged is left alone: the same numbers again would add a
+    point that says nothing, and would read as "no change" to an alert.
 
     Best effort by design: a missing measurement must never fail a run that
     otherwise did its job, and the profile it reads may legitimately not be
@@ -359,11 +366,31 @@ def _capture_metrics(db: Session, *, run: WorkflowRun, output: dict[str, Any]) -
         return
 
     try:
+        from sqlalchemy import func, select
+
         from service_datasets.models import Dataset
+        from service_observability.models import DatasetMetric
         from service_observability.service import record_dataset_metrics
 
         dataset = db.get(Dataset, uuid.UUID(str(dataset_id)))
         if dataset is None or not isinstance(dataset.profile_json, dict):
+            return
+        written = db.scalars(
+            select(DatasetMetric).where(
+                DatasetMetric.dataset_id == dataset.id,
+                DatasetMetric.workflow_run_id.is_(None),
+                DatasetMetric.captured_at >= since,
+            )
+        ).all()
+        if written:
+            for metric in written:
+                metric.workflow_run_id = run.id
+                metric.logical_date = run.logical_date
+            db.flush()
+            return
+        last = db.scalar(select(func.max(DatasetMetric.captured_at)).where(DatasetMetric.dataset_id == dataset.id))
+        changed = dataset.last_profiled_at
+        if last is not None and (changed is None or _utc(last) >= _utc(changed)):
             return
         record_dataset_metrics(
             db,
@@ -375,6 +402,11 @@ def _capture_metrics(db: Session, *, run: WorkflowRun, output: dict[str, Any]) -
         )
     except Exception:  # noqa: BLE001 - see docstring
         logger.exception("workflow_metric_capture_failed run_id=%s", run.id)
+
+
+def _utc(moment: datetime) -> datetime:
+    # SQLite hands back naive datetimes; they were written in UTC.
+    return moment if moment.tzinfo else moment.replace(tzinfo=UTC)
 
 
 def _record(

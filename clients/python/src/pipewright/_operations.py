@@ -1023,6 +1023,34 @@ class Operations:
         """
         return self._call("GET", f"/api/v1/projects/{project_id}/datasets/{dataset_id}/lineage/columns/{column_name}")
 
+    def list_metric_alerts(self, project_id: str, dataset_id: str) -> Any:
+        """The dataset's alerts, and the newest times they crossed their line or came back.
+
+        GET /api/v1/projects/{project_id}/datasets/{dataset_id}/metric-alerts
+        """
+        return self._call("GET", f"/api/v1/projects/{project_id}/datasets/{dataset_id}/metric-alerts")
+
+    def create_metric_alert(self, project_id: str, dataset_id: str, *, body: Any) -> Any:
+        """Alert when a measure is above or below a value, or changes by more than a percentage. Checked against the newest measures at once, then each time they are recorded.
+
+        POST /api/v1/projects/{project_id}/datasets/{dataset_id}/metric-alerts
+        """
+        return self._call("POST", f"/api/v1/projects/{project_id}/datasets/{dataset_id}/metric-alerts", body=body)
+
+    def update_metric_alert(self, project_id: str, dataset_id: str, alert_id: str, *, body: Any) -> Any:
+        """Update Metric Alert
+
+        PATCH /api/v1/projects/{project_id}/datasets/{dataset_id}/metric-alerts/{alert_id}
+        """
+        return self._call("PATCH", f"/api/v1/projects/{project_id}/datasets/{dataset_id}/metric-alerts/{alert_id}", body=body)
+
+    def delete_metric_alert(self, project_id: str, dataset_id: str, alert_id: str) -> Any:
+        """Delete Metric Alert
+
+        DELETE /api/v1/projects/{project_id}/datasets/{dataset_id}/metric-alerts/{alert_id}
+        """
+        return self._call("DELETE", f"/api/v1/projects/{project_id}/datasets/{dataset_id}/metric-alerts/{alert_id}")
+
     def read_metrics(self, project_id: str, dataset_id: str, *, metric: str | None = None, column: str | None = None, limit: int | None = None) -> Any:
         """Read Metrics
 

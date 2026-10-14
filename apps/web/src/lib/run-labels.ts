@@ -34,6 +34,7 @@ const NOTIFICATION_EVENT_LABELS: Record<string, string> = {
   workflow_run_partial: "Workflow",
   workflow: "Workflow message",
   incident: "Incident",
+  metric_alert: "Alert",
   mention: "Mention",
   report: "Report",
 };

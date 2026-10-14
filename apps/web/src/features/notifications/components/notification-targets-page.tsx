@@ -101,6 +101,8 @@ export function NotificationTargetsPageView({
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [testingId, setTestingId] = useState<string | null>(null);
+  // "New secret" stops the old one at once, so it asks first.
+  const [replacingId, setReplacingId] = useState<string | null>(null);
   const [testMessage, setTestMessage] = useState<string | null>(null);
   // A webhook's signing secret, shown once after it is made or replaced.
   const [freshSecret, setFreshSecret] = useState<{ name: string; secret: string } | null>(null);
@@ -255,6 +257,8 @@ export function NotificationTargetsPageView({
       router.refresh();
     } catch (e) {
       toast.error("Could not make a new secret", extractErrorMessage(e));
+    } finally {
+      setReplacingId(null);
     }
   };
 
@@ -295,7 +299,7 @@ export function NotificationTargetsPageView({
         actions={
           <>
             <Button type="button" onClick={openCreate}>
-              Add an alert
+              Add a channel
             </Button>
           </>
         }
@@ -379,15 +383,27 @@ export function NotificationTargetsPageView({
                             <Button variant="secondary" size="sm" type="button" onClick={() => void showDeliveries(row)}>
                               Deliveries
                             </Button>
-                            <Button variant="ghost" size="sm" type="button" onClick={() => void newSecret(row)}>
-                              New secret
-                            </Button>
+                            {replacingId === row.id ? (
+                              <span className="inline-flex flex-wrap items-center gap-2">
+                                <span className="text-[12px] text-ink-2">The old secret stops at once.</span>
+                                <Button variant="danger" size="sm" type="button" onClick={() => void newSecret(row)}>
+                                  Replace it
+                                </Button>
+                                <Button variant="ghost" size="sm" type="button" onClick={() => setReplacingId(null)}>
+                                  Keep it
+                                </Button>
+                              </span>
+                            ) : (
+                              <Button variant="secondary" size="sm" type="button" onClick={() => setReplacingId(row.id)}>
+                                New secret
+                              </Button>
+                            )}
                           </>
                         ) : null}
                         <DeleteRowButton
                           path={`/projects/${projectId}/notification-targets/${row.id}`}
                           name={row.name}
-                          kind="alert"
+                          kind="alert channel"
                           consequences={[
                             "Any scheduled report still delivering here must be pointed elsewhere first.",
                           ]}
@@ -407,7 +423,7 @@ export function NotificationTargetsPageView({
 
       <Modal
         open={modalOpen}
-        title={editing ? "Change this alert" : "Add an alert"}
+        title={editing ? "Change this channel" : "Add a channel"}
         description="Choose where it goes and which events it hears about."
         onClose={() => setModalOpen(false)}
         footer={

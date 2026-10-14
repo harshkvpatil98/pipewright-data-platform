@@ -8,6 +8,12 @@ A check is a rule the data must pass, such as "every order has an email" or "amo
 
 Turn on **quarantine** and failing rows are set aside in their own dataset while the good rows carry on. A failing check opens an [incident](#incidents).
 
+## Data health and alerts
+
+Every time a dataset gets new data (an upload, an import, a recipe run, a workflow or a rollback), its measures are recorded: the row count, completeness, duplicate rows, and each column's null rate, distinct values and average. **Data health**, from the dataset page, charts them run by run and flags any far from their usual range.
+
+An **alert** draws a line a measure should not cross: the row count above or below a number, a column's null rate above a share, or any measure changing by more than a share since the last time. It is checked each time the measures are recorded. It tells you once when the measure crosses its line, and again when it comes back, not on every run in between. Alerts reach the project's people in the bell, and any [alert channel](overview.md#alerts) that asks to hear "A measure crossed its alert". An alert made past its line says so at once.
+
 ## Comparisons
 
 Save a statistical comparison between two datasets, such as "the average order is the same as last month", and run it again after the data changes. A comparison shows whether a difference is beyond chance, not why it happened.

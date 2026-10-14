@@ -34,6 +34,8 @@ from service_observability.models import (  # noqa: F401
     FreshnessPolicy,
     Incident,
     IncidentEvent,
+    MetricAlert,
+    MetricAlertEvent,
 )
 from service_reporting.models import (  # noqa: F401
     CatalogAnnotation,

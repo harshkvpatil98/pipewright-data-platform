@@ -14,11 +14,12 @@ To invite someone who has no account yet, ask a platform administrator to create
 
 ## Alerts
 
-Everything already appears in the bell at the top of the page. Alerts add other places: an email address, a Slack channel, or a webhook that sends each event as signed JSON to your own systems ([how to receive one](api.md#webhooks)). For each, choose what it hears about:
+Everything already appears in the bell at the top of the page. **Add a channel** sends it to other places too: an email address, a Slack channel, or a webhook that sends each event as signed JSON to your own systems ([how to receive one](api.md#webhooks)). For each channel, choose what it hears about:
 
 - a scheduled run, a recipe run or a delivery that failed or finished
 - an incident that opened
 - a workflow that failed or finished with problems
+- a measure that crossed its alert, or came back ([alerts on measures](trust.md#data-health-and-alerts))
 - a weekly summary of the project
 
 Use **Send a test** to check one works before relying on it. A failure to send never affects the run itself. A webhook shows its **Deliveries**, every try and its result.

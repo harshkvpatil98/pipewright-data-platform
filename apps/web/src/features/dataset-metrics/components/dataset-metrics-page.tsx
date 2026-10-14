@@ -19,10 +19,12 @@ import { Badge, type BadgeTone, Button, Icon, SectionPanel } from "@platform/sha
 import { AppShell } from "@/components/layout/app-shell";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
-import { cx } from "@/lib/utils";
+import { countOf } from "@/lib/format";
 import { sentenceLabel } from "@/lib/labels";
+import { cx } from "@/lib/utils";
 
 import { CHART_HEIGHT, CHART_WIDTH, buildSparkline, formatMetric } from "../sparkline";
+import { MetricAlertsPanel } from "./metric-alerts-panel";
 
 type DatasetMetricsPageProps = {
   currentUser: AuthUser;
@@ -150,7 +152,7 @@ export function DatasetMetricsPageView({
   return (
     <AppShell
       currentUser={currentUser}
-      title={`Metrics · ${scan.dataset_name}`}
+      title={`Data health · ${scan.dataset_name}`}
       subtitle="How many rows, how complete, run by run, and when that looks unusual."
     >
       {error ? (
@@ -226,8 +228,8 @@ export function DatasetMetricsPageView({
       >
         {history.series.length === 0 ? (
           <p className="text-[12.5px] text-muted">
-            No measurements yet. Metrics are recorded automatically whenever a workflow produces
-            this dataset, or you can record the current profile now.
+            No measurements yet. They are recorded whenever this dataset gets new data, or you can
+            record them now.
           </p>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -237,6 +239,8 @@ export function DatasetMetricsPageView({
           </div>
         )}
       </SectionPanel>
+
+      <MetricAlertsPanel projectId={projectId} datasetId={datasetId} series={history.series} />
 
       <SectionPanel
         title="Freshness"
@@ -346,7 +350,7 @@ function MetricCard({ series }: { series: MetricSeries }) {
         ) : null}
       </svg>
       <div className="mt-1 text-[12px] text-muted">
-        {series.points.length} run{series.points.length === 1 ? "" : "s"}
+        {countOf(series.points.length, "run")}
       </div>
     </div>
   );

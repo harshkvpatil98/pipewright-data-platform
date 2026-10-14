@@ -200,6 +200,10 @@ class WorkflowNodeRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     # How many times it ran in this run: more than one when it was retried.
     attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
     skip_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # A fingerprint of the task's type and settings when it ran (A7). Picking
+    # a failed run up reuses a succeeded task only while this still matches,
+    # so a task changed since runs again, and so does everything after it.
+    settings_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
     # Links to the existing run record when a node delegated to one.
     pipeline_run_id: Mapped[uuid.UUID | None] = mapped_column(

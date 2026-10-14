@@ -2,6 +2,14 @@
 
 The changes people notice, newest first. The full record is in the repository's changelog.
 
+## Scale and reliability
+
+- **Big files and big copies.** Files up to 100MB upload, and anything over 25MB is read in the background with the page showing how far it has got. Copying a database, and delivering a dataset of more than 50,000 rows, also run in the background, so a long job never times out.
+- **Workflows that recover.** A task can try again by itself, waiting longer each time. A failed run can be picked up from where it failed, reusing what already succeeded.
+- **Limits in the open.** System status lists the limits this server enforces: upload size, rows copied, runs at once, sign-in attempts and more.
+- **Sign-in protection.** Repeated sign-in attempts, one-time codes, public dashboards and webhooks are limited, and the answer says when to try again.
+- **Files in a bucket.** Stored files can live in S3 or an S3-compatible store, so several servers can share them.
+
 ## Trust, help and support
 
 - **Help inside the product.** These pages, with a glossary, an admin guide, a security page and an API guide. **About this page** links here, and the Help menu has Documentation, What's new and Contact support.

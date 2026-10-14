@@ -24,7 +24,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from service_workflows.cron import advance_after_fire, due_workflows
-from service_workflows.executor import execute_workflow_run
+from service_workflows.executor import _finish, execute_workflow_run
 from service_workflows.models import Workflow, WorkflowRun
 from shared_python.errors import BadRequestError, NotFoundError
 from shared_python.logging import get_logger
@@ -97,9 +97,14 @@ def enqueue_workflow_run(
 def resume_run(db: Session, *, project_id: uuid.UUID, run_id: uuid.UUID, current_user: Any) -> WorkflowRun:
     """Queue a run that picks up a failed one: its succeeded tasks are reused.
 
-    Only when the workflow is unchanged since that run started: a task whose
-    settings changed must run again, and so must everything after it, which is
-    the same as running from the start.
+    A task is reused only while its settings are what they were and every
+    task before it was reused too (`executor.settings_hash`); a task changed
+    since, and everything after it, runs again. So the usual fix, correcting
+    the task that failed, is picked up from there.
+
+    This compared the workflow's `updated_at` with the run's start until A7,
+    and every finished run moves `updated_at` (it records the last run), so
+    on PostgreSQL no run could ever be picked up.
     """
     from service_workflows.graph import MISSING_SETTING
     from service_workflows.service import _graph_of, _validate_and_order, get_workflow_for_project
@@ -110,11 +115,6 @@ def resume_run(db: Session, *, project_id: uuid.UUID, run_id: uuid.UUID, current
     if earlier.status not in ("failed", "partial"):
         raise BadRequestError("Only a run that failed, or finished partly, can be picked up from where it stopped.")
     workflow = get_workflow_for_project(db, project_id, earlier.workflow_id)
-    started = earlier.started_at or earlier.queued_at
-    if workflow.updated_at and started and _aware(workflow.updated_at) > _aware(started):
-        raise BadRequestError(
-            "This workflow has changed since that run, so its results cannot be reused. Run it from the start."
-        )
     validation, _order = _validate_and_order(*_graph_of(db, workflow.id))
     unfilled = [issue for issue in validation["warnings"] if issue.get("code") == MISSING_SETTING]
     if not validation["valid"] or unfilled:
@@ -131,10 +131,6 @@ def resume_run(db: Session, *, project_id: uuid.UUID, run_id: uuid.UUID, current
         logical_date=earlier.logical_date,
         resumed_from_run_id=earlier.id,
     )
-
-
-def _aware(moment: datetime) -> datetime:
-    return moment if moment.tzinfo else moment.replace(tzinfo=UTC)
 
 
 def claim_next_run(db: Session, *, settings: Any | None = None) -> WorkflowRun | None:
@@ -202,6 +198,15 @@ def run_next(
         return _record_crash(db, run_id=run.id, exc=exc)
 
 
+#: What a person reads on a run whose worker crashed or stopped (A7: these
+#: said "Run crashed: KeyError" and "its lease expired", and told no one).
+CRASHED = "This stopped because of an unexpected error on the server. The details are in the server's log."
+STALLED = (
+    "The background worker stopped while running this. Use “Pick up from where it failed” to finish "
+    "the rest; tasks that succeeded are not run again unless you change them."
+)
+
+
 def _record_crash(db: Session, *, run_id: uuid.UUID, exc: Exception) -> WorkflowRun | None:
     """Mark a crashed run failed, without letting the bookkeeping crash too.
 
@@ -216,13 +221,9 @@ def _record_crash(db: Session, *, run_id: uuid.UUID, exc: Exception) -> Workflow
         if crashed is None:
             return None
 
-        crashed.status = "failed"
-        crashed.finished_at = datetime.now(UTC)
-        crashed.error_message = f"Run crashed: {exc.__class__.__name__}"
-        crashed.claim_owner_id = None
-        crashed.claim_expires_at = None
-        db.commit()
-        return crashed
+        # Finished like any failed run: the workflow shows it, and whoever
+        # gets failure alerts hears of it.
+        return _finish(db, crashed, status="failed", error=CRASHED)
     except Exception:  # noqa: BLE001
         logger.exception("workflow_run_crash_bookkeeping_failed run_id=%s", run_id)
         db.rollback()
@@ -249,15 +250,9 @@ def release_stalled_runs(db: Session, *, settings: Any | None = None) -> int:
         logger.warning(
             "workflow_run_stalled run_id=%s owner=%s", run.id, run.claim_owner_id
         )
-        run.status = "failed"
-        run.finished_at = now
-        run.error_message = (
-            "The worker executing this run stopped responding and its lease expired."
-        )
-        run.claim_owner_id = None
-        run.claim_expires_at = None
-    if stalled:
-        db.commit()
+        # Finished like any failed run, so it is not a silent failure: the
+        # workflow shows it and whoever gets failure alerts hears of it.
+        _finish(db, run, status="failed", error=STALLED)
     return len(stalled)
 
 

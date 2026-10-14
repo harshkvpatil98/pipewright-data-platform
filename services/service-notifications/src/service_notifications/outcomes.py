@@ -263,7 +263,7 @@ def notify_workflow_run_outcome(
             level="warning",
             title="Workflow finished with problems",
             message=(
-                f"Workflow “{workflow_name}” finished, but some steps failed or were skipped. "
+                f"Workflow “{workflow_name}” finished, but some tasks failed or were skipped. "
                 "Open the run to see which."
             ),
         )

@@ -134,9 +134,33 @@ def test_stalled_run_is_failed_rather_than_replayed(db: Session, workflow: Workf
     db.refresh(claimed)
     assert released == 1
     assert claimed.status == "failed"
-    assert "lease expired" in claimed.error_message
+    assert claimed.error_message.startswith("The background worker stopped while running this.")
+    assert claimed.finished_at is not None and claimed.claim_owner_id is None
+    # The workflow shows it, rather than its last run silently vanishing.
+    db.refresh(workflow)
+    assert workflow.last_run_status == "failed"
     # It is not handed back out to a worker.
     assert claim_next_run(db) is None
+
+
+def test_a_stalled_run_tells_the_person_who_started_it(db: Session, workflow: Workflow) -> None:
+    """A worker that dies must not make a silent failure (A7, X10)."""
+    from service_auth.models import User
+    from service_notifications.models import UserNotification
+
+    person = User(username="ann", password_hash="x", role="user", is_active=True)
+    db.add(person)
+    db.commit()
+    enqueue_workflow_run(db, workflow=workflow, triggered_by_user_id=person.id)
+    claimed = claim_next_run(db)
+    claimed.claim_expires_at = datetime.now(UTC) - timedelta(minutes=1)
+    db.commit()
+
+    release_stalled_runs(db)
+
+    notes = db.query(UserNotification).filter_by(user_id=person.id).all()
+    assert [note.title for note in notes] == ["Workflow failed"]
+    assert "Pick up from where it failed" in notes[0].message
 
 
 def test_a_live_lease_is_left_alone(db: Session, workflow: Workflow) -> None:

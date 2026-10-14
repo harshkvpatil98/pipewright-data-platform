@@ -523,7 +523,7 @@ def test_a_failed_run_is_picked_up_from_where_it_failed(db: Session, actor, monk
     assert "Not run again" in reused.message
 
 
-def test_only_an_unchanged_failed_run_can_be_picked_up(db: Session, actor, monkeypatch) -> None:
+def test_only_a_failed_run_can_be_picked_up(db: Session, actor, monkeypatch) -> None:
     from service_workflows.queue import resume_run
     from shared_python.errors import BadRequestError
 
@@ -533,11 +533,61 @@ def test_only_an_unchanged_failed_run_can_be_picked_up(db: Session, actor, monke
     with pytest.raises(BadRequestError, match="Only a run that failed"):
         resume_run(db, project_id=workflow.project_id, run_id=succeeded.id, current_user=actor)
 
-    succeeded.status = "failed"
-    workflow.updated_at = datetime.now(UTC) + timedelta(minutes=5)
+
+def test_a_run_is_picked_up_however_long_after_it_finished(db: Session, actor, monkeypatch) -> None:
+    """Finishing a run records it on the workflow, which moves its updated_at.
+    Picking up compared that with the run's start, so on PostgreSQL (whose
+    clock has microseconds, unlike SQLite's seconds) it was always refused."""
+    from service_workflows.queue import resume_run
+
+    workflow, run = build_workflow(db, [("extract", "extraction"), ("clean", "transformation")],
+                                   [("extract", "clean", "on_success")])
+    install_handlers(monkeypatch, db, run, {})
+    monkeypatch.setattr(executor_module, "execute_node", _flaky({"clean": 1}, []))
+    failed = execute_workflow_run(db, run=run, storage_backend=None, settings=None)
+    workflow.updated_at = datetime.now(UTC) + timedelta(minutes=5)  # as PostgreSQL would have it
     db.commit()
-    with pytest.raises(BadRequestError, match="has changed since that run"):
-        resume_run(db, project_id=workflow.project_id, run_id=succeeded.id, current_user=actor)
+
+    resumed = resume_run(db, project_id=workflow.project_id, run_id=failed.id, current_user=actor)
+    assert resumed.resumed_from_run_id == failed.id
+
+
+def test_a_task_changed_since_runs_again_with_everything_after_it(db: Session, actor, monkeypatch) -> None:
+    """The usual fix is to correct the task that failed and pick up from there.
+    A succeeded task whose settings changed runs again, and so does every task
+    after it, since its input may differ; the rest are reused."""
+    from service_workflows.models import WorkflowNode
+    from service_workflows.queue import resume_run
+
+    workflow, run = build_workflow(
+        db,
+        [("extract", "extraction"), ("clean", "transformation"), ("ship", "publish")],
+        [("extract", "clean", "on_success"), ("clean", "ship", "on_success")],
+    )
+    install_handlers(monkeypatch, db, run, {})
+    calls: list[str] = []
+    monkeypatch.setattr(executor_module, "execute_node", _flaky({"clean": 1}, calls))
+    failed = execute_workflow_run(db, run=run, storage_backend=None, settings=None)
+
+    # Fix the failed task: it and what follows run; the import is reused.
+    clean = db.query(WorkflowNode).filter_by(workflow_id=workflow.id, node_key="clean").one()
+    clean.config_json = {**(clean.config_json or {}), "note": "fixed"}
+    db.commit()
+    calls.clear()
+    resumed = resume_run(db, project_id=workflow.project_id, run_id=failed.id, current_user=actor)
+    finished = execute_workflow_run(db, run=resumed, storage_backend=None, settings=None)
+    assert finished.status == "succeeded"
+    assert calls == ["clean", "ship"]
+
+    # Change the first task instead: nothing after it can be reused.
+    finished.status = "failed"
+    extract = db.query(WorkflowNode).filter_by(workflow_id=workflow.id, node_key="extract").one()
+    extract.config_json = {**(extract.config_json or {}), "note": "changed"}
+    db.commit()
+    calls.clear()
+    again = resume_run(db, project_id=workflow.project_id, run_id=finished.id, current_user=actor)
+    execute_workflow_run(db, run=again, storage_backend=None, settings=None)
+    assert calls == ["extract", "clean", "ship"]
 
 
 def test_one_project_cannot_take_every_worker(db: Session, actor) -> None:

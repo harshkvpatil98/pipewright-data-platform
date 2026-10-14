@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import time
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -48,6 +50,16 @@ _sleep = time.sleep
 def retry_wait_seconds(first_wait: int, retry: int) -> int:
     """The wait before retry number `retry` (1 for the first): doubling, capped."""
     return min(MAX_RETRY_WAIT_SECONDS, max(1, first_wait) * 2 ** (retry - 1))
+
+
+def settings_hash(node: WorkflowNode) -> str:
+    """A fingerprint of what decides a task's result: its type and settings.
+
+    Its name, its place on the canvas and its retry policy do not change what
+    it makes, so changing them does not stop a run being picked up.
+    """
+    canonical = json.dumps({"type": node.node_type, "config": node.config_json or {}}, sort_keys=True, default=str)
+    return hashlib.sha256(canonical.encode()).hexdigest()
 
 
 def _reusable_results(db: Session, run: WorkflowRun) -> dict[str, WorkflowNodeRun]:
@@ -176,6 +188,7 @@ def execute_workflow_run(
 
     sequence = 0
     hard_failure = False
+    reused: set[str] = set()
 
     for level in levels:
         for node_key in level:
@@ -198,9 +211,18 @@ def execute_workflow_run(
                 continue
 
             earlier = reusable.get(node_key)
-            if earlier is not None:
-                # Resumed run: this task already did its work, so its result
-                # stands, and what it made feeds the tasks after it.
+            fingerprint = settings_hash(node)
+            upstream = [edge.from_key for edge in graph_edges if edge.to_key == node_key]
+            if (
+                earlier is not None
+                and earlier.settings_hash == fingerprint
+                and all(key in reused for key in upstream)
+            ):
+                # Resumed run: this task already did its work with these
+                # settings on the same input, so its result stands, and what
+                # it made feeds the tasks after it. A task changed since, or
+                # one after a task that ran again, runs again.
+                reused.add(node_key)
                 statuses[node_key] = "succeeded"
                 outputs[node_key] = dict(earlier.output_json or {})
                 run.nodes_succeeded += 1
@@ -210,6 +232,7 @@ def execute_workflow_run(
                     output=earlier.output_json,
                     message="Not run again: it succeeded in the run this one picks up from.",
                     pipeline_run_id=earlier.pipeline_run_id, attempts=earlier.attempts,
+                    settings_hash=fingerprint,
                 )
                 db.commit()
                 continue
@@ -272,6 +295,7 @@ def execute_workflow_run(
                 message=result.message,
                 pipeline_run_id=result.pipeline_run_id,
                 attempts=attempts,
+                settings_hash=fingerprint,
             )
             db.commit()
 
@@ -367,6 +391,7 @@ def _record(
     skip_reason: str | None = None,
     pipeline_run_id: uuid.UUID | None = None,
     attempts: int = 1,
+    settings_hash: str | None = None,
 ) -> None:
     duration = None
     if started_at and finished_at:
@@ -389,6 +414,7 @@ def _record(
             skip_reason=skip_reason[:500] if skip_reason else None,
             pipeline_run_id=pipeline_run_id,
             attempts=attempts,
+            settings_hash=settings_hash,
         )
     )
 

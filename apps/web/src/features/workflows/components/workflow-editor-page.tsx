@@ -30,6 +30,7 @@ import { describeCron } from "@/lib/cron-words";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { countOf, formatDate } from "@/lib/format";
+import { taskCounts } from "@/features/workflows/run-words";
 import { cx } from "@/lib/utils";
 import { Icon, StatusBadge, useToast } from "@platform/shared-ui";
 
@@ -242,8 +243,13 @@ export function WorkflowEditorPage({
 
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  /**
+   * Show a run, following it while it can still change. `announce` says
+   * whether its end is news: it is for a run started here or seen running,
+   * not for a finished run opened from the history.
+   */
   const watchRun = useCallback(
-    async (runId: string) => {
+    async (runId: string, announce = true) => {
       try {
         const detail = await apiFetch<WorkflowRunDetail>(
           `/projects/${projectId}/workflow-runs/${runId}`,
@@ -252,15 +258,15 @@ export function WorkflowEditorPage({
 
         // Keep polling only while the run can still change.
         if (detail.status === "queued" || detail.status === "running") {
-          pollRef.current = setTimeout(() => watchRun(runId), POLL_MS);
-        } else {
+          pollRef.current = setTimeout(() => watchRun(runId, true), POLL_MS);
+        } else if (announce) {
           const tone =
             detail.status === "succeeded"
               ? "success"
               : detail.status === "failed"
                 ? "error"
                 : "info";
-          const summary = `${detail.nodes_succeeded} succeeded · ${detail.nodes_failed} failed · ${detail.nodes_skipped} skipped`;
+          const summary = taskCounts(detail);
           if (tone === "success") toast.success("Run finished", summary);
           else if (tone === "error") toast.error("Run failed", summary);
           else toast.info("Run finished", summary);
@@ -292,6 +298,15 @@ export function WorkflowEditorPage({
     };
   }, [loadRuns]);
 
+  // On arrival, show the latest run (someone sent here by "Workflow failed"
+  // sees why, and the way to pick it up, without hunting for it).
+  const openedLatest = useRef(false);
+  useEffect(() => {
+    if (openedLatest.current || runs.length === 0) return;
+    openedLatest.current = true;
+    void watchRun(runs[0].id, false);
+  }, [runs, watchRun]);
+
   const runNow = useCallback(async () => {
     if (dirty) {
       toast.info("Save first", "Run uses the saved workflow, not unsaved edits.");
@@ -312,8 +327,8 @@ export function WorkflowEditorPage({
 
   /**
    * Run a failed run again from where it failed. The tasks that succeeded are
-   * not repeated (an import is not imported twice); the API refuses when the
-   * workflow changed since, because then those results no longer apply.
+   * not repeated (an import is not imported twice), unless they were changed
+   * since; a changed task and everything after it run again.
    */
   const resumeRun = useCallback(async () => {
     if (!activeRun) return;
@@ -322,7 +337,7 @@ export function WorkflowEditorPage({
         `/projects/${projectId}/workflow-runs/${activeRun.id}/resume`,
         { method: "POST" },
       );
-      toast.info("Picking up from where it failed", "Tasks that already succeeded will not run again.");
+      toast.info("Picking up from where it failed", "Tasks that succeeded, and have not changed since, will not run again.");
       setActiveRun({ ...run, node_runs: [], timeline: null });
       void watchRun(run.id);
     } catch (caught) {
@@ -574,7 +589,7 @@ export function WorkflowEditorPage({
               canCompare={activeRun !== null}
               onClose={() => setShowRuns(false)}
               onOpen={(runId) => {
-                void watchRun(runId);
+                void watchRun(runId, false);
                 setShowRuns(false);
               }}
               onCompare={(runId) => {
@@ -641,10 +656,7 @@ function WorkflowSummaryPanel({
             Current run
           </div>
           <StatusBadge value={activeRun.status} label={formatRunStatusLabel(activeRun.status)} />
-          <div className="mt-1 text-[12px] text-muted">
-            {activeRun.nodes_succeeded} succeeded · {activeRun.nodes_failed} failed ·{" "}
-            {activeRun.nodes_skipped} skipped
-          </div>
+          <div className="mt-1 text-[12px] text-muted">{taskCounts(activeRun)}</div>
           {activeRun.error_message ? (
             <p className="mt-2 text-[12px] text-danger">{activeRun.error_message}</p>
           ) : null}
@@ -771,12 +783,10 @@ function RunHistory({
                 </span>
                 <span className="text-[12px] text-muted">
                   {run.logical_date
-                    ? `slot ${run.logical_date.slice(0, 10)}`
+                    ? `For ${formatDate(run.logical_date)}`
                     : formatDate(run.queued_at)}
                 </span>
-                <span className="tabular text-[12px] text-muted">
-                  {run.nodes_succeeded}✓ {run.nodes_failed}✗ {run.nodes_skipped}⤳
-                </span>
+                <span className="text-[12px] text-muted">{taskCounts(run)}</span>
               </button>
               {canCompare && run.id !== activeRunId ? (
                 <button
@@ -785,7 +795,7 @@ function RunHistory({
                   title="Compare this run against the one open now"
                   className="absolute bottom-1.5 right-2 rounded border border-line px-1.5 py-0.5 text-[12px] text-muted opacity-0 transition group-hover:opacity-100 hover:text-ink"
                 >
-                  compare
+                  Compare
                 </button>
               ) : null}
             </div>

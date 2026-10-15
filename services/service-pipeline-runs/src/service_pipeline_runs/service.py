@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import uuid
 from datetime import UTC, datetime
 from typing import Any
@@ -47,6 +48,18 @@ def _serialize_run(run: PipelineRun) -> PipelineRunRead:
     )
 
 
+def _snapshot(logs_json: dict[str, object] | None) -> dict[str, object] | None:
+    """A copy of a run's log as it is now.
+
+    Producers keep one list of events and append to it as they go. Storing
+    that list itself meant the value already held and each new one were the
+    same object, so a later change was never seen as one and never written:
+    every failed recipe run and import kept only "Waiting to start." (found
+    in C1). A copy each time makes every change a change.
+    """
+    return copy.deepcopy(logs_json) if logs_json is not None else None
+
+
 def create_pipeline_run(
     db: Session,
     *,
@@ -63,7 +76,7 @@ def create_pipeline_run(
         pipeline_id=pipeline_id,
         run_type=run_type,
         status="queued",
-        logs_json=logs_json,
+        logs_json=_snapshot(logs_json),
     )
     db.add(run)
     db.flush()
@@ -76,7 +89,7 @@ def mark_pipeline_run_running(
     run.status = "running"
     run.started_at = datetime.now(UTC)
     if logs_json is not None:
-        run.logs_json = logs_json
+        run.logs_json = _snapshot(logs_json)
     db.flush()
     return run
 
@@ -91,7 +104,7 @@ def mark_pipeline_run_succeeded(
     run.status = "succeeded"
     run.completed_at = datetime.now(UTC)
     run.summary_json = summary_json
-    run.logs_json = logs_json
+    run.logs_json = _snapshot(logs_json)
     db.commit()
     db.refresh(run)
     return _serialize_run(run)
@@ -107,7 +120,7 @@ def mark_pipeline_run_failed(
     run.status = "failed"
     run.completed_at = datetime.now(UTC)
     run.summary_json = summary_json
-    run.logs_json = logs_json
+    run.logs_json = _snapshot(logs_json)
     db.commit()
     db.refresh(run)
     return _serialize_run(run)

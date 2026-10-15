@@ -62,7 +62,7 @@ def _log_event(stage: str, message: str, *, details: dict[str, object] | None = 
 
 
 def _build_log_events(events: list[dict[str, object]]) -> dict[str, object]:
-    return {'events': events}
+    return {'events': list(events)}
 
 
 def _profile_for(*, parsed, file_bytes: bytes, settings, log_events: list) -> dict:
@@ -391,7 +391,7 @@ def _read_upload(
         log_events.append(
             _log_event(
                 'persist',
-                'Dataset artifact state persisted successfully.',
+                'The new version is saved.',
                 details={
                     'dataset_id': str(dataset.id),
                     'pipeline_run_id': str(pipeline_run.id),

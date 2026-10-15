@@ -43,7 +43,7 @@ def _log_event(stage: str, message: str, *, details: dict[str, object] | None = 
 
 
 def _build_log_events(events: list[dict[str, object]]) -> dict[str, object]:
-    return {"events": events}
+    return {"events": list(events)}
 
 
 def _load_dataframe(dataset: Dataset, storage_backend: Any) -> pd.DataFrame:

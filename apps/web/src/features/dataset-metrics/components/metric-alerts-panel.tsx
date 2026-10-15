@@ -34,11 +34,18 @@ const CONDITION_WORDS: Record<MetricAlertCondition, string> = {
 export const measureKey = (measure: Pick<MetricSeries, "metric_key" | "column_name">) =>
   `${measure.metric_key}|${measure.column_name ?? ""}`;
 
+/** The order measures are offered in: the row count first, the whole dataset's, then each column's. */
+const ORDER = DATASET_MEASURES.map((measure) => measure.metric_key);
+const rank = (measure: Pick<MetricSeries, "metric_key" | "column_name">) =>
+  measure.column_name === null ? ORDER.indexOf(measure.metric_key) + (ORDER.includes(measure.metric_key) ? 0 : ORDER.length) : 100;
+
 /** The measures to choose from: those recorded, else the ones every dataset has. */
 export function measureChoices(series: MetricSeries[]) {
   const recorded = series.map(({ metric_key, column_name, label, unit }) => ({ metric_key, column_name, label, unit }));
   const seen = new Set(recorded.map(measureKey));
-  return [...recorded, ...DATASET_MEASURES.filter((measure) => !seen.has(measureKey(measure)))];
+  const all = [...recorded, ...DATASET_MEASURES.filter((measure) => !seen.has(measureKey(measure)))];
+  // A stable sort keeps the columns in the order the history lists them.
+  return all.sort((left, right) => rank(left) - rank(right));
 }
 
 /** "Past its line", "Within", "Off". */

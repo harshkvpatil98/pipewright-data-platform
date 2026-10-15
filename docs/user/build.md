@@ -10,6 +10,8 @@ Pick a dataset and add steps. Your original data is never changed: the Studio sh
 - **Right-click a column** for the steps that suit it, such as "Standardise an email" on an email column.
 - **Click a step** to change its settings right under it. Each step says in a few words what it does.
 - **Undo** and **redo** take any change back. Clicking a column header only sorts what is on screen; it does not add a step.
+
+![The Studio: a recipe's steps on the left, and the rows they make on the right](images/studio.png)
 - Unsaved work is kept in your browser and offered back next time.
 - **Details** shows the columns, where each step runs (at the source or here), the recipe as a file, and comments.
 

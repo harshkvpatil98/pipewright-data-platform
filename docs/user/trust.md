@@ -6,6 +6,8 @@ Know the data is right, and hear about it when it is not.
 
 A check is a rule the data must pass, such as "every order has an email" or "amount is between 0 and 10,000". Add checks to a dataset, then run them yourself, or as a task in a workflow, which can run on a timetable. Each run shows how many rows failed each check.
 
+![The Checks page: a check that failed, and where to run the checks again](images/checks.png)
+
 Turn on **quarantine** and failing rows are set aside in their own dataset while the good rows carry on. A check that must pass and fails in a workflow opens an [incident](#incidents) and stops the tasks after it; one you run yourself shows its result on the page.
 
 ## Data health and alerts
@@ -13,6 +15,10 @@ Turn on **quarantine** and failing rows are set aside in their own dataset while
 Every time a dataset gets new data (an upload, an import, a recipe run, a workflow or a rollback), its measures are recorded: the row count, completeness, duplicate rows, and each column's null rate, distinct values and average. **Data health**, from the dataset page, charts them run by run and flags any far from their usual range.
 
 An **alert** draws a line a measure should not cross: the row count above or below a number, a column's null rate above a share, or any measure changing by more than a share since the last time. It is checked each time the measures are recorded. It tells you once when the measure crosses its line, and again when it comes back, not on every run in between. Alerts reach the project's people in the bell, and any [alert channel](overview.md#alerts) that asks to hear "A measure crossed its alert". An alert made past its line says so at once.
+
+![Data health for a dataset: its measures, run by run](images/data-health.png)
+
+![The Alerts section: an alert on the row count, within its line](images/alerts.png)
 
 ## Comparisons
 

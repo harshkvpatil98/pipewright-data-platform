@@ -71,9 +71,9 @@ def test_demo_seeds_a_complete_worked_example(
         db, current_user=current_user, storage_backend=storage, settings=settings
     )
 
-    # The project exists and carries the one dataset the seed ingested.
+    # The project exists with the file it read and the recipe's cleaned result.
     assert detail.name == "Acme Retail (demo)"
-    assert detail.dataset_count == 1
+    assert detail.dataset_count == 2
 
     # Every one of the four checklist steps produced its artifact -- so a fresh
     # evaluator opening this project sees 4 of 4 done, not a half-built demo.
@@ -103,3 +103,32 @@ def test_demo_schedule_targets_the_pipeline_it_created(
     # The schedule must point at the pipeline the seed just built, or "Daily
     # orders refresh" would run against nothing.
     assert schedule.target_config_json.get("pipeline_id") == str(pipeline.id)
+
+
+def test_the_demo_does_what_it_says(
+    db: Session, current_user: UserRead, storage: LocalStorageBackend
+) -> None:
+    """A9, Z1: the dashboard said "shaped and validated" while the recipe and
+    the check had never run and the chart read the raw file."""
+    from service_datasets.models import Dataset
+    from service_observability.models import MetricAlert
+    from service_quality.models import DataQualityRunResult
+
+    detail = create_demo_project(db, current_user=current_user, storage_backend=storage, settings=settings)
+    datasets = {row.name: row for row in db.scalars(select(Dataset).where(Dataset.project_id == detail.id))}
+    raw = datasets["Customer orders (sample)"]
+    [cleaned] = [row for name, row in datasets.items() if name != raw.name]
+    assert (raw.row_count, cleaned.row_count) == (12, 10), "the recipe ran: no missing or negative amounts"
+
+    [evaluation] = db.scalars(select(DataQualityRunResult).where(DataQualityRunResult.dataset_id == raw.id)).all()
+    assert evaluation.status == "failed", "the check ran, and caught the order with no email"
+
+    [chart] = db.scalars(select(SavedChart).where(SavedChart.project_id == detail.id)).all()
+    assert chart.dataset_id == cleaned.id, "the chart reads the cleaned orders"
+    [alert] = db.scalars(select(MetricAlert).where(MetricAlert.project_id == detail.id)).all()
+    assert (alert.dataset_id, alert.metric_key) == (cleaned.id, "row_count")
+
+    dashboard = db.scalars(select(Dashboard).where(Dashboard.project_id == detail.id)).one()
+    words = " ".join([detail.description or "", dashboard.description or "", chart.description or "", *datasets])
+    for retired in ("—", "pipeline", "publish", "rule", "shaped", "validated"):
+        assert retired not in words.lower(), f"the demo says “{retired}”"

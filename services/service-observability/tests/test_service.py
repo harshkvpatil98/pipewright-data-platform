@@ -137,7 +137,7 @@ def test_an_anomaly_scan_finds_the_metric_that_moved(
     assert len(flagged) == 1
     assert flagged[0].metric_key == "row_count"
     assert flagged[0].severity == "critical"
-    assert "1 of 1 tracked metrics" in response.summary
+    assert "1 of the 1 measure recorded is outside its usual range" in response.summary
 
 
 def test_a_scan_with_no_history_says_so_rather_than_reporting_all_clear(
@@ -145,7 +145,7 @@ def test_a_scan_with_no_history_says_so_rather_than_reporting_all_clear(
 ):
     response = scan_dataset_anomalies(db, project.id, dataset.id, user)
     assert response.checked_count == 0
-    assert "No metrics have been recorded" in response.summary
+    assert "No measures have been recorded" in response.summary
 
 
 def test_a_scan_with_short_history_reports_no_baseline(
@@ -154,7 +154,7 @@ def test_a_scan_with_short_history_reports_no_baseline(
     _seed_history(db, project, dataset, "row_count", [1000, 5])
     response = scan_dataset_anomalies(db, project.id, dataset.id, user)
     assert [item.status for item in response.anomalies] == ["no_baseline"]
-    assert "No baselines yet" in response.summary
+    assert "Not enough history yet" in response.summary
 
 
 def test_a_scan_can_raise_incidents(

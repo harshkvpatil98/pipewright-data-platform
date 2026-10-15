@@ -133,8 +133,8 @@ def test_the_stream_filters_and_pages_backwards(world) -> None:
     assert len(first["items"]) == 2 and first["next_offset"] == 2
     rest = _activity(world, kind="changes", limit=2, offset=first["next_offset"])
     seen = [item["id"] for item in first["items"] + rest["items"]]
-    assert len(seen) == len(set(seen)) == 3, "every item once across pages"
-    assert rest["next_offset"] is None, "three dashboards made: nothing more"
+    assert len(seen) == len(set(seen)) == 4, "every item once across pages"
+    assert rest["next_offset"] is None, "the project and three dashboards made: nothing more"
 
     assert _activity(world, kind=["runs", "alerts"])["items"] == []
     refused = api.get(f"/api/v1/projects/{project}/activity", params={"kind": "gossip"})
@@ -156,3 +156,8 @@ def test_a_deletion_names_what_went_and_a_script_names_its_person(world) -> None
     assert deleted["detail"] == "Old sales", "named as it was before it went"
     scripted = next(item for item in changes if item["detail"] == "From a script")
     assert scripted["sentence"] == "Ann created a dashboard", "an API token's changes are its person's, not Someone's"
+
+
+def test_a_project_s_activity_starts_with_its_making(world) -> None:
+    changes = _activity(world, kind="changes")["items"]
+    assert [item["sentence"] for item in changes] == ["Ann created a project"]

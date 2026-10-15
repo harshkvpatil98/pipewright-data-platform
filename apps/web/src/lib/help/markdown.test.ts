@@ -60,3 +60,13 @@ describe("help markdown", () => {
     expect(slugify("Add a check, then run it")).toBe("add-a-check-then-run-it");
   });
 });
+
+describe("pictures in the help (A9, Z2)", () => {
+  it("reads a picture on a line of its own, and serves it from beside the help", () => {
+    expect(parseMarkdown("![The overview, with its checklist](images/overview.png)")).toEqual([
+      { kind: "image", alt: "The overview, with its checklist", src: "/help/images/overview.png" },
+    ]);
+    // Inside a sentence it is text, not a picture.
+    expect(parseMarkdown("See ![this](images/overview.png) here")[0].kind).toBe("paragraph");
+  });
+});

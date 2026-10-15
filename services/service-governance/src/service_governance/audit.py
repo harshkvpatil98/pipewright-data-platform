@@ -170,6 +170,9 @@ def resource_hint(path: str) -> tuple[str | None, str | None]:
     return kind, (ids[-1] if ids else None)
 
 
+#: The requests that make a project.
+_MADE_PROJECT = re.compile(r"/api/v1/projects(/demo)?")
+
 #: An answer this large is not a newly made thing's record; it is passed on unread.
 CREATED_BODY_LIMIT = 1_000_000
 
@@ -271,15 +274,20 @@ class AuditMiddleware(BaseHTTPMiddleware):
     ) -> None:
         path = request.url.path
         kind, resource_id = resource_hint(path)
+        project_id = project_id_from(path)
         if created[1] is not None:
             kind, resource_id = created
+            # A new project's own making belongs to it, so its activity and
+            # audit log start there (A9: the demo's began with its first run).
+            if project_id is None and _MADE_PROJECT.fullmatch(path.rstrip("/")):
+                project_id, kind = uuid.UUID(created[1]), "project"
         actor_id, actor_name = _actor(request)
 
         session = self._session_factory()
         try:
             session.add(  # type: ignore[attr-defined]
                 AuditEntry(
-                    project_id=project_id_from(path),
+                    project_id=project_id,
                     actor_user_id=actor_id,
                     actor_username=actor_name,
                     method=request.method,

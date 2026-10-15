@@ -14,6 +14,7 @@ from service_auth.schemas import UserRead
 from service_datasets.models import Dataset
 from service_projects.contracts import ensure_owned_project
 from shared_python.errors import BadRequestError, NotFoundError
+from shared_python.words import count_of
 
 from service_observability import incidents as incident_ops
 from service_observability.anomaly import (
@@ -314,18 +315,20 @@ def scan_dataset_anomalies(
         db.commit()
 
     if anomalous:
+        one = len(anomalous) == 1
         summary = (
-            f"{len(anomalous)} of {len(results)} tracked metrics are outside their usual range."
+            f"{len(anomalous)} of the {count_of(len(results), 'measure')} recorded "
+            f"{'is' if one else 'are'} outside {'its' if one else 'their'} usual range."
         )
     elif results and len(without_baseline) == len(results):
         summary = (
-            f"No baselines yet: each metric needs {MIN_HISTORY} runs of history before "
-            "normal can be established."
+            f"Not enough history yet: each measure needs {MIN_HISTORY} runs before its "
+            "usual range is known."
         )
     elif results:
-        summary = f"All {len(results)} tracked metrics are in line with their history."
+        summary = f"All {count_of(len(results), 'measure')} recorded are in line with their history."
     else:
-        summary = "No metrics have been recorded for this dataset yet."
+        summary = "No measures have been recorded for this dataset yet."
 
     return AnomalyScanResponse(
         dataset_id=dataset_id,

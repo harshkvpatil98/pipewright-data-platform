@@ -136,7 +136,13 @@ export function DataQualityPageView({
   );
   const [ruleName, setRuleName] = useState("");
   const [severity, setSeverity] = useState<RuleSeverity>("error");
-  const [datasetId, setDatasetId] = useState<string>(datasets[0]?.id ?? "");
+  // Open on a dataset that has checks, so "Run checks" has something to run.
+  const [datasetId, setDatasetId] = useState<string>(
+    () =>
+      initialRules.find((rule) => datasets.some((dataset) => dataset.id === rule.dataset_id))?.dataset_id ??
+      datasets[0]?.id ??
+      "",
+  );
   const [configValues, setConfigValues] = useState<Record<string, string>>({});
   const [quarantine, setQuarantine] = useState(false);
 
@@ -465,7 +471,7 @@ export function DataQualityPageView({
             </div>
           ) : (
             <p className="border-line text-muted rounded-2xl border border-dashed px-4 py-8 text-center text-sm">
-              Select a dataset above and run an evaluation to see results.
+              Choose a dataset above and run its checks to see what passed.
             </p>
           )}
         </SectionPanel>

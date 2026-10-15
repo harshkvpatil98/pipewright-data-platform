@@ -3,7 +3,8 @@
  *
  * The help is written in plain Markdown in `docs/user/` and rendered into the
  * app at build time. It needs headings, paragraphs, lists, tables, quotes,
- * code and links, nothing more, so this parses exactly that into blocks a
+ * code, links and pictures of the screen (A9, Z2: a line of its own,
+ * `![what it shows](images/name.png)`), nothing more, so this parses exactly that into blocks a
  * React component draws. Keeping it in-house avoids a dependency for a page
  * of text, and keeps the output in the product's own styles.
  */
@@ -20,7 +21,13 @@ export type Block =
   | { kind: "list"; ordered: boolean; items: Inline[][] }
   | { kind: "quote"; content: Inline[] }
   | { kind: "code"; language: string; text: string }
-  | { kind: "table"; header: Inline[][]; rows: Inline[][][] };
+  | { kind: "table"; header: Inline[][]; rows: Inline[][][] }
+  | { kind: "image"; alt: string; src: string };
+
+/** A picture beside the help is served from `/help/images/`; anything else as written. */
+export function imageSrc(src: string): string {
+  return /^images\/[\w-]+\.png$/.test(src) ? `/help/${src}` : src;
+}
 
 /** "Add a check" becomes "add-a-check": the anchor a heading can be linked by. */
 export function slugify(text: string): string {
@@ -86,6 +93,12 @@ export function parseMarkdown(source: string): Block[] {
       index += 1;
       continue;
     }
+    const image = /^!\[([^\]]*)\]\(([^)\s]+)\)\s*$/.exec(line.trim());
+    if (image) {
+      blocks.push({ kind: "image", alt: image[1].trim(), src: imageSrc(image[2]) });
+      index += 1;
+      continue;
+    }
     if (line.startsWith("```")) {
       const language = line.slice(3).trim();
       const body: string[] = [];
@@ -130,7 +143,7 @@ export function parseMarkdown(source: string): Block[] {
     while (
       index < lines.length &&
       lines[index].trim() &&
-      !/^(#{1,3}\s|```|>|\s*([-*]|\d+\.)\s|\|)/.test(lines[index])
+      !/^(#{1,3}\s|```|>|\s*([-*]|\d+\.)\s|\||!\[)/.test(lines[index])
     ) {
       paragraph.push(lines[index++].trim());
     }

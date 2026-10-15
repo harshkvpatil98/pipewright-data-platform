@@ -284,11 +284,16 @@ export function DatasetMetricsPageView({
   );
 }
 
+/** "Null rate of 'CustomerID'": a capital to start, and the column as it is named. */
+function firstCapital(label: string): string {
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
 function AnomalyRow({ anomaly }: { anomaly: Anomaly }) {
   return (
     <li className="flex items-start justify-between gap-3 rounded-lg border border-line bg-surface px-3 py-2.5">
       <div className="min-w-0">
-        <div className="text-[13px] capitalize text-ink">{anomaly.label}</div>
+        <div className="text-[13px] text-ink">{firstCapital(anomaly.label)}</div>
         <p className="mt-0.5 text-[12px] text-ink-3">{anomaly.explanation}</p>
       </div>
       <Badge tone={SEVERITY_TONE[anomaly.severity]} className="shrink-0">
@@ -305,7 +310,7 @@ function MetricCard({ series }: { series: MetricSeries }) {
   return (
     <div className="rounded-xl border border-line bg-surface px-3 py-3">
       <div className="flex items-baseline justify-between gap-2">
-        <span className="truncate text-[12px] capitalize text-ink-3">{series.label}</span>
+        <span className="truncate text-[12px] text-ink-3">{firstCapital(series.label)}</span>
         {series.change_percentage !== null ? (
           <span
             className={cx(

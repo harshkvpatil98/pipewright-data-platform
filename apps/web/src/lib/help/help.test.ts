@@ -59,6 +59,21 @@ function target(href: string): [string, string | undefined] {
 }
 
 describe("the help", () => {
+  it("shows pictures that exist, each with words for anyone who cannot see it (A9, Z2)", () => {
+    const shown = [...pages.values()].flatMap((blocks) => blocks.flatMap((block) => (block.kind === "image" ? [block] : [])));
+    expect(shown.length).toBeGreaterThan(5);
+    const files = readdirSync(`${FOLDER}images`).filter((file) => file.endsWith(".png"));
+    for (const image of shown) {
+      expect(image.src, image.alt).toMatch(/^\/help\/images\/[a-z0-9-]+\.png$/);
+      expect(files, image.src).toContain(image.src.replace("/help/images/", ""));
+      expect(image.alt.split(" ").length, image.src).toBeGreaterThan(3);
+    }
+    // No picture left over that nothing shows, to go stale unseen.
+    expect(files.filter((file) => !shown.some((image) => image.src.endsWith(`/${file}`)))).toEqual([]);
+    // Pictures go through the voice checks too.
+    expect(shown.filter((image) => RETIRED.some(([pattern]) => pattern.test(image.alt)) || /—/.test(image.alt))).toEqual([]);
+  });
+
   it("lists every page in docs/user, and only those", () => {
     expect([...pages.keys()].sort()).toEqual([...HELP_SLUGS].sort());
   });

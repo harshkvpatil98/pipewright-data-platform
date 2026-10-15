@@ -27,11 +27,13 @@ describe("metric alerts", () => {
     const recorded = measureChoices([series("row_count", null, "row count"), series("mean_value", "amount", "average of 'amount'")]);
     expect(recorded.map(measureKey)).toEqual([
       "row_count|",
-      "mean_value|amount",
       "completeness_score|",
       "duplicate_row_percentage|",
       "column_count|",
+      "mean_value|amount",
     ]);
+    const columnsFirst = measureChoices([series("column_count", null, "column count"), series("null_percentage", "email", "null rate of 'email'")]);
+    expect(columnsFirst[0].metric_key).toBe("row_count");
   });
 
   it("says whether an alert is past its line", () => {

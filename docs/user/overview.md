@@ -6,9 +6,13 @@ A project's front page: what to do next, the newest data and the latest runs.
 
 The checklist shows the five steps that get a project working (add data, clean it, check it, automate it, share it) and ticks each one as you finish it. Below it are the newest datasets and the last few runs. **Add data** is always here.
 
+![The demo project's overview: its two datasets and its latest runs](images/overview.png)
+
 ## Activity
 
 Everything that happened in the project, newest first, in one list: changes people made, runs that finished or failed, incidents that opened or were resolved, comments, and alerts on measures. Each line says who and when, and links to what it is about. Choose a kind to see only that. The list goes back 2,000 items; the [audit log](trust.md#audit-log) keeps every change, including attempts that were refused.
+
+![The demo project's activity: the project made, the file read and the recipe run](images/activity.png)
 
 ## People
 

@@ -44,6 +44,8 @@ On a dataset's page:
 - **Send to** delivers it to a [destination](automate.md#destinations), Power BI or Tableau, or downloads it as CSV or Parquet.
 - **Version history** lists every saved version. Open, query, compare or restore any of them; restoring adds a new version, so nothing is lost.
 
+![A dataset's page: its rows, with Clean in Studio and Send to above them](images/dataset.png)
+
 If a [policy](trust.md#policies) limits what your role can see, the page says so, and the same limit applies in charts, downloads and everywhere else.
 
 ## Catalog

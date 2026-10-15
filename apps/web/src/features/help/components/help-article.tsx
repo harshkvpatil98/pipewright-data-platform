@@ -69,6 +69,20 @@ function HelpBlock({ block, first }: { block: Block; first: boolean }) {
           <InlineText parts={block.content} />
         </div>
       );
+    case "image":
+      return (
+        <figure className="mt-5">
+          {/* A screenshot of the demo, beside the words that describe it. Plain
+              <img>: these are fixed-size pictures served from docs/user. */}
+          <img
+            src={block.src}
+            alt={block.alt}
+            loading="lazy"
+            className="w-full rounded-xl border border-line shadow-[var(--shadow-sm)]"
+          />
+          <figcaption className="mt-2 text-[12.5px] text-ink-3">{block.alt}</figcaption>
+        </figure>
+      );
     case "code":
       return (
         <pre className="mt-3 overflow-x-auto rounded-xl border border-line bg-sunken px-4 py-3 font-mono text-[13px] leading-6 text-ink">

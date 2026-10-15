@@ -89,7 +89,7 @@ class PolicyView:
         rows its figures would describe rows this reader cannot see: only each
         column's name and type are kept. Otherwise denied columns are dropped
         and masked columns lose their values (samples, minimum, maximum,
-        averages), keeping the counts.
+        averages, histogram, commonest values), keeping the counts.
         """
         if not profile or not self.restricted:
             return profile
@@ -111,6 +111,8 @@ class PolicyView:
                     "max_value": None,
                     "mean_value": None,
                     "std_value": None,
+                    "histogram": None,
+                    "common_values": [],
                 })
             else:
                 columns.append(entry)

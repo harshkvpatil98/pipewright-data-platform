@@ -1429,6 +1429,20 @@ class Operations:
         """
         return self._call("POST", f"/api/v1/projects/{project_id}/extraction/connections/{connection_id}/preview", body=body)
 
+    def get_table_statistics(self, project_id: str, connection_id: str, *, table: str, schema_name: str | None = None) -> Any:
+        """What is known about a table: rows, and per column its spread and commonest values.
+
+        GET /api/v1/projects/{project_id}/extraction/connections/{connection_id}/statistics
+        """
+        return self._call("GET", f"/api/v1/projects/{project_id}/extraction/connections/{connection_id}/statistics", query={"table": table, "schema_name": schema_name})
+
+    def refresh_table_statistics(self, project_id: str, connection_id: str, *, body: Any) -> Any:
+        """Collect a table's statistics again now, rather than waiting for the daily pass.
+
+        POST /api/v1/projects/{project_id}/extraction/connections/{connection_id}/statistics/refresh
+        """
+        return self._call("POST", f"/api/v1/projects/{project_id}/extraction/connections/{connection_id}/statistics/refresh", body=body)
+
     def get_tables(self, project_id: str, connection_id: str) -> Any:
         """Get Tables
 

@@ -58,6 +58,7 @@ import { formatRunTypeLabel, formatStageLabel } from "@/lib/run-labels";
 import { recipeHref } from "@/lib/navigation";
 import { cx } from "@/lib/utils";
 import { chipWords } from "@/features/contracts/contract-words";
+import { commonShares, densityBars, histogramRange } from "@/features/datasets/column-values";
 
 type DatasetDetailPageViewProps = {
   currentUser: AuthUser;
@@ -374,7 +375,7 @@ export function DatasetDetailPageView({
                 <TableHeaderCell>Type</TableHeaderCell>
                 <TableHeaderCell>Empty</TableHeaderCell>
                 <TableHeaderCell>Distinct</TableHeaderCell>
-                <TableHeaderCell>Examples</TableHeaderCell>
+                <TableHeaderCell>Values</TableHeaderCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -395,9 +396,7 @@ export function DatasetDetailPageView({
                     {typeof column.unique_percentage === "number" ? `${column.unique_percentage}%` : "Not shown"}
                   </TableCell>
                   <TableCell className="text-ink-3">
-                    {Array.isArray(column.sample_values)
-                      ? column.sample_values.map(String).join(", ")
-                      : "--"}
+                    <ColumnValues column={column} rows={profile?.row_count ?? dataset.row_count ?? 0} />
                   </TableCell>
                 </TableRow>
               ))}
@@ -833,6 +832,44 @@ export function DatasetDetailPageView({
 const PARSER_NOTES_SHOWN = 4;
 
 /** How the uploaded file was read, in words; see `parser-metadata.ts`. */
+/**
+ * A column's values at a glance: the shape of a number or date column, the
+ * commonest values of the rest, examples when neither says anything.
+ */
+function ColumnValues({ column, rows }: { column: DatasetProfileSummary["columns"][number]; rows: number }) {
+  const bars = densityBars(column.histogram);
+  if (column.histogram && bars.length > 0) {
+    const range = histogramRange(column.histogram);
+    return (
+      <span className="flex flex-col gap-0.5">
+        <svg
+          viewBox="0 0 100 20"
+          preserveAspectRatio="none"
+          className="h-5 w-28 text-accent"
+          role="img"
+          aria-label={`How the values spread from ${range}`}
+        >
+          {bars.map((bar, index) => (
+            <rect
+              key={index}
+              x={bar.x * 100}
+              width={Math.max(bar.width * 100 - 0.6, 0.6)}
+              y={20 - bar.height * 20}
+              height={bar.height * 20}
+              fill="currentColor"
+              opacity={0.75}
+            />
+          ))}
+        </svg>
+        <span className="text-[12px] tabular-nums">{range}</span>
+      </span>
+    );
+  }
+  const shares = commonShares(column.common_values, rows);
+  if (shares) return <>{shares}</>;
+  return <>{Array.isArray(column.sample_values) ? column.sample_values.map(String).join(", ") : "--"}</>;
+}
+
 function ParserMetadataSummary({
   metadata,
 }: {

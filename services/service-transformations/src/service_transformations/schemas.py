@@ -99,6 +99,18 @@ class ExecutionStepPlacement(BaseModel):
     reason: str
 
 
+class StepEstimate(BaseModel):
+    """How many rows a step is expected to leave, from the dataset's statistics (D2)."""
+
+    index: int
+    step_type: str
+    rows: float
+    #: How the number was got, in words.
+    how: str
+    #: True when a statistic was missing and the number is a stated guess.
+    guessed: bool = False
+
+
 class ExecutionPlanRead(BaseModel):
     """Where the work would happen on a full run against this dataset's source.
 
@@ -119,6 +131,8 @@ class ExecutionPlanRead(BaseModel):
     #: in words ("filter below projection: amount > 10 now runs before
     #: Project(...)"). Empty when the tree was planned as written.
     rewrites: list[str] = []
+    #: Each step's expected rows, to set beside what the preview actually saw.
+    estimates: list[StepEstimate] = []
 
 
 class TransformationPreviewSchema(BaseModel):

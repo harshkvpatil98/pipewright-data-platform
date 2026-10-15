@@ -460,6 +460,9 @@ def run_extraction_job(
             db, run=run, summary_json=summary_json, logs_json={"events": log_events}
         )
         db.commit()
+        from service_extraction.table_statistics import refresh_after_import
+
+        refresh_after_import(db, connection, job)
         db.refresh(job)
 
         return ExtractionRunResponse(

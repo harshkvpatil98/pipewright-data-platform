@@ -85,7 +85,9 @@ def world(db: Session, tmp_path) -> dict:
 
 def _clean(text: str) -> None:
     assert SECRET not in text, "an email reached the reader"
-    assert "'email'" not in text and '"email"' not in text, "the denied column was named"
+    # Inside a JSON string a quoted name is escaped: \"email\" (a plan's SQL), so look for that too.
+    for named in ("'email'", '"email"', '\\"email\\"'):
+        assert named not in text, "the denied column was named"
     for hidden in ('"US"', '"bo"', '"di"'):
         assert hidden not in text, f"a row outside the EU reached the reader ({hidden})"
 
@@ -177,6 +179,28 @@ def test_the_studio_preview_and_its_joins(db: Session, world: dict) -> None:
     )
     _clean(result.model_dump_json())
     assert result.row_count_before == 2
+    # Statistics over rows a policy hides would describe them: every estimate is a guess instead.
+    estimates = result.execution_plan.estimates
+    assert estimates and all(estimate.guessed for estimate in estimates)
+
+
+def test_the_studio_plan_for_a_database_never_names_a_denied_column(db: Session, world: dict, monkeypatch) -> None:
+    """A plan for a dataset read from a database shows the SQL it would send: only columns the reader may know."""
+    from service_transformations import preview
+    from service_transformations.schemas import TransformationPreviewRequest
+
+    monkeypatch.setattr(preview, "_source_type_of", lambda dataset: "postgresql")
+    result = preview.preview_dataset_transformations(
+        db, project_id=world["project"].id, dataset_id=world["dataset"].id,
+        payload=TransformationPreviewRequest(steps=[{
+            "step_type": "filter_rows",
+            "config": {"conditions": [{"column": "amount", "operator": "greater_than", "value": 5}]},
+        }]),
+        current_user=world["user"], storage_backend=world["storage"],
+    )
+    assert result.execution_plan is not None and result.execution_plan.sql
+    assert "email" not in result.execution_plan.sql
+    _clean(result.model_dump_json())
 
 
 def test_the_assistant_and_comparisons(db: Session, world: dict) -> None:

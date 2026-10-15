@@ -38,6 +38,13 @@ export type DatasetProfileColumn = {
   max_length: number | null;
   possible_identifier: boolean;
   mixed_type_suspected: boolean;
+  /**
+   * Equal-count buckets for a number or date column (dates as milliseconds
+   * since 1970, `unit: "epoch_ms"`), for estimating what a range keeps (D2).
+   */
+  histogram?: { bounds: number[]; rows: number[]; unit?: string } | null;
+  /** The commonest values with how many rows have each; empty when every value differs. */
+  common_values?: { value: string; rows: number }[];
 };
 
 export type DatasetQualityFlags = {
@@ -988,6 +995,17 @@ export type ExecutionPlanRead = {
   note?: string;
   /** Semantics-preserving rewrites applied before the split, in words. */
   rewrites?: string[];
+  /** Expected rows after each step, from statistics, and how each was worked out (D2). */
+  estimates?: StepEstimate[];
+};
+
+/** One step's expected rows. `guessed` when there was nothing to estimate from. */
+export type StepEstimate = {
+  index: number;
+  step_type: string;
+  rows: number;
+  how: string;
+  guessed: boolean;
 };
 
 /** What one applied step did to the frame, from the pass that already ran. */

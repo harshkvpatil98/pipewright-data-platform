@@ -147,6 +147,22 @@ def _sweep_weekly_summaries() -> None:
         db.close()
 
 
+def _sweep_table_statistics() -> None:
+    """Collect again the statistics of tables imports read, once a day (D2). Best effort."""
+    from service_extraction.table_statistics import refresh_due
+
+    db = SessionLocal()
+    try:
+        done = refresh_due(db)
+        if done:
+            logger.info("table_statistics_refreshed tables=%s", done)
+    except Exception:  # noqa: BLE001 - a sweep failure must not stop the ticker
+        db.rollback()
+        logger.exception("table_statistics_sweep_failed")
+    finally:
+        db.close()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Execute due Pipewright schedules.")
     parser.add_argument(
@@ -176,6 +192,7 @@ def main() -> None:
         _sweep_dataset_versions()
         _sweep_weekly_summaries()
         _sweep_rate_limits()
+        _sweep_table_statistics()
         try:
             summary = _drain_once()
             if summary.triggered_count or summary.failure_count:

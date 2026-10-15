@@ -164,6 +164,13 @@ class DatasetVersion(UUIDPrimaryKeyMixin, Base):
     #: imported, or null for a file Pipewright wrote itself (a recipe's output,
     #: an erasure's rewrite) and read automatically (A8).
     ingest_spec_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    #: What was known about this version's values when it was written (D2):
+    #: rows, and per column the empty share, distinct values, lowest and
+    #: highest, a histogram and the commonest values
+    #: (`shared_python.statistics.TableStats`). The dataset keeps only its
+    #: latest profile, so a plan over an older version reads them here. Null
+    #: for a version written before the column existed.
+    statistics_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     pipeline_run_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("pipeline_runs.id", ondelete="SET NULL"), nullable=True
     )

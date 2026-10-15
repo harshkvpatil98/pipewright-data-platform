@@ -1031,6 +1031,7 @@ export function StudioPage({
             onClose={() => setDetailsOpen(false)}
             columns={preview?.schema_after.columns ?? []}
             plan={plan}
+            counted={error ? undefined : preview?.step_outcomes}
             steps={stored(steps)}
             discussion={saved ? { projectId, recipeId: saved.id, currentUsername: currentUser.username } : null}
             onApplyFile={(next) => {

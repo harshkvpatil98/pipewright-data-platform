@@ -51,6 +51,10 @@ class IngestionProfileColumn(BaseModel):
     max_length: int | None = None
     possible_identifier: bool = False
     mixed_type_suspected: bool = False
+    #: Equal-count buckets for numbers and dates ({bounds, rows, unit?}), for estimates (D2).
+    histogram: dict[str, Any] | None = None
+    #: The commonest values, [{value, rows}], empty when every value differs.
+    common_values: list[dict[str, Any]] = []
 
 
 class IngestionProfile(BaseModel):

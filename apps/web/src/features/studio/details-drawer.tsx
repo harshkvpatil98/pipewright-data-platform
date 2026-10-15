@@ -3,7 +3,10 @@
 import { useEffect, useState } from "react";
 
 import { RecipeYamlPanel } from "@/features/studio/recipe-yaml-panel";
+import { STEP_BY_TYPE } from "@/features/studio/step-catalog";
+import { estimateSummary, roughCount } from "@/features/studio/studio-words";
 import { DiscussionPanel } from "@/features/team/components/discussion-panel";
+import { formatCount } from "@/lib/format";
 import { typeLabel } from "@/lib/labels";
 import { Badge, Icon, Tabs } from "@platform/shared-ui";
 
@@ -16,7 +19,12 @@ export type ExecutionPlan = {
   placements: { node: string; pushed: boolean; reason: string }[];
   note?: string;
   rewrites?: string[];
+  /** Expected rows after each step, from the data's statistics, and how each was worked out. */
+  estimates?: { index: number; step_type: string; rows: number; how: string; guessed: boolean }[];
 };
+
+/** The rows each step gave in the preview, which reads every stored row. */
+type Counted = { index: number; rows_after: number }[];
 
 type Tab = "columns" | "runs" | "file" | "comments";
 
@@ -25,6 +33,7 @@ type DetailsDrawerProps = {
   onClose: () => void;
   columns: { name: string; inferred_type: string; canonical_type?: string | null }[];
   plan: ExecutionPlan | null;
+  counted?: Counted;
   steps: { step_type: string; config: Record<string, unknown> }[];
   onApplyFile: (steps: { step_type: string; config: Record<string, unknown> }[]) => void;
   /** Comments are kept with a saved recipe; a new one has nowhere to keep them yet. */
@@ -36,7 +45,16 @@ type DetailsDrawerProps = {
  * columns and types, where a full run does its work, and the recipe as a
  * file. Closed until asked for, so the grid keeps the room.
  */
-export function DetailsDrawer({ open, onClose, columns, plan, steps, onApplyFile, discussion }: DetailsDrawerProps) {
+export function DetailsDrawer({
+  open,
+  onClose,
+  columns,
+  plan,
+  counted,
+  steps,
+  onApplyFile,
+  discussion,
+}: DetailsDrawerProps) {
   const [tab, setTab] = useState<Tab>("columns");
 
   useEffect(() => {
@@ -105,7 +123,7 @@ export function DetailsDrawer({ open, onClose, columns, plan, steps, onApplyFile
           )
         ) : null}
 
-        {tab === "runs" ? <PlanDetail plan={plan} /> : null}
+        {tab === "runs" ? <PlanDetail plan={plan} counted={counted} /> : null}
 
         {tab === "comments" ? (
           discussion ? (
@@ -132,7 +150,7 @@ export function DetailsDrawer({ open, onClose, columns, plan, steps, onApplyFile
   );
 }
 
-function PlanDetail({ plan }: { plan: ExecutionPlan | null }) {
+function PlanDetail({ plan, counted }: { plan: ExecutionPlan | null; counted?: Counted }) {
   if (!plan) {
     return <p className="text-[13px] text-muted">Shown once the preview has loaded.</p>;
   }
@@ -177,6 +195,49 @@ function PlanDetail({ plan }: { plan: ExecutionPlan | null }) {
           <pre className="overflow-x-auto rounded-lg bg-sunken p-2.5 text-[12px] leading-5 text-ink-2">{plan.sql}</pre>
         </div>
       ) : null}
+      <RowsAtEachStep estimates={plan.estimates ?? []} counted={counted ?? []} />
+    </div>
+  );
+}
+
+/**
+ * What the planner expected each step to give, beside what it gave. A run
+ * against a database is planned from estimates like these, so seeing how
+ * close they come here says how far to trust the plan there.
+ */
+function RowsAtEachStep({ estimates, counted }: { estimates: NonNullable<ExecutionPlan["estimates"]>; counted: Counted }) {
+  if (estimates.length === 0) return null;
+  const actual = new Map(counted.map((entry) => [entry.index, entry.rows_after]));
+  const pairs = estimates
+    .filter((estimate) => actual.has(estimate.index))
+    .map((estimate) => ({ expected: estimate.rows, actual: actual.get(estimate.index) ?? 0, guessed: estimate.guessed }));
+  const summary = estimateSummary(pairs);
+  return (
+    <div className="border-t border-line pt-3">
+      <p className="font-medium text-ink">Rows at each step</p>
+      <p className="text-[12px] text-ink-3">Expected from the data&apos;s statistics, beside what the preview counted.</p>
+      {summary ? <p className="mt-1 text-[12px] text-ink-2">{summary}</p> : null}
+      <ul className="mt-2 space-y-2">
+        {estimates.map((estimate) => {
+          const rows = actual.get(estimate.index);
+          return (
+            <li key={estimate.index} className="flex items-start justify-between gap-3">
+              <span className="min-w-0">
+                <span className="block text-ink">
+                  {estimate.index + 1}. {STEP_BY_TYPE.get(estimate.step_type)?.label ?? "Tool step"}
+                </span>
+                <span className="block text-[12px] text-ink-3">{estimate.how}</span>
+              </span>
+              <span className="shrink-0 text-right tabular-nums">
+                <span className="block text-ink">{rows === undefined ? "--" : formatCount(rows)}</span>
+                <span className="block text-[12px] text-ink-3">
+                  {estimate.guessed ? "guessed" : "expected"} {roughCount(estimate.rows)}
+                </span>
+              </span>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }

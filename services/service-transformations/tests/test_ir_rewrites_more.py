@@ -309,3 +309,26 @@ def test_a_limit_over_a_sort_is_one_select():
     sql = to_sql(Limit(Sort(SCAN_ORDERS, (SortKey(Column("amount"), "desc"),)), 2), "sqlite")
     assert sql.endswith('ORDER BY "amount" DESC NULLS LAST LIMIT 2')
     assert to_sql(Limit(SCAN_ORDERS, None, 3), "mysql").endswith("LIMIT 18446744073709551615 OFFSET 3")
+
+
+def test_a_part_named_twice_is_computed_once(monkeypatch):
+    """IF(amount * 2 > 100, amount * 2, 0): the product is worked out once per node."""
+    from service_transformations.ir import pandas_backend
+
+    calls = {"mul": 0}
+    original = pandas_backend._ARITHMETIC["mul"]
+
+    def counting(a, b):
+        calls["mul"] += 1
+        return original(a, b)
+
+    monkeypatch.setitem(pandas_backend._ARITHMETIC, "mul", counting)
+    doubled = Call("mul", (Column("amount"), _lit(2.0)))
+    tree = Project(SCAN_ORDERS, (
+        ("big", Call("gt", (doubled, _lit(100.0)))),
+        ("doubled", doubled),
+        ("again", Call("add", (doubled, _lit(1.0)))),
+    ))
+    out = execute(tree, FRAMES)
+    assert calls["mul"] == 1
+    assert out["again"].tolist()[:2] == [21.0, 501.0]

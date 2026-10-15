@@ -3406,6 +3406,77 @@
     "title": "ColumnRuleInput",
     "type": "object"
    },
+   "ColumnStatisticsRead": {
+    "properties": {
+     "bounds": {
+      "items": {
+       "type": "number"
+      },
+      "title": "Bounds",
+      "type": "array"
+     },
+     "bucket_rows": {
+      "items": {
+       "type": "integer"
+      },
+      "title": "Bucket Rows",
+      "type": "array"
+     },
+     "common": {
+      "items": {
+       "maxItems": 2,
+       "minItems": 2,
+       "prefixItems": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "integer"
+        }
+       ],
+       "type": "array"
+      },
+      "title": "Common",
+      "type": "array"
+     },
+     "distinct": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Distinct"
+     },
+     "empty_share": {
+      "title": "Empty Share",
+      "type": "number"
+     },
+     "highest": {
+      "title": "Highest"
+     },
+     "kind": {
+      "title": "Kind",
+      "type": "string"
+     },
+     "lowest": {
+      "title": "Lowest"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "name",
+     "kind",
+     "empty_share"
+    ],
+    "title": "ColumnStatisticsRead",
+    "type": "object"
+   },
    "ColumnSummaryRead": {
     "properties": {
      "column": {
@@ -10117,6 +10188,14 @@
    "ExecutionPlanRead": {
     "description": "Where the work would happen on a full run against this dataset's source.\n\nReported honestly and labelled: a preview always reads the materialised\nfile, so what it describes is the *run*, not the preview. Saying \"nothing\npushed down, because this dataset is a stored file\" is useful information --\nit is the reason a pipeline over a hundred million rows would be slow.",
     "properties": {
+     "estimates": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/StepEstimate"
+      },
+      "title": "Estimates",
+      "type": "array"
+     },
      "local_steps": {
       "title": "Local Steps",
       "type": "integer"
@@ -22896,6 +22975,40 @@
     "title": "StatisticalTestDatasetSide",
     "type": "object"
    },
+   "StepEstimate": {
+    "description": "How many rows a step is expected to leave, from the dataset's statistics (D2).",
+    "properties": {
+     "guessed": {
+      "default": false,
+      "title": "Guessed",
+      "type": "boolean"
+     },
+     "how": {
+      "title": "How",
+      "type": "string"
+     },
+     "index": {
+      "title": "Index",
+      "type": "integer"
+     },
+     "rows": {
+      "title": "Rows",
+      "type": "number"
+     },
+     "step_type": {
+      "title": "Step Type",
+      "type": "string"
+     }
+    },
+    "required": [
+     "index",
+     "step_type",
+     "rows",
+     "how"
+    ],
+    "title": "StepEstimate",
+    "type": "object"
+   },
    "StepLineageRead": {
     "properties": {
      "added_columns": {
@@ -24474,6 +24587,89 @@
      "editable"
     ],
     "title": "TableShapeRead",
+    "type": "object"
+   },
+   "TableStatisticsRead": {
+    "description": "What is known about a table in a connected database (D2), for estimating plans.",
+    "properties": {
+     "collected_at": {
+      "format": "date-time",
+      "title": "Collected At",
+      "type": "string"
+     },
+     "columns": {
+      "items": {
+       "$ref": "#/components/schemas/ColumnStatisticsRead"
+      },
+      "title": "Columns",
+      "type": "array"
+     },
+     "connection_id": {
+      "format": "uuid",
+      "title": "Connection Id",
+      "type": "string"
+     },
+     "method": {
+      "title": "Method",
+      "type": "string"
+     },
+     "rows": {
+      "title": "Rows",
+      "type": "integer"
+     },
+     "schema_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Schema Name"
+     },
+     "table": {
+      "title": "Table",
+      "type": "string"
+     }
+    },
+    "required": [
+     "connection_id",
+     "table",
+     "schema_name",
+     "rows",
+     "method",
+     "collected_at",
+     "columns"
+    ],
+    "title": "TableStatisticsRead",
+    "type": "object"
+   },
+   "TableStatisticsRefresh": {
+    "properties": {
+     "schema_name": {
+      "anyOf": [
+       {
+        "maxLength": 160,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Schema Name"
+     },
+     "table": {
+      "maxLength": 320,
+      "minLength": 1,
+      "title": "Table",
+      "type": "string"
+     }
+    },
+    "required": [
+     "table"
+    ],
+    "title": "TableStatisticsRefresh",
     "type": "object"
    },
    "TemporalQueryRequest": {
@@ -43306,6 +43502,194 @@
      }
     ],
     "summary": "Post Preview",
+    "tags": [
+     "extraction"
+    ]
+   }
+  },
+  "/api/v1/projects/{project_id}/extraction/connections/{connection_id}/statistics": {
+   "get": {
+    "description": "What is known about a table: rows, and per column its spread and commonest values.",
+    "operationId": "get_table_statistics_api_v1_projects__project_id__extraction_connections__connection_id__statistics_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "connection_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Connection Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "table",
+      "required": true,
+      "schema": {
+       "maxLength": 320,
+       "minLength": 1,
+       "title": "Table",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "schema_name",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "maxLength": 160,
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Schema Name"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TableStatisticsRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Get Table Statistics",
+    "tags": [
+     "extraction"
+    ]
+   }
+  },
+  "/api/v1/projects/{project_id}/extraction/connections/{connection_id}/statistics/refresh": {
+   "post": {
+    "description": "Collect a table's statistics again now, rather than waiting for the daily pass.",
+    "operationId": "refresh_table_statistics_api_v1_projects__project_id__extraction_connections__connection_id__statistics_refresh_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "connection_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Connection Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/TableStatisticsRefresh"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TableStatisticsRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Refresh Table Statistics",
     "tags": [
      "extraction"
     ]

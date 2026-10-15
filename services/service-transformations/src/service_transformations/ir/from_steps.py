@@ -411,15 +411,42 @@ def _aggregate(node: Node, config: dict[str, Any]) -> Node:
     return Aggregate(node, group_by=group_by, aggregates=tuple(aggregates))
 
 
+def _joined_schema(node: Node, right_columns, config: dict[str, Any]) -> tuple[tuple[str, Any], ...]:
+    """The columns the join step gives, as pandas names them: a key named the
+    same on both sides is one column, and the right side's other clashes take
+    the suffix."""
+    left_on = config.get("left_on") or config.get("on") or []
+    right_on = config.get("right_on") or config.get("on") or []
+    left_on = [left_on] if isinstance(left_on, str) else list(left_on)
+    right_on = [right_on] if isinstance(right_on, str) else list(right_on)
+    shared = {right_key for left_key, right_key in zip(left_on, right_on) if left_key == right_key}
+    right = dict(right_columns)
+    if config.get("select_right_columns"):
+        right = {name: right[name] for name in dict.fromkeys([*right_on, *config["select_right_columns"]])
+                 if name in right}
+    left = node.schema()
+    overlap = (left.keys() & right.keys()) - shared
+    suffix = str(config.get("suffix") or "_right")
+    out = dict(left)
+    for name, type_ in right.items():
+        if name not in shared:
+            out[f"{name}{suffix}" if name in overlap else name] = type_
+    return tuple(out.items())
+
+
 def _join_datasets(node: Node, config: dict[str, Any]) -> Node:
     # The right side is another dataset resolved by StepContext at run time, so
-    # the caller supplies it; without one this cannot become a Join.
+    # the caller supplies it; without one this cannot become a Join. Its
+    # columns alone (`_right_columns`) still say what the step gives, so the
+    # steps after it can be described.
     right = config.get("_right_node")
     if right is None:
+        right_columns = config.get("_right_columns")
         return Extension(
             node,
             "join_datasets",
-            freeze_config({k: v for k, v in config.items() if k != "_right_node"}),
+            freeze_config({k: v for k, v in config.items() if not k.startswith("_")}),
+            output_schema=_joined_schema(node, right_columns, config) if right_columns else None,
         )
     left_on = config.get("left_on") or config["on"]
     right_on = config.get("right_on") or config["on"]
@@ -432,7 +459,12 @@ def _join_datasets(node: Node, config: dict[str, Any]) -> Node:
         for left, right_column in zip(left_on, right_on)
     ]
     on = conditions[0] if len(conditions) == 1 else Call("and", tuple(conditions))
-    return Join(node, right, on=on, how=config.get("how", "inner"))
+    if config.get("select_right_columns"):
+        right = Project(right, _identity(list(dict.fromkeys([*right_on, *config["select_right_columns"]]))))
+    how = str(config.get("how", "inner"))
+    # The step says "outer" where the IR, like SQL, says "full".
+    return Join(node, right, on=on, how="full" if how == "outer" else how,
+                right_suffix=str(config.get("suffix") or "_right"))
 
 
 def _union_datasets(node: Node, config: dict[str, Any]) -> Node:

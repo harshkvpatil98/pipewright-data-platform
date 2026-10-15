@@ -73,6 +73,24 @@ def register_extension(
     _EXTENSIONS[name] = handler
 
 
+# -- common subexpressions --------------------------------------------------
+#
+# A formula such as IF([price] * [qty] > 500, [price] * [qty], 0) names the
+# product twice, and a projection's columns often share a part. While one node
+# evaluates its expressions over one frame, each distinct sub-expression is
+# computed once and reused (D2, O3). SQL databases do this for themselves.
+_SHARED: ContextVar[tuple[int, dict[Expr, pd.Series]] | None] = ContextVar("pipewright_ir_shared", default=None)
+
+
+@contextmanager
+def _shared_over(frame: pd.DataFrame) -> Iterator[None]:
+    token = _SHARED.set((id(frame), {}))
+    try:
+        yield
+    finally:
+        _SHARED.reset(token)
+
+
 def execute(node: Node, sources: dict[str, pd.DataFrame]) -> pd.DataFrame:
     """Run the tree against named frames."""
     if isinstance(node, Scan):
@@ -86,14 +104,16 @@ def execute(node: Node, sources: dict[str, pd.DataFrame]) -> pd.DataFrame:
     if isinstance(node, Project):
         frame = execute(node.input, sources)
         out = pd.DataFrame(index=frame.index)
-        for name, expr in node.projections:
-            out[name] = evaluate(expr, frame)
+        with _shared_over(frame):
+            for name, expr in node.projections:
+                out[name] = evaluate(expr, frame)
         return out.reset_index(drop=True)
 
     if isinstance(node, Filter):
         frame = execute(node.input, sources)
         # Null is not true -- SQL three-valued logic, which every database uses.
-        mask = _truthy(evaluate(node.predicate, frame))
+        with _shared_over(frame):
+            mask = _truthy(evaluate(node.predicate, frame))
         return frame[mask].reset_index(drop=True)
 
     if isinstance(node, Aggregate):
@@ -368,6 +388,19 @@ def _truthy(series: pd.Series) -> pd.Series:
 
 def evaluate(expr: Expr, frame: pd.DataFrame) -> pd.Series:
     """Evaluate an expression over a frame, vectorised."""
+    shared = _SHARED.get()
+    if shared is not None and shared[0] == id(frame) and isinstance(expr, (Call, Case, Cast)):
+        try:
+            known = shared[1].get(expr)
+        except TypeError:  # a constant that cannot be hashed (a list): computed each time
+            return _evaluate(expr, frame)
+        if known is None:
+            known = shared[1][expr] = _evaluate(expr, frame)
+        return known
+    return _evaluate(expr, frame)
+
+
+def _evaluate(expr: Expr, frame: pd.DataFrame) -> pd.Series:
     if isinstance(expr, Column):
         if expr.name not in frame.columns:
             raise IRError(f"Column {expr.name!r} is not in the frame.")

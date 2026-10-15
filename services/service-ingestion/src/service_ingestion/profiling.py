@@ -5,6 +5,7 @@ from decimal import Decimal
 from math import isnan
 from typing import Any
 
+import numpy as np
 import pandas as pd
 from pandas.api.types import (
     is_bool_dtype,
@@ -48,6 +49,55 @@ def build_preview(*, dataframe: pd.DataFrame, limit: int) -> dict[str, Any]:
         for row in preview_frame.to_dict(orient='records')
     ]
     return {'columns': ordered_columns, 'rows': rows}
+
+
+#: Equal-count buckets in a number or date column's histogram (D2, O1).
+HISTOGRAM_BUCKETS = 16
+#: Most common values kept per column, with how many rows have each.
+COMMON_VALUES = 12
+
+
+def _histogram(values: pd.Series) -> dict[str, Any] | None:
+    """Equal-count bucket edges and the rows in each, for estimating how many
+    rows a range keeps. None when there is nothing to spread."""
+    if values.empty:
+        return None
+    numbers = values.to_numpy(dtype="float64")
+    edges = np.unique(np.quantile(numbers, np.linspace(0, 1, HISTOGRAM_BUCKETS + 1)))
+    if len(edges) < 2:
+        return None
+    counts, _ = np.histogram(numbers, bins=edges)
+    return {"bounds": [float(edge) for edge in edges], "rows": [int(count) for count in counts]}
+
+
+_ISO_DATE = r'^\d{4}-\d{2}-\d{2}'
+
+
+def _text_date_histogram(non_null: pd.Series) -> dict[str, Any] | None:
+    """Dates kept as text (a CSV's always are, until a recipe parses them):
+    the histogram of the dates they write, so a range over them can be
+    estimated before or after they are parsed. Only when every value is an
+    ISO date, so nothing is guessed about what "03/04" means."""
+    if non_null.empty or not non_null.head(20).astype(str).str.match(_ISO_DATE).all():
+        return None
+    moments = pd.to_datetime(non_null.astype(str), format='ISO8601', errors='coerce', utc=True)
+    if moments.isna().any():
+        return None
+    histogram = _histogram(pd.Series(moments.astype('int64') // 1_000_000))
+    if histogram is not None:
+        histogram['unit'] = 'epoch_ms'
+    return histogram
+
+
+def _common_values(non_null: pd.Series, unique_count: int) -> list[dict[str, Any]]:
+    """The commonest values. None of them is common when every value differs."""
+    if unique_count >= len(non_null):
+        return []
+    try:
+        counts = non_null.value_counts().head(COMMON_VALUES)
+    except TypeError:  # values that cannot be hashed (lists, dicts): counted as text
+        counts = non_null.astype(str).value_counts().head(COMMON_VALUES)
+    return [{"value": str(_json_safe_value(value)), "rows": int(rows)} for value, rows in counts.items()]
 
 
 def build_profile(*, dataframe: pd.DataFrame, sample_limit: int, file_size_bytes: int) -> dict[str, Any]:
@@ -94,13 +144,29 @@ def build_profile(*, dataframe: pd.DataFrame, sample_limit: int, file_size_bytes
 
         min_value = max_value = mean_value = std_value = None
         min_length = max_length = None
+        histogram = None
 
-        numeric_series = pd.to_numeric(non_null, errors='coerce').dropna()
+        numeric_series = (pd.Series(dtype="float64") if is_datetime64_any_dtype(series)
+                          else pd.to_numeric(non_null, errors='coerce').dropna())
         if not numeric_series.empty:
             min_value = _json_safe_value(numeric_series.min())
             max_value = _json_safe_value(numeric_series.max())
             mean_value = _safe_float(numeric_series.mean())
             std_value = _safe_float(numeric_series.std(ddof=1))
+            if inferred_type in {'int', 'float', 'decimal'} and not is_bool_dtype(series):
+                histogram = _histogram(numeric_series)
+        elif (is_datetime64_any_dtype(series) or inferred_type in {'date', 'datetime'}) and not non_null.empty:
+            # Held as pandas datetimes, or as Python dates (how a file's ISO dates are read).
+            # Dates as dates: before, they were read as nanosecond counts.
+            min_value = _json_safe_value(non_null.min())
+            max_value = _json_safe_value(non_null.max())
+            moments = pd.to_datetime(non_null, utc=True)
+            histogram = _histogram(pd.Series(moments.astype("int64") // 1_000_000))
+            if histogram is not None:
+                histogram["unit"] = "epoch_ms"
+
+        if histogram is None and inferred_type == 'string':
+            histogram = _text_date_histogram(non_null)
 
         if inferred_type in {'string', 'mixed', 'object'}:
             string_lengths = [len(str(value)) for value in non_null]
@@ -125,6 +191,10 @@ def build_profile(*, dataframe: pd.DataFrame, sample_limit: int, file_size_bytes
                 'max_length': max_length,
                 'possible_identifier': possible_identifier,
                 'mixed_type_suspected': mixed_type_suspected,
+                # For estimating how many rows a filter keeps (D2): equal-count
+                # buckets for numbers and dates, the commonest values for all.
+                'histogram': histogram,
+                'common_values': _common_values(non_null, unique_count) if non_null_count else [],
             }
         )
 

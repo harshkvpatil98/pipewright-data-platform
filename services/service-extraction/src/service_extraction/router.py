@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from service_auth.schemas import UserRead
 from service_extraction.extract import run_extraction_job
-from service_extraction import live_recipes
+from service_extraction import live_recipes, table_statistics
 from service_extraction.streams import (
     create_source,
     delete_source,
@@ -60,6 +60,8 @@ from service_extraction.schemas import (
     ExtractionPreviewRequest,
     ExtractionPreviewResponse,
     ExtractionRunResponse,
+    TableStatisticsRead,
+    TableStatisticsRefresh,
 )
 from service_extraction.service import (
     create_connection,
@@ -177,6 +179,40 @@ def build_router(
     ) -> DiscoveredColumnsResponse:
         return discover_columns(
             db, project_id, connection_id, table=table, schema=schema_name, current_user=current_user
+        )
+
+    @router.get(
+        "/projects/{project_id}/extraction/connections/{connection_id}/statistics",
+        response_model=TableStatisticsRead,
+    )
+    def get_table_statistics(
+        project_id: uuid.UUID,
+        connection_id: uuid.UUID,
+        table: str = Query(min_length=1, max_length=320),
+        schema_name: str | None = Query(default=None, max_length=160),
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> TableStatisticsRead:
+        """What is known about a table: rows, and per column its spread and commonest values."""
+        return table_statistics.read_model(
+            db, project_id, connection_id, table=table, schema=schema_name, current_user=current_user
+        )
+
+    @router.post(
+        "/projects/{project_id}/extraction/connections/{connection_id}/statistics/refresh",
+        response_model=TableStatisticsRead,
+    )
+    def refresh_table_statistics(
+        project_id: uuid.UUID,
+        connection_id: uuid.UUID,
+        payload: TableStatisticsRefresh,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> TableStatisticsRead:
+        """Collect a table's statistics again now, rather than waiting for the daily pass."""
+        return table_statistics.read_model(
+            db, project_id, connection_id, table=payload.table, schema=payload.schema_name,
+            current_user=current_user, fresh=True,
         )
 
     @router.post(

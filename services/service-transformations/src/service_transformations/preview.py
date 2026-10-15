@@ -13,6 +13,7 @@ from service_transformations.dataset_access import build_step_context
 from service_transformations.executor import apply_transformation_steps_with_outcomes
 from service_transformations.schemas import (
     ExecutionPlanRead,
+    StepEstimate,
     ExecutionStepPlacement,
     TransformationPreviewRequest,
     TransformationPreviewResponse,
@@ -81,7 +82,9 @@ def preview_dataset_transformations(
         preview_columns=preview_columns,
         row_count_before=int(len(source_frame)),
         row_count_after=int(len(transformed)),
-        execution_plan=_describe_plan(dataset, payload.steps),
+        execution_plan=_describe_plan(dataset, payload.steps, _statistics_for(db, project_id, dataset, reader),
+                                      _other_datasets(db, project_id, reader),
+                                      visible=[str(column) for column in source_frame.columns]),
         step_outcomes=[
             TransformationStepOutcome(
                 index=outcome.index,
@@ -101,7 +104,92 @@ def preview_dataset_transformations(
     )
 
 
-def _describe_plan(dataset, raw_steps) -> ExecutionPlanRead | None:
+def _statistics_for(db: Session, project_id: uuid.UUID, dataset, reader, view=None):
+    """The dataset's statistics as this reader may see them, or None.
+
+    Figures over rows a policy hides would say something about those rows, so
+    a reader whose rows are filtered gets none, and every estimate says it is
+    a guess.
+    """
+    from service_enterprise.policy_view import view_for
+    from shared_python.statistics import from_profile
+
+    view = view or view_for(db, project_id, dataset.id, reader)
+    if view.filters_rows:
+        return None
+    return from_profile(view.profile(dataset.profile_json))
+
+
+def _step_estimates(scan, steps: list[dict], stats, others=None) -> list[StepEstimate]:
+    """Each step's expected rows: the pipeline up to it, estimated whole.
+
+    `others(step)` hands back the other dataset a join or union reads, as a
+    Scan with its statistics, so the estimate can use both sides; without it
+    such a step is a stated guess.
+    """
+    from service_transformations.ir.estimate import estimate
+    from service_transformations.ir.from_steps import compile_step
+
+    known = {scan.source: stats}
+    node = scan
+    out: list[StepEstimate] = []
+    for index, step in enumerate(steps):
+        attempts = [step["config"]]
+        other = others(step) if others is not None and step["type"] in ("join_datasets", "union_datasets") else None
+        if other is not None:
+            right, right_stats = other
+            known[right.source] = right_stats
+            attempts.insert(0, {**step["config"], "_right_node": right})
+        for config in attempts:
+            try:
+                node = compile_step(node, step["type"], config)
+                break
+            except Exception:  # noqa: BLE001 - fall back to the step as an unknown
+                continue
+        else:
+            return out
+        try:
+            result = estimate(node, known)
+        except Exception:  # noqa: BLE001 - an estimate is a nicety; never break the preview
+            return out
+        last = result.steps[-1]
+        out.append(StepEstimate(index=index, step_type=str(step["type"]), rows=round(result.rows, 1), how=last.how,
+                                guessed=result.guessed))
+    return out
+
+
+def _other_datasets(db: Session, project_id: uuid.UUID, reader):
+    """For a join or union step: the dataset it reads, as a Scan, with what this reader may know of it."""
+    from service_transformations.ir.nodes import Scan
+    from shared_python.types import UNKNOWN
+
+    found: dict[str, object] = {}
+
+    def lookup(step: dict):
+        config = step.get("config") or {}
+        raw = str(config.get("right_dataset_id") or config.get("other_dataset_id") or "")
+        if raw not in found:
+            found[raw] = _other(raw)
+        return found[raw]
+
+    def _other(raw: str):
+        from service_enterprise.policy_view import view_for
+
+        try:
+            other = get_dataset_model_for_project(db, project_id, uuid.UUID(raw))
+        except Exception:  # noqa: BLE001 - a missing dataset fails the preview itself, not here
+            return None
+        view = view_for(db, project_id, other.id, reader)
+        names = view.visible_columns([str(name) for name in (other.schema_json or {}).get("ordered_columns", [])])
+        if not names:
+            return None
+        return Scan(f"dataset:{other.id}", tuple((name, UNKNOWN) for name in names)), \
+            _statistics_for(db, project_id, other, reader, view)
+
+    return lookup
+
+
+def _describe_plan(dataset, raw_steps, stats=None, others=None, visible=None) -> ExecutionPlanRead | None:
     """Where this pipeline's work would happen on a full run.
 
     Computed from the IR, which is a description rather than an execution: the
@@ -132,12 +220,21 @@ def _describe_plan(dataset, raw_steps) -> ExecutionPlanRead | None:
             return None
         steps.append({"type": step_type, "config": config})
 
-    columns = tuple(
-        (str(name), UNKNOWN) for name in (dataset.schema_json or {}).get("ordered_columns", [])
-    ) or (("__unknown__", UNKNOWN),)
+    # A join's columns come from the dataset it reads; with them the steps
+    # after it can be described too. It stays a step that runs here.
+    plan_steps = []
+    for step in steps:
+        other = others(step) if others is not None and step["type"] == "join_datasets" else None
+        if other is not None:
+            step = {"type": step["type"], "config": {**step["config"], "_right_columns": other[0].columns}}
+        plan_steps.append(step)
+
+    # Only the columns this reader may know exist: a denied one is never named, even in a plan.
+    names = visible if visible is not None else (dataset.schema_json or {}).get("ordered_columns", [])
+    columns = tuple((str(name), UNKNOWN) for name in names) or (("__unknown__", UNKNOWN),)
 
     try:
-        tree = compile_pipeline(Scan(dataset.name or "source", columns), steps)
+        tree = compile_pipeline(Scan(dataset.name or "source", columns), plan_steps)
         execution = build_plan(tree, source_type)
     except (IRError, ValueError, KeyError):
         # A pipeline the IR cannot describe gets no plan rather than a wrong
@@ -156,6 +253,7 @@ def _describe_plan(dataset, raw_steps) -> ExecutionPlanRead | None:
         ],
         note=execution.surface.note if execution.surface else "",
         rewrites=[str(applied) for applied in execution.rewrites],
+        estimates=_step_estimates(Scan(dataset.name or "source", columns), plan_steps, stats, others),
     )
 
 

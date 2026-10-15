@@ -299,6 +299,24 @@ def build_table_query(connector_type: str, *, table: str, schema: str | None) ->
     return f"SELECT * FROM {relation}"
 
 
+def _abandon_unread_result(conn) -> None:
+    """End a MySQL query whose remaining rows are not wanted.
+
+    MySQL sends every row of a result before its connection can be used again
+    (PyMySQL drains them: there is no way to tell the server to stop), so an
+    import that stops at its row limit would read the rest of the table over
+    the network for nothing. Closing the connection ends the query instead,
+    and the pool opens another. PyMySQL is told the result is finished first,
+    or it would try to read on from the closed socket when the cursor goes.
+    """
+    raw = conn.connection.dbapi_connection
+    result = getattr(raw, "_result", None)
+    if result is not None:
+        result.unbuffered_active = False
+        result.connection = None
+    conn.invalidate()
+
+
 def read_dataframe(
     connector_type: str,
     config: dict[str, Any],
@@ -347,6 +365,8 @@ def read_dataframe(
                     break
                 frames.append(chunk)
                 collected += len(chunk)
+            if truncated and connector_type == "mysql":
+                _abandon_unread_result(conn)
     except BadRequestError:
         raise
     except SQLAlchemyError as exc:

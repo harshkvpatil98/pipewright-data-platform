@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     DateTime,
     ForeignKey,
@@ -300,3 +301,25 @@ class LiveRecipeResult(UUIDPrimaryKeyMixin, Base):
     final: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     restated: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class TableStatistics(UUIDPrimaryKeyMixin, Base):
+    """What is known about a table in a connected database (D2, O1), for
+    estimating plans that read it. See `service_extraction.table_statistics`."""
+
+    __tablename__ = "table_statistics"
+    __table_args__ = (
+        UniqueConstraint("connection_id", "schema_name", "table_name", name="uq_table_statistics_table"),
+    )
+
+    connection_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("extraction_connections.id", ondelete="CASCADE"), nullable=False
+    )
+    #: "" when the table has no schema, so the unique constraint holds (NULLs never collide).
+    schema_name: Mapped[str] = mapped_column(String(160), nullable=False, default="", server_default="")
+    table_name: Mapped[str] = mapped_column(String(320), nullable=False)
+    #: How the numbers were got, in words.
+    method: Mapped[str] = mapped_column(String(80), nullable=False)
+    row_count: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    stats_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    collected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())

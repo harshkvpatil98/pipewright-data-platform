@@ -89,6 +89,38 @@ class DiscoveredColumnsResponse(BaseModel):
     items: list[DiscoveredColumnRead]
 
 
+class ColumnStatisticsRead(BaseModel):
+    name: str
+    kind: str
+    empty_share: float
+    distinct: int | None = None
+    lowest: Any = None
+    highest: Any = None
+    #: Equal-count bucket edges (dates as milliseconds since 1970) and rows in each.
+    bounds: list[float] = Field(default_factory=list)
+    bucket_rows: list[int] = Field(default_factory=list)
+    #: The commonest values, with how many rows have each: [[value, rows], ...].
+    common: list[tuple[str, int]] = Field(default_factory=list)
+
+
+class TableStatisticsRead(BaseModel):
+    """What is known about a table in a connected database (D2), for estimating plans."""
+
+    connection_id: uuid.UUID
+    table: str
+    schema_name: str | None
+    rows: int
+    #: How the numbers were got, in words: "PostgreSQL's own statistics", "the first 10,000 rows".
+    method: str
+    collected_at: datetime
+    columns: list[ColumnStatisticsRead]
+
+
+class TableStatisticsRefresh(BaseModel):
+    table: str = Field(min_length=1, max_length=320)
+    schema_name: str | None = Field(default=None, max_length=160)
+
+
 class ExtractionPreviewRequest(BaseModel):
     """Ad hoc preview of a table or query before a job is saved."""
 

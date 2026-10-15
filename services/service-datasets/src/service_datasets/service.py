@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -45,6 +46,29 @@ def _to_summary(dataset: Dataset) -> DatasetSummaryRead:
 
 def _to_detail(dataset: Dataset) -> DatasetDetailRead:
     return DatasetDetailRead.model_validate(dataset)
+
+
+def _statistics(profile_json: dict[str, Any] | None) -> dict[str, Any] | None:
+    """A version's statistics, from the profile written with it (D2)."""
+    from shared_python.statistics import from_profile
+
+    stats = from_profile(profile_json, collected_at=datetime.now(UTC))
+    return stats.to_json() if stats is not None else None
+
+
+def version_statistics(db: Session, dataset: Dataset, version: DatasetVersion | None = None):
+    """What is known about a dataset's values: of `version`, or of the current one.
+
+    A version written before statistics were kept has none, unless it is the
+    latest, whose figures are the dataset's own profile.
+    """
+    from shared_python.statistics import TableStats, from_profile
+
+    if version is not None and version.statistics_json:
+        return TableStats.from_json(version.statistics_json)
+    if version is None or version.version_number == _next_version_number(db, dataset.id) - 1:
+        return from_profile(dataset.profile_json)
+    return None
 
 
 def _policy_view(db: Session, project_id: uuid.UUID, dataset_id: uuid.UUID, current_user: UserRead):
@@ -725,6 +749,7 @@ def apply_dataset_materialization_success(
         schema_json=schema_json,
         preview_json=preview_json,
         ingest_spec_json=ingest_spec_json,
+        statistics_json=_statistics(profile_json),
         pipeline_run_id=pipeline_run_id,
         created_by_user_id=created_by_user_id,
     )

@@ -2,6 +2,17 @@
 
 The changes people notice, newest first. The full record is in the repository's changelog.
 
+## For partners, scripts and other sites
+
+- **Dashboards inside other sites.** **Embed** on a dashboard makes a link for a page on your site or a partner's, lasting from a day to a year. Your site's server can make short links of its own that show each customer only their rows. Turn an embed off and every link to it stops.
+- **Alerts on numbers.** On a dataset's **Data health** page, choose a measure and a line: the row count above a number, a column's empty values above a share, or anything changing by more than a share. You hear when it crosses and when it comes back.
+- **Activity.** **Overview → Activity** lists what happened in the project, newest first: changes, runs, incidents, comments and alerts, each with who and when.
+- **Webhooks.** An alert channel can send each event to your own systems as signed JSON, tried three times, with every attempt listed.
+- **Move a project's work.** **Settings → Move this project's work** downloads its recipes, checks, charts, dashboards, workflows and schedules as one file, to import into another project.
+- **A command line.** `pipewright` uploads, downloads and runs recipes and workflows from a script; see [Using the API](api.md#the-python-client-and-command-line).
+- **Bigger files.** Uploads up to 200MB, read in half the memory, and checks on large datasets in about a second.
+- **Dates the British way.** Every date and number is written one way across the product: "15 Oct 2026", "1,200".
+
 ## Scale and reliability
 
 - **Big files and big copies.** Files up to 100MB upload, and anything over 25MB is read in the background with the page showing how far it has got. Copying a database, and delivering a dataset of more than 50,000 rows, also run in the background, so a long job never times out.

@@ -1665,6 +1665,85 @@ English is the one language shipped.
 **Y8. Defects.** Walk every page; rehearse each new capability as a partner
 would; nothing found is left open.
 
+**What shipped.**
+
+- **A7's leftovers.** Leases are three minutes, renewed from a side thread
+  while work runs, and the stall sweep claims a run with a conditional
+  update, so a renewed lease is never taken. Single sign-on runs against a
+  live Keycloak in CI on every change. Uploads go to 200MB, read in half the
+  memory (lazy line reading, the C parser on bytes, the browser sends the
+  first 5MB for analysis). Every read of a stored dataset goes through
+  `read_copy.frame_of`: the settings confirmed at import, kept per version
+  (0055), and a columnar copy beside the file used only when it reads back
+  identically. Charts, checks and analyses refuse a dataset over 500,000 rows
+  before reading it.
+- **Y1, signed webhooks.** A webhook channel posts JSON signed with
+  HMAC-SHA256 over the time and body, through the outbound guard, tries
+  three times on 408, 429, 5xx or no answer, and shows every attempt
+  (0056). The secret is shown once and can be replaced. The guide's
+  verification code runs in a test.
+- **Y2, project bundles.** A project's recipes, checks, metrics, charts,
+  dashboards, workflows and schedules export as one file of names, not ids,
+  and import with a preview that names what will be made, what is skipped
+  and why, and asks for stand-ins for missing datasets, imports,
+  destinations and connections; a stand-in lacking a column an item uses is
+  refused for that item.
+- **Y3, client and command line.** `clients/python`: 346 methods generated
+  from the OpenAPI document (a test fails when it is out of date) and a
+  `pipewright` command for login, projects, datasets, upload, download,
+  running recipes and workflows, runs, bundles and any operation.
+- **Y4, embeds.** A dashboard's Embed panel makes a link that lasts a day to
+  a year, signed with the embed's own secret, turned off at once for every
+  link; a partner's server signs short links with fixed filters (each
+  customer sees their rows). `/embed/<token>` is frameless and framed only by
+  `EMBED_ALLOWED_ORIGINS` (0057). Public pages now pass the viewer's address
+  on, so every viewer is no longer one rate limit.
+- **Y5, metric alerts.** Above, below or a change of more than a share, on
+  row count, completeness, duplicates or a column's nulls, distinct values
+  or average; checked whenever the dataset gets new data, which now records
+  measures for every upload, import, recipe run and rollback, not only
+  workflows; alerts once on crossing and once on coming back; sent after
+  commit by the worker to the project's people and channels (0058).
+- **Y6, activity.** One stream per project: changes, runs, incidents,
+  comments and alerts, with who, when and a link, filterable, paged by
+  position (0059). The audit log now names what a request made and what a
+  deletion removed, and who used an API token.
+- **Y7, languages ready.** `messages/en.json` (266 strings: shell and
+  navigation) read through a typed `t()`; dates, numbers and sorting only in
+  `lib/format.ts` (en-GB, from 59 calls in 29 files); the language lint reads
+  the catalogue.
+- **Y8, defects.** Fixed on the walk and the rehearsals: the charts page
+  opened on a dataset too large to chart and gave the wrong hint; the
+  Assistant said "Nothing here looks like personal data" when it had not
+  scanned, and said "quality rules"; four services said "quality rule";
+  "New secret" replaced a webhook's secret without asking; "Add an alert"
+  added a channel; the Data health page was called "Metrics", like the
+  defined numbers under Share; the guide said any failing check opens an
+  incident (only in a workflow); the CI job lacked an encryption key the
+  embed tests needed.
+
+**Measured.**
+
+| | Before | After |
+|---|---|---|
+| Outbound events | email and Slack, unsigned, one try | plus signed webhooks, three tries, every attempt shown |
+| Moving work between projects | one workflow at a time | a whole project's work, previewed, with stand-ins |
+| Scripting | API tokens only | a generated client (346 methods) and a command line |
+| Embedding | impossible (every page refused framing) | signed, expiring, revocable, filtered per customer |
+| Alerts on numbers | none; measures recorded only by workflows | thresholds and changes, on every new version |
+| What happened in a project | four separate pages | one stream, five kinds |
+| Strings in a catalogue / date formats | 0 / three locales | 266 / one (en-GB) |
+| Largest upload | 100MB | 200MB (199MB read in 37 s; worker 1.86GB) |
+| Checks on 4,000,000 rows | 22–26 s | 1.0 s from the read copy |
+| A stalled run noticed after | 15 minutes | 3 minutes (175 s measured) |
+| Pages walked with a problem (77, at two widths) | 5 kinds | 0 |
+
+**Not done here, and stated.** Okta and Entra ID are untested (no tenant;
+Keycloak is tested on every change). Embedding sites are listed once per
+deployment, not per embed. Activity pages back 2,000 items. Page bodies are
+still written in English in the code; only the shell and navigation are in
+the catalogue.
+
 ---
 
 ## A9 — Launch gate

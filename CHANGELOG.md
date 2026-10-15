@@ -13,6 +13,37 @@ the test counts at the time — is in the session log in
 
 ---
 
+## A8 — adoption pack (2026-10-15)
+
+- **Signed webhooks**: a channel that posts each chosen event as JSON signed
+  with HMAC-SHA256, tried three times, every attempt shown under
+  **Deliveries**; the secret is shown once and can be replaced.
+- **Project bundles**: a project's recipes, checks, metrics, charts,
+  dashboards, workflows and schedules as one file, imported elsewhere with a
+  preview and stand-ins for what the project lacks.
+- **Python client and command line**: `clients/python`, generated from the
+  API's own reference, and a `pipewright` command for the common jobs.
+- **Dashboards on other sites**: signed links that run out and can be turned
+  off, short links a site's server signs with fixed filters per customer,
+  and only listed sites may frame them (`EMBED_ALLOWED_ORIGINS`).
+- **Alerts on measures**: above, below or a change of more than a share,
+  checked whenever a dataset gets new data, sent to the project's people and
+  channels; measures are now recorded for every upload, import and recipe.
+- **Activity**: one stream of what happened in a project, with who, when and
+  a link; the audit log now names what was made and what was deleted, and
+  who used an API token.
+- **Languages ready**: the shell and navigation read their words from
+  `messages/en.json`; dates and numbers are written in one place, the British
+  way.
+- **Bigger and faster**: uploads to 200MB in half the memory; checks and
+  charts read a columnar copy (checks on 4 million rows in a second); a
+  stalled run is noticed in three minutes; single sign-on tested against a
+  live Keycloak in CI.
+- **Fixed on the way**: every viewer of a shared dashboard shared one rate
+  limit; the Assistant claimed nothing looked like personal data when it had
+  not scanned; the charts page opened on a dataset too large to chart;
+  "New secret" replaced a secret without asking.
+
 ## A7 — scale and reliability (2026-10-14)
 
 - **CI green again**: notebook cells run on Linux, the dependency audit

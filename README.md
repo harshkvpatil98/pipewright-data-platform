@@ -60,18 +60,22 @@ an S3-compatible bucket shared by several gateways, uploads up to 200MB and
 large deliveries and copies on the background worker with progress,
 workflows that retry and can be picked up where they failed, rate limits,
 OpenTelemetry traces, performance budgets and browser and accessibility tests
-in CI, and the server's limits stated on System status. The progress ledger lives in [docs/HANDOFF.md](docs/HANDOFF.md).
+in CI, and the server's limits stated on System status. A8 opened it to
+partners and scripts: signed webhooks, project bundles, a generated Python
+client and `pipewright` command line, dashboards embedded in other sites by
+signed links that run out, alerts on a dataset's measures, one activity
+stream per project, and the shell's words in a message catalogue. The progress ledger lives in [docs/HANDOFF.md](docs/HANDOFF.md).
 
 At a glance, measured on `main`:
 
 | | |
 |---|---|
 | Python domain services | 24, in `services/` |
-| Database migrations | 54 Alembic revisions, head `0054_task_settings_hash` |
-| Web pages | 62 Next.js App Router pages |
+| Database migrations | 59 Alembic revisions, head `0059_activity` |
+| Web pages | 64 Next.js App Router pages |
 | Connectors | 211: 50 tier 2 ("Tested", run against a container or fixture in CI), 161 tier 4 ("Not yet tested", written from vendor documentation, offered on request) |
 | Transformation library | 20 pipeline step types plus a `tool` step over 173 tools in 11 categories |
-| Tests | 7,105 Python tests collected and 806 web tests ([results below](#running-tests)), plus 5 browser tests in CI |
+| Tests | 7,145 Python tests collected and 827 web tests ([results below](#running-tests)), plus 6 browser tests in CI, one of them signing in through a live Keycloak |
 
 ## What the platform does
 
@@ -151,8 +155,14 @@ At a glance, measured on `main`:
   any version as CSV or Parquet with the project's row and column policies
   applied; copy a whole database between PostgreSQL and MySQL with a plan
   that marks every lossy type and a report of what was not carried. Power BI
-  and Tableau have their own publish flows; in-app notifications plus email
-  and Slack targets.
+  and Tableau have their own publish flows; in-app notifications plus email,
+  Slack and signed webhook channels, every webhook attempt recorded.
+- **Partners and scripts**: dashboards embedded in other sites by signed
+  links that run out and can be turned off, with filters a partner's server
+  fixes per customer; alerts when a dataset's measure crosses a line;
+  one activity stream per project; project bundles that move recipes,
+  checks, dashboards and workflows between projects; and `clients/python`,
+  a client generated from the API and a `pipewright` command line.
 - **Identity**: scrypt-hashed passwords, JWTs that one "sign out everywhere"
   invalidates, scoped revocable API tokens, invitations, TOTP two-factor
   authentication, OIDC single sign-on with group-to-role mapping, and a
@@ -329,13 +339,15 @@ first-time user meets soonest:
   tested ones have run against a real server here.
 - **No warehouse destinations.** Datasets deliver to PostgreSQL, MySQL, S3
   and a server folder; Snowflake, BigQuery and Redshift are not destinations.
-  A database copy runs inside one request (up to 2,000,000 rows a table).
-- **Identity**: SAML is absent by design (it needs XML signature verification),
-  and the OIDC network legs have not been run against a live identity provider.
+  A database copy runs on the background worker (up to 2,000,000 rows a table).
+- **Identity**: SAML is absent by design (it needs XML signature verification).
+  Single sign-on is tested against a live Keycloak in CI on every change;
+  Okta and Entra ID have not been run, for want of a tenant.
 - **Write-back** has run only against SQLite; the PostgreSQL and MySQL paths are
   written and dialect-aware but unexercised against a server.
 - **Email and Slack delivery** are tested with captured senders, not against a
-  real SMTP server or webhook.
+  real SMTP server or Slack workspace. Webhooks are tested against a local
+  receiver.
 - **Streaming** covers inbound webhooks and PostgreSQL CDC only, at-least-once.
 - **Notebooks** run in the request (15 s per Python cell) rather than on the
   worker. Python cells are disabled on macOS, where the sandbox cannot limit

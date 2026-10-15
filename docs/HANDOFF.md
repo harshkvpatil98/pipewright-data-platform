@@ -113,7 +113,7 @@ was for that push, not a standing one.
 | 06 | Intelligence | `service-intelligence` | PII, join keys, entity resolution — **no model calls** |
 | 07 | Enterprise | `service-enterprise` | Tenancy, row/column security, retention, SSO, `/metrics` |
 
-**Migrations:** `apps/api-gateway/alembic/versions/`, 54 files, head is `0054_task_settings_hash`.
+**Migrations:** `apps/api-gateway/alembic/versions/`, 59 files, head is `0059_activity`.
 
 ### Roadmap v2: in progress
 
@@ -248,7 +248,11 @@ honesty; if you verify one, update its status here.
 | The v1 source registry is hidden, not removed | `service-sources` (`/api/v1/projects/{id}/sources`, the "Register source" records) is no longer shown anywhere in the web app since A1; its API and tables stay for compatibility. A4 did not retire it: nothing reads it, and deleting the tables needs a decision about existing rows |
 | Column names appear in lineage and recipe definitions | Policies (A6) hold on every path that hands rows or values to a person; lineage and recipes describe the data's shape, so a denied column's name still appears there |
 | No warehouse destinations | Datasets deliver to PostgreSQL, MySQL, S3 (or a compatible store) and a server folder. Snowflake, BigQuery and Redshift are not destinations until a customer names one |
-| Checks and charts compute in the request | Bounded by the preview and dataset sizes; a check in a workflow runs on the worker. Only uploads over 25MB, deliveries over 50,000 rows and database copies are handed to the worker |
+| Checks and charts compute in the request | Bounded: charts, checks and analyses refuse a dataset over 500,000 rows before reading it, and read a columnar copy rather than the file (A8: checks on 4M rows 22s to 1s). A check in a workflow runs on the worker. Only uploads over 25MB, deliveries over 50,000 rows and database copies are handed to the worker |
+| Embedding sites are listed per deployment, not per embed | `EMBED_ALLOWED_ORIGINS` is the web's one list; an embed cannot narrow it to one partner's site. Signed links, expiry, per-link filters and turning an embed off are per embed |
+| Activity goes back 2,000 items | `api_gateway/activity.py` pages by position up to `MAX_OFFSET`; the audit log and runs pages hold everything |
+| Page bodies are written in English in the code | Y7 moved the shell and navigation (266 strings) into `messages/en.json` and every date and number into `lib/format.ts`; the rest of each page's words are inline, so a second language needs them moved first. English is the one language shipped |
+| Okta and Entra ID untested | No tenant; Keycloak is tested in CI on every change |
 | Temporal SQL runs in SQLite over a copy | `AS OF` queries load the version's artifact into an in-memory SQLite table named `dataset`; the dialect is SQLite's, not the source's, and results are capped at 1,000 rows. Customer SQL sent to customer databases is never rewritten (settled decision #8) |
 | No pagination on version history or diff samples | Listings return every version; diff samples are capped at a declared 20 while counts stay exact. A dataset with thousands of versions would want cursors, which do not exist yet |
 | `today()` is the UTC date of the frozen instant | Before P7 it was the host's local date. Recorded in the run's execution context (`timezone: UTC`); a deliberate semantic change, stated rather than hidden |
@@ -294,7 +298,8 @@ quick-win defect fixes) and A1 (navigation and shell) are done as of
 2026-10-13, and A2 (golden path and onboarding) and A3 (Studio redesign) as
 of 2026-10-14, as are A4 (sources, destinations and migration) and A5 (copy,
 design system and consistency), A6 (trust, help and support for
-buyers) and A7 (scale and reliability); A8 (adoption pack) is next.** Each phase's section in the plan lists what shipped, the
+buyers), A7 (scale and reliability) and, as of 2026-10-15, A8 (adoption
+pack); A9 (launch gate) is next.** Each phase's section in the plan lists what shipped, the
 measured cold-user task results and what moved to later phases. Rules for anyone touching the web app now:
 
 - **`apps/web/src/lib/navigation.ts` is the navigation.** A new page goes into
@@ -452,6 +457,51 @@ measured cold-user task results and what moved to later phases. Rules for anyone
   scrolling, unnamed controls, cut-off tab lists and headings. A7's final
   walk: 71 pages at 1280 and 1024, 0 problems, and the three detail pages
   this project lacked walked from projects that had them.
+- **Read a stored dataset with `service_ingestion/read_copy.frame_of`**
+  (storage, path, bytes, file type, the version's `ingest_spec_json`), never
+  by parsing the file yourself. It reads with the settings the person
+  confirmed at import and keeps a columnar copy beside the file; anything
+  that deletes or rewrites a stored file calls `forget_copy` (erasure uses
+  `strict=True`). Each `DatasetVersion` carries its own spec
+  (`stored_file_spec(db, path)`); a rollback restores the target's.
+- **A new dataset version records its measures** in
+  `apply_dataset_materialization_success` (savepoint, best effort) and checks
+  the dataset's alerts (`service_observability/alerts.py`). Alert events are
+  sent by the worker after commit (`send_due`, claimed with a conditional
+  update). A workflow task tags the measures its data wrote, not twice.
+- **Outbound events reach channels through `dispatch_external_notifications`**;
+  a webhook channel signs with `Pipewright-Signature: t=..,v1=HMAC-SHA256(t.body)`,
+  records each attempt (`webhook_deliveries`) and retries 408/429/5xx twice.
+  A new event type goes in `ALLOWED_EXTERNAL_NOTIFICATION_EVENT_TYPES`,
+  `EXTERNAL_NOTIFICATION_EVENT_TYPES` (shared types) and `EVENT_LABELS`.
+- **Project bundles are `api_gateway/bundles.py`**: names, not ids, travel;
+  items are made through each service's own create function; a stand-in
+  dataset is checked for the columns each item uses. A new kind of project
+  object that should move between projects needs a section there.
+- **After changing the API, run `scripts/generate-client.py`** (from
+  `apps/api-gateway`). `clients/python/tests/test_client.py` fails until the
+  generated `_operations.py` matches; two routes may not share a function
+  name (give one `name=` in the decorator).
+- **Embeds** (`service_reporting/embeds.py`): HS256 tokens per embed secret,
+  verified with that secret only; `/embed/<token>` is the one page without
+  `X-Frame-Options`, framed only by the web's `EMBED_ALLOWED_ORIGINS`
+  (`src/proxy.ts`). Public pages fetch through `lib/api/public.ts`, which
+  passes the viewer's address on for the rate limit.
+- **The audit log names what a request made and what a deletion removed**
+  (201 answers are read for the new id; a DELETE reads the name first), and
+  the sign-in check notes the actor on `request.state.audit_actor`, so API
+  token changes are not "Someone". The project's Activity stream
+  (`api_gateway/activity.py`) reads that log plus runs, incidents, comments
+  and alert events.
+- **Shell and navigation words come from `apps/web/messages/en.json`** via
+  `t()`/`tList()` (`lib/i18n.ts`, keys type-checked); dates, times, numbers
+  and text sorting only through `lib/format.ts`, in the catalogue's locale
+  (en-GB). `i18n.test.ts` fails a formatter or `toLocaleString` anywhere
+  else, and the language lint reads the catalogue.
+- **CI has no `.env`.** Locally `api_gateway/config.py` loads
+  `apps/api-gateway/.env` into the environment, so a test that stores a
+  secret sets its own `APP_SECRET_ENCRYPTION_KEY`. Run
+  `APP_SECRET_ENCRYPTION_KEY= npm run verify` before pushing such work.
 - **Toolbars and tab strips wrap or fit; they do not scroll sideways**
   (`ribbon.tsx`, `area-tabs.tsx`): a scrolled-away button is hidden from
   everyone and unreachable by keyboard.
@@ -914,3 +964,4 @@ Report honestly. If something is unverified, say so and add it to §7.
 | 2026-10-14 | `75332b59` | **Adoption-readiness A5 complete.** Spec V1–V6 measured first (3,786 on-screen strings via the TS parser; 41 pages in the browser). V1: `lib/language.test.ts` (retired words, code names, HTTP paths, em-dashes, purpose ≤15 / description and tour step ≤25 words, capital and sentence case, UK spelling; replaces `wording.test.ts`) and `test_error_words.py` for raised API errors. V2: every flagged string rewritten; Run audit, Dataset audit, both comparisons and System status rebuilt in words with names from the API (`triggered_by_name`, `pipeline_name`, `dataset_names`; dataset audit names); run logs, audit/comparison notes, role descriptions, impact summaries and 29 error messages reworded at the source; Power BI/Tableau dialogs became "Send to"; raw-JSON "Try a change" and create-pipeline dialogs removed. V3: `service_governance/audit_words.py` turns all 165 audited routes into phrases and names the object; Audit Center outcome filter fixed (sent values no entry had). V4: 343 sub-12px sizes, 200 uppercase uses, 10 letter-spacings gone (`type-scale.test.ts`). V5: shared-ui Badge/Table/Tabs/Toast/StatTile/PageHeader/Overlay (+Modal drawer, compact EmptyState, icons); 33 tables, ~80 pills, 3 dialogs, 3 tab lists migrated (`components.test.ts`). V6: `docs/design-system.md`, light theme for demos. Measured: pages with sub-12px text 17→0, uppercase 16→0, raw ids 4→0, retired words 13→1 (vendor "endpoint" on Connectors). `npm run verify` green: 6,416 Python passed / 591 skipped, 783 web, ESLint/tsc/build clean. Pushed to `main`. **Next: A6 (trust, help and support for buyers).** |
 | 2026-10-14 | `75332b59` | **Adoption-readiness A6 complete.** Spec W1–W8 measured first. W1: `service_enterprise/policy_view.py` on every read path (dataset page, versions, SQL, charts, pivots, dashboards and public links, Studio preview and joins, assistant, comparisons, downloads, deliveries); `test_policies_everywhere.py` fails all six with policies off. W2: `/help` from `docs/user/` (12 pages), Help menu Documentation / What's new / Contact support (`SUPPORT_CONTACT`, `GET /status/support`), "Read more" from every tab; `help.test.ts`. W3: `test_api_guide.py` runs the guide's 12 curl requests in order. W4: catalogue of 50 tested connectors, 161 "Available on request", tier words rewritten. W5: org network allow-lists (migration 0049), `TRUSTED_PROXY_HOPS`, session policy shown, AES-256-GCM files at rest + `platform-encrypt-storage`. W6: incidents and failed workflows to email/Slack, weekly summary (migration 0050). W7: `docs/security.md` rewritten, `scripts/check-oidc.py` (tested against a local provider), security headers. W8: D1–D20 hold; fixed SSO nonce never compared and token-chosen algorithm, unlayered CSS cancelling every button/link utility, unfilled workflow tasks reading "ready to run", Deliver task PostgreSQL-only, add-task buttons off-screen, ribbon on four pages, tab strip squeezed by side panels, malformed ids crashing, raw platform roles, audit middleware writing tests into the configured DB. `npm run verify` green: 6,455 Python passed / 591 skipped, 797 web. Live OIDC still unproven (no tenant); rate limiting is A7. **Next: A7.** |
 | 2026-10-14 | `75332b59` | **Adoption-readiness A7 complete.** Spec X1–X10 measured first. X1 CI green (Linux notebook sandbox, dependency audit, image builds). X2 `STORAGE_BACKEND=s3` with encryption, two gateways on one bucket in CI (MinIO), Docker/Helm shared files. X3 `service_pipeline_runs/background.py` (queue, lease, progress, `on_fail`; migration 0053): uploads over 25MB, deliveries over 50,000 rows and database copies on the worker, pages follow them; upload limit 100MB. X4 per-task retries, pick up from where it failed (task fingerprints, migration 0054), runs per project. X5 rate limits (migration 0052). X6 OpenTelemetry behind `OTEL_ENABLED` (SQL spans from engine events). X7 p95 budgets in CI. X8 Playwright golden path and axe on every template in CI. X9 twelve limits on System status. X10 70 pages walked at two widths and the scale features rehearsed live. Found and fixed: pick-up refused for every run on PostgreSQL (`updated_at`, hidden by SQLite's clock); stalled or crashed workflow runs failed silently; a large read failing before it began left its dataset "being read"; failed reads showed no reason; worker memory limit equal to a 100MB read (now 4Gi); audit entries never recorded the correlation id; OTel SQLAlchemy refused SQLAlchemy 2.1 in CI; editors without a heading; toolbars and Trust's tabs hidden at laptop widths; 125 "(s)" counts and retired words in task messages. Measured: 99MB CSV through the page answered at once, rows shown in 23 s, worker peak 1.98GB; 1,003,735 rows to MySQL, request 106 ms, worker 21 s; worker killed mid-delivery, run failed and notified, picked up with the check reused and every row delivered. `npm run verify` green: 6,507 Python passed / 598 skipped, 806 web; with the connector servers and MinIO 6,536 / 569. Also: a run longer than its lease would have been failed by a second worker while working; `shared_python/lease.py` keeps it. Live OIDC still unproven. **Next: A8 (adoption pack).** |
+| 2026-10-15 | `75332b59` | **Adoption-readiness A8 complete.** Spec Y1–Y8 measured first. A7 leftovers closed: 180s leases renewed from a side thread, Keycloak SSO live in CI, 200MB uploads in half the memory, a columnar read copy (checks on 4M rows 22s to 1s). Y1 signed webhooks with retries and a deliveries view (0056). Y2 project bundles (`api_gateway/bundles.py`). Y3 `clients/python` generated from OpenAPI, `pipewright` CLI. Y4 dashboard embeds: HS256 per-embed secrets, expiry, filters, `EMBED_ALLOWED_ORIGINS` frame-ancestors (0057); fixed every public viewer sharing one rate limit. Y5 metric alerts on every new version, sent after commit by the worker (0058); measures now recorded for uploads, imports and recipes, not only workflows. Y6 Activity stream (0059); audit log now names created and deleted things and API-token actors. Y7 `messages/en.json` + `t()`, dates/numbers only in `lib/format.ts` (en-GB). Y8 walked 77 pages at 1280 and 1024 with no problem after fixing: charts opening on a dataset too large to chart, the Assistant claiming "nothing looks like personal data" when it had not scanned, "quality rule" wording, "New secret" without asking, "Add an alert" for a channel, the guide overstating when checks open incidents. `npm run verify` green with no .env: 6,547 Python passed / 598 skipped, 827 web. **Next: A9.** |

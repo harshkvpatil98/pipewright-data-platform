@@ -98,7 +98,10 @@ RENAMED = (
     ("amount", Column("amount")),
 )
 
-# (name, tree, ordered, expected rule names in order -- empty means "nothing applies")
+#: Column pruning runs after the other rules and has tests of its own below.
+PRUNING = {"read only the columns used", "drop columns nobody reads"}
+
+# (name, tree, ordered, expected rule names in order, pruning aside -- empty means "nothing applies")
 CASES: list[tuple[str, Node, bool, list[str]]] = [
     (
         "filter below projection (pass-through columns)",
@@ -215,10 +218,10 @@ def test_rewritten_tree_agrees_with_the_original_on_both_engines(
     name: str, tree: Node, ordered: bool, expected: list[str], db: sqlite3.Connection
 ) -> None:
     rewritten, applied = rewrite(tree)
-    assert [entry.rule for entry in applied] == expected, [
+    assert [entry.rule for entry in applied if entry.rule not in PRUNING] == expected, [
         str(entry) for entry in applied
     ]
-    if not expected:
+    if not applied:
         assert rewritten is tree
 
     frames = {
@@ -284,7 +287,7 @@ def test_a_filter_written_after_a_local_step_now_reaches_the_source(
     assert as_written.sql is None or "WHERE" not in as_written.sql.upper()
 
     optimised = plan(tree, surface=surface)
-    assert [entry.rule for entry in optimised.rewrites] == ["filter below projection"]
+    assert [entry.rule for entry in optimised.rewrites if entry.rule not in PRUNING] == ["filter below projection"]
     assert optimised.sql is not None and "WHERE" in optimised.sql.upper(), (
         optimised.explain()
     )
@@ -327,7 +330,7 @@ def test_a_limit_written_after_a_local_step_now_reaches_the_source() -> None:
     assert as_written.sql is None or "LIMIT" not in as_written.sql.upper()
 
     optimised = plan(tree, surface=surface)
-    assert [entry.rule for entry in optimised.rewrites] == ["limit below projection"]
+    assert [entry.rule for entry in optimised.rewrites if entry.rule not in PRUNING] == ["limit below projection"]
     assert optimised.sql is not None and "LIMIT 3" in optimised.sql.upper(), (
         optimised.explain()
     )
@@ -344,7 +347,7 @@ def test_the_preview_plan_reports_rewrites_in_words() -> None:
     """What the Studio panel shows: the rule and what moved, not a node dump."""
     tree = Filter(Project(SCAN, PASS_THROUGH_WITH_DERIVED), AMOUNT_GT_40)
     result = plan(tree, "postgresql")
-    assert len(result.rewrites) == 1
+    assert [r.rule for r in result.rewrites] == ["filter below projection", "read only the columns used"]
     text = str(result.rewrites[0])
     assert text.startswith("filter below projection: ")
     assert "now runs before Project(" in text

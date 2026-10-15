@@ -260,7 +260,9 @@ def _join(node: Join, sources: dict[str, pd.DataFrame]) -> pd.DataFrame:
 
     merged = left_side.merge(
         right_side,
-        how=node.how,
+        # pandas calls a full outer join "outer"; passed "full" it failed
+        # deep inside merge (found by the D2 rewrite tests).
+        how="outer" if node.how == "full" else node.how,
         left_on=[left_renames.get(k, k) for k in left_keys],
         right_on=[right_renames.get(k, k) for k in right_keys],
     ).reset_index(drop=True)

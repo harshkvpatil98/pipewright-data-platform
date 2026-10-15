@@ -133,24 +133,29 @@ def _compile(node: Node, d: Dialect, alias_seed: list[int]) -> str:
     if isinstance(node, Sort):
         inner = _compile(node.input, d, alias_seed)
         alias = _next_alias(alias_seed)
-        parts = []
-        for key in node.keys:
-            piece = f"{_expr(key.expr, d)} {key.direction.upper()}"
-            if d.supports_nulls_ordering:
-                piece += " NULLS FIRST" if key.nulls_first else " NULLS LAST"
-            parts.append(piece)
-        return f"SELECT * FROM ({inner}) AS {alias} ORDER BY {', '.join(parts)}"
+        return f"SELECT * FROM ({inner}) AS {alias} ORDER BY {_order_by(node.keys, d)}"
 
     if isinstance(node, Limit):
-        inner = _compile(node.input, d, alias_seed)
-        alias = _next_alias(alias_seed)
         if not d.supports_limit_offset:
             raise Unsupported(f"{d.name} does not write LIMIT/OFFSET.")
-        sql = f"SELECT * FROM ({inner}) AS {alias}"
+        if isinstance(node.input, Sort):
+            # The ORDER BY and the LIMIT in one SELECT. A limit over a sorted
+            # subquery relies on the subquery keeping its order, which SQL never
+            # promises: SQLite dropped the inner ORDER BY under an aggregate and
+            # kept the wrong rows (found by the D2 rewrite tests).
+            inner = _compile(node.input.input, d, alias_seed)
+            alias = _next_alias(alias_seed)
+            sql = f"SELECT * FROM ({inner}) AS {alias} ORDER BY {_order_by(node.input.keys, d)}"
+        else:
+            inner = _compile(node.input, d, alias_seed)
+            alias = _next_alias(alias_seed)
+            sql = f"SELECT * FROM ({inner}) AS {alias}"
         if node.count is not None:
             sql += f" LIMIT {node.count}"
-        elif node.offset:
-            sql += " LIMIT -1" if d.name == "sqlite" else ""
+        elif node.offset and d.name == "sqlite":
+            sql += " LIMIT -1"
+        elif node.offset and d.name == "mysql":
+            sql += " LIMIT 18446744073709551615"  # MySQL takes no OFFSET without a LIMIT
         if node.offset:
             sql += f" OFFSET {node.offset}"
         return sql
@@ -185,13 +190,30 @@ def _compile(node: Node, d: Dialect, alias_seed: list[int]) -> str:
             "except": d.except_keyword,
         }[node.kind]
         # No parentheses around the arms: SQLite rejects `(SELECT ...) UNION
-        # ALL (SELECT ...)` outright. A nested set operation is wrapped in a
-        # subquery instead, which every dialect accepts.
-        left_sql = f"SELECT * FROM ({left}) AS {_next_alias(alias_seed)}" if isinstance(node.left, SetOp) else left
-        right_sql = f"SELECT * FROM ({right}) AS {_next_alias(alias_seed)}" if isinstance(node.right, SetOp) else right
+        # ALL (SELECT ...)` outright. An arm that is itself a set operation, or
+        # ends in ORDER BY or LIMIT (which would otherwise apply to the whole
+        # union, or be refused: "LIMIT clause should come after UNION ALL"),
+        # is wrapped in a subquery instead, which every dialect accepts.
+        left_sql = f"SELECT * FROM ({left}) AS {_next_alias(alias_seed)}" if _needs_wrapping(node.left) else left
+        right_sql = f"SELECT * FROM ({right}) AS {_next_alias(alias_seed)}" if _needs_wrapping(node.right) else right
         return f"{left_sql} {keyword} {right_sql}"
 
     raise Unsupported(f"No SQL form for {type(node).__name__}.")
+
+
+def _order_by(keys, d: Dialect) -> str:
+    parts = []
+    for key in keys:
+        piece = f"{_expr(key.expr, d)} {key.direction.upper()}"
+        if d.supports_nulls_ordering:
+            piece += " NULLS FIRST" if key.nulls_first else " NULLS LAST"
+        parts.append(piece)
+    return ", ".join(parts)
+
+
+def _needs_wrapping(arm: Node) -> bool:
+    """An arm whose SQL would end in a clause that belongs to the whole set operation."""
+    return isinstance(arm, (SetOp, Sort, Limit))
 
 
 def _join_sql(node: Join, d: Dialect, alias_seed: list[int]) -> str:

@@ -435,4 +435,20 @@ def build_activity_router(get_db: Any, get_current_user: Any) -> Any:
         comments and alerts, with who and when. Repeat `kind` to choose several."""
         return project_activity(db, project_id, current_user, kinds=kind, offset=offset, limit=limit)
 
+    from api_gateway.dataset_activity import DatasetActivityResponse, dataset_activity
+
+    @router.get("/projects/{project_id}/datasets/{dataset_id}/activity", response_model=DatasetActivityResponse)
+    def read_dataset_activity(
+        project_id: uuid.UUID,
+        dataset_id: uuid.UUID,
+        offset: int = Query(0, ge=0, le=MAX_OFFSET, description="the next_offset of the page before"),
+        limit: int = Query(DEFAULT_LIMIT, ge=1, le=MAX_LIMIT),
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> DatasetActivityResponse:
+        """What happened to one dataset, newest first: its versions and what made
+        them, failed runs, checks, schema changes, contracts, alerts, incidents,
+        comments and changes to it."""
+        return dataset_activity(db, project_id, dataset_id, current_user, offset=offset, limit=limit)
+
     return router

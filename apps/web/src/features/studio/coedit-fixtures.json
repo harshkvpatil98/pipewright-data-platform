@@ -1,0 +1,108 @@
+{
+  "about": "Cases the recipe merge rules must agree on, in Python (service_transformations/coedit.py) and TypeScript (coedit.ts). Each case's ops are merged in the order given, reversed, and shuffled; every order must give `expect`.",
+  "between": [
+    { "low": null, "high": null, "expect": "i" },
+    { "low": "i", "high": null, "expect": "r" },
+    { "low": null, "high": "i", "expect": "9" },
+    { "low": "a", "high": "am", "expect": "ab" },
+    { "low": "az", "high": "b", "expect": "azi" },
+    { "low": "i", "high": "j", "expect": "ii" },
+    { "low": "z", "high": null, "expect": "zi" }
+  ],
+  "cases": [
+    {
+      "name": "two people change the same setting at the same counter: the higher client wins",
+      "ops": [
+        { "k": "add", "id": "s1", "type": "drop_columns", "pos": "i", "cfg": { "columns": ["a"] }, "s": [1, "ann"] },
+        { "k": "set", "id": "s1", "key": "columns", "v": ["b"], "s": [2, "ann"] },
+        { "k": "set", "id": "s1", "key": "columns", "v": ["c"], "s": [2, "bob"] }
+      ],
+      "expect": { "name": null, "steps": [{ "id": "s1", "step_type": "drop_columns", "config": { "columns": ["c"] } }] }
+    },
+    {
+      "name": "different settings of one step both survive",
+      "ops": [
+        { "k": "add", "id": "s1", "type": "filter_rows", "pos": "i", "cfg": { "column": "a", "operator": "eq" }, "s": [1, "ann"] },
+        { "k": "set", "id": "s1", "key": "column", "v": "amount", "s": [2, "ann"] },
+        { "k": "set", "id": "s1", "key": "operator", "v": "gt", "s": [2, "bob"] }
+      ],
+      "expect": { "name": null, "steps": [{ "id": "s1", "step_type": "filter_rows", "config": { "column": "amount", "operator": "gt" } }] }
+    },
+    {
+      "name": "removing a step wins over an older change to it, and a later change does not bring it back",
+      "ops": [
+        { "k": "add", "id": "s1", "type": "sort_rows", "pos": "i", "cfg": {}, "s": [1, "ann"] },
+        { "k": "del", "id": "s1", "v": true, "s": [3, "bob"] },
+        { "k": "set", "id": "s1", "key": "ascending", "v": false, "s": [4, "ann"] }
+      ],
+      "expect": { "name": null, "steps": [] }
+    },
+    {
+      "name": "an undo brings a removed step back with its settings",
+      "ops": [
+        { "k": "add", "id": "s1", "type": "sort_rows", "pos": "i", "cfg": { "columns": ["a"] }, "s": [1, "ann"] },
+        { "k": "del", "id": "s1", "v": true, "s": [2, "ann"] },
+        { "k": "del", "id": "s1", "v": false, "s": [3, "ann"] }
+      ],
+      "expect": { "name": null, "steps": [{ "id": "s1", "step_type": "sort_rows", "config": { "columns": ["a"] } }] }
+    },
+    {
+      "name": "two steps added at the same place are ordered by id, the same everywhere",
+      "ops": [
+        { "k": "add", "id": "a1", "type": "drop_columns", "pos": "i", "cfg": {}, "s": [1, "seed"] },
+        { "k": "add", "id": "zz", "type": "sort_rows", "pos": "r", "cfg": {}, "s": [2, "ann"] },
+        { "k": "add", "id": "mm", "type": "filter_rows", "pos": "r", "cfg": {}, "s": [2, "bob"] }
+      ],
+      "expect": {
+        "name": null,
+        "steps": [
+          { "id": "a1", "step_type": "drop_columns", "config": {} },
+          { "id": "mm", "step_type": "filter_rows", "config": {} },
+          { "id": "zz", "step_type": "sort_rows", "config": {} }
+        ]
+      }
+    },
+    {
+      "name": "a move puts a step between two others",
+      "ops": [
+        { "k": "add", "id": "a", "type": "t1", "pos": "9", "cfg": {}, "s": [1, "ann"] },
+        { "k": "add", "id": "b", "type": "t2", "pos": "i", "cfg": {}, "s": [1, "bob"] },
+        { "k": "add", "id": "c", "type": "t3", "pos": "r", "cfg": {}, "s": [2, "ann"] },
+        { "k": "move", "id": "c", "pos": "d", "s": [5, "bob"] }
+      ],
+      "expect": {
+        "name": null,
+        "steps": [
+          { "id": "a", "step_type": "t1", "config": {} },
+          { "id": "c", "step_type": "t3", "config": {} },
+          { "id": "b", "step_type": "t2", "config": {} }
+        ]
+      }
+    },
+    {
+      "name": "a change that arrives before its step waits for it",
+      "ops": [
+        { "k": "set", "id": "late", "key": "how", "v": "all", "s": [7, "bob"] },
+        { "k": "add", "id": "late", "type": "drop_null_rows", "pos": "i", "cfg": { "how": "any" }, "s": [6, "ann"] }
+      ],
+      "expect": { "name": null, "steps": [{ "id": "late", "step_type": "drop_null_rows", "config": { "how": "all" } }] }
+    },
+    {
+      "name": "a removed setting is gone from the step",
+      "ops": [
+        { "k": "add", "id": "s1", "type": "filter_rows", "pos": "i", "cfg": { "column": "a", "value": 3 }, "s": [1, "ann"] },
+        { "k": "set", "id": "s1", "key": "value", "x": true, "s": [2, "ann"] }
+      ],
+      "expect": { "name": null, "steps": [{ "id": "s1", "step_type": "filter_rows", "config": { "column": "a" } }] }
+    },
+    {
+      "name": "the name is the last one written",
+      "ops": [
+        { "k": "name", "v": "Clean orders", "s": [1, "ann"] },
+        { "k": "name", "v": "Orders, cleaned", "s": [4, "bob"] },
+        { "k": "name", "v": "Tidy orders", "s": [3, "ann"] }
+      ],
+      "expect": { "name": "Orders, cleaned", "steps": [] }
+    }
+  ]
+}

@@ -120,7 +120,23 @@ EDITOR_SEGMENTS = frozenset(
 # changes nothing in the project, so a viewer may do it; without this entry
 # the fail-closed default would make "tell me when it breaks" an editing
 # permission (C1).
-PERSONAL_SEGMENTS = frozenset({"follow"})
+PERSONAL_SEGMENTS = frozenset(
+    {
+        "follow",
+        # Saying "I have this recipe open" and hearing who else has (C2).
+        "presence",
+    }
+)
+
+# Suggesting a change for someone else to accept (C2). It stores a change
+# request and changes nothing that runs, so a viewer may do it, and it is
+# never refused for needing review: it *is* the review.
+PROPOSAL_SEGMENTS = frozenset({"suggest"})
+
+# A recipe's shared working copy (C2): editing it needs an editor, but it is
+# a draft, not the recipe that runs, so a project whose changes need
+# approval does not refuse it. Saving the recipe is what needs approval.
+DRAFT_SEGMENTS = frozenset({"shared"})
 
 # Anything touching who has access, or the project's own existence.
 ADMIN_SEGMENTS = frozenset({"members", "memberships", "transfer"})
@@ -164,7 +180,9 @@ def review_refusal(method: str, path: str) -> str | None:
         if specific is not None:
             return specific
     segments = set(parts)
-    if segments & (ADMIN_SEGMENTS | READ_ONLY_SEGMENTS | OPERATOR_SEGMENTS | PERSONAL_SEGMENTS):
+    if segments & (
+        ADMIN_SEGMENTS | READ_ONLY_SEGMENTS | OPERATOR_SEGMENTS | PERSONAL_SEGMENTS | PROPOSAL_SEGMENTS | DRAFT_SEGMENTS
+    ):
         return None
     return _REVIEW_DEFAULT if segments & REVIEWABLE_SEGMENTS else None
 
@@ -236,7 +254,7 @@ def required_role(method: str, path: str) -> str:
     if verb in {"DELETE", "PATCH", "PUT"} and len(parts) >= 2 and parts[-2] == "projects":
         return "admin"
 
-    if segments & (READ_ONLY_SEGMENTS | PERSONAL_SEGMENTS):
+    if segments & (READ_ONLY_SEGMENTS | PERSONAL_SEGMENTS | PROPOSAL_SEGMENTS):
         return "viewer"
 
     if segments & EDITOR_SEGMENTS:

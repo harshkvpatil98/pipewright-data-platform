@@ -157,10 +157,29 @@ class PromoteResponse(BaseModel):
     summary: str
 
 
+class CellAnchor(BaseModel):
+    """The cell a thread is about, on a dataset (C2).
+
+    The row is named by its identifier column's value when the dataset has
+    one, which survives new versions; otherwise by its number in one
+    version, which is only that version's row.
+    """
+
+    column: str = Field(min_length=1, max_length=200)
+    row_key_column: str | None = Field(default=None, min_length=1, max_length=200)
+    row_key_value: str | None = Field(default=None, max_length=500)
+    row_number: int | None = Field(default=None, ge=1)
+    version: int | None = Field(default=None, ge=1)
+
+
 class CommentCreate(BaseModel):
     target_type: TargetType
     target_id: uuid.UUID
     body: str = Field(min_length=1, max_length=4000)
+    #: The comment this replies to; a reply to a reply joins the same thread.
+    parent_id: uuid.UUID | None = None
+    #: The cell a new thread on a dataset is about.
+    anchor: CellAnchor | None = None
 
 
 class CommentRead(BaseModel):
@@ -173,9 +192,38 @@ class CommentRead(BaseModel):
     author_username: str | None = None
     mentions: list[str]
     resolved_at: datetime | None
+    resolved_by_username: str | None = None
     created_at: datetime
+    parent_id: uuid.UUID | None = None
+    anchor: CellAnchor | None = None
+    #: On a thread's first comment, the replies to it, oldest first.
+    replies: list["CommentRead"] = Field(default_factory=list)
 
 
 class CommentListResponse(BaseModel):
+    #: Threads: each first comment with its replies.
     items: list[CommentRead]
     open_count: int
+
+
+class PresenceUpdate(BaseModel):
+    target_type: Literal["recipe"]
+    target_id: uuid.UUID
+    client_id: str = Field(min_length=1, max_length=64)
+    #: What in it this person has open, such as {"step": "<step id>"}.
+    focus: dict[str, str] | None = None
+
+
+class PresencePerson(BaseModel):
+    user_id: uuid.UUID
+    name: str
+    initials: str
+    #: Which of eight colours marks them, the same everywhere.
+    colour: int
+    focus: dict[str, str] | None
+    you: bool
+    client_id: str
+
+
+class PresenceResponse(BaseModel):
+    people: list[PresencePerson]

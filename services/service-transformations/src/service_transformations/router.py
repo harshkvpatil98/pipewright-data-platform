@@ -14,7 +14,10 @@ from shared_python.errors import BadRequestError
 from shared_python.types import parse as parse_type
 
 from service_auth.schemas import UserRead
+from service_governance.schemas import ChangeRequestDetail
+from service_transformations import coedit
 from service_transformations.preview import preview_dataset_transformations
+from service_transformations.recipe_suggestions import RecipeSuggestion, suggest_change
 from service_transformations.replay import replay_pipeline_run
 from service_transformations.run import run_saved_transformation_pipeline
 from service_transformations.schemas import (
@@ -340,6 +343,61 @@ def build_router(
             payload=payload,
             current_user=current_user,
         )
+
+    # ---------------------------------------------- editing together (C2)
+
+    @router.get('/projects/{project_id}/pipelines/{pipeline_id}/shared', response_model=coedit.SharedCopyRead)
+    def read_recipe_shared_copy(
+        project_id: uuid.UUID,
+        pipeline_id: uuid.UUID,
+        epoch: int | None = Query(default=None, ge=1, description="The shared copy's epoch the Studio has."),
+        after: int | None = Query(default=None, ge=0, description="The last change the Studio has merged."),
+        revision: int | None = Query(default=None, ge=1, description="The saved revision the Studio has."),
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> coedit.SharedCopyRead:
+        """The recipe's shared working copy, or what changed in it since `after`."""
+        return coedit.read_shared(
+            db, project_id, pipeline_id, current_user, epoch=epoch, after=after, revision=revision
+        )
+
+    @router.post('/projects/{project_id}/pipelines/{pipeline_id}/shared', response_model=coedit.SharedCopyPushResult)
+    def push_recipe_changes(
+        project_id: uuid.UUID,
+        pipeline_id: uuid.UUID,
+        payload: coedit.SharedCopyPush,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> coedit.SharedCopyPushResult:
+        """Merge changes into the recipe's shared working copy."""
+        return coedit.push_changes(db, project_id, pipeline_id, payload, current_user)
+
+    @router.post(
+        '/projects/{project_id}/pipelines/{pipeline_id}/shared/discard', response_model=coedit.SharedCopyRead
+    )
+    def discard_recipe_changes(
+        project_id: uuid.UUID,
+        pipeline_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> coedit.SharedCopyRead:
+        """Throw away the shared copy's unsaved changes, for everyone editing it."""
+        return coedit.discard_unsaved(db, project_id, pipeline_id, current_user)
+
+    @router.post(
+        '/projects/{project_id}/pipelines/{pipeline_id}/suggest',
+        response_model=ChangeRequestDetail,
+        status_code=status.HTTP_201_CREATED,
+    )
+    def suggest_recipe_change(
+        project_id: uuid.UUID,
+        pipeline_id: uuid.UUID,
+        payload: RecipeSuggestion,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> ChangeRequestDetail:
+        """Suggest a change to a recipe for someone who may edit it to accept or decline."""
+        return suggest_change(db, project_id, pipeline_id, payload, current_user)
 
     return router
 

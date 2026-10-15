@@ -42,6 +42,29 @@ def register_snapshotter(resource_type: str, snapshotter: Snapshotter) -> None:
     _snapshotters[resource_type] = snapshotter
 
 
+# resource_type -> a function that says in words what changed between two
+# snapshots. The generic diff names JSON paths ("steps json[step type=...]"),
+# which is honest but not English; a resource that knows its own shape says
+# it better (C2: recipes).
+Summariser = Callable[[dict[str, Any] | None, dict[str, Any]], str]
+_summarisers: dict[str, Summariser] = {}
+
+
+def register_summariser(resource_type: str, summariser: Summariser) -> None:
+    _summarisers[resource_type] = summariser
+
+
+def summarise_change(resource_type: str, before: dict[str, Any] | None, after: dict[str, Any], generic: str) -> str:
+    """The registered words for a change, or the generic diff's summary."""
+    summariser = _summarisers.get(resource_type)
+    if summariser is None:
+        return generic
+    try:
+        return summariser(before, after) or generic
+    except Exception:  # noqa: BLE001 - a summary must never stop a save
+        return generic
+
+
 def supported_types() -> tuple[str, ...]:
     return tuple(sorted(_snapshotters))
 
@@ -90,7 +113,7 @@ def record_version(
         difference = diff_snapshots(previous.snapshot_json, snapshot)
         if difference.identical and restored_from_version is None:
             return None
-        summary = difference.summary()
+        summary = summarise_change(resource_type, previous.snapshot_json, snapshot, difference.summary())
     else:
         summary = "Created."
 
@@ -183,7 +206,10 @@ def restore_version(
     db.commit()
 
     new_version = recorded.version if recorded else (current.version if current else version)
-    return new_version, f"Restored version {version}. {difference.summary()}"
+    words = summarise_change(
+        resource_type, current.snapshot_json if current else None, target.snapshot_json, difference.summary()
+    )
+    return new_version, f"Restored version {version}. {words}"
 
 
 def total_versions(db: Session) -> int:

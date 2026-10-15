@@ -29,6 +29,13 @@ class TransformationPipelineUpdate(BaseModel):
     description: str | None = Field(default=None, max_length=2000)
     status: Literal["draft", "active"] | None = None
     steps_json: list[dict[str, Any]] | None = None
+    #: The revision this save started from. Named, a save is refused when
+    #: someone saved since, rather than writing over their changes (C2).
+    expected_revision: int | None = Field(default=None, ge=1)
+    #: A stable id per step, in order, from the Studio's shared copy.
+    step_ids: list[str] | None = Field(default=None, max_length=500)
+    #: The shared copy's epoch, when this save is of that copy.
+    shared_epoch: int | None = Field(default=None, ge=1)
 
 
 class TransformationPipelineRead(BaseModel):
@@ -45,6 +52,10 @@ class TransformationPipelineRead(BaseModel):
     step_count: int
     #: The dataset this recipe's runs write to; None until its first run.
     output_dataset_id: uuid.UUID | None = None
+    #: Which save this is; name it when saving so nobody's work is replaced.
+    revision: int = 1
+    step_ids: list[str] = Field(default_factory=list)
+    revised_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 

@@ -20,6 +20,7 @@ from service_governance.audit_words import object_names, summarise
 from service_governance.diff import diff_snapshots
 from service_governance.models import AuditEntry, ChangeRequest, Comment
 from service_governance.schemas import (
+    CellAnchor,
     AuditEntryRead,
     AuditListResponse,
     ChangeRead,
@@ -55,13 +56,16 @@ def _usernames(db: Session, user_ids: list[uuid.UUID | None]) -> dict[uuid.UUID,
     return {row[0]: row[1] for row in rows}
 
 
-def _diff_read(before: Any, after: Any) -> SnapshotDiffRead:
+def _diff_read(before: Any, after: Any, resource_type: str | None = None) -> SnapshotDiffRead:
     payload = diff_snapshots(before, after).to_dict()
+    summary = payload["summary"]
+    if resource_type is not None and isinstance(after, dict):
+        summary = version_ops.summarise_change(resource_type, before, after, summary)
     return SnapshotDiffRead(
         changes=[ChangeRead(**change) for change in payload["changes"]],
         truncated=payload["truncated"],
         identical=payload["identical"],
-        summary=payload["summary"],
+        summary=summary,
     )
 
 
@@ -136,7 +140,7 @@ def diff_resource_versions(
     return VersionDiffResponse(
         left_version=left,
         right_version=right,
-        diff=_diff_read(before.snapshot_json, after.snapshot_json),
+        diff=_diff_read(before.snapshot_json, after.snapshot_json, resource_type),
     )
 
 
@@ -215,7 +219,9 @@ def propose_change(
         description=payload.description,
         before_json=before,
         after_json=payload.after_json,
-        change_summary=difference.summary(),
+        change_summary=version_ops.summarise_change(
+            payload.resource_type, before, payload.after_json, difference.summary()
+        ),
         status="open",
         requested_by_user_id=current_user.id,
     )
@@ -231,7 +237,7 @@ def _change_detail(db: Session, row: ChangeRequest) -> ChangeRequestDetail:
         **_change_read(row, names).model_dump(),
         before_json=row.before_json,
         after_json=row.after_json,
-        diff=_diff_read(row.before_json, row.after_json),
+        diff=_diff_read(row.before_json, row.after_json, row.resource_type),
     )
 
 
@@ -315,6 +321,7 @@ def approve_change(
     request.reviewed_by_user_id = current_user.id
     request.reviewed_at = datetime.now(UTC)
     request.review_note = payload.note
+    _tell_the_author(db, request, current_user, accepted=True)
     db.commit()
     db.refresh(request)
     return _change_detail(db, request)
@@ -336,9 +343,32 @@ def reject_change(
     request.reviewed_by_user_id = current_user.id
     request.reviewed_at = datetime.now(UTC)
     request.review_note = payload.note
+    _tell_the_author(db, request, current_user, accepted=False)
     db.commit()
     db.refresh(request)
     return _change_detail(db, request)
+
+
+def _tell_the_author(db: Session, request: ChangeRequest, reviewer: UserRead, *, accepted: bool) -> None:
+    """The person who suggested a change hears what became of it (C2)."""
+    if request.requested_by_user_id is None or request.requested_by_user_id == reviewer.id:
+        return
+    from service_notifications.service import create_user_notification
+
+    verdict = "accepted" if accepted else "declined"
+    message = f"{reviewer.username} {verdict} “{request.title}”."
+    if request.review_note:
+        message += f" Their note: {request.review_note}"
+    create_user_notification(
+        db,
+        user_id=request.requested_by_user_id,
+        project_id=request.project_id,
+        type="review",
+        level="success" if accepted else "info",
+        title=f"Your suggestion was {verdict}",
+        message=message,
+        related_pipeline_id=request.resource_id if request.resource_type == "pipeline" else None,
+    )
 
 
 def withdraw_change(
@@ -432,7 +462,7 @@ def extract_mentions(body: str) -> list[str]:
     return list(dict.fromkeys(match.lower() for match in MENTION_PATTERN.findall(body)))
 
 
-def _comment_read(row: Comment, names: dict[uuid.UUID, str]) -> CommentRead:
+def _comment_read(row: Comment, names: dict[uuid.UUID, str], replies: list[CommentRead] | None = None) -> CommentRead:
     return CommentRead(
         id=row.id,
         project_id=row.project_id,
@@ -443,7 +473,11 @@ def _comment_read(row: Comment, names: dict[uuid.UUID, str]) -> CommentRead:
         author_username=names.get(row.author_user_id) if row.author_user_id else None,
         mentions=list(row.mentions_json or []),
         resolved_at=row.resolved_at,
+        resolved_by_username=names.get(row.resolved_by_user_id) if row.resolved_by_user_id else None,
         created_at=row.created_at,
+        parent_id=row.parent_id,
+        anchor=CellAnchor.model_validate(row.anchor_json) if row.anchor_json else None,
+        replies=replies or [],
     )
 
 
@@ -455,6 +489,29 @@ def add_comment(
     if not body:
         raise BadRequestError("A comment cannot be empty.")
 
+    root: Comment | None = None
+    if payload.parent_id is not None:
+        parent = db.scalar(
+            select(Comment).where(Comment.id == payload.parent_id, Comment.project_id == project_id)
+        )
+        if parent is None or parent.target_type != payload.target_type or parent.target_id != payload.target_id:
+            raise NotFoundError("The comment you are replying to is not here.")
+        # A reply to a reply joins the same thread: threads are one level deep.
+        root = parent if parent.parent_id is None else db.get(Comment, parent.parent_id)
+        if root is None:
+            raise NotFoundError("The comment you are replying to is not here.")
+        if payload.anchor is not None:
+            raise BadRequestError("A reply belongs to its thread's cell; leave the cell out.")
+    if payload.anchor is not None and payload.target_type != "dataset":
+        raise BadRequestError("Only a dataset's cells can have a thread.")
+    if payload.anchor is not None:
+        anchor = payload.anchor
+        has_key = anchor.row_key_column is not None and anchor.row_key_value is not None
+        if has_key == (anchor.row_number is not None):
+            raise BadRequestError("Name the row by its identifier's value or by its number, not both or neither.")
+        if anchor.row_number is not None and anchor.version is None:
+            raise BadRequestError("A row named by its number needs the version it is in.")
+
     mentions = extract_mentions(body)
     comment = Comment(
         project_id=project_id,
@@ -463,14 +520,59 @@ def add_comment(
         body=body,
         author_user_id=current_user.id,
         mentions_json=mentions or None,
+        parent_id=root.id if root is not None else None,
+        anchor_json=payload.anchor.model_dump() if payload.anchor is not None else None,
     )
     db.add(comment)
+    if root is not None and root.resolved_at is not None:
+        # Saying more about a resolved thread opens it again.
+        root.resolved_at = None
+        root.resolved_by_user_id = None
     db.flush()
     _notify_mentions(db, comment, mentions, current_user)
+    if root is not None:
+        _notify_thread(db, root, comment, mentions, current_user)
     db.commit()
     db.refresh(comment)
 
     return _comment_read(comment, {current_user.id: current_user.username})
+
+
+def _notify_thread(db: Session, root: Comment, reply: Comment, mentioned: list[str], author: UserRead) -> None:
+    """Everyone already in a thread hears about a reply to it, once (C2)."""
+    try:
+        from service_notifications.service import create_user_notification
+
+        people = {root.author_user_id}
+        people.update(
+            db.scalars(select(Comment.author_user_id).where(Comment.parent_id == root.id)).all()
+        )
+        named = {
+            row
+            for row in db.scalars(select(User.id).where(func.lower(User.username).in_(mentioned or [""]))).all()
+        }
+        related = {
+            "dataset": {"related_dataset_id": root.target_id},
+            "pipeline": {"related_pipeline_id": root.target_id},
+            "run": {"related_run_id": root.target_id},
+        }.get(root.target_type, {})
+        for user_id in sorted({person for person in people if person is not None}, key=str):
+            if user_id == author.id or user_id in named:
+                continue  # Their own reply, or already told by the mention.
+            create_user_notification(
+                db,
+                user_id=user_id,
+                project_id=root.project_id,
+                type="mention",
+                level="info",
+                title=f"{author.username} replied in a thread you are in",
+                message=reply.body[:500],
+                **related,
+            )
+    except Exception:  # noqa: BLE001 - a reply that saved but did not notify beats one refused
+        from shared_python.logging import get_logger
+
+        get_logger(__name__).exception("comment_reply_notify_failed")
 
 
 def _notify_mentions(
@@ -523,6 +625,7 @@ def list_comments(
     target_id: uuid.UUID,
     current_user: UserRead,
 ) -> CommentListResponse:
+    """The threads on one thing: each first comment with its replies."""
     ensure_owned_project(db, project_id, current_user.id)
     rows = list(
         db.scalars(
@@ -535,29 +638,55 @@ def list_comments(
             .order_by(Comment.created_at.asc())
         ).all()
     )
-    names = _usernames(db, [row.author_user_id for row in rows])
+    names = _usernames(db, [row.author_user_id for row in rows] + [row.resolved_by_user_id for row in rows])
+    replies: dict[uuid.UUID, list[CommentRead]] = {}
+    for row in rows:
+        if row.parent_id is not None:
+            replies.setdefault(row.parent_id, []).append(_comment_read(row, names))
+    roots = [_comment_read(row, names, replies.get(row.id)) for row in rows if row.parent_id is None]
     return CommentListResponse(
-        items=[_comment_read(row, names) for row in rows],
-        open_count=sum(1 for row in rows if row.resolved_at is None),
+        items=roots,
+        open_count=sum(1 for root in roots if root.resolved_at is None),
     )
 
 
-def resolve_comment(
-    db: Session, project_id: uuid.UUID, comment_id: uuid.UUID, current_user: UserRead
-) -> CommentRead:
-    ensure_owned_project(db, project_id, current_user.id)
+def _thread_root(db: Session, project_id: uuid.UUID, comment_id: uuid.UUID) -> Comment:
     comment = db.scalar(
         select(Comment).where(Comment.id == comment_id, Comment.project_id == project_id)
     )
     if comment is None:
         raise NotFoundError("Comment not found.")
+    if comment.parent_id is not None:
+        root = db.get(Comment, comment.parent_id)
+        if root is not None:
+            return root
+    return comment
 
-    comment.resolved_at = datetime.now(UTC)
-    comment.resolved_by_user_id = current_user.id
+
+def resolve_comment(
+    db: Session, project_id: uuid.UUID, comment_id: uuid.UUID, current_user: UserRead
+) -> CommentRead:
+    """Resolve the thread a comment is in, as a whole."""
+    ensure_owned_project(db, project_id, current_user.id)
+    root = _thread_root(db, project_id, comment_id)
+    root.resolved_at = datetime.now(UTC)
+    root.resolved_by_user_id = current_user.id
     db.commit()
-    db.refresh(comment)
-    names = _usernames(db, [comment.author_user_id])
-    return _comment_read(comment, names)
+    db.refresh(root)
+    names = _usernames(db, [root.author_user_id, root.resolved_by_user_id])
+    return _comment_read(root, names)
+
+
+def reopen_comment(
+    db: Session, project_id: uuid.UUID, comment_id: uuid.UUID, current_user: UserRead
+) -> CommentRead:
+    ensure_owned_project(db, project_id, current_user.id)
+    root = _thread_root(db, project_id, comment_id)
+    root.resolved_at = None
+    root.resolved_by_user_id = None
+    db.commit()
+    db.refresh(root)
+    return _comment_read(root, _usernames(db, [root.author_user_id]))
 
 
 def total_comments(db: Session) -> int:

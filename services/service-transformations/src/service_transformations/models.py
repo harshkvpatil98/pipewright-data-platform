@@ -3,7 +3,9 @@ from __future__ import annotations
 import uuid
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import ForeignKey, Index, JSON, String, Text
+from datetime import datetime
+
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, JSON, String, Text, UniqueConstraint
 # `Uuid`, not the postgresql-specific `UUID`: the dialect type declares a bare
 # UUID column, which SQLite gives NUMERIC affinity, so an identifier that
 # happens to be all decimal digits is silently converted to a float and comes
@@ -45,10 +47,20 @@ class TransformationPipeline(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     output_dataset_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey('datasets.id', ondelete='SET NULL'), nullable=True
     )
+    # Which save this is (C2): a save that names an older revision is
+    # refused rather than written over someone else's.
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default='1')
+    # A stable id per step, in the same order as steps_json, so people
+    # editing together can name the step they changed.
+    step_ids_json: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    revised_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey('users.id', ondelete='SET NULL'), nullable=True
+    )
+    revised_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     project: Mapped[Project] = relationship(back_populates='transformation_pipelines')
     base_dataset: Mapped[Dataset] = relationship('Dataset', foreign_keys=[base_dataset_id])
-    created_by_user: Mapped[User | None] = relationship()
+    created_by_user: Mapped[User | None] = relationship(foreign_keys=[created_by_user_id])
     derived_datasets: Mapped[list[Dataset]] = relationship(
         'Dataset',
         back_populates='created_from_pipeline',
@@ -59,3 +71,49 @@ class TransformationPipeline(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         back_populates='transformation_pipeline',
         foreign_keys='PipelineRun.pipeline_id',
     )
+
+
+class RecipeSharedCopy(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """The working copy of a recipe that everyone editing it shares (C2).
+
+    Changes merge on the server (`service_transformations.coedit`), so it
+    is what each Studio shows; saving writes it to the recipe. A change made
+    outside the Studio starts a new `epoch`, reseeded from the saved recipe.
+    """
+
+    __tablename__ = 'recipe_shared_copies'
+    __table_args__ = (UniqueConstraint('pipeline_id', name='uq_recipe_shared_copies_pipeline'),)
+
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey('projects.id', ondelete='CASCADE'), nullable=False
+    )
+    pipeline_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey('transformation_pipelines.id', ondelete='CASCADE'), nullable=False
+    )
+    epoch: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    #: The last change merged in; never goes back, across epochs.
+    seq: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    doc_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    #: Why the copy last started again, said to whoever had it open.
+    reset_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class RecipeEditBatch(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """One person's changes to a shared copy, in the order they arrived."""
+
+    __tablename__ = 'recipe_edit_batches'
+    __table_args__ = (
+        UniqueConstraint('pipeline_id', 'seq', name='uq_recipe_edit_batches_seq'),
+        Index('ix_recipe_edit_batches_pipeline_seq', 'pipeline_id', 'seq'),
+    )
+
+    pipeline_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey('transformation_pipelines.id', ondelete='CASCADE'), nullable=False
+    )
+    epoch: Mapped[int] = mapped_column(Integer, nullable=False)
+    seq: Mapped[int] = mapped_column(Integer, nullable=False)
+    client_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    actor_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey('users.id', ondelete='SET NULL'), nullable=True
+    )
+    ops_json: Mapped[list[dict[str, Any]]] = mapped_column(JSON, nullable=False, default=list)

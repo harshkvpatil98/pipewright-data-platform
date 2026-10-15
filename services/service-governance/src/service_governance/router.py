@@ -8,7 +8,10 @@ from sqlalchemy.orm import Session
 
 from service_auth.schemas import UserRead
 
+from service_governance import presence
 from service_governance.schemas import (
+    PresenceResponse,
+    PresenceUpdate,
     AuditListResponse,
     ChangeRequestCreate,
     ChangeRequestDetail,
@@ -38,6 +41,7 @@ from service_governance.service import (
     promote,
     propose_change,
     reject_change,
+    reopen_comment,
     resolve_comment,
     restore_resource_version,
     withdraw_change,
@@ -239,6 +243,53 @@ def build_router(
         current_user: UserRead = Depends(get_current_user),
     ) -> CommentRead:
         return add_comment(db, project_id, payload, current_user)
+
+    @router.post(
+        "/projects/{project_id}/discussion/{comment_id}/reopen", response_model=CommentRead
+    )
+    def reopen_comment_thread(
+        project_id: uuid.UUID,
+        comment_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> CommentRead:
+        """Open a resolved thread again."""
+        return reopen_comment(db, project_id, comment_id, current_user)
+
+    # ---- who is here (C2) ----
+
+    @router.post("/projects/{project_id}/presence", response_model=PresenceResponse)
+    def say_here(
+        project_id: uuid.UUID,
+        payload: PresenceUpdate,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> PresenceResponse:
+        """Say you have something open, and hear who else has."""
+        return presence.here(db, project_id, payload, current_user)
+
+    @router.get("/projects/{project_id}/presence", response_model=PresenceResponse)
+    def read_who_is_here(
+        project_id: uuid.UUID,
+        target_id: uuid.UUID,
+        target_type: str = Query(default="recipe", pattern="^recipe$"),
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> PresenceResponse:
+        """Who has something open now."""
+        return presence.who_is_here(db, project_id, target_type, target_id, current_user)
+
+    @router.delete("/projects/{project_id}/presence/{client_id}", status_code=status.HTTP_204_NO_CONTENT)
+    def say_gone(
+        project_id: uuid.UUID,
+        client_id: str,
+        target_id: uuid.UUID,
+        target_type: str = Query(default="recipe", pattern="^recipe$"),
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> None:
+        """This page has closed."""
+        presence.leave(db, project_id, target_type, target_id, client_id, current_user)
 
     @router.post(
         "/projects/{project_id}/discussion/{comment_id}/resolve", response_model=CommentRead

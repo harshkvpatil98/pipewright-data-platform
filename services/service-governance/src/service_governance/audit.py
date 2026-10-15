@@ -89,6 +89,17 @@ READ_ONLY_POSTS = frozenset(
 # nothing.
 READ_ONLY_POST_PREFIXES = ("/api/v1/transformations/templates/",)
 
+# Writes to a working state that is not the thing itself (C2): a recipe's
+# shared copy, changed several times a second while people edit together,
+# and "I have this open", said every few seconds. Saving the recipe, a
+# suggestion and discarding the copy are what the log records; these would
+# be most of its rows and none of its answers.
+_DRAFT_WRITES = (
+    re.compile(r"^POST /api/v1/projects/\{id\}/pipelines/\{id\}/shared$"),
+    re.compile(r"^POST /api/v1/projects/\{id\}/presence$"),
+    re.compile(r"^DELETE /api/v1/projects/\{id\}/presence/[^/]+$"),
+)
+
 _UUID_PATTERN = re.compile(
     r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
 )
@@ -107,6 +118,8 @@ def is_audited(method: str, path: str) -> bool:
     if method == "POST" and (
         route_skeleton(path) in READ_ONLY_POSTS or path.startswith(READ_ONLY_POST_PREFIXES)
     ):
+        return False
+    if any(pattern.match(f"{method} {route_skeleton(path)}") for pattern in _DRAFT_WRITES):
         return False
     return True
 

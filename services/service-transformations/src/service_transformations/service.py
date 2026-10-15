@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime
 
 from service_auth.schemas import UserRead
 from service_datasets.service import get_dataset_model_for_project
@@ -10,6 +11,7 @@ from service_transformations.contracts import (
     list_transformation_pipeline_models_for_dataset,
     list_transformation_pipeline_models_for_project,
 )
+from service_transformations.coedit import check_save, record_save
 from service_transformations.models import TransformationPipeline
 from service_transformations.schemas import (
     TransformationPipelineCreate,
@@ -18,6 +20,7 @@ from service_transformations.schemas import (
     TransformationPipelineUpdate,
 )
 from service_transformations.validators import validate_steps_json
+from service_transformations.versioning import record_recipe_version
 from shared_python.errors import BadRequestError
 
 
@@ -48,6 +51,9 @@ def _serialize_pipeline(pipeline: TransformationPipeline) -> TransformationPipel
         steps_json=validated_steps,
         step_count=len(validated_steps),
         output_dataset_id=pipeline.output_dataset_id,
+        revision=int(pipeline.revision or 1),
+        step_ids=list(pipeline.step_ids_json or []) if len(pipeline.step_ids_json or []) == len(validated_steps) else [],
+        revised_at=pipeline.revised_at,
         created_at=pipeline.created_at,
         updated_at=pipeline.updated_at,
     )
@@ -73,8 +79,14 @@ def create_transformation_pipeline(
         description=_normalize_description(payload.description),
         status=payload.status,
         steps_json=[step.model_dump(mode="json") for step in validated_steps],
+        revision=1,
+        step_ids_json=[uuid.uuid4().hex for _ in validated_steps],
+        revised_by_user_id=current_user.id,
+        revised_at=datetime.now(UTC),
     )
     db.add(pipeline)
+    db.flush()
+    record_recipe_version(db, pipeline, current_user.id)
     db.commit()
     db.refresh(pipeline)
     return _serialize_pipeline(pipeline)
@@ -127,7 +139,11 @@ def update_transformation_pipeline(
     ensure_owned_project(db, project_id, current_user.id)
     pipeline = get_transformation_pipeline_for_project(db, project_id, pipeline_id)
     get_dataset_model_for_project(db, project_id, pipeline.base_dataset_id)
+    # A save that names the revision it started from is refused when someone
+    # saved since, rather than written over their changes (C2).
+    check_save(db, pipeline, expected_revision=payload.expected_revision)
 
+    before = (pipeline.name, pipeline.description, list(pipeline.steps_json or []))
     if payload.name is not None:
         pipeline.name = _normalize_name(payload.name)
     if payload.description is not None:
@@ -138,6 +154,18 @@ def update_transformation_pipeline(
         validated_steps = validate_steps_json(payload.steps_json)
         pipeline.steps_json = [step.model_dump(mode="json") for step in validated_steps]
 
+    if (pipeline.name, pipeline.description, list(pipeline.steps_json or [])) != before or (
+        payload.step_ids is not None and payload.step_ids != list(pipeline.step_ids_json or [])
+    ):
+        record_save(
+            db,
+            pipeline,
+            current_user,
+            step_ids=payload.step_ids,
+            from_shared_epoch=payload.shared_epoch,
+        )
+        db.flush()
+        record_recipe_version(db, pipeline, current_user.id)
     db.commit()
     db.refresh(pipeline)
     return _serialize_pipeline(pipeline)

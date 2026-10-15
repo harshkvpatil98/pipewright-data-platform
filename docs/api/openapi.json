@@ -1733,6 +1733,71 @@
     "title": "Ceiling",
     "type": "object"
    },
+   "CellAnchor": {
+    "description": "The cell a thread is about, on a dataset (C2).\n\nThe row is named by its identifier column's value when the dataset has\none, which survives new versions; otherwise by its number in one\nversion, which is only that version's row.",
+    "properties": {
+     "column": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Column",
+      "type": "string"
+     },
+     "row_key_column": {
+      "anyOf": [
+       {
+        "maxLength": 200,
+        "minLength": 1,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Row Key Column"
+     },
+     "row_key_value": {
+      "anyOf": [
+       {
+        "maxLength": 500,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Row Key Value"
+     },
+     "row_number": {
+      "anyOf": [
+       {
+        "minimum": 1.0,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Row Number"
+     },
+     "version": {
+      "anyOf": [
+       {
+        "minimum": 1.0,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Version"
+     }
+    },
+    "required": [
+     "column"
+    ],
+    "title": "CellAnchor",
+    "type": "object"
+   },
    "CellInput": {
     "properties": {
      "config": {
@@ -3407,11 +3472,33 @@
    },
    "CommentCreate": {
     "properties": {
+     "anchor": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/CellAnchor"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
      "body": {
       "maxLength": 4000,
       "minLength": 1,
       "title": "Body",
       "type": "string"
+     },
+     "parent_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Parent Id"
      },
      "target_id": {
       "format": "uuid",
@@ -3464,6 +3551,16 @@
    },
    "CommentRead": {
     "properties": {
+     "anchor": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/CellAnchor"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
      "author_user_id": {
       "anyOf": [
        {
@@ -3508,10 +3605,29 @@
       "title": "Mentions",
       "type": "array"
      },
+     "parent_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Parent Id"
+     },
      "project_id": {
       "format": "uuid",
       "title": "Project Id",
       "type": "string"
+     },
+     "replies": {
+      "items": {
+       "$ref": "#/components/schemas/CommentRead"
+      },
+      "title": "Replies",
+      "type": "array"
      },
      "resolved_at": {
       "anyOf": [
@@ -3524,6 +3640,17 @@
        }
       ],
       "title": "Resolved At"
+     },
+     "resolved_by_username": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Resolved By Username"
      },
      "target_id": {
       "format": "uuid",
@@ -6426,6 +6553,121 @@
      }
     },
     "title": "DataQualityRuleUpdate",
+    "type": "object"
+   },
+   "DatasetActivityItem": {
+    "properties": {
+     "at": {
+      "format": "date-time",
+      "title": "At",
+      "type": "string"
+     },
+     "detail": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Detail"
+     },
+     "href": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Href"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "kind": {
+      "enum": [
+       "versions",
+       "runs",
+       "checks",
+       "schema",
+       "contracts",
+       "alerts",
+       "incidents",
+       "comments",
+       "changes"
+      ],
+      "title": "Kind",
+      "type": "string"
+     },
+     "level": {
+      "enum": [
+       "info",
+       "success",
+       "warning",
+       "error"
+      ],
+      "title": "Level",
+      "type": "string"
+     },
+     "sentence": {
+      "title": "Sentence",
+      "type": "string"
+     },
+     "who": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Who"
+     }
+    },
+    "required": [
+     "id",
+     "kind",
+     "at",
+     "who",
+     "sentence",
+     "detail",
+     "level",
+     "href"
+    ],
+    "title": "DatasetActivityItem",
+    "type": "object"
+   },
+   "DatasetActivityResponse": {
+    "properties": {
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/DatasetActivityItem"
+      },
+      "title": "Items",
+      "type": "array"
+     },
+     "next_offset": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Next Offset"
+     }
+    },
+    "required": [
+     "items",
+     "next_offset"
+    ],
+    "title": "DatasetActivityResponse",
     "type": "object"
    },
    "DatasetAuditArtifact": {
@@ -9563,6 +9805,45 @@
      "summary"
     ],
     "title": "DuplicateResponse",
+    "type": "object"
+   },
+   "EditBatchRead": {
+    "properties": {
+     "actor": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Actor"
+     },
+     "client_id": {
+      "title": "Client Id",
+      "type": "string"
+     },
+     "ops": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Ops",
+      "type": "array"
+     },
+     "seq": {
+      "title": "Seq",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "seq",
+     "client_id",
+     "actor",
+     "ops"
+    ],
+    "title": "EditBatchRead",
     "type": "object"
    },
    "EditInput": {
@@ -16136,6 +16417,117 @@
     "title": "PreferencesUpdate",
     "type": "object"
    },
+   "PresencePerson": {
+    "properties": {
+     "client_id": {
+      "title": "Client Id",
+      "type": "string"
+     },
+     "colour": {
+      "title": "Colour",
+      "type": "integer"
+     },
+     "focus": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "type": "string"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Focus"
+     },
+     "initials": {
+      "title": "Initials",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "user_id": {
+      "format": "uuid",
+      "title": "User Id",
+      "type": "string"
+     },
+     "you": {
+      "title": "You",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "user_id",
+     "name",
+     "initials",
+     "colour",
+     "focus",
+     "you",
+     "client_id"
+    ],
+    "title": "PresencePerson",
+    "type": "object"
+   },
+   "PresenceResponse": {
+    "properties": {
+     "people": {
+      "items": {
+       "$ref": "#/components/schemas/PresencePerson"
+      },
+      "title": "People",
+      "type": "array"
+     }
+    },
+    "required": [
+     "people"
+    ],
+    "title": "PresenceResponse",
+    "type": "object"
+   },
+   "PresenceUpdate": {
+    "properties": {
+     "client_id": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Client Id",
+      "type": "string"
+     },
+     "focus": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "type": "string"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Focus"
+     },
+     "target_id": {
+      "format": "uuid",
+      "title": "Target Id",
+      "type": "string"
+     },
+     "target_type": {
+      "const": "recipe",
+      "title": "Target Type",
+      "type": "string"
+     }
+    },
+    "required": [
+     "target_type",
+     "target_id",
+     "client_id"
+    ],
+    "title": "PresenceUpdate",
+    "type": "object"
+   },
    "ProfileComparisonDelta": {
     "properties": {
      "completeness_score_after": {
@@ -16509,6 +16901,17 @@
        }
       ],
       "title": "Name"
+     },
+     "requires_approval": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Requires Approval"
      },
      "status": {
       "anyOf": [
@@ -16959,6 +17362,54 @@
      "steps"
     ],
     "title": "RecipeParseResponse",
+    "type": "object"
+   },
+   "RecipeSuggestion": {
+    "properties": {
+     "name": {
+      "anyOf": [
+       {
+        "maxLength": 160,
+        "minLength": 2,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "note": {
+      "anyOf": [
+       {
+        "maxLength": 2000,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Note"
+     },
+     "steps_json": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Steps Json",
+      "type": "array"
+     },
+     "title": {
+      "maxLength": 200,
+      "minLength": 2,
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "title"
+    ],
+    "title": "RecipeSuggestion",
     "type": "object"
    },
    "RecipeTemplateColumns": {
@@ -19492,6 +19943,66 @@
     "title": "SavedQueryUpdate",
     "type": "object"
    },
+   "SavedRecipeRead": {
+    "properties": {
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "revised_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Revised At"
+     },
+     "revised_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Revised By"
+     },
+     "revision": {
+      "title": "Revision",
+      "type": "integer"
+     },
+     "step_ids": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Step Ids",
+      "type": "array"
+     },
+     "steps_json": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Steps Json",
+      "type": "array"
+     }
+    },
+    "required": [
+     "revision",
+     "name",
+     "steps_json",
+     "step_ids",
+     "revised_by",
+     "revised_at"
+    ],
+    "title": "SavedRecipeRead",
+    "type": "object"
+   },
    "SavedStatisticalTestCreate": {
     "properties": {
      "column_name": {
@@ -20959,6 +21470,138 @@
      "session_limit_hours"
     ],
     "title": "SessionPolicyRead",
+    "type": "object"
+   },
+   "SharedCopyPush": {
+    "properties": {
+     "client_id": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Client Id",
+      "type": "string"
+     },
+     "epoch": {
+      "minimum": 1.0,
+      "title": "Epoch",
+      "type": "integer"
+     },
+     "ops": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Ops",
+      "type": "array"
+     }
+    },
+    "required": [
+     "epoch",
+     "client_id"
+    ],
+    "title": "SharedCopyPush",
+    "type": "object"
+   },
+   "SharedCopyPushResult": {
+    "properties": {
+     "epoch": {
+      "title": "Epoch",
+      "type": "integer"
+     },
+     "seq": {
+      "title": "Seq",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "epoch",
+     "seq"
+    ],
+    "title": "SharedCopyPushResult",
+    "type": "object"
+   },
+   "SharedCopyRead": {
+    "description": "What a Studio needs to catch up with everyone else.",
+    "properties": {
+     "batches": {
+      "items": {
+       "$ref": "#/components/schemas/EditBatchRead"
+      },
+      "title": "Batches",
+      "type": "array"
+     },
+     "doc": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Doc"
+     },
+     "epoch": {
+      "title": "Epoch",
+      "type": "integer"
+     },
+     "needs_approval": {
+      "default": false,
+      "title": "Needs Approval",
+      "type": "boolean"
+     },
+     "open_suggestions": {
+      "default": 0,
+      "title": "Open Suggestions",
+      "type": "integer"
+     },
+     "reset_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reset Reason"
+     },
+     "revision": {
+      "title": "Revision",
+      "type": "integer"
+     },
+     "saved": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/SavedRecipeRead"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "seq": {
+      "title": "Seq",
+      "type": "integer"
+     },
+     "your_role": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Your Role"
+     }
+    },
+    "required": [
+     "epoch",
+     "seq",
+     "revision"
+    ],
+    "title": "SharedCopyRead",
     "type": "object"
    },
    "SkippedConnectionRead": {
@@ -23413,6 +24056,23 @@
       "title": "Project Id",
       "type": "string"
      },
+     "revised_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Revised At"
+     },
+     "revision": {
+      "default": 1,
+      "title": "Revision",
+      "type": "integer"
+     },
      "status": {
       "enum": [
        "draft",
@@ -23424,6 +24084,13 @@
      "step_count": {
       "title": "Step Count",
       "type": "integer"
+     },
+     "step_ids": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Step Ids",
+      "type": "array"
      },
      "steps_json": {
       "items": {
@@ -23468,6 +24135,18 @@
       ],
       "title": "Description"
      },
+     "expected_revision": {
+      "anyOf": [
+       {
+        "minimum": 1.0,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Expected Revision"
+     },
      "name": {
       "anyOf": [
        {
@@ -23480,6 +24159,18 @@
        }
       ],
       "title": "Name"
+     },
+     "shared_epoch": {
+      "anyOf": [
+       {
+        "minimum": 1.0,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Shared Epoch"
      },
      "status": {
       "anyOf": [
@@ -23495,6 +24186,21 @@
        }
       ],
       "title": "Status"
+     },
+     "step_ids": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "maxItems": 500,
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Step Ids"
      },
      "steps_json": {
       "anyOf": [
@@ -35074,6 +35780,107 @@
     ]
    }
   },
+  "/api/v1/projects/{project_id}/datasets/{dataset_id}/activity": {
+   "get": {
+    "description": "What happened to one dataset, newest first: its versions and what made\nthem, failed runs, checks, schema changes, contracts, alerts, incidents,\ncomments and changes to it.",
+    "operationId": "read_dataset_activity_api_v1_projects__project_id__datasets__dataset_id__activity_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "dataset_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Dataset Id",
+       "type": "string"
+      }
+     },
+     {
+      "description": "the next_offset of the page before",
+      "in": "query",
+      "name": "offset",
+      "required": false,
+      "schema": {
+       "default": 0,
+       "description": "the next_offset of the page before",
+       "maximum": 2000,
+       "minimum": 0,
+       "title": "Offset",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 50,
+       "maximum": 100,
+       "minimum": 1,
+       "title": "Limit",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DatasetActivityResponse"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Read Dataset Activity",
+    "tags": [
+     "activity"
+    ]
+   }
+  },
   "/api/v1/projects/{project_id}/datasets/{dataset_id}/anomalies": {
    "get": {
     "operationId": "read_anomalies_api_v1_projects__project_id__datasets__dataset_id__anomalies_get",
@@ -40292,6 +41099,81 @@
     ]
    }
   },
+  "/api/v1/projects/{project_id}/discussion/{comment_id}/reopen": {
+   "post": {
+    "description": "Open a resolved thread again.",
+    "operationId": "reopen_comment_thread_api_v1_projects__project_id__discussion__comment_id__reopen_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "comment_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Comment Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CommentRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Reopen Comment Thread",
+    "tags": [
+     "governance"
+    ]
+   }
+  },
   "/api/v1/projects/{project_id}/discussion/{comment_id}/resolve": {
    "post": {
     "operationId": "close_comment_api_v1_projects__project_id__discussion__comment_id__resolve_post",
@@ -45228,6 +46110,381 @@
     ]
    }
   },
+  "/api/v1/projects/{project_id}/pipelines/{pipeline_id}/shared": {
+   "get": {
+    "description": "The recipe's shared working copy, or what changed in it since `after`.",
+    "operationId": "read_recipe_shared_copy_api_v1_projects__project_id__pipelines__pipeline_id__shared_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "pipeline_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Pipeline Id",
+       "type": "string"
+      }
+     },
+     {
+      "description": "The shared copy's epoch the Studio has.",
+      "in": "query",
+      "name": "epoch",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "minimum": 1,
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "The shared copy's epoch the Studio has.",
+       "title": "Epoch"
+      }
+     },
+     {
+      "description": "The last change the Studio has merged.",
+      "in": "query",
+      "name": "after",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "minimum": 0,
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "The last change the Studio has merged.",
+       "title": "After"
+      }
+     },
+     {
+      "description": "The saved revision the Studio has.",
+      "in": "query",
+      "name": "revision",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "minimum": 1,
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "The saved revision the Studio has.",
+       "title": "Revision"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SharedCopyRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Read Recipe Shared Copy",
+    "tags": [
+     "transformations"
+    ]
+   },
+   "post": {
+    "description": "Merge changes into the recipe's shared working copy.",
+    "operationId": "push_recipe_changes_api_v1_projects__project_id__pipelines__pipeline_id__shared_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "pipeline_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Pipeline Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SharedCopyPush"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SharedCopyPushResult"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Push Recipe Changes",
+    "tags": [
+     "transformations"
+    ]
+   }
+  },
+  "/api/v1/projects/{project_id}/pipelines/{pipeline_id}/shared/discard": {
+   "post": {
+    "description": "Throw away the shared copy's unsaved changes, for everyone editing it.",
+    "operationId": "discard_recipe_changes_api_v1_projects__project_id__pipelines__pipeline_id__shared_discard_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "pipeline_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Pipeline Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SharedCopyRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Discard Recipe Changes",
+    "tags": [
+     "transformations"
+    ]
+   }
+  },
+  "/api/v1/projects/{project_id}/pipelines/{pipeline_id}/suggest": {
+   "post": {
+    "description": "Suggest a change to a recipe for someone who may edit it to accept or decline.",
+    "operationId": "suggest_recipe_change_api_v1_projects__project_id__pipelines__pipeline_id__suggest_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "pipeline_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Pipeline Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RecipeSuggestion"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ChangeRequestDetail"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Suggest Recipe Change",
+    "tags": [
+     "transformations"
+    ]
+   }
+  },
   "/api/v1/projects/{project_id}/pivot": {
    "post": {
     "operationId": "pivot_table_api_v1_projects__project_id__pivot_post",
@@ -45299,6 +46556,253 @@
     "summary": "Pivot Table",
     "tags": [
      "reporting"
+    ]
+   }
+  },
+  "/api/v1/projects/{project_id}/presence": {
+   "get": {
+    "description": "Who has something open now.",
+    "operationId": "read_who_is_here_api_v1_projects__project_id__presence_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "target_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Target Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "target_type",
+      "required": false,
+      "schema": {
+       "default": "recipe",
+       "pattern": "^recipe$",
+       "title": "Target Type",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PresenceResponse"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Read Who Is Here",
+    "tags": [
+     "governance"
+    ]
+   },
+   "post": {
+    "description": "Say you have something open, and hear who else has.",
+    "operationId": "say_here_api_v1_projects__project_id__presence_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PresenceUpdate"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PresenceResponse"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Say Here",
+    "tags": [
+     "governance"
+    ]
+   }
+  },
+  "/api/v1/projects/{project_id}/presence/{client_id}": {
+   "delete": {
+    "description": "This page has closed.",
+    "operationId": "say_gone_api_v1_projects__project_id__presence__client_id__delete",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "client_id",
+      "required": true,
+      "schema": {
+       "title": "Client Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "target_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Target Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "target_type",
+      "required": false,
+      "schema": {
+       "default": "recipe",
+       "pattern": "^recipe$",
+       "title": "Target Type",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Say Gone",
+    "tags": [
+     "governance"
     ]
    }
   },

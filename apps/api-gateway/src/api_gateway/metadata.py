@@ -20,6 +20,7 @@ from service_governance.models import (  # noqa: F401
     AuditEntry,
     ChangeRequest,
     Comment,
+    Presence,
     ResourceVersion,
 )
 from service_pipeline_runs.models import PipelineRun  # noqa: F401
@@ -54,7 +55,11 @@ from service_reporting.models import (  # noqa: F401
 )
 from service_sources.models import Source  # noqa: F401
 from service_schedules.models import ScheduledOperation  # noqa: F401
-from service_transformations.models import TransformationPipeline  # noqa: F401
+from service_transformations.models import (  # noqa: F401
+    RecipeEditBatch,
+    RecipeSharedCopy,
+    TransformationPipeline,
+)
 from service_workflows.models import (  # noqa: F401
     Workflow,
     WorkflowEdge,
@@ -72,8 +77,10 @@ from service_workbench.models import (  # noqa: F401
 from service_connectors.models import ConnectorSchemaSnapshot  # noqa: F401
 from service_ingestion.models import IngestSpecRecord  # noqa: F401
 
-# Imported for the side effect: this teaches governance how to snapshot and
-# restore a workflow, which is what makes version history restorable.
+# Imported for the side effect: these teach governance how to snapshot and
+# restore a workflow and a recipe, which is what makes version history
+# restorable and a suggested recipe change appliable (C2).
+import service_transformations.versioning  # noqa: F401,E402
 import service_workflows.versioning  # noqa: F401,E402
 
 __all__ = ["Base"]

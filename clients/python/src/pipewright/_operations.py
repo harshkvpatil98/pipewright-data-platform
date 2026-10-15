@@ -904,6 +904,13 @@ class Operations:
         """
         return self._call("DELETE", f"/api/v1/projects/{project_id}/datasets/{dataset_id}")
 
+    def read_dataset_activity(self, project_id: str, dataset_id: str, *, offset: int | None = None, limit: int | None = None) -> Any:
+        """What happened to one dataset, newest first: its versions and what made them, failed runs, checks, schema changes, contracts, alerts, incidents, comments and changes to it.
+
+        GET /api/v1/projects/{project_id}/datasets/{dataset_id}/activity
+        """
+        return self._call("GET", f"/api/v1/projects/{project_id}/datasets/{dataset_id}/activity", query={"offset": offset, "limit": limit})
+
     def read_anomalies(self, project_id: str, dataset_id: str, *, sensitivity: str | None = None, raise_incidents: bool | None = None) -> Any:
         """Read Anomalies
 
@@ -1351,6 +1358,13 @@ class Operations:
         POST /api/v1/projects/{project_id}/discussion
         """
         return self._call("POST", f"/api/v1/projects/{project_id}/discussion", body=body)
+
+    def reopen_comment_thread(self, project_id: str, comment_id: str) -> Any:
+        """Open a resolved thread again.
+
+        POST /api/v1/projects/{project_id}/discussion/{comment_id}/reopen
+        """
+        return self._call("POST", f"/api/v1/projects/{project_id}/discussion/{comment_id}/reopen")
 
     def close_comment(self, project_id: str, comment_id: str) -> Any:
         """Close Comment
@@ -1807,12 +1821,61 @@ class Operations:
         """
         return self._call("POST", f"/api/v1/projects/{project_id}/pipelines/{pipeline_id}/run")
 
+    def read_recipe_shared_copy(self, project_id: str, pipeline_id: str, *, epoch: int | None = None, after: int | None = None, revision: int | None = None) -> Any:
+        """The recipe's shared working copy, or what changed in it since `after`.
+
+        GET /api/v1/projects/{project_id}/pipelines/{pipeline_id}/shared
+        """
+        return self._call("GET", f"/api/v1/projects/{project_id}/pipelines/{pipeline_id}/shared", query={"epoch": epoch, "after": after, "revision": revision})
+
+    def push_recipe_changes(self, project_id: str, pipeline_id: str, *, body: Any) -> Any:
+        """Merge changes into the recipe's shared working copy.
+
+        POST /api/v1/projects/{project_id}/pipelines/{pipeline_id}/shared
+        """
+        return self._call("POST", f"/api/v1/projects/{project_id}/pipelines/{pipeline_id}/shared", body=body)
+
+    def discard_recipe_changes(self, project_id: str, pipeline_id: str) -> Any:
+        """Throw away the shared copy's unsaved changes, for everyone editing it.
+
+        POST /api/v1/projects/{project_id}/pipelines/{pipeline_id}/shared/discard
+        """
+        return self._call("POST", f"/api/v1/projects/{project_id}/pipelines/{pipeline_id}/shared/discard")
+
+    def suggest_recipe_change(self, project_id: str, pipeline_id: str, *, body: Any) -> Any:
+        """Suggest a change to a recipe for someone who may edit it to accept or decline.
+
+        POST /api/v1/projects/{project_id}/pipelines/{pipeline_id}/suggest
+        """
+        return self._call("POST", f"/api/v1/projects/{project_id}/pipelines/{pipeline_id}/suggest", body=body)
+
     def pivot_table(self, project_id: str, *, body: Any) -> Any:
         """Pivot Table
 
         POST /api/v1/projects/{project_id}/pivot
         """
         return self._call("POST", f"/api/v1/projects/{project_id}/pivot", body=body)
+
+    def read_who_is_here(self, project_id: str, *, target_id: str, target_type: str | None = None) -> Any:
+        """Who has something open now.
+
+        GET /api/v1/projects/{project_id}/presence
+        """
+        return self._call("GET", f"/api/v1/projects/{project_id}/presence", query={"target_id": target_id, "target_type": target_type})
+
+    def say_here(self, project_id: str, *, body: Any) -> Any:
+        """Say you have something open, and hear who else has.
+
+        POST /api/v1/projects/{project_id}/presence
+        """
+        return self._call("POST", f"/api/v1/projects/{project_id}/presence", body=body)
+
+    def say_gone(self, project_id: str, client_id: str, *, target_id: str, target_type: str | None = None) -> Any:
+        """This page has closed.
+
+        DELETE /api/v1/projects/{project_id}/presence/{client_id}
+        """
+        return self._call("DELETE", f"/api/v1/projects/{project_id}/presence/{client_id}", query={"target_id": target_id, "target_type": target_type})
 
     def promote_resource_to(self, project_id: str, *, body: Any) -> Any:
         """Promote Resource To

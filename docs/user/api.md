@@ -181,6 +181,12 @@ curl -s -X PUT "$PIPEWRIGHT/api/v1/projects/$PROJECT/datasets/$DATASET/contract"
 EOF
 ```
 
+## Saving without replacing someone else's work
+
+A recipe has a `revision`, which goes up with every save. Send the one you started from as `expected_revision` when you change a recipe (`PATCH /api/v1/projects/$PROJECT/pipelines/$RECIPE`), and a save made since by someone else is not replaced: the answer is `409`, saying who saved and when. Read the recipe again, then save. Without `expected_revision` a save replaces whatever is there.
+
+Someone who may not change a recipe can suggest a change instead: `POST /api/v1/projects/$PROJECT/pipelines/$RECIPE/suggest` with a `title`, an optional `note` and the `steps_json` they propose. It waits under Approvals for someone else to accept or decline.
+
 ## Moving a project's work
 
 A bundle is a project's recipes, checks, contracts, metrics, charts, dashboards, workflows and schedules in one JSON file, with no data or passwords. Download one:
@@ -262,5 +268,5 @@ Its README lists every command; in Python, `from pipewright import Client`. The 
 ## Good to know
 
 - **Finding ids.** `GET /api/v1/projects` lists projects, and `GET /api/v1/projects/$PROJECT/datasets` lists a project's datasets, each with its `id`. In the app, a page's **Technical details** shows the ids it is about.
-- **Errors.** `401` means the token is missing, wrong or withdrawn; `403` that its owner may not do this, or it is a read token; `404` that the thing does not exist or is not visible to you; `409` that new data breaks a dataset's contract, so it was not saved; `400` and `422` that the request needs changing, with the reason in `detail`.
+- **Errors.** `401` means the token is missing, wrong or withdrawn; `403` that its owner may not do this, or it is a read token; `404` that the thing does not exist or is not visible to you; `409` that new data breaks a dataset's contract, so it was not saved, or that someone saved a recipe since you read it; `400` and `422` that the request needs changing, with the reason in `detail`.
 - **Long jobs.** Imports and recipes answer when they finish. For work that runs on its own, such as a workflow, start it and then ask for the run until its `status` is `succeeded` or `failed`.

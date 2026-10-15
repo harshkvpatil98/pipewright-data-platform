@@ -139,6 +139,7 @@ class Comment(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         Index("ix_comments_project_id", "project_id"),
         # A project's activity, newest first (A8, Y6).
         Index("ix_comments_project_created", "project_id", "created_at"),
+        Index("ix_comments_parent_id", "parent_id"),
     )
 
     project_id: Mapped[uuid.UUID] = mapped_column(
@@ -157,3 +158,38 @@ class Comment(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     resolved_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
+    # A reply belongs to the comment that started its thread (C2). A
+    # thread resolves as a whole, on its first comment.
+    parent_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("comments.id", ondelete="CASCADE"), nullable=True
+    )
+    # The cell a thread is about, on a dataset: a column, and a row by its
+    # identifier's value or by its number in one version.
+    anchor_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+
+
+class Presence(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """Someone with something open right now, and what in it (C2).
+
+    One row per browser tab (`client_id`), refreshed every few seconds while
+    the page is open; a row not seen for twenty seconds is someone who left.
+    """
+
+    __tablename__ = "presence"
+    __table_args__ = (
+        UniqueConstraint("target_type", "target_id", "client_id", name="uq_presence_client"),
+        Index("ix_presence_target_seen", "target_type", "target_id", "seen_at"),
+    )
+
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    target_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    target_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    client_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    #: What in it they have open, such as {"step": "<step id>"}.
+    focus_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

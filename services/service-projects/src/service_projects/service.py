@@ -136,6 +136,8 @@ def update_project(
         project.description = description.strip() if description else None
     if "status" in fields and fields["status"] is not None:
         project.status = fields["status"]
+    if "requires_approval" in fields and fields["requires_approval"] is not None:
+        project.requires_approval = bool(fields["requires_approval"])
 
     db.commit()
     return get_project_by_id(db, project_id, current_user)

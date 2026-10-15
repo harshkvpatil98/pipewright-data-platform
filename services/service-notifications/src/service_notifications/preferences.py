@@ -46,13 +46,19 @@ CATEGORIES: tuple[Category, ...] = (
     Category(
         key="incidents",
         label="Incidents",
-        description="Problems that need a person, such as a failed check, late data or a measure past its alert.",
+        description="Problems that need a person, such as a failed check, late data, a measure past its alert or a broken contract.",
         default="each",
     ),
     Category(
         key="mentions",
         label="Mentions",
         description="Someone mentioned you in a comment.",
+        default="each",
+    ),
+    Category(
+        key="reviews",
+        label="Suggestions and reviews",
+        description="Someone suggested a change for you to review, or your suggestion was accepted or declined.",
         default="each",
     ),
     Category(
@@ -76,6 +82,8 @@ def category_for(event_type: str, level: str) -> str:
     """The category an event belongs to, from its type and level."""
     if event_type == "mention":
         return "mentions"
+    if event_type in ("suggestion", "review"):
+        return "reviews"
     if event_type in ("incident", "metric_alert", "data_contract"):
         return "incidents"
     if event_type == "report":

@@ -34,6 +34,9 @@ class ProjectUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=2, max_length=160)
     description: str | None = Field(default=None, max_length=2000)
     status: str | None = Field(default=None, pattern=r"^(active|draft|archived)$")
+    #: Changes to recipes and workflows are suggested and approved by someone
+    #: else, rather than saved straight away (C2: nothing could switch it on).
+    requires_approval: bool | None = None
 
 
 class ProjectSummary(BaseModel):

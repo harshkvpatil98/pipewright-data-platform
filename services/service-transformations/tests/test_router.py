@@ -35,6 +35,14 @@ class FakeDb:
     def refresh(self, _instance: object) -> None:
         return None
 
+    def flush(self) -> None:
+        # Saving a recipe flushes to get its id before recording its history.
+        self.commit()
+
+    def scalar(self, _statement: object) -> None:
+        # A new recipe has no history yet.
+        return None
+
 
 def _build_test_client() -> tuple[TestClient, FakeDb, UserRead]:
     current_user = UserRead(

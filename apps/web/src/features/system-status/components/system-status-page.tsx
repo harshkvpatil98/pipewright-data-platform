@@ -89,7 +89,7 @@ const DETAIL_LABELS: Record<string, string> = {
   datasets_analysable: "datasets it can analyse",
   method: "method",
   metrics_recorded: "health records",
-  freshness_policies: "freshness rules",
+  freshness_policies: "freshness limits",
   incidents_open: "open incidents",
   incidents_critical: "critical incidents",
   charts: "charts",

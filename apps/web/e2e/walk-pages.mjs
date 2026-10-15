@@ -65,6 +65,11 @@ if (!projectId) {
 const first = async (path) => items(await get(`/projects/${projectId}${path}`))[0]?.id;
 const datasets = items(await get(`/projects/${projectId}/datasets`));
 const dashboards = items(await get(`/projects/${projectId}/dashboards`));
+// An embed that is on, for /embed/[token]: a share token is not an embed's (A8, Y4).
+let embedToken;
+for (const dashboard of dashboards) {
+  embedToken ??= items(await get(`/projects/${projectId}/dashboards/${dashboard.id}/embeds`)).find((embed) => embed.state === "on")?.token;
+}
 const ids = {
   projectId,
   datasetId: datasets[0]?.id,
@@ -88,7 +93,8 @@ for (const route of routes(appDir)) {
     continue;
   }
   const missing = [];
-  const path = route.replace(/\[(\w+)\]/g, (_, key) => ids[key] ?? (missing.push(key), `[${key}]`));
+  const fill = route.startsWith("/embed/") ? { ...ids, token: embedToken } : ids;
+  const path = route.replace(/\[(\w+)\]/g, (_, key) => fill[key] ?? (missing.push(key), `[${key}]`));
   if (missing.length) skipped.push(`${route} (no ${missing.join(", ")} in this project)`);
   else pages.push(path);
 }
@@ -127,7 +133,12 @@ for (const path of pages) {
     const match = text.match(new RegExp(bad));
     if (match) issues.push(`says "${match[0]}": …${text.slice(Math.max(0, match.index - 50), match.index + 30).replace(/\s+/g, " ")}…`);
     if (document.documentElement.scrollWidth > innerWidth + 2) issues.push(`scrolls sideways (${document.documentElement.scrollWidth}px)`);
-    const headings = document.querySelectorAll("h1").length;
+    // Streamed content is revealed into place once the page is visible; a
+    // block still hidden with words in it means the page rendered twice
+    // (A8, Y8). An empty one is a placeholder a not-found cut short.
+    const leftover = [...document.querySelectorAll('div[hidden][id^="S:"]')].filter((block) => block.textContent.trim()).length;
+    if (leftover) issues.push(`${leftover} streamed blocks left hidden`);
+    const headings = [...document.querySelectorAll("h1")].filter((heading) => !heading.closest("[hidden]")).length;
     if (headings !== 1) issues.push(`${headings} page headings`);
     const unnamed = [...document.querySelectorAll("button, a[href], input:not([type=hidden]), select, textarea")].filter((element) => {
       const box = element.getBoundingClientRect();

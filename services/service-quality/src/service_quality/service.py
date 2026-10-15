@@ -68,7 +68,7 @@ def get_rule_for_project(db: Session, project_id: uuid.UUID, rule_id: uuid.UUID)
         )
     )
     if rule is None:
-        raise NotFoundError("Data quality rule not found.")
+        raise NotFoundError("Check not found.")
     return rule
 
 
@@ -293,7 +293,7 @@ def evaluate_dataset(
 
     rules = db.scalars(statement.order_by(DataQualityRule.created_at)).all()
     if not rules:
-        raise BadRequestError("No enabled data quality rules apply to this dataset.")
+        raise BadRequestError("No check that is turned on applies to this dataset.")
 
     result = evaluate_ruleset(
         frame,

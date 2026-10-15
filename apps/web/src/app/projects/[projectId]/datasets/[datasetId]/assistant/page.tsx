@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { AssistantPageView } from "@/features/intelligence/components/assistant-page";
-import { ApiError } from "@/lib/api/errors";
+import { ApiError, extractErrorMessage } from "@/lib/api/errors";
 import { serverApiFetch } from "@/lib/api/server";
 import { requireCurrentUser } from "@/lib/auth/server";
 import type {
@@ -17,12 +17,15 @@ type PageProps = {
 
 export const metadata = { title: "Assistant" };
 
-/** Analyses that need the stored file can fail on a dataset that has none. */
-async function optional<T>(promise: Promise<T>): Promise<T | null> {
+/**
+ * An analysis that may be refused (a dataset with no stored file, or one too
+ * large to read), with the refusal's reason so the page can say why.
+ */
+async function optional<T>(promise: Promise<T>): Promise<{ value: T | null; problem: string | null }> {
   try {
-    return await promise;
-  } catch {
-    return null;
+    return { value: await promise, problem: null };
+  } catch (error) {
+    return { value: null, problem: extractErrorMessage(error) };
   }
 }
 
@@ -55,11 +58,12 @@ export default async function AssistantPage({ params }: PageProps) {
         currentUser={currentUser}
         projectId={projectId}
         datasetId={datasetId}
-        datasetName={pii?.dataset_name ?? documentation?.dataset.subject ?? "dataset"}
+        datasetName={pii.value?.dataset_name ?? documentation.value?.dataset.subject ?? "dataset"}
         columns={columns.columns}
-        pii={pii}
-        rules={rules}
-        documentation={documentation}
+        pii={pii.value}
+        rules={rules.value}
+        documentation={documentation.value}
+        problems={{ pii: pii.problem, rules: rules.problem, documentation: documentation.problem }}
       />
     );
   } catch (error) {

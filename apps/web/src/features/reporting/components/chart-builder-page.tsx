@@ -15,6 +15,7 @@ import type {
   LineageColumnListResponse,
   Metric,
 } from "@platform/shared-types";
+import { CHART_ROW_LIMIT } from "@platform/shared-types";
 import {
   Badge,
   Button,
@@ -28,6 +29,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
+import { formatCount } from "@/lib/format";
 import { cx } from "@/lib/utils";
 
 import { AGGREGATION_LABELS, chartTitle, chooseChartDefaults } from "@/features/reporting/chart-defaults";
@@ -44,6 +46,11 @@ type ChartBuilderPageProps = {
   metrics: Metric[];
 };
 
+/** Whether a dataset has more rows than a chart reads. */
+export function tooLargeToChart(dataset: Pick<DatasetRecord, "row_count">): boolean {
+  return (dataset.row_count ?? 0) > CHART_ROW_LIMIT;
+}
+
 const inputClass =
   "h-9 w-full rounded-lg border border-line bg-sunken px-2.5 text-[13px] text-ink outline-none transition focus:border-[color:var(--accent)]";
 
@@ -56,7 +63,10 @@ export function ChartBuilderPageView({
 }: ChartBuilderPageProps) {
   const [saved, setSaved] = useState(charts.items);
   const [types, setTypes] = useState<ChartCatalogResponse | null>(null);
-  const [datasetId, setDatasetId] = useState(datasets[0]?.id ?? "");
+  // Open on a dataset a chart can read; one too large waits to be chosen.
+  const [datasetId, setDatasetId] = useState(
+    (datasets.find((dataset) => !tooLargeToChart(dataset)) ?? datasets[0])?.id ?? "",
+  );
   // A metric-backed chart: the measure and its filters come from the metric,
   // the chart chooses only how to cut it.
   const [metricId, setMetricId] = useState("");
@@ -143,9 +153,20 @@ export function ChartBuilderPageView({
       ? { compare: { date_column: compareColumn, period: comparePeriod } }
       : null;
 
+  const chosen = datasets.find((dataset) => dataset.id === datasetId);
+  const tooLarge = chosen ? tooLargeToChart(chosen) : false;
+
   const preview = useCallback(async () => {
     if (!datasetId || (!measureColumn && !metric)) return;
     setPreviewProblem(null);
+    if (tooLarge && chosen) {
+      // Said here, not by asking the API for a refusal it is known to give.
+      setData(null);
+      setPreviewProblem(
+        `“${chosen.name}” has ${formatCount(chosen.row_count ?? 0)} rows, more than the ${formatCount(CHART_ROW_LIMIT)} a chart reads. Make a smaller dataset with a recipe first, for example one that groups or filters it.`,
+      );
+      return;
+    }
     try {
       setData(
         await apiFetch<ChartData>(`/projects/${projectId}/charts/preview`, {
@@ -167,7 +188,7 @@ export function ChartBuilderPageView({
       setPreviewProblem(extractErrorMessage(caught));
     }
     // `options` is derived from compareColumn/comparePeriod, listed here.
-  }, [projectId, datasetId, chartType, dimension, measureColumn, aggregation, spec, compareColumn, comparePeriod, metric]);
+  }, [projectId, datasetId, chartType, dimension, measureColumn, aggregation, spec, compareColumn, comparePeriod, metric, tooLarge, chosen]);
 
   useEffect(() => {
     const timer = setTimeout(() => void preview(), 250);
@@ -276,7 +297,7 @@ export function ChartBuilderPageView({
               >
                 {datasets.map((dataset) => (
                   <option key={dataset.id} value={dataset.id}>
-                    {dataset.name}
+                    {tooLargeToChart(dataset) ? `${dataset.name} (too large to chart)` : dataset.name}
                   </option>
                 ))}
               </select>
@@ -474,9 +495,9 @@ export function ChartBuilderPageView({
                     This combination cannot be drawn yet
                   </span>
                   <span className="max-w-md text-[13px] text-ink-3">{previewProblem}</span>
-                  <span className="text-[12px] text-muted">
-                    Try a different measure, or count rows instead.
-                  </span>
+                  {tooLarge ? null : (
+                    <span className="text-[12px] text-muted">Try a different measure, or count rows instead.</span>
+                  )}
                 </>
               ) : (
                 <span className="text-[13px] text-muted">Choose a dataset and a measure.</span>

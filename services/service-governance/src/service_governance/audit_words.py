@@ -157,7 +157,7 @@ NOUNS: dict[str, str] = {
     "saved": "a saved comparison",
     "notification-targets": "an alert channel",
     "security-policies": "an access policy",
-    "freshness-policies": "a freshness rule",
+    "freshness-policies": "a freshness limit",
     "glossary": "a glossary term",
     "catalog": "a dataset's catalogue entry",
     "notebooks": "a notebook",

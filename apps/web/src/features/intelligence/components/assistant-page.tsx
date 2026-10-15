@@ -29,6 +29,8 @@ type AssistantPageProps = {
   pii: PiiScanResponse | null;
   rules: RuleSuggestionResponse | null;
   documentation: DocumentationResponse | null;
+  /** Why an analysis was not done, in the API's words. */
+  problems?: { pii: string | null; rules: string | null; documentation: string | null };
 };
 
 const CONFIDENCE_TONE: Record<Confidence, BadgeTone> = {
@@ -49,6 +51,7 @@ export function AssistantPageView({
   pii,
   rules,
   documentation,
+  problems,
 }: AssistantPageProps) {
   const [sentence, setSentence] = useState("");
   const [parsed, setParsed] = useState<DescribeResponse | null>(null);
@@ -173,9 +176,9 @@ export function AssistantPageView({
       <div className="grid gap-4 lg:grid-cols-2">
         <SectionPanel
           title="Personal data"
-          description={pii?.summary ?? "Not scanned."}
+          description={pii?.summary ?? (problems?.pii ? `Not scanned: ${problems.pii}` : "Not scanned.")}
         >
-          {!pii || pii.findings.length === 0 ? (
+          {!pii ? null : pii.findings.length === 0 ? (
             <p className="text-[12.5px] text-muted">
               Nothing here looks like personal data. It knows common formats only, so an unusual national
               ID format would be missed.
@@ -208,10 +211,10 @@ export function AssistantPageView({
         </SectionPanel>
 
         <SectionPanel
-          title="Quality rules worth adding"
-          description={rules?.summary ?? "Not analysed."}
+          title="Checks worth adding"
+          description={rules?.summary ?? (problems?.rules ? `Not worked out: ${problems.rules}` : "Not worked out.")}
         >
-          {!rules || rules.items.length === 0 ? (
+          {!rules ? null : rules.items.length === 0 ? (
             <p className="text-[12.5px] text-muted">
               Nothing in this profile is a strong enough pattern to assert on yet.
             </p>
@@ -317,6 +320,10 @@ export function AssistantPageView({
               ))}
             </ul>
           ) : null}
+        </SectionPanel>
+      ) : problems?.documentation ? (
+        <SectionPanel title="A description, drafted" description="Put together from what is already recorded.">
+          <p className="text-[12.5px] text-muted">Not drafted: {problems.documentation}</p>
         </SectionPanel>
       ) : null}
     </AppShell>

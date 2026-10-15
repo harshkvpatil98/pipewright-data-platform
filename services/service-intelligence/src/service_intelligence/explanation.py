@@ -38,7 +38,7 @@ EVENT_LABELS: dict[str, str] = {
     "pipeline_edit": "the pipeline was edited",
     "workflow_edit": "the workflow was edited",
     "schema_drift": "the source schema changed",
-    "quality_failure": "a quality rule started failing",
+    "quality_failure": "a check started failing",
     "upstream_change": "an upstream dataset changed",
     "run_status_change": "a run changed status",
     "config_change": "a setting changed",

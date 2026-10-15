@@ -206,6 +206,13 @@ export type PublicDashboardView = {
   tiles: PublicChartTile[];
 };
 
+/**
+ * The most rows a chart reads from its dataset; a larger one needs a recipe
+ * that groups or filters it first. The same number as MAX_SOURCE_ROWS in
+ * service_reporting/service.py, which a test holds them to.
+ */
+export const CHART_ROW_LIMIT = 500_000;
+
 /** How long an embed can last, in days (A8, Y4). */
 export const EMBED_DAYS = [1, 7, 30, 90, 365] as const;
 

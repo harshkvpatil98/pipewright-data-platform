@@ -19,6 +19,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from shared_python.words import count_of
+
 
 @dataclass
 class DatasetFacts:
@@ -101,10 +103,10 @@ def describe_dataset(facts: DatasetFacts) -> Draft:
 
     if facts.rule_count:
         sentences.append(
-            f"{facts.rule_count} quality rule{'s' if facts.rule_count != 1 else ''} "
-            f"{'are' if facts.rule_count != 1 else 'is'} checked against it."
+            f"{count_of(facts.rule_count, 'check')} "
+            f"{'run' if facts.rule_count != 1 else 'runs'} against it."
         )
-        used.append("quality rules")
+        used.append("checks")
 
     if facts.certified:
         sentences.append("It has been certified by someone as fit to rely on.")

@@ -183,6 +183,6 @@ def summarise(suggestions: list[RuleSuggestion]) -> str:
         )
     high = sum(1 for item in suggestions if item.confidence == "high")
     return (
-        f"{count_of(len(suggestions), 'rule')} the profile already justifies, {high} of them "
+        f"{count_of(len(suggestions), 'check')} the profile already supports, {high} of them "
         "on patterns strong enough that a violation would be news."
     )

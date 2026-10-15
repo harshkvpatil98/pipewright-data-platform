@@ -4,9 +4,9 @@ Know the data is right, and hear about it when it is not.
 
 ## Checks
 
-A check is a rule the data must pass, such as "every order has an email" or "amount is between 0 and 10,000". Add checks to a dataset, then run them by hand, on a schedule or as a workflow task. Each run shows how many rows failed each check.
+A check is a rule the data must pass, such as "every order has an email" or "amount is between 0 and 10,000". Add checks to a dataset, then run them yourself, or as a task in a workflow, which can run on a timetable. Each run shows how many rows failed each check.
 
-Turn on **quarantine** and failing rows are set aside in their own dataset while the good rows carry on. A failing check opens an [incident](#incidents).
+Turn on **quarantine** and failing rows are set aside in their own dataset while the good rows carry on. A check that must pass and fails in a workflow opens an [incident](#incidents) and stops the tasks after it; one you run yourself shows its result on the page.
 
 ## Data health and alerts
 

@@ -159,6 +159,12 @@ production-readiness P9; the progress ledger in §8 tracks the rest.
 
 ## 6. Gotchas that have already cost time
 
+- **Never `Base.metadata.create_all` against PostgreSQL in a test process.** On a dialect with
+  ALTER it marks the foreign keys in reference cycles (datasets, runs, recipes) to be added
+  afterwards, on the shared metadata, and every SQLite test after it loses those constraints and
+  their ON DELETE CASCADE. CI failed on "deleting a project leaves its datasets" for exactly this
+  (C1). Create PostgreSQL tables from a private copy: `table.to_metadata(MetaData())` for each
+  table, then `create_all` on the copy (`test_data_contracts._create_tables`).
 - **pytest uses `--import-mode=importlib` with no `__init__.py` files.** Two `conftest.py`
   files with the same basename collide and one silently supplies the other's fixtures. Fixtures
   are inlined per module. Do not add a shared `conftest.py` without checking for collisions.

@@ -20,7 +20,7 @@ from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, func, select, text
+from sqlalchemy import MetaData, create_engine, func, select, text
 from sqlalchemy.orm import sessionmaker
 
 import api_gateway.metadata  # noqa: F401
@@ -62,10 +62,28 @@ def _engine(backend: str, tmp_path):
     return create_engine(POSTGRES, connect_args={"options": f"-csearch_path={schema}"}), schema
 
 
+def _create_tables(engine) -> None:
+    """Every table, without changing the shared definitions.
+
+    On PostgreSQL, `create_all` marks the foreign keys in reference cycles
+    (datasets, runs and recipes point at each other) to be added afterwards
+    with ALTER, on the shared `Base.metadata`. SQLite cannot do that, so every
+    SQLite test after one of these lost its ON DELETE CASCADE: CI's deleting
+    a project left its datasets behind. A private copy keeps the change here.
+    """
+    if engine.dialect.name == "sqlite":
+        Base.metadata.create_all(engine)
+        return
+    private = MetaData()
+    for table in Base.metadata.tables.values():
+        table.to_metadata(private)
+    private.create_all(engine)
+
+
 @pytest.fixture(params=["sqlite", "postgres"])
 def world(request, tmp_path, monkeypatch):
     engine, schema = _engine(request.param, tmp_path)
-    Base.metadata.create_all(engine)
+    _create_tables(engine)
     factory = sessionmaker(bind=engine)
 
     def _db():

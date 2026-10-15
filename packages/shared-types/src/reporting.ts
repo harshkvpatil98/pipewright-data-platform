@@ -396,6 +396,10 @@ export type CatalogAnnotation = {
   certified_by_username: string | null;
   owner_username: string | null;
   column_notes: Record<string, string>;
+  /** Tags per column, from the recipe that makes the dataset (E1). */
+  column_tags?: Record<string, string[]>;
+  /** Classification and personal-data kind per column, from the recipe that makes it (E1). */
+  column_classes?: Record<string, { classification?: string; personal?: string }>;
 };
 
 /** Fields a steward can change about a dataset from its catalog card. Every

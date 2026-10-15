@@ -29,6 +29,10 @@ type DiscussionPanelProps = {
   onChanged?: () => void;
   /** A count that, when it changes, makes the panel read the threads again. */
   refreshKey?: number;
+  /** On a recipe: the step a new thread is about, and how to talk about the whole recipe again (E1). */
+  step?: { id: string; label: string; onClear: () => void } | null;
+  /** On a recipe: each step's words by its id, to say which step a thread is about. */
+  stepNames?: Record<string, string>;
 };
 
 /**
@@ -53,6 +57,8 @@ export function DiscussionPanel({
   bare = false,
   onChanged,
   refreshKey = 0,
+  step = null,
+  stepNames,
 }: DiscussionPanelProps) {
   const [thread, setThread] = useState<CommentListResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -118,6 +124,10 @@ export function DiscussionPanel({
             >
               {comment.anchor ? (
                 <div className="mb-1 text-[12px] font-medium text-ink-3">{anchorWords(comment.anchor)}</div>
+              ) : comment.step_id ? (
+                <div className="mb-1 text-[12px] font-medium text-ink-3">
+                  {stepNames?.[comment.step_id] ? `On ${stepNames[comment.step_id]}` : "On a step since removed"}
+                </div>
               ) : null}
               <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                 <span className="text-[12.5px] font-medium text-ink">{who(comment)}</span>
@@ -202,13 +212,23 @@ export function DiscussionPanel({
         </button>
       ) : null}
 
+      {step ? (
+        <p className="flex flex-wrap items-baseline gap-x-2 text-[12.5px] text-ink-2">
+          <span>A new thread on {step.label}.</span>
+          <button type="button" onClick={step.onClear} className="text-[12px] text-accent hover:underline">
+            On the whole recipe instead
+          </button>
+        </p>
+      ) : null}
       <Composer
         projectId={projectId}
         targetType={targetType}
         targetId={targetId}
+        stepId={step?.id}
         label={composerLabel}
         placeholder={placeholder}
         onPosted={changed}
+        autoFocus={Boolean(step)}
       />
     </div>
   );
@@ -235,6 +255,7 @@ export function Composer({
   targetId,
   parentId,
   anchor,
+  stepId,
   label,
   placeholder,
   onPosted,
@@ -246,6 +267,8 @@ export function Composer({
   targetId: string;
   parentId?: string;
   anchor?: CellAnchor;
+  /** A new thread on one step of a recipe (E1). */
+  stepId?: string;
   label: string;
   placeholder: string;
   onPosted: () => void | Promise<void>;
@@ -260,7 +283,7 @@ export function Composer({
 
   useEffect(() => {
     if (autoFocus) textareaRef.current?.focus();
-  }, [autoFocus]);
+  }, [autoFocus, stepId]);
 
   const loadPeople = useCallback(async () => {
     if (people.length > 0) return;
@@ -304,6 +327,7 @@ export function Composer({
           body,
           parent_id: parentId ?? null,
           anchor: anchor ?? null,
+          step_id: stepId ?? null,
         }),
       });
       setDraft("");

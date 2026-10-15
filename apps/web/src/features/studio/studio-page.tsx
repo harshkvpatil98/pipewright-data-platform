@@ -25,17 +25,32 @@ import { AddDataDialog } from "@/features/datasets/components/add-data-dialog";
 import { useUnsavedChangesGuard } from "@/features/navigation/unsaved-changes-guard";
 import { DetailsDrawer, type ExecutionPlan, type IncrementalMode } from "@/features/studio/details-drawer";
 import { DataGrid, type GridColumn } from "@/features/studio/grid/data-grid";
+import {
+  CompareDialog,
+  CopyDialog,
+  MergeDialog,
+  ParametersDialog,
+  RunWithValuesDialog,
+  SaveTemplateDialog,
+  SplitDialog,
+  usedParameters,
+  type RecipeParameter,
+} from "@/features/studio/recipe-actions";
 import { RecipeTemplatesDialog } from "@/features/studio/recipe-templates-dialog";
 import { clearDraft, draftKey, readDraft, writeDraft, type RecipeDraft } from "@/features/studio/recipe-draft";
+import { CellFilterMenu, type PickedCell } from "@/features/studio/cell-filter-menu";
 import { stableJson, type Doc } from "@/features/studio/coedit";
+import { ENABLED, GROUP, NOTE, groupOf, grouped, isOff, turned, withoutRemarks } from "@/features/studio/step-flags";
+import { STEP_COMMANDS, type StepCommandId } from "@/features/studio/palette-search";
 import { PresenceDots } from "@/features/studio/presence-dots";
 import { SuggestDialog } from "@/features/studio/suggest-dialog";
 import { SuggestionsDrawer } from "@/features/studio/suggestions-drawer";
 import { newStepId, useRecipeEditing } from "@/features/studio/use-recipe-editing";
 import { usePresence } from "@/features/studio/use-presence";
-import { prefillConfig, type StepDefinition } from "@/features/studio/step-catalog";
+import { STEP_BY_TYPE, prefillConfig, type StepDefinition } from "@/features/studio/step-catalog";
 import { StepPalette } from "@/features/studio/step-palette";
 import { OtherDatasetsProvider, datasetColumns } from "@/features/studio/tools/other-datasets";
+import { SampleValuesProvider } from "@/features/studio/tools/regex-tester";
 import { StepsTimeline, type StepOutcome, type TimelineStep } from "@/features/studio/steps-timeline";
 import type { ToolCatalogue } from "@/features/studio/tools/tool-catalogue";
 import { planPhrase, previewScope } from "@/features/studio/studio-words";
@@ -45,6 +60,7 @@ import { ApiError, extractErrorMessage } from "@/lib/api/errors";
 import { friendlyStepMessage } from "@/lib/labels";
 import { cx } from "@/lib/utils";
 import { countOf, formatCount, formatShortDate, formatTime } from "@/lib/format";
+import { recipeHref } from "@/lib/navigation";
 
 type PreviewResponse = {
   preview_rows: Record<string, unknown>[];
@@ -213,10 +229,24 @@ export function StudioPage({
   const [paletteColumn, setPaletteColumn] = useState<string | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
+  // Managing the recipe (E1): templates, parameters, branches, copies.
+  const [managing, setManaging] = useState<
+    null | "template" | "parameters" | "run-values" | "preview-values" | "merge" | "compare" | "copy" | "split"
+  >(null);
+  const [parameters, setParameters] = useState<RecipeParameter[]>((recipe?.parameters ?? []) as RecipeParameter[]);
+  // Values the preview tries, for parameters without a default or to see another value's result.
+  const [tryValues, setTryValues] = useState<Record<string, unknown>>({});
+  const [parentRecipe, setParentRecipe] = useState<{ id: string; name: string } | null>(null);
+  // The steps a template is saved from: all of them, or one group's.
+  const [templateDraft, setTemplateDraft] = useState<{ name: string; steps: StoredStep[] } | null>(null);
+  // The step a new comment is about, chosen from the steps.
+  const [commentStep, setCommentStep] = useState<string | null>(null);
   const [addDataOpen, setAddDataOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [running, setRunning] = useState(false);
   const [viewSort, setViewSort] = useState<ViewSort | null>(null);
+  // A cell right-clicked in the preview, to keep or drop rows like it.
+  const [pickedCell, setPickedCell] = useState<{ cell: PickedCell; at: { x: number; y: number } } | null>(null);
 
   useUnsavedChangesGuard({
     // A shared copy keeps unsaved changes on the server, so leaving loses nothing.
@@ -278,7 +308,12 @@ export function StudioPage({
   const generation = useRef(0);
 
   const runPreview = useCallback(
-    async (activeSteps: TimelineStep[], activeDatasetId: string) => {
+    async (
+      activeSteps: TimelineStep[],
+      activeDatasetId: string,
+      declared: RecipeParameter[],
+      values: Record<string, unknown>,
+    ) => {
       if (!activeDatasetId) {
         setPreview(null);
         return;
@@ -289,7 +324,10 @@ export function StudioPage({
       try {
         const response = await apiFetch<PreviewResponse>(
           `/projects/${projectId}/datasets/${activeDatasetId}/pipelines/preview`,
-          { method: "POST", body: JSON.stringify({ steps: stored(activeSteps) }) },
+          {
+            method: "POST",
+            body: JSON.stringify({ steps: stored(activeSteps), parameters: declared, parameter_values: values }),
+          },
         );
         if (ticket === generation.current) setPreview(response);
       } catch (caught) {
@@ -304,16 +342,25 @@ export function StudioPage({
     [projectId],
   );
 
+  // A note or a group never changes a result, so writing one does not run the preview again.
+  const previewKey = useMemo(
+    () => stableJson(steps.map((step) => [step.step_type, withoutRemarks(step.config)])),
+    [steps],
+  );
+  const latestSteps = useRef(steps);
+  latestSteps.current = steps;
   useEffect(() => {
-    const timer = setTimeout(() => void runPreview(steps, datasetId), 320);
+    const timer = setTimeout(() => void runPreview(latestSteps.current, datasetId, parameters, tryValues), 320);
     return () => clearTimeout(timer);
-  }, [steps, datasetId, runPreview]);
+  }, [previewKey, datasetId, parameters, tryValues, runPreview]);
 
   // The source's own columns, so a half-set-up step still offers real names.
   const [baseColumns, setBaseColumns] = useState<{ name: string; type?: string }[]>([]);
+  const [baseRows, setBaseRows] = useState<Record<string, unknown>[]>([]);
   useEffect(() => {
     if (!datasetId) {
       setBaseColumns([]);
+      setBaseRows([]);
       return;
     }
     let cancelled = false;
@@ -325,14 +372,34 @@ export function StudioPage({
         if (cancelled) return;
         const types = new Map(response.schema_after.columns.map((c) => [c.name, c.canonical_type ?? c.inferred_type]));
         setBaseColumns(response.preview_columns.map((column) => ({ name: column, type: types.get(column) })));
+        setBaseRows(response.preview_rows);
       })
       .catch(() => {
-        if (!cancelled) setBaseColumns([]);
+        if (!cancelled) {
+          setBaseColumns([]);
+          setBaseRows([]);
+        }
       });
     return () => {
       cancelled = true;
     };
   }, [datasetId, projectId]);
+
+  // Values to try a pattern on: the source's, or the preview's for a column a step made.
+  const sampleValues = useCallback(
+    (column: string | null) => {
+      if (!column) return [];
+      const rows = baseRows.length && column in baseRows[0] ? baseRows : (preview?.preview_rows ?? []);
+      const seen = new Set<string>();
+      for (const row of rows) {
+        const value = row[column];
+        if (value !== null && value !== undefined && value !== "") seen.add(String(value));
+        if (seen.size >= 8) break;
+      }
+      return [...seen];
+    },
+    [baseRows, preview],
+  );
 
   const columns = useMemo<GridColumn[]>(() => {
     if (!preview) return [];
@@ -393,8 +460,31 @@ export function StudioPage({
     setPaletteOpen(false);
   };
 
-  const updateStep = (uid: string, config: Record<string, unknown>) =>
-    change((current) => current.map((step) => (step.uid === uid ? { ...step, config } : step)), `config:${uid}`);
+  const updateStep = (uid: string, config: Record<string, unknown>) => {
+    // Typing in a setting is one change to undo; turning the step off is its own, and so is its note.
+    const before = steps.find((step) => step.uid === uid)?.config ?? {};
+    const keys = [...new Set([...Object.keys(before), ...Object.keys(config)])].filter(
+      (key) => stableJson(before[key]) !== stableJson(config[key]),
+    );
+    const only = keys.length === 1 ? keys[0] : null;
+    const group =
+      only === ENABLED || only === GROUP ? undefined : only === NOTE ? `note:${uid}` : `config:${uid}`;
+    change((current) => current.map((step) => (step.uid === uid ? { ...step, config } : step)), group);
+  };
+
+  const changeMany = (configs: Record<string, Record<string, unknown>>) =>
+    change((current) => current.map((step) => (configs[step.uid] ? { ...step, config: configs[step.uid] } : step)));
+
+  const duplicateStep = (uid: string) => {
+    const copy = steps.find((step) => step.uid === uid);
+    if (!copy) return;
+    const made: TimelineStep = { uid: nextUid(), step_type: copy.step_type, config: structuredClone(copy.config) };
+    change((current) => {
+      const index = current.findIndex((step) => step.uid === uid);
+      return index === -1 ? current : [...current.slice(0, index + 1), made, ...current.slice(index + 1)];
+    });
+    setOpenUid(made.uid);
+  };
 
   const removeStep = (uid: string) => {
     change((current) => current.filter((step) => step.uid !== uid));
@@ -500,7 +590,7 @@ export function StudioPage({
         }
         const result = await apiFetch<TransformationPipelineRecord>(
           `/projects/${projectId}/datasets/${dataset.id}/pipelines`,
-          { method: "POST", body: JSON.stringify({ name: finalName, steps_json: stored(steps) }) },
+          { method: "POST", body: JSON.stringify({ name: finalName, steps_json: stored(steps), parameters }) },
         );
         // The draft was kept under this recipe's key before it was saved; a
         // first save changes the key, so the old one is cleared here.
@@ -520,7 +610,7 @@ export function StudioPage({
         setSaving(false);
       }
     },
-    [dataset, steps, name, saved, projectId, toast, suggesting, live, editing, router, recipe],
+    [dataset, steps, name, saved, projectId, toast, suggesting, live, editing, router, recipe, parameters],
   );
 
   const discardUnsaved = useCallback(async () => {
@@ -556,12 +646,13 @@ export function StudioPage({
     focus: openUid ? { step: openUid } : null,
   });
 
-  const run = useCallback(async () => {
+  const run = useCallback(async (values?: Record<string, unknown>) => {
     if (!saved || dirty) return;
     setRunning(true);
     try {
       const result = await apiFetch<TransformationRunResponse>(`/projects/${projectId}/pipelines/${saved.id}/run`, {
         method: "POST",
+        body: values ? JSON.stringify({ parameters: values }) : undefined,
       });
       toast.notify({
         tone: "success",
@@ -578,6 +669,53 @@ export function StudioPage({
       setRunning(false);
     }
   }, [saved, dirty, projectId, router, toast]);
+
+  // A branch merges back into the recipe it came from: by name.
+  const parentId = recipe?.branched_from_id ?? null;
+  useEffect(() => {
+    if (!parentId) return;
+    let cancelled = false;
+    apiFetch<TransformationPipelineRecord>(`/projects/${projectId}/pipelines/${parentId}`)
+      .then((found) => {
+        if (!cancelled) setParentRecipe({ id: found.id, name: found.name });
+      })
+      .catch(() => {
+        /* the recipe it came from was deleted: there is nothing to merge into */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, parentId]);
+
+  const branch = useCallback(async () => {
+    if (!saved) return;
+    try {
+      const made = await apiFetch<TransformationPipelineRecord>(`/projects/${projectId}/pipelines/${saved.id}/branch`, {
+        method: "POST",
+        body: JSON.stringify({}),
+      });
+      toast.success(`Branched as “${made.name}”`, "Change it freely; merge it back from More when it is ready.");
+      router.push(recipeHref(projectId, made.id));
+    } catch (caught) {
+      toast.error("Could not branch the recipe", extractErrorMessage(caught));
+    }
+  }, [saved, projectId, router, toast]);
+
+  const usedNames = useMemo(() => usedParameters(stored(steps)), [steps]);
+
+  // A thread can be on a step as last saved; each is named by its number and words.
+  const savedStepIds = useMemo(() => new Set((editing.saved?.steps ?? []).map((step) => step.uid)), [editing.saved]);
+  const stepNames = useMemo(() => {
+    const names: Record<string, string> = {};
+    (editing.saved?.steps ?? []).forEach((step, index) => {
+      const title =
+        step.step_type === "tool"
+          ? catalogue.items.find((tool) => tool.name === step.config.tool)?.title
+          : STEP_BY_TYPE.get(step.step_type)?.label;
+      names[step.uid] = `step ${index + 1} (${title ?? step.step_type.replace(/_/g, " ")})`;
+    });
+    return names;
+  }, [editing.saved, catalogue.items]);
 
   // ------------------------------------------------------------- display
   const incomplete = error !== null && INCOMPLETE.test(error);
@@ -596,6 +734,48 @@ export function StudioPage({
         run: () => openPalette(null, tool.name),
       })),
     [catalogue.items, openPalette],
+  );
+
+  // What can be done to the open step, from the command palette. Read through
+  // a ref, so the commands are made once and always act on the current steps.
+  const stepActions = useRef<(id: StepCommandId) => void>(() => {});
+  stepActions.current = (id) => {
+    const index = steps.findIndex((step) => step.uid === openUid);
+    const step = steps[index];
+    if (!step) {
+      toast.notify({
+        tone: "info",
+        title: "Open a step first",
+        description: "Choose a step in the list; its buttons turn it off, duplicate it or group it.",
+      });
+      return;
+    }
+    if (id === "studio:turn") updateStep(step.uid, turned(step.config, isOff(step.config)));
+    else if (id === "studio:duplicate") duplicateStep(step.uid);
+    else {
+      const next = steps[index + 1];
+      if (!next) {
+        toast.notify({ tone: "info", title: "There is no step after this one to group it with" });
+        return;
+      }
+      const taken = new Set(steps.map((item) => groupOf(item.config)).filter(Boolean)).size;
+      const groupName = groupOf(step.config) || `Group ${taken + 1}`;
+      changeMany({ [step.uid]: grouped(step.config, groupName), [next.uid]: grouped(next.config, groupName) });
+    }
+  };
+  const commands = useMemo<Command[]>(
+    () => [
+      ...STEP_COMMANDS.map((command) => ({
+        id: command.id,
+        label: command.label,
+        group: "Studio",
+        icon: command.icon,
+        keywords: command.keywords,
+        run: () => stepActions.current(command.id),
+      })),
+      ...toolCommands,
+    ],
+    [toolCommands],
   );
 
   const status = suggesting
@@ -622,8 +802,9 @@ export function StudioPage({
     : "Changes in this project need someone else's approval, so this goes to them to accept or decline.";
 
   return (
-    <AppFrame currentUser={currentUser} commands={toolCommands} heading="Studio" disableWelcomeTour>
+    <AppFrame currentUser={currentUser} commands={commands} heading="Studio" disableWelcomeTour>
       <OtherDatasetsProvider datasets={otherDatasets}>
+      <SampleValuesProvider samples={sampleValues}>
       <div className="flex h-full min-h-0 flex-col">
         {/* ---------------------------------------------------------- header */}
         <header className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-line bg-[color:var(--panel)] px-4 py-2.5">
@@ -707,6 +888,93 @@ export function StudioPage({
                   : []),
                 ...(saved && steps.length > 0 && canEdit
                   ? [{ id: "copy", label: "Save as a new recipe", icon: "plus" as const, onSelect: () => void save(true) }]
+                  : []),
+                ...(steps.length > 0
+                  ? [
+                      {
+                        id: "save-template",
+                        label: "Save steps as a template",
+                        icon: "sparkles" as const,
+                        description: "For anyone in this project to start from.",
+                        onSelect: () => setManaging("template"),
+                      },
+                    ]
+                  : []),
+                ...(canEdit && !suggesting && datasetId
+                  ? [
+                      {
+                        id: "parameters",
+                        label: parameters.length ? `Parameters (${parameters.length})` : "Parameters",
+                        icon: "settings" as const,
+                        description: "Values each run is given, written {{name}} in a setting.",
+                        onSelect: () => setManaging("parameters"),
+                      },
+                    ]
+                  : []),
+                ...(parameters.length
+                  ? [
+                      {
+                        id: "preview-values",
+                        label: "Preview with other values",
+                        icon: "refresh" as const,
+                        onSelect: () => setManaging("preview-values"),
+                      },
+                    ]
+                  : []),
+                ...(parameters.length && saved && !dirty && role !== "viewer"
+                  ? [
+                      {
+                        id: "run-values",
+                        label: "Run with other values",
+                        icon: "play" as const,
+                        onSelect: () => setManaging("run-values"),
+                      },
+                    ]
+                  : []),
+                ...(saved && !dirty && canEdit
+                  ? [
+                      {
+                        id: "branch",
+                        label: "Branch this recipe",
+                        icon: "link" as const,
+                        description: "A copy to try changes in, to merge back later.",
+                        onSelect: () => void branch(),
+                      },
+                      {
+                        id: "copy-to",
+                        label: "Use on another dataset",
+                        icon: "database" as const,
+                        description: "The same steps, reading another dataset.",
+                        onSelect: () => setManaging("copy"),
+                      },
+                      {
+                        id: "split",
+                        label: "One recipe for each value",
+                        icon: "filter" as const,
+                        description: "A copy per region, client or other value.",
+                        onSelect: () => setManaging("split"),
+                      },
+                    ]
+                  : []),
+                ...(saved && !dirty && canEdit && parentRecipe
+                  ? [
+                      {
+                        id: "merge",
+                        label: `Merge into ${parentRecipe.name}`,
+                        icon: "merge" as const,
+                        onSelect: () => setManaging("merge"),
+                      },
+                    ]
+                  : []),
+                ...(steps.length > 0
+                  ? [
+                      {
+                        id: "compare",
+                        label: "Compare with another recipe",
+                        icon: "list" as const,
+                        onSelect: () => setManaging("compare"),
+                      },
+                    ]
                   : []),
                 ...(saved && canEdit
                   ? [
@@ -794,6 +1062,21 @@ export function StudioPage({
               onChange={updateStep}
               onMove={moveStep}
               onRemove={removeStep}
+              onDuplicate={duplicateStep}
+              onChangeMany={changeMany}
+              onSaveGroup={(groupName, uids) => {
+                setTemplateDraft({ name: groupName, steps: stored(steps.filter((step) => uids.includes(step.uid))) });
+                setManaging("template");
+              }}
+              onComment={
+                saved
+                  ? (uid) => {
+                      setCommentStep(uid);
+                      setDetailsOpen(true);
+                    }
+                  : null
+              }
+              savedStepIds={savedStepIds}
               onAdd={() => openPalette()}
               onTemplates={datasetId ? () => setTemplatesOpen(true) : null}
               problem={openUid ? problem : null}
@@ -1027,6 +1310,7 @@ export function StudioPage({
                   sort={viewSort}
                   onSortChange={(next) => setViewSort(next)}
                   onColumnMenu={(column) => openPalette(column)}
+                  onCellMenu={(cell, at) => setPickedCell({ cell, at })}
                   stale={error !== null}
                   emptyMessage={
                     // No preview yet, or a new one on its way: not a claim
@@ -1062,7 +1346,18 @@ export function StudioPage({
                 : null
             }
             steps={stored(steps)}
-            discussion={saved ? { projectId, recipeId: saved.id, currentUsername: currentUser.username } : null}
+            discussion={
+              saved
+                ? {
+                    projectId,
+                    recipeId: saved.id,
+                    currentUsername: currentUser.username,
+                    step: commentStep && stepNames[commentStep] ? { id: commentStep, label: stepNames[commentStep] } : null,
+                    onClearStep: () => setCommentStep(null),
+                    stepNames,
+                  }
+                : null
+            }
             onApplyFile={(next) => {
               change(() => withUids(next));
               setOpenUid(null);
@@ -1104,6 +1399,88 @@ export function StudioPage({
         }}
       />
       <AddDataDialog open={addDataOpen} onClose={() => setAddDataOpen(false)} projectId={projectId} />
+      {pickedCell ? (
+        <CellFilterMenu
+          cell={pickedCell.cell}
+          at={pickedCell.at}
+          onClose={() => setPickedCell(null)}
+          onPick={(config) => {
+            addTool(config);
+            setPickedCell(null);
+          }}
+        />
+      ) : null}
+      <SaveTemplateDialog
+        open={managing === "template"}
+        onClose={() => {
+          setManaging(null);
+          setTemplateDraft(null);
+        }}
+        projectId={projectId}
+        steps={templateDraft?.steps ?? stored(steps)}
+        initialName={templateDraft?.name ?? ""}
+        onSaved={(templateName) => toast.success(`Saved “${templateName}”`, "It is under Start from a template, for anyone in this project.")}
+      />
+      <ParametersDialog
+        open={managing === "parameters"}
+        onClose={() => setManaging(null)}
+        projectId={projectId}
+        recipeId={saved?.id ?? null}
+        parameters={parameters}
+        used={usedNames}
+        onSaved={(next) => {
+          setParameters(next);
+          // A value being tried for a parameter that is gone would only be refused.
+          setTryValues((current) =>
+            Object.fromEntries(Object.entries(current).filter(([key]) => next.some((item) => item.name === key))),
+          );
+          toast.success("Parameters saved", saved ? "Each run takes these values, or the ones it is given." : "They are saved with the recipe.");
+        }}
+      />
+      <RunWithValuesDialog
+        open={managing === "run-values" || managing === "preview-values"}
+        onClose={() => setManaging(null)}
+        purpose={managing === "preview-values" ? "preview" : "run"}
+        parameters={parameters}
+        current={managing === "preview-values" ? tryValues : {}}
+        onRun={(values) => (managing === "preview-values" ? setTryValues(values) : void run(values))}
+      />
+      {saved && parentRecipe ? (
+        <MergeDialog
+          open={managing === "merge"}
+          onClose={() => setManaging(null)}
+          projectId={projectId}
+          branchId={saved.id}
+          parentId={parentRecipe.id}
+          parentName={parentRecipe.name}
+          onMerged={(message) => toast.success(`Merged into ${parentRecipe.name}`, message)}
+        />
+      ) : null}
+      <CompareDialog
+        open={managing === "compare"}
+        onClose={() => setManaging(null)}
+        projectId={projectId}
+        current={{ name, steps: stored(steps) }}
+        currentId={saved?.id ?? null}
+      />
+      {saved ? (
+        <>
+          <CopyDialog
+            open={managing === "copy"}
+            onClose={() => setManaging(null)}
+            projectId={projectId}
+            recipeId={saved.id}
+            datasets={datasets.filter((item) => item.id !== datasetId).map((item) => ({ id: item.id, name: item.name }))}
+          />
+          <SplitDialog
+            open={managing === "split"}
+            onClose={() => setManaging(null)}
+            projectId={projectId}
+            recipeId={saved.id}
+            columns={baseColumns.map((column) => column.name)}
+          />
+        </>
+      ) : null}
       {saved && suggesting ? (
         <SuggestDialog
           open={suggestOpen}
@@ -1153,6 +1530,7 @@ export function StudioPage({
         <p className="text-sm text-ink-2">Anyone with the recipe open sees the saved version straight away.</p>
       </Modal>
 
+      </SampleValuesProvider>
       </OtherDatasetsProvider>
     </AppFrame>
   );

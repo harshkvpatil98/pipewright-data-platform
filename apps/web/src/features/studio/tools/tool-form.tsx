@@ -4,6 +4,7 @@ import { Input, Select } from "@platform/shared-ui";
 
 import type { Tool, ToolParam } from "./tool-catalogue";
 import { useOtherDatasets } from "./other-datasets";
+import { RegexTester, schemaWord } from "./regex-tester";
 import { typeLabel } from "@/lib/labels";
 
 export function Field({
@@ -258,15 +259,35 @@ export function ToolFields({
       ) : null}
 
       {tool.params.map((param) => (
-        <Field key={param.key} label={param.label} help={param.help}>
-          <ParamInput
-            param={param}
-            columns={columns}
-            value={values[param.key]}
-            onChange={(next) => onValue(param.key, next)}
-            chosenDataset={typeof values.right_dataset_id === "string" ? values.right_dataset_id : ""}
-          />
-        </Field>
+        <div key={param.key} className="flex flex-col gap-1.5">
+          <Field label={param.label} help={param.help}>
+            <ParamInput
+              param={param}
+              columns={columns}
+              value={values[param.key]}
+              onChange={(next) => onValue(param.key, next)}
+              chosenDataset={typeof values.right_dataset_id === "string" ? values.right_dataset_id : ""}
+            />
+          </Field>
+          {param.regex ? (
+            <RegexTester
+              pattern={String(values[param.key] ?? "")}
+              replacement={"replacement" in values || tool.params.some((item) => item.key === "replacement")
+                ? String(values.replacement ?? "")
+                : null}
+              column={column}
+            />
+          ) : null}
+          {param.snapshot && columns.length ? (
+            <button
+              type="button"
+              onClick={() => onValue(param.key, columns.map((entry) => `${entry.name}:${schemaWord(entry.type)}`))}
+              className="self-start text-[12.5px] text-[color:var(--accent-muted)] hover:underline"
+            >
+              Fill in the columns as they are now
+            </button>
+          ) : null}
+        </div>
       ))}
     </div>
   );

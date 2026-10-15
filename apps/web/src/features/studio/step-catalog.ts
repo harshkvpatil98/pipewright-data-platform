@@ -419,7 +419,7 @@ export const STEP_CATALOG: StepDefinition[] = [
     icon: "merge",
     group: "Combine",
     summary: "Bring in columns from another dataset.",
-    keywords: "lookup merge combine vlookup match semi join anti join cross join full outer exists not exists",
+    keywords: "merge combine match semi join anti join cross join full outer exists not exists",
     fields: [
       { key: "right_dataset_id", label: "Dataset to join", kind: "dataset" },
       { key: "left_on", label: "This dataset's key columns", kind: "columns" },

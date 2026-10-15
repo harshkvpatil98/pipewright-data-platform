@@ -61,6 +61,9 @@ export type IconName =
   | "external"
   | "undo"
   | "redo"
+  | "copy"
+  | "power"
+  | "message"
   | "mail"
   | "code"
   | "compass"
@@ -320,6 +323,19 @@ const PATHS: Record<IconName, React.ReactNode> = {
       <path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13" />
     </>
   ),
+  copy: (
+    <>
+      <rect x="8.5" y="8.5" width="11" height="11" rx="1.5" />
+      <path d="M15.5 8.5V6A1.5 1.5 0 0 0 14 4.5H6A1.5 1.5 0 0 0 4.5 6v8A1.5 1.5 0 0 0 6 15.5h2.5" />
+    </>
+  ),
+  power: (
+    <>
+      <path d="M12 4v7.5" />
+      <path d="M7.4 7.2a6.5 6.5 0 1 0 9.2 0" />
+    </>
+  ),
+  message: <path d="M5.5 5h13A1.5 1.5 0 0 1 20 6.5v8.5a1.5 1.5 0 0 1-1.5 1.5H10l-4.5 3.5V16.5h0A1.5 1.5 0 0 1 4 15V6.5A1.5 1.5 0 0 1 5.5 5Z" />,
 };
 
 const FILLED = new Set<IconName>(["play", "send", "shield", "sparkles", "filter"]);

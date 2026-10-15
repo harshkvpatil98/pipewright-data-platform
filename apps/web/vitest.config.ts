@@ -7,6 +7,9 @@ export default defineConfig({
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
+    // The shared UI package would otherwise load the workspace root's React
+    // beside this app's, and a hook in one of its components would find none.
+    dedupe: ["react", "react-dom"],
   },
   css: {
     postcss: {

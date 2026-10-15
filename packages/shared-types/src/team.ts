@@ -168,6 +168,8 @@ export type Comment = {
   created_at: string;
   parent_id: string | null;
   anchor: CellAnchor | null;
+  /** The step of a recipe a thread is about, by the step's id (E1). */
+  step_id?: string | null;
   /** On a thread's first comment, the replies to it, oldest first. */
   replies: Comment[];
 };

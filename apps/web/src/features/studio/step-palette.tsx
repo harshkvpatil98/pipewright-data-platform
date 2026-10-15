@@ -11,6 +11,7 @@ import {
   suggestedFor,
   type StepDefinition,
 } from "@/features/studio/step-catalog";
+import { rankSteps, stepsLead } from "@/features/studio/palette-search";
 import { cx } from "@/lib/utils";
 
 import { ToolFields } from "./tools/tool-form";
@@ -64,23 +65,6 @@ function rememberRecent(id: string) {
   } catch {
     /* storage unavailable: nothing to remember */
   }
-}
-
-/** Built-in steps ranked against a query by the same rule as the tools. */
-function rankSteps(query: string): StepDefinition[] {
-  if (queryWords(query).length === 0) return STEP_CATALOG;
-  const asTools: Tool[] = STEP_CATALOG.map((step) => ({
-    name: step.type,
-    title: step.label,
-    category: step.group,
-    summary: step.summary,
-    synonyms: (step.keywords ?? "").split(" "),
-    accepts: "any",
-    column_scoped: false,
-    params: [],
-    example: { rows: [], params: {}, column: null, output: null, expect: [], note: "" },
-  }));
-  return rankTools(asTools, query).map((tool) => STEP_BY_TYPE.get(tool.name)!);
 }
 
 /**
@@ -143,6 +127,8 @@ export function StepPalette({
   }, [tools, column, columnType, query, namedForColumn]);
 
   const searching = queryWords(query).length > 0;
+  // The better match leads: the common steps, or the tools.
+  const stepsFirst = searching ? stepsLead(query, column ? toolsForColumn(tools, columnType) : tools) : true;
   const suggestions = !searching && column ? suggestedFor(columnType) : [];
   const recentEntries: Entry[] = searching
     ? []
@@ -176,6 +162,28 @@ export function StepPalette({
           : null;
 
   const ready = selected !== null && (!selected.column_scoped || Boolean(toolColumn));
+
+
+  const stepsSection = searching ? (
+    steps.length > 0 ? (
+      <Section title="Common steps">
+        <ul>
+          {steps.map((step) => (
+            <EntryRow key={step.type} entry={{ kind: "step", step }} onPick={() => pick({ kind: "step", step })} />
+          ))}
+        </ul>
+      </Section>
+    ) : null
+  ) : (
+    STEP_GROUPS.map((group) => (
+      <Section key={group} title={group}>
+        <StepGrid
+          steps={STEP_CATALOG.filter((step) => step.group === group)}
+          onPick={(step) => pick({ kind: "step", step })}
+        />
+      </Section>
+    ))
+  );
 
   return (
     <Overlay
@@ -263,32 +271,15 @@ export function StepPalette({
               </Section>
             ) : null}
 
-            {searching ? (
-              steps.length > 0 ? (
-                <Section title="Common steps">
-                  <ul>
-                    {steps.map((step) => (
-                      <EntryRow key={step.type} entry={{ kind: "step", step }} onPick={() => pick({ kind: "step", step })} />
-                    ))}
-                  </ul>
-                </Section>
-              ) : null
-            ) : (
-              STEP_GROUPS.map((group) => (
-                <Section key={group} title={group}>
-                  <StepGrid
-                    steps={STEP_CATALOG.filter((step) => step.group === group)}
-                    onPick={(step) => pick({ kind: "step", step })}
-                  />
-                </Section>
-              ))
-            )}
+            {stepsFirst ? stepsSection : null}
 
             {toolMatches.length > 0 ? (
               <Section
                 title={
                   searching
-                    ? "More tools"
+                    ? stepsFirst
+                      ? "More tools"
+                      : "Tools"
                     : `More tools (${toolMatches.length}${column ? ` for ${column}` : ""})`
                 }
               >
@@ -311,6 +302,8 @@ export function StepPalette({
                 ))}
               </Section>
             ) : null}
+
+            {stepsFirst ? null : stepsSection}
 
             {searching && steps.length === 0 && toolMatches.length === 0 ? (
               <p className="px-3 py-6 text-[14px] text-muted">

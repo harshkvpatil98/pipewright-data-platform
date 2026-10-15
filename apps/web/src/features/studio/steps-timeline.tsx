@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 
 import { StepEditor } from "@/features/studio/step-editor";
 import { STEP_BY_TYPE } from "@/features/studio/step-catalog";
@@ -9,10 +9,11 @@ import { describeToolStep, ToolStepEditor } from "@/features/studio/tools/tool-s
 import type { Tool } from "@/features/studio/tools/tool-catalogue";
 import { friendlyStepMessage } from "@/lib/labels";
 import { cx } from "@/lib/utils";
-import { Icon } from "@platform/shared-ui";
+import { Badge, Icon, type IconName } from "@platform/shared-ui";
 import { countOf, formatCount, formatSignedCount } from "@/lib/format";
 import { PresenceDots } from "@/features/studio/presence-dots";
 import type { PresencePerson } from "@/features/studio/use-presence";
+import { groupOf, groupRuns, grouped, isOff, keepFlags, noted, noteOf, turned } from "@/features/studio/step-flags";
 
 export type TimelineStep = { uid: string; step_type: string; config: Record<string, unknown> };
 
@@ -36,6 +37,16 @@ type StepsTimelineProps = {
   onChange: (uid: string, config: Record<string, unknown>) => void;
   onMove: (uid: string, direction: -1 | 1) => void;
   onRemove: (uid: string) => void;
+  /** A copy of the step, just after it. */
+  onDuplicate: (uid: string) => void;
+  /** Several steps' settings at once, as one change to undo: a group's. */
+  onChangeMany: (configs: Record<string, Record<string, unknown>>) => void;
+  /** Save a group's steps as a template, by the group's name. */
+  onSaveGroup: ((name: string, uids: string[]) => void) | null;
+  /** Starts a thread on a saved step; null while the recipe is not saved. */
+  onComment: ((uid: string) => void) | null;
+  /** The steps as last saved, by id: a thread can only be on one of those. */
+  savedStepIds?: ReadonlySet<string>;
   onAdd: () => void;
   onTemplates: (() => void) | null;
   /** A problem with the recipe as it stands, shown under the open step. */
@@ -62,6 +73,11 @@ export function StepsTimeline({
   onChange,
   onMove,
   onRemove,
+  onDuplicate,
+  onChangeMany,
+  onSaveGroup,
+  onComment,
+  savedStepIds,
   onAdd,
   onTemplates,
   problem,
@@ -71,6 +87,28 @@ export function StepsTimeline({
 }: StepsTimelineProps) {
   const datasetNames = new Map(datasets.map((item) => [item.id, item.name]));
   const openRef = useRef<HTMLLIElement>(null);
+  // Groups of steps (macros): where each starts, and which are folded away.
+  const runs = useMemo(() => groupRuns(steps), [steps]);
+  const runOf = useMemo(() => {
+    const found = new Map<string, { start: string; name: string; uids: string[] }>();
+    runs.forEach((run, start) => run.uids.forEach((uid) => found.set(uid, { start, ...run })));
+    return found;
+  }, [runs]);
+  const [folded, setFolded] = useState<ReadonlySet<string>>(new Set());
+  const groupCount = new Set(steps.map((step) => groupOf(step.config)).filter(Boolean)).size;
+
+  /** This step and the next in one group: the step's own, or a new one. */
+  const groupWithNext = (index: number) => {
+    const step = steps[index];
+    const next = steps[index + 1];
+    if (!step || !next) return;
+    const name = groupOf(step.config) || `Group ${groupCount + 1}`;
+    onChangeMany({ [step.uid]: grouped(step.config, name), [next.uid]: grouped(next.config, name) });
+  };
+  const configsOf = (uids: string[], change: (config: Record<string, unknown>) => Record<string, unknown>) =>
+    Object.fromEntries(
+      steps.filter((step) => uids.includes(step.uid)).map((step) => [step.uid, change(step.config)]),
+    );
 
   // Bring a newly opened step's settings into view.
   useEffect(() => {
@@ -87,13 +125,42 @@ export function StepsTimeline({
         />
 
         {steps.map((step, index) => {
+          const run = runs.get(step.uid);
+          const inRun = runOf.get(step.uid);
+          const hidden = Boolean(inRun && folded.has(inRun.start) && !(openUid && inRun.uids.includes(openUid)));
           const definition = STEP_BY_TYPE.get(step.step_type);
           const asTool = step.step_type === "tool" ? describeToolStep(step.config, tools) : null;
           const label = asTool?.label ?? definition?.label ?? humanise(step.step_type);
           const detail = asTool?.detail ?? (definition ? describeStep(step.step_type, step.config, datasetNames) : "");
           const open = step.uid === openUid;
+          const off = isOff(step.config);
+          const note = noteOf(step.config);
+          // A step's form knows only its own settings; turned off and its note are carried over.
+          const edit = (config: Record<string, unknown>) => onChange(step.uid, keepFlags(step.config, config));
           return (
-            <li key={step.uid} ref={open ? openRef : undefined} className="relative pl-8">
+            <Fragment key={step.uid}>
+            {run ? (
+              <GroupHeader
+                name={run.name}
+                count={run.uids.length}
+                folded={folded.has(step.uid)}
+                allOff={run.uids.every((uid) => isOff(steps.find((item) => item.uid === uid)?.config ?? {}))}
+                onFold={() =>
+                  setFolded((current) => {
+                    const next = new Set(current);
+                    if (next.has(step.uid)) next.delete(step.uid);
+                    else next.add(step.uid);
+                    return next;
+                  })
+                }
+                onRename={(name) => onChangeMany(configsOf(run.uids, (config) => grouped(config, name)))}
+                onTurn={(on) => onChangeMany(configsOf(run.uids, (config) => turned(config, on)))}
+                onUngroup={() => onChangeMany(configsOf(run.uids, (config) => grouped(config, "")))}
+                onSave={onSaveGroup ? () => onSaveGroup(run.name, run.uids) : null}
+              />
+            ) : null}
+            {hidden ? null : (
+            <li ref={open ? openRef : undefined} className={cx("relative", inRun ? "pl-10" : "pl-8")}>
               <Rail />
               <span
                 className={cx(
@@ -124,18 +191,24 @@ export function StepsTimeline({
                     size={15}
                     className={open ? "shrink-0 text-[color:var(--accent-muted)]" : "shrink-0 text-ink-3"}
                   />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[14px] font-medium text-ink">{label}</span>
+                  <span className={cx("min-w-0 flex-1", off ? "opacity-60" : null)}>
+                    <span className="flex items-center gap-1.5">
+                      <span className={cx("truncate text-[14px] font-medium text-ink", off ? "line-through" : null)}>
+                        {label}
+                      </span>
+                      {off ? <Badge title="Kept in the recipe and skipped when it runs">Off</Badge> : null}
+                    </span>
                     <span className={cx("block truncate text-[13px]", detail ? "text-ink-3" : "italic text-muted")}>
                       {detail || "Not set up yet"}
                     </span>
+                    {note ? <span className="block truncate text-[12.5px] text-ink-2">{note}</span> : null}
                   </span>
                   <PresenceDots
                     people={others[step.uid] ?? []}
                     size="sm"
                     label={(person) => `${person.name} has this step open`}
                   />
-                  <Delta outcome={outcomes?.[index]} />
+                  {off ? null : <Delta outcome={outcomes?.[index]} />}
                 </button>
 
                 {open ? (
@@ -164,7 +237,7 @@ export function StepsTimeline({
                         config={step.config}
                         tools={tools}
                         columns={columns}
-                        onChange={(config) => onChange(step.uid, config)}
+                        onChange={edit}
                       />
                     ) : definition ? (
                       <StepEditor
@@ -172,13 +245,24 @@ export function StepsTimeline({
                         config={step.config}
                         columns={columns.map((column) => column.name)}
                         datasets={datasets}
-                        onChange={(config) => onChange(step.uid, config)}
+                        onChange={edit}
                       />
                     ) : (
                       <UnknownStepEditor config={step.config} onChange={(config) => onChange(step.uid, config)} />
                     )}
 
-                    <div className="mt-4 flex items-center gap-1 border-t border-line pt-3">
+                    <label className="mt-4 block">
+                      <span className="text-[12.5px] text-ink-3">Note</span>
+                      <input
+                        value={note}
+                        maxLength={500}
+                        onChange={(event) => onChange(step.uid, noted(step.config, event.target.value))}
+                        placeholder="Why this step is here"
+                        className="mt-1 h-8 w-full rounded-lg border border-line bg-sunken px-2.5 text-[13px] text-ink outline-none transition placeholder:text-muted focus:border-[color:var(--accent)]"
+                      />
+                    </label>
+
+                    <div className="mt-3 flex items-center gap-1 border-t border-line pt-3">
                       <StepButton
                         icon="chevronDown"
                         iconClassName="rotate-180"
@@ -194,6 +278,42 @@ export function StepsTimeline({
                         disabled={index === steps.length - 1}
                         onClick={() => onMove(step.uid, 1)}
                       />
+                      <StepButton icon="copy" label="Duplicate this step" iconOnly onClick={() => onDuplicate(step.uid)} />
+                      <StepButton
+                        icon="list"
+                        label={
+                          groupOf(step.config)
+                            ? `Add the next step to ${groupOf(step.config)}`
+                            : "Group this step with the next"
+                        }
+                        iconOnly
+                        disabled={
+                          index === steps.length - 1 ||
+                          (Boolean(groupOf(step.config)) &&
+                            groupOf(steps[index + 1]?.config ?? {}) === groupOf(step.config))
+                        }
+                        onClick={() => groupWithNext(index)}
+                      />
+                      <StepButton
+                        icon="power"
+                        label={off ? "Turn this step on" : "Turn this step off"}
+                        iconOnly
+                        pressed={off}
+                        onClick={() => onChange(step.uid, turned(step.config, off))}
+                      />
+                      {onComment ? (
+                        <StepButton
+                          icon="message"
+                          label={
+                            savedStepIds?.has(step.uid)
+                              ? "Comment on this step"
+                              : "Save the recipe to comment on this step"
+                          }
+                          iconOnly
+                          disabled={!savedStepIds?.has(step.uid)}
+                          onClick={() => onComment(step.uid)}
+                        />
+                      ) : null}
                       <StepButton
                         icon="trash"
                         label="Remove"
@@ -213,6 +333,8 @@ export function StepsTimeline({
                 ) : null}
               </div>
             </li>
+            )}
+            </Fragment>
           );
         })}
 
@@ -265,6 +387,77 @@ export function StepsTimeline({
   );
 }
 
+/** The head of a group of steps: its name, and what can be done to all of them. */
+function GroupHeader({
+  name,
+  count,
+  folded,
+  allOff,
+  onFold,
+  onRename,
+  onTurn,
+  onUngroup,
+  onSave,
+}: {
+  name: string;
+  count: number;
+  folded: boolean;
+  allOff: boolean;
+  onFold: () => void;
+  onRename: (name: string) => void;
+  onTurn: (on: boolean) => void;
+  onUngroup: () => void;
+  onSave: (() => void) | null;
+}) {
+  const [draft, setDraft] = useState(name);
+  useEffect(() => setDraft(name), [name]);
+  const commit = () => {
+    if (draft.trim() && draft.trim() !== name) onRename(draft);
+    else setDraft(name);
+  };
+  return (
+    <li className="relative pl-8" aria-label={`Group ${name}`}>
+      <Rail />
+      <div className="mb-1.5 flex items-center gap-1 rounded-lg border border-dashed border-line-strong bg-surface px-1.5 py-1">
+        <button
+          type="button"
+          onClick={onFold}
+          aria-expanded={!folded}
+          aria-label={folded ? `Show the steps in ${name}` : `Fold away the steps in ${name}`}
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-ink-3 transition hover:bg-surface-2 hover:text-ink"
+        >
+          <Icon name="chevronDown" size={14} className={folded ? "-rotate-90" : undefined} />
+        </button>
+        <input
+          value={draft}
+          aria-label="Group name"
+          maxLength={80}
+          onChange={(event) => setDraft(event.target.value)}
+          onBlur={commit}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") event.currentTarget.blur();
+            if (event.key === "Escape") {
+              setDraft(name);
+              event.currentTarget.blur();
+            }
+          }}
+          className="h-7 min-w-0 flex-1 rounded-md bg-transparent px-1 text-[13px] font-medium text-ink outline-none focus:bg-sunken"
+        />
+        <span className="shrink-0 text-[12px] text-ink-3">{countOf(count, "step")}</span>
+        <StepButton
+          icon="power"
+          label={allOff ? `Turn ${name} on` : `Turn ${name} off`}
+          iconOnly
+          pressed={allOff}
+          onClick={() => onTurn(allOff)}
+        />
+        {onSave ? <StepButton icon="sparkles" label={`Save ${name} as a template`} iconOnly onClick={onSave} /> : null}
+        <StepButton icon="close" label={`Ungroup ${name}`} iconOnly onClick={onUngroup} />
+      </div>
+    </li>
+  );
+}
+
 function Rail() {
   return <span className="absolute bottom-0 left-[11px] top-0 w-px bg-line" aria-hidden="true" />;
 }
@@ -302,8 +495,11 @@ function StepButton({
   iconClassName,
   ariaLabel,
   iconOnly = false,
+  pressed,
 }: {
-  icon: "chevronDown" | "trash";
+  icon: IconName;
+  /** For a button that turns something on and off. */
+  pressed?: boolean;
   label: string;
   ariaLabel?: string;
   /** Show only the icon; the label becomes its name and tooltip. */
@@ -318,12 +514,14 @@ function StepButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
+      aria-pressed={pressed}
       aria-label={iconOnly ? label : ariaLabel}
       title={iconOnly ? label : undefined}
       className={cx(
         "flex h-8 items-center gap-1.5 rounded-lg text-[13px] transition disabled:opacity-30",
         iconOnly ? "w-8 justify-center" : "px-2",
         tone === "danger" ? "text-ink-3 hover:bg-danger-soft hover:text-danger" : "text-ink-3 hover:bg-surface-2 hover:text-ink",
+        pressed ? "bg-surface-2 text-ink" : null,
       )}
     >
       <Icon name={icon} size={iconOnly ? 15 : 13} className={iconClassName} />

@@ -116,6 +116,8 @@ export type DataGridProps = {
    * with virtualisation, frozen columns and reordering, nothing outside it can.
    */
   onColumnMenu?: (column: string, at: { x: number; y: number }) => void;
+  /** Right-click on a cell: its column and value, to filter by (E1). */
+  onCellMenu?: (cell: { column: string; value: unknown }, at: { x: number; y: number }) => void;
 };
 
 /** Rows read to build the header quality bar and the column profile. */
@@ -135,6 +137,7 @@ export function DataGrid({
   onFocusChange,
   rowStates,
   onColumnMenu,
+  onCellMenu,
   sort = null,
   onSortChange,
   stale = false,
@@ -645,10 +648,23 @@ export function DataGrid({
   }, [onEditCell, valueAt, selection.focus]);
 
   const onContextMenu = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (!onColumnMenu) return;
     const point = pointFor(event);
     const box = scrollRef.current?.getBoundingClientRect();
-    if (!point || !box || event.clientY - box.top >= HEADER_HEIGHT) return;
+    if (!point || !box) return;
+    if (event.clientY - box.top >= HEADER_HEIGHT) {
+      // A cell: select it, and offer to keep or drop rows like it.
+      if (!onCellMenu || point.x < 0) return;
+      const address = cellAtPoint(layout, viewport, rowHeight, rows.length, point);
+      const name = address ? visible[address.column]?.name : undefined;
+      if (!address || !name) return;
+      event.preventDefault();
+      const at = { x: event.clientX, y: event.clientY };
+      setEditing(null);
+      setSelection(selectCell(address));
+      onCellMenu({ column: name, value: valueAt(address) }, at);
+      return;
+    }
+    if (!onColumnMenu) return;
     const index = cellAtPoint(layout, viewport, rowHeight, 1, { x: point.x, y: 0 })?.column;
     if (index === undefined) return;
     const name = visible[index]?.name;

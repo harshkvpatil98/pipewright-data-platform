@@ -55,7 +55,15 @@ type DetailsDrawerProps = {
   steps: { step_type: string; config: Record<string, unknown> }[];
   onApplyFile: (steps: { step_type: string; config: Record<string, unknown> }[]) => void;
   /** Comments are kept with a saved recipe; a new one has nowhere to keep them yet. */
-  discussion: { projectId: string; recipeId: string; currentUsername: string } | null;
+  discussion: {
+    projectId: string;
+    recipeId: string;
+    currentUsername: string;
+    /** The step a new thread is about, when one was chosen from the steps (E1). */
+    step: { id: string; label: string } | null;
+    onClearStep: () => void;
+    stepNames: Record<string, string>;
+  } | null;
 };
 
 /**
@@ -75,6 +83,11 @@ export function DetailsDrawer({
   discussion,
 }: DetailsDrawerProps) {
   const [tab, setTab] = useState<Tab>("columns");
+  // Choosing "Comment on this step" opens the comments.
+  const focusedStep = discussion?.step?.id ?? null;
+  useEffect(() => {
+    if (focusedStep) setTab("comments");
+  }, [focusedStep]);
 
   useEffect(() => {
     if (!open) return;
@@ -158,6 +171,8 @@ export function DetailsDrawer({
               targetId={discussion.recipeId}
               currentUsername={discussion.currentUsername}
               description="Why a step is there, what a filter is for, what to check before changing it. Mention someone with @ and they are notified."
+              step={discussion.step ? { ...discussion.step, onClear: discussion.onClearStep } : null}
+              stepNames={discussion.stepNames}
             />
           ) : (
             <p className="text-[13px] text-muted">Save the recipe to leave comments on it.</p>

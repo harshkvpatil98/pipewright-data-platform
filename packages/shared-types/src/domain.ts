@@ -941,6 +941,16 @@ export type TransformationPipelineRecord = {
   /** How a run computes (D2): every row, only rows added since the last run, or only changed partitions. */
   incremental_mode?: "full" | "append" | "partition";
   partition_column?: string | null;
+  /** Values a run is given, written {{name}} in any setting (E1). */
+  parameters?: {
+    name: string;
+    label?: string | null;
+    kind: "text" | "number" | "whole number" | "date" | "true or false";
+    default?: unknown;
+    description?: string | null;
+  }[];
+  /** The recipe this was branched from, to merge back into (E1). */
+  branched_from_id?: string | null;
   created_at: string;
   updated_at: string;
 };

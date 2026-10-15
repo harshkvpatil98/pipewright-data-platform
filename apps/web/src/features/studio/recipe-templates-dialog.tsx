@@ -7,6 +7,7 @@ import { Badge, Button, Icon, Modal } from "@platform/shared-ui";
 
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
+import { countOf } from "@/lib/format";
 import { cx } from "@/lib/utils";
 
 type Role = {
@@ -27,6 +28,9 @@ type Match = {
 };
 
 export type TemplateStep = { step_type: string; config: Record<string, unknown> };
+
+/** Steps someone in this project saved as a template (E1). */
+type SavedTemplate = { id: string; name: string; description: string | null; steps_json: TemplateStep[]; step_count: number };
 
 type RecipeTemplatesDialogProps = {
   open: boolean;
@@ -56,6 +60,7 @@ export function RecipeTemplatesDialog({
   const [mapping, setMapping] = useState<Record<string, string | string[] | null>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState<SavedTemplate[]>([]);
 
   useEffect(() => {
     if (!open || !datasetId) return;
@@ -63,6 +68,13 @@ export function RecipeTemplatesDialog({
     setMatches(null);
     setChosen(null);
     setError(null);
+    apiFetch<{ items: SavedTemplate[] }>(`/projects/${projectId}/recipe-templates`)
+      .then((response) => {
+        if (!cancelled) setSaved(response.items);
+      })
+      .catch(() => {
+        if (!cancelled) setSaved([]);
+      });
     (async () => {
       try {
         const described = await apiFetch<LineageColumnListResponse>(
@@ -92,6 +104,15 @@ export function RecipeTemplatesDialog({
     }
     return labels;
   }, [matches]);
+
+  const remove = async (template: SavedTemplate) => {
+    try {
+      await apiFetch(`/projects/${projectId}/recipe-templates/${template.id}`, { method: "DELETE" });
+      setSaved((current) => current.filter((item) => item.id !== template.id));
+    } catch (caught) {
+      setError(extractErrorMessage(caught));
+    }
+  };
 
   const choose = (match: Match) => {
     setChosen(match);
@@ -151,6 +172,38 @@ export function RecipeTemplatesDialog({
         <p role="alert" className="mb-3 text-[13px] text-danger">
           {error}
         </p>
+      ) : null}
+
+      {!chosen && saved.length ? (
+        <div className="mb-4">
+          <p className="mb-2 text-[13px] font-medium text-ink-2">Saved in this project</p>
+          <ul className="space-y-2">
+            {saved.map((template) => (
+              <li key={template.id} className="flex items-start gap-2 rounded-2xl border border-line bg-surface p-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onApply(template.steps_json, template.name);
+                    onClose();
+                  }}
+                  className="min-w-0 flex-1 text-left"
+                >
+                  <span className="flex flex-wrap items-center gap-2">
+                    <span className="text-[15px] font-semibold text-ink">{template.name}</span>
+                    <Badge>{countOf(template.step_count, "step")}</Badge>
+                  </span>
+                  {template.description ? (
+                    <span className="mt-1 block text-[13px] leading-5 text-ink-3">{template.description}</span>
+                  ) : null}
+                </button>
+                <Button variant="ghost" size="sm" onClick={() => void remove(template)} aria-label={`Remove ${template.name}`}>
+                  <Icon name="trash" size={14} />
+                </Button>
+              </li>
+            ))}
+          </ul>
+          <p className="mb-2 mt-4 text-[13px] font-medium text-ink-2">Common jobs</p>
+        </div>
       ) : null}
 
       {!chosen ? (

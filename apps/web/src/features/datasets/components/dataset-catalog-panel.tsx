@@ -13,6 +13,7 @@ import type {
 import { Badge, Button, Icon, SectionPanel } from "@platform/shared-ui";
 
 import { apiFetch } from "@/lib/api/client";
+import { downloadFromApi } from "@/lib/api/download";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { cx } from "@/lib/utils";
 import { formatDate } from "@/lib/format";
@@ -51,6 +52,7 @@ export function DatasetCatalogPanel({ projectId, datasetId, columns }: DatasetCa
   const [linkBusy, setLinkBusy] = useState(false);
   const [linkError, setLinkError] = useState<string | null>(null);
 
+  const [dictionaryError, setDictionaryError] = useState<string | null>(null);
   const [pii, setPii] = useState<PiiScanResponse | null>(null);
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
@@ -207,6 +209,41 @@ export function DatasetCatalogPanel({ projectId, datasetId, columns }: DatasetCa
     const merged = [...parseTags(tagsText), ...newSuggestedTags];
     setTagsText([...new Set(merged)].join(", "));
   }, [tagsText, newSuggestedTags]);
+
+  // What each column is, as the recipe that makes the dataset, or a person, wrote it down.
+  const described = useMemo(() => {
+    if (!annotation) return [];
+    const names = new Set([
+      ...Object.keys(annotation.column_notes),
+      ...Object.keys(annotation.column_tags ?? {}),
+      ...Object.keys(annotation.column_classes ?? {}),
+    ]);
+    const order = (name: string) => (columns.includes(name) ? columns.indexOf(name) : columns.length);
+    return [...names]
+      .sort((left, right) => order(left) - order(right))
+      .map((name) => ({
+        name,
+        note: annotation.column_notes[name] ?? null,
+        tags: annotation.column_tags?.[name] ?? [],
+        classification: annotation.column_classes?.[name]?.classification ?? null,
+        personal: annotation.column_classes?.[name]?.personal ?? null,
+      }));
+  }, [annotation, columns]);
+
+  const download = useCallback(
+    async (kind: "markdown" | "csv") => {
+      setDictionaryError(null);
+      try {
+        await downloadFromApi(
+          `/projects/${projectId}/catalog/${datasetId}/dictionary?format=${kind}`,
+          kind === "csv" ? "data-dictionary.csv" : "data-dictionary.md",
+        );
+      } catch (caught) {
+        setDictionaryError(extractErrorMessage(caught));
+      }
+    },
+    [projectId, datasetId],
+  );
 
   // Only terms not already linked to a column of this dataset are worth offering.
   const linkableTerms = useMemo(
@@ -455,6 +492,44 @@ export function DatasetCatalogPanel({ projectId, datasetId, columns }: DatasetCa
               </div>
             ) : null}
             {linkError ? <p className="text-[12px] text-danger">{linkError}</p> : null}
+          </div>
+
+          <div className="space-y-2 lg:col-span-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-xs text-muted">Columns</span>
+              <span className="flex gap-1.5">
+                <Button variant="ghost" size="sm" onClick={() => void download("markdown")}>
+                  <Icon name="download" size={13} />
+                  Data dictionary
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => void download("csv")}>
+                  As CSV
+                </Button>
+              </span>
+            </div>
+            {described.length === 0 ? (
+              <p className="text-[12.5px] text-muted">
+                No column is described yet. A recipe&apos;s metadata steps (describe, tag, classify a column)
+                write here each time it runs.
+              </p>
+            ) : (
+              <ul className="divide-y divide-line rounded-xl border border-line">
+                {described.map((item) => (
+                  <li key={item.name} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-3 py-2">
+                    <span className="font-mono text-[12.5px] text-ink">{item.name}</span>
+                    {item.note ? <span className="text-[12.5px] text-ink-2">{item.note}</span> : null}
+                    <span className="flex flex-wrap gap-1">
+                      {item.classification ? <Badge tone="info">{item.classification}</Badge> : null}
+                      {item.personal ? <Badge tone="warning">Personal data: {item.personal}</Badge> : null}
+                      {item.tags.map((tag) => (
+                        <Badge key={tag}>{tag}</Badge>
+                      ))}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {dictionaryError ? <p className="text-[12px] text-danger">{dictionaryError}</p> : null}
           </div>
         </div>
       ) : loadError ? null : (

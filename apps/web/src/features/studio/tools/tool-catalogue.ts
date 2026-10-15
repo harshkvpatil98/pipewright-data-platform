@@ -35,6 +35,10 @@ export type ToolParam = {
   placeholder: string;
   minimum: number | null;
   maximum: number | null;
+  /** A regular expression: the form offers a tester (E1). */
+  regex?: boolean;
+  /** A list the form can fill with the columns as they are now (E1). */
+  snapshot?: boolean;
 };
 
 export type ToolExample = {
@@ -89,14 +93,32 @@ function scoreOne(word: string, tool: Tool): number {
     [tool.summary.toLowerCase(), 20],
   ];
 
+  // A single letter is a whole word or nothing: the "t" of "t test" is not
+  // the start of "training". Mirrors the server.
+  const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const starts = new RegExp(word.length === 1 ? `\\b${escaped}\\b` : `\\b${escaped}`);
   let best = 0;
   for (const [text, weight] of haystacks) {
     if (text === word) best = Math.max(best, weight + 50);
-    else if (new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`).test(text)) {
-      best = Math.max(best, weight + 25);
-    } else if (text.includes(word)) best = Math.max(best, weight);
+    else if (starts.test(text)) best = Math.max(best, weight + 25);
+    else if (word.length > 1 && text.includes(word)) best = Math.max(best, weight);
   }
   return best;
+}
+
+/**
+ * More for a query that, as a whole, names the tool: its title, a synonym or
+ * its own name ("distance" is Distance, not Grow a shape by a distance).
+ * Mirrors the server's `_phrase_bonus`.
+ */
+function phraseBonus(words: string[], tool: Tool): number {
+  const phrase = words.join(" ");
+  const title = queryWords(tool.title).join(" ");
+  if (phrase === title) return 200;
+  const own = queryWords(tool.name.split(".").pop() ?? "").join(" ");
+  if (phrase === own || tool.synonyms.some((synonym) => queryWords(synonym).join(" ") === phrase)) return 150;
+  if (words.length > 1 && new RegExp(`\\b${phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).test(title)) return 60;
+  return 0;
 }
 
 /**
@@ -108,7 +130,12 @@ function scoreOne(word: string, tool: Tool): number {
 export function rankTools(tools: Tool[], query: string): Tool[] {
   const words = queryWords(query);
   if (words.length === 0) return tools;
+  return scoreTools(tools, query).map((entry) => entry.tool);
+}
 
+/** The tools a query matches, best first, with how well: to rank steps and tools against each other. */
+export function scoreTools(tools: Tool[], query: string): { tool: Tool; score: number }[] {
+  const words = queryWords(query);
   const scored: { tool: Tool; score: number }[] = [];
   for (const tool of tools) {
     let total = 0;
@@ -120,16 +147,13 @@ export function rankTools(tools: Tool[], query: string): Tool[] {
       }
       total += best;
     }
-    // The whole query is the tool's name: "moving average" is Moving average,
-    // ahead of Exponential moving average. Mirrors the server.
-    if (total > 0 && words.join(" ") === queryWords(tool.title).join(" ")) total += 200;
-    if (total > 0) scored.push({ tool, score: total });
+    if (total > 0) scored.push({ tool, score: total + phraseBonus(words, tool) });
   }
 
   scored.sort((left, right) =>
     right.score - left.score || left.tool.name.localeCompare(right.tool.name),
   );
-  return scored.map((entry) => entry.tool);
+  return scored;
 }
 
 /** The type families a tool declares it works on. */

@@ -20,6 +20,7 @@ import {
 
 import { AppShell } from "@/components/layout/app-shell";
 import { OperationalError } from "@/components/operational/operational-messages";
+import { TokenRevealPanel } from "@/features/audit/components/token-reveal-panel";
 import { apiFetch } from "@/lib/api/client";
 import { appConfig } from "@/lib/config";
 import { extractErrorMessage } from "@/lib/api/errors";
@@ -241,6 +242,9 @@ export function AuditCenterPageView({ currentUser, initial, forbidden }: AuditCe
           </div>
         )}
       </SectionPanel>
+      <div className="mt-4">
+        <TokenRevealPanel />
+      </div>
     </AppShell>
   );
 }

@@ -1,7 +1,7 @@
 # Profiles keep the app tier and the background runtime independently
 # startable:
 #   docker compose --profile app up                     # postgres + gateway + web
-#   docker compose --profile app --profile worker up    # + workflow worker + schedule ticker
+#   docker compose --profile app --profile worker up    # + workflow worker, schedule ticker, live runner
 #   docker compose --profile worker up                  # postgres + the workers only
 # Postgres joins both profiles because every tier needs it.
 services:
@@ -99,6 +99,24 @@ services:
     command: sh -c "until alembic -c alembic.ini current >/dev/null 2>&1; do sleep 2; done; platform-schedule-ticker --loop --interval ${SCHEDULE_TICKER_INTERVAL:-30}"
     volumes:
       # Stored files, shared: the worker and ticker read what the gateway saved.
+      - pipewright_files:/app/apps/api-gateway/data
+
+  live-runner:
+    build:
+      context: .
+      dockerfile: apps/api-gateway/Dockerfile
+    profiles: ["worker"]
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - ./apps/api-gateway/.env
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-platform}:${POSTGRES_PASSWORD:-platform}@postgres:5432/${POSTGRES_DB:-platform}
+    # Reads webhooks' events, change logs and queues as they arrive (D1).
+    command: sh -c "until alembic -c alembic.ini current >/dev/null 2>&1; do sleep 2; done; platform-live-runner --interval ${LIVE_RUNNER_INTERVAL:-1}"
+    volumes:
       - pipewright_files:/app/apps/api-gateway/data
 
 volumes:

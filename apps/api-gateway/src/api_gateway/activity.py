@@ -43,8 +43,8 @@ from service_projects.contracts import ensure_owned_project
 from service_workflows.models import Workflow, WorkflowRun
 from shared_python.errors import BadRequestError
 
-Kind = Literal["changes", "runs", "incidents", "comments", "alerts", "contracts"]
-KINDS: tuple[str, ...] = ("changes", "runs", "incidents", "comments", "alerts", "contracts")
+Kind = Literal["changes", "runs", "incidents", "comments", "alerts", "contracts", "live"]
+KINDS: tuple[str, ...] = ("changes", "runs", "incidents", "comments", "alerts", "contracts", "live")
 Level = Literal["info", "success", "warning", "error"]
 DEFAULT_LIMIT = 50
 MAX_LIMIT = 100
@@ -97,6 +97,7 @@ CHANGE_PAGES: dict[str, str] = {
     "notebooks": "notebooks",
     "queries": "workbench",
     "notification-targets": "notification-targets",
+    "streams": "live/{id}",
 }
 
 COMMENT_TABLES = {
@@ -380,6 +381,52 @@ def _contracts(db: Session, project_id: uuid.UUID, limit: int) -> list[ActivityI
     ]
 
 
+def _live(db: Session, project_id: uuid.UUID, limit: int) -> list[ActivityItem]:
+    """Live feeds that keep failing (from when their owner was told) and live
+    recipes that stopped (D1). Each is shown while it lasts, not as a history."""
+    from service_extraction.models import LiveRecipe, StreamSource
+
+    failing = db.scalars(
+        select(StreamSource)
+        .where(StreamSource.project_id == project_id, StreamSource.failure_notified_at.is_not(None))
+        .order_by(StreamSource.failure_notified_at.desc(), StreamSource.id.desc())
+        .limit(limit)
+    ).all()
+    stopped = db.scalars(
+        select(LiveRecipe)
+        .where(LiveRecipe.project_id == project_id, LiveRecipe.status == "failed")
+        .order_by(LiveRecipe.updated_at.desc(), LiveRecipe.id.desc())
+        .limit(limit)
+    ).all()
+    items = [
+        ActivityItem(
+            id=f"live-feed:{row.id}",
+            kind="live",
+            at=_utc(row.failure_notified_at),
+            who=None,
+            sentence=f"{row.name} keeps failing",
+            detail=(row.last_error or "")[:300] or None,
+            level="error",
+            href=_href(project_id, "live/{id}", row.id),
+        )
+        for row in failing
+    ]
+    items += [
+        ActivityItem(
+            id=f"live-recipe:{row.id}",
+            kind="live",
+            at=_utc(row.updated_at),
+            who=None,
+            sentence=f"The live recipe {row.name} stopped",
+            detail=(row.last_error or "")[:300] or None,
+            level="warning",
+            href=_href(project_id, "live/{id}", row.source_id),
+        )
+        for row in stopped
+    ]
+    return items
+
+
 SOURCES = {
     "changes": _changes,
     "runs": _runs,
@@ -387,6 +434,7 @@ SOURCES = {
     "comments": _comments,
     "alerts": _alerts,
     "contracts": _contracts,
+    "live": _live,
 }
 
 

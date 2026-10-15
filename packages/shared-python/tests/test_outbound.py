@@ -27,6 +27,18 @@ def test_loopback_is_refused_unless_allowed(monkeypatch) -> None:
     check_host("127.0.0.1")
 
 
+@pytest.mark.parametrize("host", ["127.0.0.1", "::1"])
+def test_ipv6_loopback_is_loopback_not_a_reserved_address(host, monkeypatch) -> None:
+    """Python counts ::1 as reserved as well as loopback. Checked as reserved
+    first, it was refused even with loopback allowed, so `localhost` -- which
+    resolves to ::1 on many machines -- could never be reached (D1)."""
+    monkeypatch.setenv("OUTBOUND_ALLOW_LOOPBACK", "true")
+    check_host(host)
+    monkeypatch.delenv("OUTBOUND_ALLOW_LOOPBACK")
+    with pytest.raises(OutboundBlocked, match="this server itself"):
+        check_host(host)
+
+
 def test_private_networks_are_allowed_unless_closed(monkeypatch) -> None:
     check_host("10.0.0.5")
     monkeypatch.setenv("OUTBOUND_BLOCK_PRIVATE_NETWORKS", "true")

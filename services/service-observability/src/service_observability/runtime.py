@@ -23,7 +23,7 @@ logger = get_logger(__name__)
 # The components the platform expects to be running. Listed here so the status
 # panel can show a component that has *never* beaten as "not running" rather
 # than silently omitting it -- an absent worker is exactly what we must surface.
-EXPECTED_COMPONENTS = ("workflow-worker", "schedule-ticker")
+EXPECTED_COMPONENTS = ("workflow-worker", "schedule-ticker", "live-runner")
 
 # A beat is stale once it is older than this many times its own interval; the
 # floor keeps a fast loop from being called dead on one skipped beat.

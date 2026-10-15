@@ -1,30 +1,28 @@
-"""Stream sources (P9 / product Phase 20, first slice): inbound webhooks and
-PostgreSQL change data capture, stored as events and materialised as
-versioned datasets.
+"""Webhooks and the PostgreSQL change-log parser (Phase 20).
 
-Everything but the change-capture tests runs against SQLite with no network.
-Those need a PostgreSQL with `wal_level = logical`: the live test servers
-(`docker-compose.live.yml`, `LIVE_TEST_SERVERS=1`), which the `live` CI job
-starts and checks. Without them they skip and say why.
+SQLite, no network. Change capture against real databases, and every queue,
+are in `test_live_change_capture.py` and `test_live_queues.py`; the reading,
+saving and live-recipe lifecycle in `test_live_sources.py`.
 """
 
 from __future__ import annotations
 
+import io
 import uuid
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from types import SimpleNamespace
 
+import pandas as pd
 import pytest
-import sqlalchemy as sa
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 
 import api_gateway.metadata  # noqa: F401
 from service_auth.models import User
 from service_auth.schemas import UserRead
-from service_datasets.models import DatasetVersion
-from service_extraction.cdc_postgres import parse_test_decoding
+from service_datasets.models import Dataset, DatasetVersion
+from service_extraction.live.postgres import parse_test_decoding
 from service_extraction.models import ExtractionConnection, StreamEvent, StreamSource
 from service_extraction.schemas import StreamSourceCreate
 from service_extraction.streams import (
@@ -42,7 +40,6 @@ from shared_python.db import Base
 from shared_python.errors import BadRequestError, NotFoundError
 from shared_python.storage.local import LocalStorageBackend
 
-import live_servers
 
 OWNER_ID = uuid.UUID("0d0d0d0d-0d0d-0d0d-0d0d-0d0d0d0d0d0d")
 SETTINGS = SimpleNamespace(max_upload_size_bytes=25 * 1024 * 1024, preview_row_limit=50, profile_sample_value_limit=5)
@@ -116,14 +113,17 @@ def test_materialising_writes_an_append_only_versioned_dataset(db, world, storag
                         content_type="application/json", headers={})
 
     first = materialise_source(db, world["project"].id, created.id, world["user"], storage, SETTINGS)
-    assert first.version_number == 1 and first.rows == 3
+    assert first.version_number == 1 and first.events_saved == 3
+    dataset = db.get(Dataset, first.dataset_id)
+    columns = set(pd.read_csv(io.BytesIO(storage.read_bytes(dataset.file_path))).columns)
     # Nested JSON is flattened into columns; the event envelope comes along.
-    assert {"seq", "kind", "received_at", "order_id", "customer.tier"} <= set(first.columns)
+    assert {"seq", "kind", "received_at", "order_id", "customer.tier"} <= columns
 
     receive_webhook(db, token=created.token, body=b'{"order_id": 99}', content_type="application/json", headers={})
     second = materialise_source(db, world["project"].id, created.id, world["user"], storage, SETTINGS)
     assert second.dataset_id == first.dataset_id  # the same dataset, a new version
-    assert second.version_number == 2 and second.rows == 4
+    assert second.version_number == 2 and second.events_saved == 1
+    assert db.get(Dataset, first.dataset_id).row_count == 4
     versions = db.scalars(select(DatasetVersion).where(DatasetVersion.dataset_id == first.dataset_id)).all()
     assert sorted(v.version_number for v in versions) == [1, 2]
     assert versions[0].content_hash != versions[1].content_hash
@@ -138,23 +138,24 @@ def test_deleting_a_source_takes_its_events_with_it(db, world):
     assert db.scalars(select(StreamEvent)).all() == []
 
 
-def test_a_cdc_source_needs_a_postgres_connection_and_tables(db, world):
-    with pytest.raises(BadRequestError, match="needs a PostgreSQL connection"):
+def test_a_change_capture_source_needs_the_right_connection_and_tables(db, world):
+    with pytest.raises(BadRequestError, match="reads through a connection"):
         create_source(db, world["project"].id, StreamSourceCreate(name="cdc", kind="postgres_cdc"), world["user"])
     mysql = ExtractionConnection(project_id=world["project"].id, name="my", connector_type="mysql", config_json={})
     db.add(mysql)
     db.commit()
-    with pytest.raises(BadRequestError, match="not supported here"):
+    with pytest.raises(BadRequestError, match="follows a postgresql connection"):
         create_source(db, world["project"].id, StreamSourceCreate(name="cdc", kind="postgres_cdc", connection_id=mysql.id, tables=["t"]), world["user"])
     pg = ExtractionConnection(project_id=world["project"].id, name="pg", connector_type="postgresql", config_json={})
     db.add(pg)
     db.commit()
     with pytest.raises(BadRequestError, match="at least one table"):
         create_source(db, world["project"].id, StreamSourceCreate(name="cdc", kind="postgres_cdc", connection_id=pg.id), world["user"])
-    source = create_source(db, world["project"].id, StreamSourceCreate(name="Orders CDC", kind="postgres_cdc", connection_id=pg.id, tables=["public.orders"]), world["user"])
-    assert source.slot_name == "pipewright_orders_cdc" and source.token is None
+    source = create_source(db, world["project"].id, StreamSourceCreate(name="Orders CDC", kind="postgres_cdc", connection_id=pg.id, tables=["public.orders", "public.orders", " "]), world["user"])
+    assert source.slot_name.startswith("pipewright_orders_cdc_") and source.token is None
+    assert source.tables == ["public.orders"] and [t.state for t in source.live_tables] == ["waiting"]
     hook = create_source(db, world["project"].id, StreamSourceCreate(name="hook", kind="webhook"), world["user"])
-    with pytest.raises(BadRequestError, match="a webhook receives"):
+    with pytest.raises(BadRequestError, match="A webhook is not read"):
         poll_source(db, world["project"].id, hook.id, world["user"])
 
 
@@ -176,134 +177,3 @@ def test_a_cdc_source_needs_a_postgres_connection_and_tables(db, world):
 )
 def test_test_decoding_lines_parse_into_row_changes(line, expected):
     assert parse_test_decoding(line) == expected
-
-
-# ---- live CDC against a logical-WAL PostgreSQL ----
-
-PG_URL = live_servers.POSTGRES_URL
-
-
-def _logical_postgres():
-    if not live_servers.ENABLED:
-        return None, live_servers.REASON
-    try:
-        engine = sa.create_engine(PG_URL)
-        with engine.connect() as conn:
-            level = conn.execute(sa.text("SHOW wal_level")).scalar()
-        engine.dispose()
-    except Exception as exc:  # noqa: BLE001 - not reachable is a skip, stated
-        return None, f"PostgreSQL not reachable at {PG_URL}: {exc}"
-    if level != "logical":
-        return None, f"PostgreSQL at {PG_URL} has wal_level={level}; CDC needs logical"
-    return PG_URL, None
-
-
-def test_cdc_follows_a_tables_change_log_at_least_once(db, world, storage):
-    url, reason = _logical_postgres()
-    if url is None:
-        pytest.skip(reason)
-    from sqlalchemy.engine import make_url
-
-    parsed = make_url(url)
-    suffix = uuid.uuid4().hex[:8]
-    table = f"pw_cdc_{suffix}"
-    admin = sa.create_engine(url)
-    with admin.begin() as conn:
-        conn.execute(sa.text(f"CREATE TABLE {table} (id serial PRIMARY KEY, name text, amount numeric)"))
-    connection = ExtractionConnection(
-        project_id=world["project"].id, name="pg", connector_type="postgresql",
-        config_json={"host": parsed.host, "port": parsed.port or 5432, "database": parsed.database,
-                     "username": parsed.username, "password": parsed.password},
-    )
-    db.add(connection)
-    db.commit()
-    source = create_source(
-        db, world["project"].id,
-        StreamSourceCreate(name=f"cdc {suffix}", kind="postgres_cdc", connection_id=connection.id,
-                           tables=[f"public.{table}"], slot_name=f"pw_test_{suffix}"),
-        world["user"],
-    )
-    try:
-        first = poll_source(db, world["project"].id, source.id, world["user"])
-        assert first.slot_created is True and first.events_stored == 0
-
-        with admin.begin() as conn:
-            conn.execute(sa.text(f"INSERT INTO {table} (name, amount) VALUES ('ann', 10.5), ('bo', 20)"))
-            conn.execute(sa.text(f"UPDATE {table} SET amount = 11 WHERE name = 'ann'"))
-            conn.execute(sa.text(f"DELETE FROM {table} WHERE name = 'bo'"))
-        second = poll_source(db, world["project"].id, source.id, world["user"])
-        assert second.events_stored == 4 and second.upto_lsn
-        kinds = [e.kind for e in sorted(list_events(db, world["project"].id, source.id, world["user"]).items, key=lambda e: e.seq)]
-        assert kinds == ["insert", "insert", "update", "delete"]
-        # Consumed: a third poll finds nothing new; the slot advanced.
-        third = poll_source(db, world["project"].id, source.id, world["user"])
-        assert third.events_stored == 0 and third.changes_read == 0
-
-        made = materialise_source(db, world["project"].id, source.id, world["user"], storage, SETTINGS)
-        assert made.rows == 4 and {"kind", "table", "lsn", "name", "amount"} <= set(made.columns)
-    finally:
-        delete_source(db, world["project"].id, source.id, world["user"])  # drops the slot
-        with admin.begin() as conn:
-            conn.execute(sa.text(f"DROP TABLE IF EXISTS {table}"))
-            left = conn.execute(sa.text("SELECT count(*) FROM pg_replication_slots WHERE slot_name = :s"), {"s": f"pw_test_{suffix}"}).scalar()
-        admin.dispose()
-        assert left == 0
-
-
-def test_a_change_committed_during_a_poll_is_stored_by_the_next_one(db, world, monkeypatch):
-    """The position consumed up to comes from the read that was stored. When it
-    came from a second read, a change committed in between was consumed
-    without ever being stored (the D1 baseline lost it every time)."""
-    url, reason = _logical_postgres()
-    if url is None:
-        pytest.skip(reason)
-    from sqlalchemy.engine import make_url
-
-    from service_extraction import cdc_postgres
-
-    parsed = make_url(url)
-    suffix = uuid.uuid4().hex[:8]
-    table = f"pw_race_{suffix}"
-    admin = sa.create_engine(url)
-    with admin.begin() as conn:
-        conn.execute(sa.text(f"CREATE TABLE {table} (id serial PRIMARY KEY, name text)"))
-    connection = ExtractionConnection(
-        project_id=world["project"].id, name="pg", connector_type="postgresql",
-        config_json={"host": parsed.host, "port": parsed.port, "database": parsed.database,
-                     "username": parsed.username, "password": parsed.password},
-    )
-    db.add(connection)
-    db.commit()
-    source = create_source(
-        db, world["project"].id,
-        StreamSourceCreate(name=f"race {suffix}", kind="postgres_cdc", connection_id=connection.id,
-                           tables=[f"public.{table}"], slot_name=f"pw_race_{suffix}"),
-        world["user"],
-    )
-    try:
-        poll_source(db, world["project"].id, source.id, world["user"])  # creates the slot
-        with admin.begin() as conn:
-            conn.execute(sa.text(f"INSERT INTO {table} (name) VALUES ('before')"))
-        original = cdc_postgres.peek_changes
-        raced = {"done": False}
-
-        def read_then_race(*args, **kwargs):
-            result = original(*args, **kwargs)
-            if not raced["done"]:
-                raced["done"] = True
-                with admin.begin() as conn:  # committed while the poll is still working
-                    conn.execute(sa.text(f"INSERT INTO {table} (name) VALUES ('raced')"))
-            return result
-
-        monkeypatch.setattr(cdc_postgres, "peek_changes", read_then_race)
-        poll_source(db, world["project"].id, source.id, world["user"])
-        monkeypatch.setattr(cdc_postgres, "peek_changes", original)
-        poll_source(db, world["project"].id, source.id, world["user"])
-        names = [e.payload_json["row"]["name"] for e in db.scalars(
-            select(StreamEvent).where(StreamEvent.source_id == source.id).order_by(StreamEvent.seq)).all()]
-        assert names == ["before", "raced"]
-    finally:
-        delete_source(db, world["project"].id, source.id, world["user"])
-        with admin.begin() as conn:
-            conn.execute(sa.text(f"DROP TABLE IF EXISTS {table}"))
-        admin.dispose()

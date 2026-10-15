@@ -41,7 +41,8 @@
        "incidents",
        "comments",
        "alerts",
-       "contracts"
+       "contracts",
+       "live"
       ],
       "title": "Kind",
       "type": "string"
@@ -13059,6 +13060,949 @@
     "title": "LineageNodeRead",
     "type": "object"
    },
+   "LiveKindField": {
+    "properties": {
+     "default": {
+      "title": "Default"
+     },
+     "help": {
+      "default": "",
+      "title": "Help",
+      "type": "string"
+     },
+     "key": {
+      "title": "Key",
+      "type": "string"
+     },
+     "kind": {
+      "title": "Kind",
+      "type": "string"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "options": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Options",
+      "type": "array"
+     },
+     "placeholder": {
+      "default": "",
+      "title": "Placeholder",
+      "type": "string"
+     },
+     "required": {
+      "title": "Required",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "key",
+     "label",
+     "kind",
+     "required"
+    ],
+    "title": "LiveKindField",
+    "type": "object"
+   },
+   "LiveKindListResponse": {
+    "properties": {
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/LiveKindRead"
+      },
+      "title": "Items",
+      "type": "array"
+     }
+    },
+    "required": [
+     "items"
+    ],
+    "title": "LiveKindListResponse",
+    "type": "object"
+   },
+   "LiveKindRead": {
+    "properties": {
+     "available": {
+      "title": "Available",
+      "type": "boolean"
+     },
+     "connection_types": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Connection Types",
+      "type": "array"
+     },
+     "description": {
+      "title": "Description",
+      "type": "string"
+     },
+     "family": {
+      "enum": [
+       "webhook",
+       "change_capture",
+       "queue"
+      ],
+      "title": "Family",
+      "type": "string"
+     },
+     "fields": {
+      "items": {
+       "$ref": "#/components/schemas/LiveKindField"
+      },
+      "title": "Fields",
+      "type": "array"
+     },
+     "guarantee": {
+      "title": "Guarantee",
+      "type": "string"
+     },
+     "guarantee_detail": {
+      "title": "Guarantee Detail",
+      "type": "string"
+     },
+     "guarantee_title": {
+      "title": "Guarantee Title",
+      "type": "string"
+     },
+     "key": {
+      "title": "Key",
+      "type": "string"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "tier": {
+      "title": "Tier",
+      "type": "integer"
+     },
+     "tier_badge": {
+      "title": "Tier Badge",
+      "type": "string"
+     },
+     "tier_explanation": {
+      "title": "Tier Explanation",
+      "type": "string"
+     },
+     "tier_label": {
+      "title": "Tier Label",
+      "type": "string"
+     },
+     "unavailable_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Unavailable Reason"
+     },
+     "verified_by": {
+      "title": "Verified By",
+      "type": "string"
+     }
+    },
+    "required": [
+     "key",
+     "label",
+     "family",
+     "description",
+     "fields",
+     "connection_types",
+     "guarantee",
+     "guarantee_title",
+     "guarantee_detail",
+     "tier",
+     "tier_label",
+     "tier_badge",
+     "tier_explanation",
+     "verified_by",
+     "available"
+    ],
+    "title": "LiveKindRead",
+    "type": "object"
+   },
+   "LiveLookup": {
+    "properties": {
+     "columns": {
+      "items": {
+       "type": "string"
+      },
+      "maxItems": 50,
+      "minItems": 1,
+      "title": "Columns",
+      "type": "array"
+     },
+     "dataset_id": {
+      "format": "uuid",
+      "title": "Dataset Id",
+      "type": "string"
+     },
+     "keep_unmatched": {
+      "default": true,
+      "title": "Keep Unmatched",
+      "type": "boolean"
+     },
+     "on": {
+      "items": {
+       "$ref": "#/components/schemas/LookupPair"
+      },
+      "maxItems": 5,
+      "minItems": 1,
+      "title": "On",
+      "type": "array"
+     }
+    },
+    "required": [
+     "dataset_id",
+     "on",
+     "columns"
+    ],
+    "title": "LiveLookup",
+    "type": "object"
+   },
+   "LiveMeasure": {
+    "properties": {
+     "column": {
+      "anyOf": [
+       {
+        "maxLength": 200,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Column"
+     },
+     "name": {
+      "maxLength": 100,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+     },
+     "op": {
+      "enum": [
+       "count",
+       "sum",
+       "average",
+       "lowest",
+       "highest",
+       "first",
+       "last"
+      ],
+      "title": "Op",
+      "type": "string"
+     }
+    },
+    "required": [
+     "name",
+     "op"
+    ],
+    "title": "LiveMeasure",
+    "type": "object"
+   },
+   "LiveRecipeCreate": {
+    "properties": {
+     "group_by": {
+      "items": {
+       "type": "string"
+      },
+      "maxItems": 10,
+      "title": "Group By",
+      "type": "array"
+     },
+     "lookup": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/LiveLookup"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "measures": {
+      "items": {
+       "$ref": "#/components/schemas/LiveMeasure"
+      },
+      "maxItems": 20,
+      "title": "Measures",
+      "type": "array"
+     },
+     "name": {
+      "maxLength": 160,
+      "minLength": 2,
+      "title": "Name",
+      "type": "string"
+     },
+     "recipe_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Recipe Id"
+     },
+     "window": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/LiveWindow"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "title": "LiveRecipeCreate",
+    "type": "object"
+   },
+   "LiveRecipeListResponse": {
+    "properties": {
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/LiveRecipeRead"
+      },
+      "title": "Items",
+      "type": "array"
+     }
+    },
+    "required": [
+     "items"
+    ],
+    "title": "LiveRecipeListResponse",
+    "type": "object"
+   },
+   "LiveRecipeRead": {
+    "properties": {
+     "complete_up_to": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Complete Up To"
+     },
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "description": {
+      "title": "Description",
+      "type": "string"
+     },
+     "events_in": {
+      "title": "Events In",
+      "type": "integer"
+     },
+     "group_by": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Group By",
+      "type": "array"
+     },
+     "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+     },
+     "last_error": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Error"
+     },
+     "last_processed_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Processed At"
+     },
+     "last_saved_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Saved At"
+     },
+     "late_dropped": {
+      "title": "Late Dropped",
+      "type": "integer"
+     },
+     "late_restated": {
+      "title": "Late Restated",
+      "type": "integer"
+     },
+     "lookup": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Lookup"
+     },
+     "measures": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Measures",
+      "type": "array"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "open_windows": {
+      "title": "Open Windows",
+      "type": "integer"
+     },
+     "output_dataset_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Output Dataset Id"
+     },
+     "output_dataset_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Output Dataset Name"
+     },
+     "processed_seq": {
+      "title": "Processed Seq",
+      "type": "integer"
+     },
+     "recipe_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Recipe Id"
+     },
+     "source_id": {
+      "format": "uuid",
+      "title": "Source Id",
+      "type": "string"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     },
+     "unmatched": {
+      "title": "Unmatched",
+      "type": "integer"
+     },
+     "updated_at": {
+      "format": "date-time",
+      "title": "Updated At",
+      "type": "string"
+     },
+     "window": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Window"
+     },
+     "without_time": {
+      "title": "Without Time",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "id",
+     "source_id",
+     "name",
+     "recipe_id",
+     "lookup",
+     "window",
+     "group_by",
+     "measures",
+     "output_dataset_id",
+     "output_dataset_name",
+     "status",
+     "last_error",
+     "processed_seq",
+     "events_in",
+     "late_dropped",
+     "late_restated",
+     "without_time",
+     "unmatched",
+     "open_windows",
+     "complete_up_to",
+     "description",
+     "last_processed_at",
+     "last_saved_at",
+     "created_at",
+     "updated_at"
+    ],
+    "title": "LiveRecipeRead",
+    "type": "object"
+   },
+   "LiveRecipeResultRead": {
+    "properties": {
+     "events": {
+      "title": "Events",
+      "type": "integer"
+     },
+     "final": {
+      "title": "Final",
+      "type": "boolean"
+     },
+     "group": {
+      "items": {},
+      "title": "Group",
+      "type": "array"
+     },
+     "restated": {
+      "title": "Restated",
+      "type": "integer"
+     },
+     "values": {
+      "additionalProperties": true,
+      "title": "Values",
+      "type": "object"
+     },
+     "window_end": {
+      "format": "date-time",
+      "title": "Window End",
+      "type": "string"
+     },
+     "window_start": {
+      "format": "date-time",
+      "title": "Window Start",
+      "type": "string"
+     }
+    },
+    "required": [
+     "window_start",
+     "window_end",
+     "group",
+     "values",
+     "events",
+     "final",
+     "restated"
+    ],
+    "title": "LiveRecipeResultRead",
+    "type": "object"
+   },
+   "LiveRecipeResultsResponse": {
+    "properties": {
+     "group_by": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Group By",
+      "type": "array"
+     },
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/LiveRecipeResultRead"
+      },
+      "title": "Items",
+      "type": "array"
+     },
+     "measures": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Measures",
+      "type": "array"
+     },
+     "recipe": {
+      "$ref": "#/components/schemas/LiveRecipeRead"
+     }
+    },
+    "required": [
+     "recipe",
+     "group_by",
+     "measures",
+     "items"
+    ],
+    "title": "LiveRecipeResultsResponse",
+    "type": "object"
+   },
+   "LiveRecipeUpdate": {
+    "properties": {
+     "clear_lookup": {
+      "default": false,
+      "title": "Clear Lookup",
+      "type": "boolean"
+     },
+     "clear_recipe": {
+      "default": false,
+      "title": "Clear Recipe",
+      "type": "boolean"
+     },
+     "group_by": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "maxItems": 10,
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Group By"
+     },
+     "lookup": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/LiveLookup"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "measures": {
+      "anyOf": [
+       {
+        "items": {
+         "$ref": "#/components/schemas/LiveMeasure"
+        },
+        "maxItems": 20,
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Measures"
+     },
+     "name": {
+      "anyOf": [
+       {
+        "maxLength": 160,
+        "minLength": 2,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "recipe_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Recipe Id"
+     },
+     "status": {
+      "anyOf": [
+       {
+        "enum": [
+         "active",
+         "paused"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Status"
+     },
+     "window": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/LiveWindow"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "title": "LiveRecipeUpdate",
+    "type": "object"
+   },
+   "LiveTableRead": {
+    "properties": {
+     "applied_seq": {
+      "title": "Applied Seq",
+      "type": "integer"
+     },
+     "dataset_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Dataset Id"
+     },
+     "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+     },
+     "key_columns": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Key Columns",
+      "type": "array"
+     },
+     "last_error": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Error"
+     },
+     "last_saved_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Saved At"
+     },
+     "rows_now": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rows Now"
+     },
+     "snapshot_rows": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Snapshot Rows"
+     },
+     "state": {
+      "title": "State",
+      "type": "string"
+     },
+     "table_name": {
+      "title": "Table Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "table_name",
+     "key_columns",
+     "dataset_id",
+     "state",
+     "snapshot_rows",
+     "rows_now",
+     "applied_seq",
+     "last_saved_at",
+     "last_error"
+    ],
+    "title": "LiveTableRead",
+    "type": "object"
+   },
+   "LiveTestResult": {
+    "properties": {
+     "details": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Details",
+      "type": "array"
+     },
+     "message": {
+      "title": "Message",
+      "type": "string"
+     },
+     "ok": {
+      "title": "Ok",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "ok",
+     "message"
+    ],
+    "title": "LiveTestResult",
+    "type": "object"
+   },
+   "LiveWindow": {
+    "properties": {
+     "advance_seconds": {
+      "anyOf": [
+       {
+        "exclusiveMinimum": 0.0,
+        "maximum": 2678400.0,
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Advance Seconds"
+     },
+     "gap_seconds": {
+      "anyOf": [
+       {
+        "exclusiveMinimum": 0.0,
+        "maximum": 2678400.0,
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Gap Seconds"
+     },
+     "kind": {
+      "enum": [
+       "tumbling",
+       "hopping",
+       "sliding",
+       "session"
+      ],
+      "title": "Kind",
+      "type": "string"
+     },
+     "late": {
+      "default": "drop",
+      "enum": [
+       "drop",
+       "restate"
+      ],
+      "title": "Late",
+      "type": "string"
+     },
+     "lateness_seconds": {
+      "default": 0,
+      "maximum": 604800.0,
+      "minimum": 0.0,
+      "title": "Lateness Seconds",
+      "type": "number"
+     },
+     "restate_for_seconds": {
+      "default": 0,
+      "maximum": 2678400.0,
+      "minimum": 0.0,
+      "title": "Restate For Seconds",
+      "type": "number"
+     },
+     "size_seconds": {
+      "anyOf": [
+       {
+        "exclusiveMinimum": 0.0,
+        "maximum": 2678400.0,
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Size Seconds"
+     },
+     "time_column": {
+      "default": "received_at",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Time Column",
+      "type": "string"
+     }
+    },
+    "required": [
+     "kind"
+    ],
+    "title": "LiveWindow",
+    "type": "object"
+   },
    "LoginRequest": {
     "properties": {
      "password": {
@@ -13141,6 +14085,28 @@
      "status"
     ],
     "title": "LoginResult",
+    "type": "object"
+   },
+   "LookupPair": {
+    "properties": {
+     "dataset": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Dataset",
+      "type": "string"
+     },
+     "event": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Event",
+      "type": "string"
+     }
+    },
+    "required": [
+     "event",
+     "dataset"
+    ],
+    "title": "LookupPair",
     "type": "object"
    },
    "MacroCatalogResponse": {
@@ -22119,20 +23085,28 @@
    },
    "StreamMaterialiseResponse": {
     "properties": {
-     "columns": {
-      "items": {
-       "type": "string"
-      },
-      "title": "Columns",
-      "type": "array"
+     "changes_applied": {
+      "title": "Changes Applied",
+      "type": "integer"
      },
      "dataset_id": {
-      "format": "uuid",
-      "title": "Dataset Id",
-      "type": "string"
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Dataset Id"
      },
-     "rows": {
-      "title": "Rows",
+     "events_saved": {
+      "title": "Events Saved",
+      "type": "integer"
+     },
+     "recipe_outputs": {
+      "title": "Recipe Outputs",
       "type": "integer"
      },
      "source": {
@@ -22147,8 +23121,9 @@
      "source",
      "dataset_id",
      "version_number",
-     "rows",
-     "columns"
+     "events_saved",
+     "changes_applied",
+     "recipe_outputs"
     ],
     "title": "StreamMaterialiseResponse",
     "type": "object"
@@ -22248,49 +23223,39 @@
    },
    "StreamPollResponse": {
     "properties": {
-     "changes_read": {
-      "title": "Changes Read",
-      "type": "integer"
-     },
-     "events_stored": {
-      "title": "Events Stored",
-      "type": "integer"
-     },
-     "lines_consumed": {
-      "title": "Lines Consumed",
-      "type": "integer"
-     },
-     "note": {
-      "title": "Note",
+     "guarantee": {
+      "title": "Guarantee",
       "type": "string"
      },
-     "slot_created": {
-      "title": "Slot Created",
-      "type": "boolean"
+     "notes": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Notes",
+      "type": "array"
+     },
+     "read": {
+      "title": "Read",
+      "type": "integer"
+     },
+     "rounds": {
+      "title": "Rounds",
+      "type": "integer"
      },
      "source": {
       "$ref": "#/components/schemas/StreamSourceRead"
      },
-     "upto_lsn": {
-      "anyOf": [
-       {
-        "type": "string"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Upto Lsn"
+     "stored": {
+      "title": "Stored",
+      "type": "integer"
      }
     },
     "required": [
      "source",
-     "slot_created",
-     "changes_read",
-     "events_stored",
-     "lines_consumed",
-     "upto_lsn",
-     "note"
+     "read",
+     "stored",
+     "rounds",
+     "guarantee"
     ],
     "title": "StreamPollResponse",
     "type": "object"
@@ -22353,7 +23318,18 @@
      "kind": {
       "enum": [
        "webhook",
-       "postgres_cdc"
+       "postgres_cdc",
+       "mysql_cdc",
+       "mongodb_cdc",
+       "sqlserver_cdc",
+       "kafka",
+       "event_hubs",
+       "kinesis",
+       "pubsub",
+       "pulsar",
+       "rabbitmq",
+       "nats",
+       "mqtt"
       ],
       "title": "Kind",
       "type": "string"
@@ -22363,6 +23339,25 @@
       "minLength": 2,
       "title": "Name",
       "type": "string"
+     },
+     "read_every_seconds": {
+      "default": 5,
+      "maximum": 3600.0,
+      "minimum": 1.0,
+      "title": "Read Every Seconds",
+      "type": "integer"
+     },
+     "save_every_seconds": {
+      "default": 60,
+      "maximum": 86400.0,
+      "minimum": 5.0,
+      "title": "Save Every Seconds",
+      "type": "integer"
+     },
+     "settings": {
+      "additionalProperties": true,
+      "title": "Settings",
+      "type": "object"
      },
      "slot_name": {
       "anyOf": [
@@ -22395,6 +23390,17 @@
    "StreamSourceCreated": {
     "description": "The read plus the one-time secret: a webhook's token and full path.",
     "properties": {
+     "behind": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Behind"
+     },
      "connection_id": {
       "anyOf": [
        {
@@ -22461,17 +23467,66 @@
       "title": "Events Count",
       "type": "integer"
      },
+     "failures": {
+      "title": "Failures",
+      "type": "integer"
+     },
+     "family": {
+      "enum": [
+       "webhook",
+       "change_capture",
+       "queue"
+      ],
+      "title": "Family",
+      "type": "string"
+     },
+     "guarantee": {
+      "enum": [
+       "position",
+       "message_id",
+       "at_least_once"
+      ],
+      "title": "Guarantee",
+      "type": "string"
+     },
+     "guarantee_detail": {
+      "title": "Guarantee Detail",
+      "type": "string"
+     },
+     "guarantee_title": {
+      "title": "Guarantee Title",
+      "type": "string"
+     },
      "id": {
       "format": "uuid",
       "title": "Id",
       "type": "string"
      },
+     "keep_events_hours": {
+      "title": "Keep Events Hours",
+      "type": "integer"
+     },
      "kind": {
       "enum": [
        "webhook",
-       "postgres_cdc"
+       "postgres_cdc",
+       "mysql_cdc",
+       "mongodb_cdc",
+       "sqlserver_cdc",
+       "kafka",
+       "event_hubs",
+       "kinesis",
+       "pubsub",
+       "pulsar",
+       "rabbitmq",
+       "nats",
+       "mqtt"
       ],
       "title": "Kind",
+      "type": "string"
+     },
+     "kind_label": {
+      "title": "Kind Label",
       "type": "string"
      },
      "last_error": {
@@ -22521,14 +23576,55 @@
       ],
       "title": "Last Polled At"
      },
+     "last_read_count": {
+      "title": "Last Read Count",
+      "type": "integer"
+     },
+     "live_recipe_count": {
+      "default": 0,
+      "title": "Live Recipe Count",
+      "type": "integer"
+     },
+     "live_tables": {
+      "items": {
+       "$ref": "#/components/schemas/LiveTableRead"
+      },
+      "title": "Live Tables",
+      "type": "array"
+     },
      "name": {
       "title": "Name",
       "type": "string"
+     },
+     "next_read_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Next Read At"
      },
      "project_id": {
       "format": "uuid",
       "title": "Project Id",
       "type": "string"
+     },
+     "read_every_seconds": {
+      "title": "Read Every Seconds",
+      "type": "integer"
+     },
+     "save_every_seconds": {
+      "title": "Save Every Seconds",
+      "type": "integer"
+     },
+     "settings": {
+      "additionalProperties": true,
+      "title": "Settings",
+      "type": "object"
      },
      "slot_name": {
       "anyOf": [
@@ -22551,6 +23647,14 @@
       },
       "title": "Tables",
       "type": "array"
+     },
+     "tier": {
+      "title": "Tier",
+      "type": "integer"
+     },
+     "tier_label": {
+      "title": "Tier Label",
+      "type": "string"
      },
      "token": {
       "anyOf": [
@@ -22596,11 +23700,24 @@
      "project_id",
      "name",
      "kind",
+     "kind_label",
+     "family",
+     "guarantee",
+     "guarantee_title",
+     "guarantee_detail",
+     "tier",
+     "tier_label",
      "status",
      "connection_id",
      "cursor",
      "dataset_id",
      "events_count",
+     "read_every_seconds",
+     "save_every_seconds",
+     "keep_events_hours",
+     "failures",
+     "next_read_at",
+     "last_read_count",
      "last_event_at",
      "last_polled_at",
      "last_materialised_at",
@@ -22629,6 +23746,17 @@
    },
    "StreamSourceRead": {
     "properties": {
+     "behind": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Behind"
+     },
      "connection_id": {
       "anyOf": [
        {
@@ -22695,17 +23823,66 @@
       "title": "Events Count",
       "type": "integer"
      },
+     "failures": {
+      "title": "Failures",
+      "type": "integer"
+     },
+     "family": {
+      "enum": [
+       "webhook",
+       "change_capture",
+       "queue"
+      ],
+      "title": "Family",
+      "type": "string"
+     },
+     "guarantee": {
+      "enum": [
+       "position",
+       "message_id",
+       "at_least_once"
+      ],
+      "title": "Guarantee",
+      "type": "string"
+     },
+     "guarantee_detail": {
+      "title": "Guarantee Detail",
+      "type": "string"
+     },
+     "guarantee_title": {
+      "title": "Guarantee Title",
+      "type": "string"
+     },
      "id": {
       "format": "uuid",
       "title": "Id",
       "type": "string"
      },
+     "keep_events_hours": {
+      "title": "Keep Events Hours",
+      "type": "integer"
+     },
      "kind": {
       "enum": [
        "webhook",
-       "postgres_cdc"
+       "postgres_cdc",
+       "mysql_cdc",
+       "mongodb_cdc",
+       "sqlserver_cdc",
+       "kafka",
+       "event_hubs",
+       "kinesis",
+       "pubsub",
+       "pulsar",
+       "rabbitmq",
+       "nats",
+       "mqtt"
       ],
       "title": "Kind",
+      "type": "string"
+     },
+     "kind_label": {
+      "title": "Kind Label",
       "type": "string"
      },
      "last_error": {
@@ -22755,14 +23932,55 @@
       ],
       "title": "Last Polled At"
      },
+     "last_read_count": {
+      "title": "Last Read Count",
+      "type": "integer"
+     },
+     "live_recipe_count": {
+      "default": 0,
+      "title": "Live Recipe Count",
+      "type": "integer"
+     },
+     "live_tables": {
+      "items": {
+       "$ref": "#/components/schemas/LiveTableRead"
+      },
+      "title": "Live Tables",
+      "type": "array"
+     },
      "name": {
       "title": "Name",
       "type": "string"
+     },
+     "next_read_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Next Read At"
      },
      "project_id": {
       "format": "uuid",
       "title": "Project Id",
       "type": "string"
+     },
+     "read_every_seconds": {
+      "title": "Read Every Seconds",
+      "type": "integer"
+     },
+     "save_every_seconds": {
+      "title": "Save Every Seconds",
+      "type": "integer"
+     },
+     "settings": {
+      "additionalProperties": true,
+      "title": "Settings",
+      "type": "object"
      },
      "slot_name": {
       "anyOf": [
@@ -22786,6 +24004,14 @@
       "title": "Tables",
       "type": "array"
      },
+     "tier": {
+      "title": "Tier",
+      "type": "integer"
+     },
+     "tier_label": {
+      "title": "Tier Label",
+      "type": "string"
+     },
      "updated_at": {
       "format": "date-time",
       "title": "Updated At",
@@ -22808,11 +24034,24 @@
      "project_id",
      "name",
      "kind",
+     "kind_label",
+     "family",
+     "guarantee",
+     "guarantee_title",
+     "guarantee_detail",
+     "tier",
+     "tier_label",
      "status",
      "connection_id",
      "cursor",
      "dataset_id",
      "events_count",
+     "read_every_seconds",
+     "save_every_seconds",
+     "keep_events_hours",
+     "failures",
+     "next_read_at",
+     "last_read_count",
      "last_event_at",
      "last_polled_at",
      "last_materialised_at",
@@ -22821,6 +24060,171 @@
      "updated_at"
     ],
     "title": "StreamSourceRead",
+    "type": "object"
+   },
+   "StreamSourceUpdate": {
+    "properties": {
+     "keep_events_hours": {
+      "anyOf": [
+       {
+        "maximum": 2160.0,
+        "minimum": 1.0,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Keep Events Hours"
+     },
+     "name": {
+      "anyOf": [
+       {
+        "maxLength": 160,
+        "minLength": 2,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "read_every_seconds": {
+      "anyOf": [
+       {
+        "maximum": 3600.0,
+        "minimum": 1.0,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Read Every Seconds"
+     },
+     "save_every_seconds": {
+      "anyOf": [
+       {
+        "maximum": 86400.0,
+        "minimum": 5.0,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Save Every Seconds"
+     },
+     "settings": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Settings"
+     },
+     "status": {
+      "anyOf": [
+       {
+        "enum": [
+         "active",
+         "paused"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Status"
+     },
+     "tables": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "maxItems": 50,
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Tables"
+     }
+    },
+    "title": "StreamSourceUpdate",
+    "type": "object"
+   },
+   "StreamTestRequest": {
+    "properties": {
+     "connection_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Connection Id"
+     },
+     "kind": {
+      "enum": [
+       "webhook",
+       "postgres_cdc",
+       "mysql_cdc",
+       "mongodb_cdc",
+       "sqlserver_cdc",
+       "kafka",
+       "event_hubs",
+       "kinesis",
+       "pubsub",
+       "pulsar",
+       "rabbitmq",
+       "nats",
+       "mqtt"
+      ],
+      "title": "Kind",
+      "type": "string"
+     },
+     "settings": {
+      "additionalProperties": true,
+      "title": "Settings",
+      "type": "object"
+     },
+     "source_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source Id"
+     },
+     "tables": {
+      "items": {
+       "type": "string"
+      },
+      "maxItems": 50,
+      "title": "Tables",
+      "type": "array"
+     }
+    },
+    "required": [
+     "kind"
+    ],
+    "title": "StreamTestRequest",
     "type": "object"
    },
    "SupportContact": {
@@ -23369,6 +24773,41 @@
      }
     },
     "title": "TermUpdate",
+    "type": "object"
+   },
+   "ThroughputPoint": {
+    "properties": {
+     "events": {
+      "title": "Events",
+      "type": "integer"
+     },
+     "minute": {
+      "format": "date-time",
+      "title": "Minute",
+      "type": "string"
+     }
+    },
+    "required": [
+     "minute",
+     "events"
+    ],
+    "title": "ThroughputPoint",
+    "type": "object"
+   },
+   "ThroughputResponse": {
+    "properties": {
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/ThroughputPoint"
+      },
+      "title": "Items",
+      "type": "array"
+     }
+    },
+    "required": [
+     "items"
+    ],
+    "title": "ThroughputResponse",
     "type": "object"
    },
    "TierSummaryRead": {
@@ -44241,6 +45680,71 @@
     ]
    }
   },
+  "/api/v1/projects/{project_id}/live/kinds": {
+   "get": {
+    "description": "Every kind of live source, its settings, guarantee and tier.",
+    "operationId": "read_live_kinds_api_v1_projects__project_id__live_kinds_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/LiveKindListResponse"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Read Live Kinds",
+    "tags": [
+     "extraction"
+    ]
+   }
+  },
   "/api/v1/projects/{project_id}/members": {
    "get": {
     "operationId": "read_members_api_v1_projects__project_id__members_get",
@@ -49359,6 +50863,81 @@
     ]
    }
   },
+  "/api/v1/projects/{project_id}/streams/try": {
+   "post": {
+    "description": "Whether settings would work, before they are saved.",
+    "operationId": "test_stream_settings_api_v1_projects__project_id__streams_try_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/StreamTestRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/LiveTestResult"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Test Stream Settings",
+    "tags": [
+     "extraction"
+    ]
+   }
+  },
   "/api/v1/projects/{project_id}/streams/{source_id}": {
    "delete": {
     "operationId": "remove_stream_api_v1_projects__project_id__streams__source_id__delete",
@@ -49496,6 +51075,89 @@
     "tags": [
      "extraction"
     ]
+   },
+   "patch": {
+    "description": "Rename, pause or resume, change settings, tables or how often it is read and saved.",
+    "operationId": "edit_stream_api_v1_projects__project_id__streams__source_id__patch",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "source_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Source Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/StreamSourceUpdate"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/StreamSourceRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Edit Stream",
+    "tags": [
+     "extraction"
+    ]
    }
   },
   "/api/v1/projects/{project_id}/streams/{source_id}/events": {
@@ -49586,7 +51248,7 @@
   },
   "/api/v1/projects/{project_id}/streams/{source_id}/materialise": {
    "post": {
-    "description": "Write every event so far as a new immutable dataset version.",
+    "description": "Save now: the log, every table kept current and every live recipe's output.",
     "operationId": "materialise_stream_api_v1_projects__project_id__streams__source_id__materialise_post",
     "parameters": [
      {
@@ -49661,7 +51323,7 @@
   },
   "/api/v1/projects/{project_id}/streams/{source_id}/poll": {
    "post": {
-    "description": "Read the next batch of changes from the replication slot now\n(operator: it is running the job by hand).",
+    "description": "Read now, outside the runner's schedule.",
     "operationId": "poll_stream_api_v1_projects__project_id__streams__source_id__poll_post",
     "parameters": [
      {
@@ -49729,6 +51391,734 @@
      }
     ],
     "summary": "Poll Stream",
+    "tags": [
+     "extraction"
+    ]
+   }
+  },
+  "/api/v1/projects/{project_id}/streams/{source_id}/recipes": {
+   "get": {
+    "operationId": "read_live_recipes_api_v1_projects__project_id__streams__source_id__recipes_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "source_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Source Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/LiveRecipeListResponse"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Read Live Recipes",
+    "tags": [
+     "extraction"
+    ]
+   },
+   "post": {
+    "operationId": "add_live_recipe_api_v1_projects__project_id__streams__source_id__recipes_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "source_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Source Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/LiveRecipeCreate"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/LiveRecipeRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Add Live Recipe",
+    "tags": [
+     "extraction"
+    ]
+   }
+  },
+  "/api/v1/projects/{project_id}/streams/{source_id}/recipes/{recipe_id}": {
+   "delete": {
+    "operationId": "remove_live_recipe_api_v1_projects__project_id__streams__source_id__recipes__recipe_id__delete",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "source_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Source Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "recipe_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Recipe Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Remove Live Recipe",
+    "tags": [
+     "extraction"
+    ]
+   },
+   "patch": {
+    "operationId": "edit_live_recipe_api_v1_projects__project_id__streams__source_id__recipes__recipe_id__patch",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "source_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Source Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "recipe_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Recipe Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/LiveRecipeUpdate"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/LiveRecipeRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Edit Live Recipe",
+    "tags": [
+     "extraction"
+    ]
+   }
+  },
+  "/api/v1/projects/{project_id}/streams/{source_id}/recipes/{recipe_id}/results": {
+   "get": {
+    "operationId": "read_live_recipe_results_api_v1_projects__project_id__streams__source_id__recipes__recipe_id__results_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "source_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Source Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "recipe_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Recipe Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 200,
+       "maximum": 2000,
+       "minimum": 1,
+       "title": "Limit",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/LiveRecipeResultsResponse"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Read Live Recipe Results",
+    "tags": [
+     "extraction"
+    ]
+   }
+  },
+  "/api/v1/projects/{project_id}/streams/{source_id}/recipes/{recipe_id}/start-again": {
+   "post": {
+    "operationId": "restart_live_recipe_api_v1_projects__project_id__streams__source_id__recipes__recipe_id__start_again_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "source_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Source Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "recipe_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Recipe Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/LiveRecipeRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Restart Live Recipe",
+    "tags": [
+     "extraction"
+    ]
+   }
+  },
+  "/api/v1/projects/{project_id}/streams/{source_id}/start-again": {
+   "post": {
+    "description": "Forget the saved position; change capture takes its snapshots again.",
+    "operationId": "restart_stream_api_v1_projects__project_id__streams__source_id__start_again_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "source_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Source Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/StreamSourceRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Restart Stream",
+    "tags": [
+     "extraction"
+    ]
+   }
+  },
+  "/api/v1/projects/{project_id}/streams/{source_id}/test": {
+   "post": {
+    "operationId": "test_stream_api_v1_projects__project_id__streams__source_id__test_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "source_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Source Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/LiveTestResult"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Test Stream",
+    "tags": [
+     "extraction"
+    ]
+   }
+  },
+  "/api/v1/projects/{project_id}/streams/{source_id}/throughput": {
+   "get": {
+    "operationId": "read_stream_throughput_api_v1_projects__project_id__streams__source_id__throughput_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "source_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Source Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ThroughputResponse"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Read Stream Throughput",
     "tags": [
      "extraction"
     ]

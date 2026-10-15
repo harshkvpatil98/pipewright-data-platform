@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Supervised background runtime: the workflow worker and the schedule ticker.
+# Supervised background runtime: the workflow worker, the schedule ticker and
+# the live-source runner.
 #
 # These are the two processes that make work actually move. Running them under
 # one script keeps "start the workers" a single command in dev, and each is
@@ -28,6 +29,7 @@ export PYTHONPATH="${CURRENT_PYTHONPATH}${PYTHONPATH:+:$PYTHONPATH}"
 
 WORKFLOW_INTERVAL="${WORKFLOW_WORKER_INTERVAL:-5}"
 TICKER_INTERVAL="${SCHEDULE_TICKER_INTERVAL:-30}"
+LIVE_INTERVAL="${LIVE_RUNNER_INTERVAL:-1}"
 
 pids=()
 cleanup() {
@@ -53,6 +55,10 @@ pids+=($!)
 
 supervise "schedule-ticker" \
   "$ROOT_DIR/.venv/bin/python" -m api_gateway.scripts.run_due_schedules --loop --interval "$TICKER_INTERVAL" &
+pids+=($!)
+
+supervise "live-runner" \
+  "$ROOT_DIR/.venv/bin/python" -m api_gateway.scripts.live_runner --interval "$LIVE_INTERVAL" &
 pids+=($!)
 
 # Both loops run until this script is stopped. Plain `wait`, not `wait -n`:

@@ -69,3 +69,39 @@ spec:
             {{- toYaml .Values.ticker.resources | nindent 12 }}
           {{- include "pipewright.filesMount" . | nindent 10 }}
       {{- include "pipewright.filesVolume" . | nindent 6 }}
+---
+# The live-source runner (D1). Replicas share sources under a lease.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pipewright.fullname" . }}-live-runner
+  labels:
+    {{- include "pipewright.labels" . | nindent 4 }}
+    app.kubernetes.io/component: live-runner
+spec:
+  replicas: {{ .Values.liveRunner.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: live-runner
+  template:
+    metadata:
+      labels:
+        {{- include "pipewright.labels" . | nindent 8 }}
+        app.kubernetes.io/component: live-runner
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: live-runner
+          image: {{ include "pipewright.gatewayImage" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["platform-live-runner", "--interval", {{ .Values.liveRunner.intervalSeconds | quote }}]
+          envFrom:
+            {{- include "pipewright.envFrom" . | nindent 12 }}
+          resources:
+            {{- toYaml .Values.liveRunner.resources | nindent 12 }}
+          {{- include "pipewright.filesMount" . | nindent 10 }}
+      {{- include "pipewright.filesVolume" . | nindent 6 }}

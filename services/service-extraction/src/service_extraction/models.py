@@ -110,19 +110,23 @@ class ExtractionJob(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
 
 class StreamSource(UUIDPrimaryKeyMixin, TimestampMixin, Base):
-    """A source that delivers rows instead of being polled for them.
+    """A live source: rows that arrive instead of being asked for (D1).
 
-    `webhook`: an endpoint keyed by a token (hashed at rest) whose posts are
-    stored as events. `postgres_cdc`: a logical replication slot on a
-    connection's database, read in micro-batches through `test_decoding` --
-    at-least-once, with `cursor` the last LSN consumed. Both materialise into
-    one append-only dataset (`dataset_id`), a new version per materialisation.
+    `kind` is one of `service_extraction.live.KINDS`: a webhook (an address
+    keyed by a token, hashed at rest), a database's change log (through a
+    project connection, or its own settings) or a message queue (its own
+    settings, secrets encrypted in `config_json`). The runner reads it every
+    `read_every_seconds` into `stream_events`, saving `cursor` (the source's
+    own position, JSON) in the same transaction, and saves its datasets every
+    `save_every_seconds`: the log of every event (`dataset_id`), each followed
+    table as it is now (`LiveTable`) and each live recipe's output.
     """
 
     __tablename__ = "stream_sources"
     __table_args__ = (
         UniqueConstraint("token_hash", name="uq_stream_sources_token_hash"),
         Index("ix_stream_sources_project_id", "project_id"),
+        Index("ix_stream_sources_due", "status", "next_read_at"),
     )
 
     project_id: Mapped[uuid.UUID] = mapped_column(
@@ -130,16 +134,19 @@ class StreamSource(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     name: Mapped[str] = mapped_column(String(160), nullable=False)
     kind: Mapped[str] = mapped_column(String(24), nullable=False)
+    #: `active`, `paused`, or `failing` (still read, backing off).
     status: Mapped[str] = mapped_column(String(24), nullable=False, default="active", server_default="active")
     connection_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("extraction_connections.id", ondelete="SET NULL"), nullable=True
     )
     config_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     token_hash: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    #: The source's own position as JSON, saved with the events it ends.
     cursor: Mapped[str | None] = mapped_column(Text, nullable=True)
     dataset_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("datasets.id", ondelete="SET NULL"), nullable=True
     )
+    #: Every event ever stored; also where the next event's `seq` comes from.
     events_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     last_event_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_polled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -148,25 +155,44 @@ class StreamSource(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     created_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
+    read_every_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=5, server_default="5")
+    save_every_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=60, server_default="60")
+    keep_events_hours: Mapped[int] = mapped_column(Integer, nullable=False, default=168, server_default="168")
+    next_read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    #: Failed passes in a row; the owner is told once at five.
+    failures: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    failure_notified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    #: Events up to this `seq` are in the log dataset.
+    log_saved_seq: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    #: Events waiting at the source when it last said, or None when it cannot say.
+    behind: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    last_read_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    claim_owner_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    claim_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class StreamEvent(UUIDPrimaryKeyMixin, Base):
-    """One thing that arrived: a webhook post, or one row change from a
-    change log. `seq` orders events within a source; `position` is the
-    source's own cursor (an LSN) so a re-read after a crash is idempotent."""
+    """One thing that arrived: a post, a message or one row change.
+
+    `seq` orders events within a source. `position` is the source's own id
+    for it (an offset, a sequence number, a message id, a digest of a change's
+    LSN) and is unique within the source, so storing one again is refused;
+    None when the source gives nothing to recognise a repeat by.
+    """
 
     __tablename__ = "stream_events"
     __table_args__ = (
         UniqueConstraint("source_id", "seq", name="uq_stream_events_source_seq"),
+        UniqueConstraint("source_id", "position", name="uq_stream_events_source_position"),
         Index("ix_stream_events_source_id", "source_id", "seq"),
-        Index("ix_stream_events_position", "source_id", "position"),
+        Index("ix_stream_events_received", "source_id", "received_at"),
     )
 
     source_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("stream_sources.id", ondelete="CASCADE"), nullable=False
     )
     seq: Mapped[int] = mapped_column(Integer, nullable=False)
-    #: `webhook`, `insert`, `update`, `delete`.
+    #: `webhook` or `message`, or `insert`, `update`, `delete` for a row change.
     kind: Mapped[str] = mapped_column(String(16), nullable=False)
     table_name: Mapped[str | None] = mapped_column(String(320), nullable=True)
     position: Mapped[str | None] = mapped_column(String(64), nullable=True)
@@ -174,3 +200,103 @@ class StreamEvent(UUIDPrimaryKeyMixin, Base):
     received_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+
+
+class LiveTable(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """A table a change-capture source keeps current as a dataset (D1, L1).
+
+    `state`: `waiting` (snapshot not taken), `snapshot` (being read),
+    `following` (applying changes by `key_columns_json`), `log_only` (no
+    primary key, so only its changes are kept) or `failed`. Changes up to
+    `applied_seq` are in the dataset's current version.
+    """
+
+    __tablename__ = "stream_tables"
+    __table_args__ = (UniqueConstraint("source_id", "table_name", name="uq_stream_tables_source_table"),)
+
+    source_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("stream_sources.id", ondelete="CASCADE"), nullable=False
+    )
+    table_name: Mapped[str] = mapped_column(String(320), nullable=False)
+    key_columns_json: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    dataset_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("datasets.id", ondelete="SET NULL"), nullable=True
+    )
+    state: Mapped[str] = mapped_column(String(24), nullable=False, default="waiting", server_default="waiting")
+    snapshot_rows: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    rows_now: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    applied_seq: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    last_saved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class LiveRecipe(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """A recipe that runs on a live source's events as they arrive (D1, L4).
+
+    Row-by-row steps from a saved recipe, an optional lookup in a dataset,
+    and an optional summary by time window. `state_json` (open windows, the
+    watermark) and `processed_seq` are saved in the same transaction as the
+    results they produced, so a repeated batch never counts an event twice.
+    """
+
+    __tablename__ = "live_recipes"
+    __table_args__ = (Index("ix_live_recipes_source", "source_id"),)
+
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    source_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("stream_sources.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    recipe_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("transformation_pipelines.id", ondelete="SET NULL"), nullable=True
+    )
+    lookup_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    window_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    group_by_json: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    measures_json: Mapped[list[dict[str, Any]]] = mapped_column(JSON, nullable=False, default=list)
+    output_dataset_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("datasets.id", ondelete="SET NULL"), nullable=True
+    )
+    state_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    processed_seq: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    #: Without a window: events up to here are in the output dataset.
+    saved_seq: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    status: Mapped[str] = mapped_column(String(24), nullable=False, default="active", server_default="active")
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    late_dropped: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    late_restated: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    without_time: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    unmatched: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    events_in: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    results_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_saved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+
+class LiveRecipeResult(UUIDPrimaryKeyMixin, Base):
+    """One window's measures for one group (D1, L4). Final once the watermark
+    passes the window's end; `restated` counts late events that changed it after."""
+
+    __tablename__ = "live_recipe_results"
+    __table_args__ = (
+        UniqueConstraint("live_recipe_id", "window_start", "window_end", "group_key", name="uq_live_recipe_results_window"),
+        Index("ix_live_recipe_results_end", "live_recipe_id", "window_end"),
+    )
+
+    live_recipe_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("live_recipes.id", ondelete="CASCADE"), nullable=False
+    )
+    window_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    window_end: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    group_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    group_json: Mapped[list[Any]] = mapped_column(JSON, nullable=False, default=list)
+    values_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    events: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    final: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    restated: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())

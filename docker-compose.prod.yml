@@ -73,6 +73,19 @@ services:
       # Stored files, shared: the worker and ticker read what the gateway saved.
       - pipewright_files:/app/apps/api-gateway/data
 
+  live-runner:
+    image: ${PIPEWRIGHT_REGISTRY:-ghcr.io/harshkvpatil98}/pipewright-gateway:${PIPEWRIGHT_TAG:?set PIPEWRIGHT_TAG}
+    restart: unless-stopped
+    depends_on:
+      gateway:
+        condition: service_started
+    env_file: [./.env]
+    environment: *app-env
+    # Reads webhooks' events, change logs and queues as they arrive (D1).
+    command: sh -c "until alembic -c alembic.ini current >/dev/null 2>&1; do sleep 2; done; platform-live-runner --interval ${LIVE_RUNNER_INTERVAL:-1}"
+    volumes:
+      - pipewright_files:/app/apps/api-gateway/data
+
   web:
     image: ${PIPEWRIGHT_REGISTRY:-ghcr.io/harshkvpatil98}/pipewright-web:${PIPEWRIGHT_TAG:?set PIPEWRIGHT_TAG}
     restart: unless-stopped

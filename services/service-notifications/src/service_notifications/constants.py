@@ -19,6 +19,8 @@ ALLOWED_EXTERNAL_NOTIFICATION_EVENT_TYPES: frozenset[str] = frozenset(
         # C1: a dataset's contract stopped or let through data that breaks it,
         # new data is overdue, it is kept again, or its terms changed.
         "data_contract",
+        # D1: a live source failed five times in a row.
+        "live_source_failed",
     }
 )
 

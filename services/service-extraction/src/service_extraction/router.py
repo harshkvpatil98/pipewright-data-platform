@@ -10,17 +10,31 @@ from sqlalchemy.orm import Session
 
 from service_auth.schemas import UserRead
 from service_extraction.extract import run_extraction_job
+from service_extraction import live_recipes
 from service_extraction.streams import (
     create_source,
     delete_source,
     get_source,
     list_events,
+    list_kinds,
     list_sources,
     materialise_source,
     poll_source,
     receive_webhook,
+    start_again,
+    test_new_settings,
+    test_source,
+    throughput,
+    update_source,
 )
 from service_extraction.schemas import (
+    LiveKindListResponse,
+    LiveRecipeCreate,
+    LiveRecipeListResponse,
+    LiveRecipeRead,
+    LiveRecipeResultsResponse,
+    LiveRecipeUpdate,
+    LiveTestResult,
     StreamEventListResponse,
     StreamEventRead,
     StreamMaterialiseResponse,
@@ -29,6 +43,9 @@ from service_extraction.schemas import (
     StreamSourceCreated,
     StreamSourceListResponse,
     StreamSourceRead,
+    StreamSourceUpdate,
+    StreamTestRequest,
+    ThroughputResponse,
     ConnectionTestResponse,
     DiscoveredColumnsResponse,
     DiscoveredTablesResponse,
@@ -255,7 +272,15 @@ def build_router(
     ) -> ExtractionJobRead:
         return reset_job_watermark(db, project_id, job_id, current_user)
 
-    # ------------------------------------------------------- stream sources
+    # ---------------------------------------------------------- live sources
+
+    @router.get("/projects/{project_id}/live/kinds", response_model=LiveKindListResponse)
+    def read_live_kinds(
+        project_id: uuid.UUID,
+        current_user: UserRead = Depends(get_current_user),
+    ) -> LiveKindListResponse:
+        """Every kind of live source, its settings, guarantee and tier."""
+        return LiveKindListResponse(items=list_kinds())
 
     @router.get("/projects/{project_id}/streams", response_model=StreamSourceListResponse)
     def read_streams(
@@ -275,6 +300,18 @@ def build_router(
         """A webhook's token comes back in this response and never again."""
         return create_source(db, project_id, payload, current_user)
 
+    # `try`, not `test`: settings that are not saved yet name any address, and
+    # calling one is an editor's action; `test` is read-only and a viewer's.
+    @router.post("/projects/{project_id}/streams/try", response_model=LiveTestResult)
+    def test_stream_settings(
+        project_id: uuid.UUID,
+        payload: StreamTestRequest,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> LiveTestResult:
+        """Whether settings would work, before they are saved."""
+        return test_new_settings(db, project_id, payload, current_user)
+
     @router.get("/projects/{project_id}/streams/{source_id}", response_model=StreamSourceRead)
     def read_stream(
         project_id: uuid.UUID,
@@ -283,6 +320,17 @@ def build_router(
         current_user: UserRead = Depends(get_current_user),
     ) -> StreamSourceRead:
         return get_source(db, project_id, source_id, current_user)
+
+    @router.patch("/projects/{project_id}/streams/{source_id}", response_model=StreamSourceRead)
+    def edit_stream(
+        project_id: uuid.UUID,
+        source_id: uuid.UUID,
+        payload: StreamSourceUpdate,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> StreamSourceRead:
+        """Rename, pause or resume, change settings, tables or how often it is read and saved."""
+        return update_source(db, project_id, source_id, payload, current_user)
 
     @router.delete("/projects/{project_id}/streams/{source_id}", status_code=status.HTTP_204_NO_CONTENT)
     def remove_stream(
@@ -294,6 +342,25 @@ def build_router(
         delete_source(db, project_id, source_id, current_user)
         return Response(status_code=status.HTTP_204_NO_CONTENT)
 
+    @router.post("/projects/{project_id}/streams/{source_id}/test", response_model=LiveTestResult)
+    def test_stream(
+        project_id: uuid.UUID,
+        source_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> LiveTestResult:
+        return test_source(db, project_id, source_id, current_user)
+
+    @router.post("/projects/{project_id}/streams/{source_id}/start-again", response_model=StreamSourceRead)
+    def restart_stream(
+        project_id: uuid.UUID,
+        source_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> StreamSourceRead:
+        """Forget the saved position; change capture takes its snapshots again."""
+        return start_again(db, project_id, source_id, current_user)
+
     @router.get("/projects/{project_id}/streams/{source_id}/events", response_model=StreamEventListResponse)
     def read_stream_events(
         project_id: uuid.UUID,
@@ -304,16 +371,25 @@ def build_router(
     ) -> StreamEventListResponse:
         return list_events(db, project_id, source_id, current_user, limit=limit)
 
+    @router.get("/projects/{project_id}/streams/{source_id}/throughput", response_model=ThroughputResponse)
+    def read_stream_throughput(
+        project_id: uuid.UUID,
+        source_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> ThroughputResponse:
+        return ThroughputResponse(items=throughput(db, project_id, source_id, current_user))
+
     @router.post("/projects/{project_id}/streams/{source_id}/poll", response_model=StreamPollResponse)
     def poll_stream(
         project_id: uuid.UUID,
         source_id: uuid.UUID,
         db: Session = Depends(get_db),
         current_user: UserRead = Depends(get_current_user),
+        storage_backend=Depends(get_storage_backend),
     ) -> StreamPollResponse:
-        """Read the next batch of changes from the replication slot now
-        (operator: it is running the job by hand)."""
-        return poll_source(db, project_id, source_id, current_user)
+        """Read now, outside the runner's schedule."""
+        return poll_source(db, project_id, source_id, current_user, storage_backend=storage_backend, settings=settings)
 
     @router.post("/projects/{project_id}/streams/{source_id}/materialise", response_model=StreamMaterialiseResponse)
     def materialise_stream(
@@ -323,8 +399,76 @@ def build_router(
         current_user: UserRead = Depends(get_current_user),
         storage_backend=Depends(get_storage_backend),
     ) -> StreamMaterialiseResponse:
-        """Write every event so far as a new immutable dataset version."""
+        """Save now: the log, every table kept current and every live recipe's output."""
         return materialise_source(db, project_id, source_id, current_user, storage_backend, settings)
+
+    # ---------------------------------------------------------- live recipes
+
+    @router.get("/projects/{project_id}/streams/{source_id}/recipes", response_model=LiveRecipeListResponse)
+    def read_live_recipes(
+        project_id: uuid.UUID,
+        source_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> LiveRecipeListResponse:
+        return live_recipes.list_recipes(db, project_id, source_id, current_user)
+
+    @router.post("/projects/{project_id}/streams/{source_id}/recipes", response_model=LiveRecipeRead,
+                 status_code=status.HTTP_201_CREATED)
+    def add_live_recipe(
+        project_id: uuid.UUID,
+        source_id: uuid.UUID,
+        payload: LiveRecipeCreate,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> LiveRecipeRead:
+        return live_recipes.create_recipe(db, project_id, source_id, payload, current_user)
+
+    @router.patch("/projects/{project_id}/streams/{source_id}/recipes/{recipe_id}", response_model=LiveRecipeRead)
+    def edit_live_recipe(
+        project_id: uuid.UUID,
+        source_id: uuid.UUID,
+        recipe_id: uuid.UUID,
+        payload: LiveRecipeUpdate,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> LiveRecipeRead:
+        return live_recipes.update_recipe(db, project_id, source_id, recipe_id, payload, current_user)
+
+    @router.post("/projects/{project_id}/streams/{source_id}/recipes/{recipe_id}/start-again",
+                 response_model=LiveRecipeRead)
+    def restart_live_recipe(
+        project_id: uuid.UUID,
+        source_id: uuid.UUID,
+        recipe_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> LiveRecipeRead:
+        return live_recipes.start_recipe_again(db, project_id, source_id, recipe_id, current_user)
+
+    @router.delete("/projects/{project_id}/streams/{source_id}/recipes/{recipe_id}",
+                   status_code=status.HTTP_204_NO_CONTENT)
+    def remove_live_recipe(
+        project_id: uuid.UUID,
+        source_id: uuid.UUID,
+        recipe_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> Response:
+        live_recipes.delete_recipe(db, project_id, source_id, recipe_id, current_user)
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    @router.get("/projects/{project_id}/streams/{source_id}/recipes/{recipe_id}/results",
+                response_model=LiveRecipeResultsResponse)
+    def read_live_recipe_results(
+        project_id: uuid.UUID,
+        source_id: uuid.UUID,
+        recipe_id: uuid.UUID,
+        limit: int = Query(default=200, ge=1, le=2000),
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> LiveRecipeResultsResponse:
+        return live_recipes.recipe_results(db, project_id, source_id, recipe_id, current_user, limit=limit)
 
     return router
 

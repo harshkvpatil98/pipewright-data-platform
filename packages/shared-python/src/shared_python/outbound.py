@@ -34,10 +34,13 @@ def _flag(name: str) -> bool:
 
 
 def _refusal(address: ipaddress.IPv4Address | ipaddress.IPv6Address) -> str | None:
+    # Loopback first: Python counts ::1 as reserved too, and judged as reserved it
+    # was refused even with loopback allowed, so `localhost` on a machine where it
+    # means ::1 could never be reached.
+    if address.is_loopback:
+        return None if _flag("OUTBOUND_ALLOW_LOOPBACK") else "this server itself"
     if address.is_link_local or address.is_multicast or address.is_unspecified or address.is_reserved:
         return "an internal address the platform never calls"
-    if address.is_loopback and not _flag("OUTBOUND_ALLOW_LOOPBACK"):
-        return "this server itself"
     if address.is_private and not address.is_loopback and _flag("OUTBOUND_BLOCK_PRIVATE_NETWORKS"):
         return "a private network address, which this deployment does not allow"
     return None

@@ -12,7 +12,9 @@ bundle moves between projects and between deployments:
   wired up in order (metrics, recipes, checks, contracts, charts,
   dashboards, workflows, schedules);
 - a contract belongs to a dataset, so it is named after it and skipped when
-  that dataset already has one (C1).
+  that dataset already has one (C1);
+- live feeds and their live recipes stay behind: a live feed holds the
+  credentials of what it reads, as a connection does (D1).
 
 An item whose name the target project already uses is skipped and said so;
 one whose required reference is missing is skipped with the reason. A

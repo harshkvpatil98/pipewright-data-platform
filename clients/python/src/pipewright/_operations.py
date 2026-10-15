@@ -1646,6 +1646,13 @@ class Operations:
         """
         return self._call("DELETE", f"/api/v1/projects/{project_id}/ingest-specs/{spec_id}")
 
+    def read_live_kinds(self, project_id: str) -> Any:
+        """Every kind of live source, its settings, guarantee and tier.
+
+        GET /api/v1/projects/{project_id}/live/kinds
+        """
+        return self._call("GET", f"/api/v1/projects/{project_id}/live/kinds")
+
     def read_members(self, project_id: str) -> Any:
         """Read Members
 
@@ -2122,12 +2129,26 @@ class Operations:
         """
         return self._call("POST", f"/api/v1/projects/{project_id}/streams", body=body)
 
+    def test_stream_settings(self, project_id: str, *, body: Any) -> Any:
+        """Whether settings would work, before they are saved.
+
+        POST /api/v1/projects/{project_id}/streams/try
+        """
+        return self._call("POST", f"/api/v1/projects/{project_id}/streams/try", body=body)
+
     def read_stream(self, project_id: str, source_id: str) -> Any:
         """Read Stream
 
         GET /api/v1/projects/{project_id}/streams/{source_id}
         """
         return self._call("GET", f"/api/v1/projects/{project_id}/streams/{source_id}")
+
+    def edit_stream(self, project_id: str, source_id: str, *, body: Any) -> Any:
+        """Rename, pause or resume, change settings, tables or how often it is read and saved.
+
+        PATCH /api/v1/projects/{project_id}/streams/{source_id}
+        """
+        return self._call("PATCH", f"/api/v1/projects/{project_id}/streams/{source_id}", body=body)
 
     def remove_stream(self, project_id: str, source_id: str) -> Any:
         """Remove Stream
@@ -2144,18 +2165,81 @@ class Operations:
         return self._call("GET", f"/api/v1/projects/{project_id}/streams/{source_id}/events", query={"limit": limit})
 
     def materialise_stream(self, project_id: str, source_id: str) -> Any:
-        """Write every event so far as a new immutable dataset version.
+        """Save now: the log, every table kept current and every live recipe's output.
 
         POST /api/v1/projects/{project_id}/streams/{source_id}/materialise
         """
         return self._call("POST", f"/api/v1/projects/{project_id}/streams/{source_id}/materialise")
 
     def poll_stream(self, project_id: str, source_id: str) -> Any:
-        """Read the next batch of changes from the replication slot now (operator: it is running the job by hand).
+        """Read now, outside the runner's schedule.
 
         POST /api/v1/projects/{project_id}/streams/{source_id}/poll
         """
         return self._call("POST", f"/api/v1/projects/{project_id}/streams/{source_id}/poll")
+
+    def read_live_recipes(self, project_id: str, source_id: str) -> Any:
+        """Read Live Recipes
+
+        GET /api/v1/projects/{project_id}/streams/{source_id}/recipes
+        """
+        return self._call("GET", f"/api/v1/projects/{project_id}/streams/{source_id}/recipes")
+
+    def add_live_recipe(self, project_id: str, source_id: str, *, body: Any) -> Any:
+        """Add Live Recipe
+
+        POST /api/v1/projects/{project_id}/streams/{source_id}/recipes
+        """
+        return self._call("POST", f"/api/v1/projects/{project_id}/streams/{source_id}/recipes", body=body)
+
+    def edit_live_recipe(self, project_id: str, source_id: str, recipe_id: str, *, body: Any) -> Any:
+        """Edit Live Recipe
+
+        PATCH /api/v1/projects/{project_id}/streams/{source_id}/recipes/{recipe_id}
+        """
+        return self._call("PATCH", f"/api/v1/projects/{project_id}/streams/{source_id}/recipes/{recipe_id}", body=body)
+
+    def remove_live_recipe(self, project_id: str, source_id: str, recipe_id: str) -> Any:
+        """Remove Live Recipe
+
+        DELETE /api/v1/projects/{project_id}/streams/{source_id}/recipes/{recipe_id}
+        """
+        return self._call("DELETE", f"/api/v1/projects/{project_id}/streams/{source_id}/recipes/{recipe_id}")
+
+    def read_live_recipe_results(self, project_id: str, source_id: str, recipe_id: str, *, limit: int | None = None) -> Any:
+        """Read Live Recipe Results
+
+        GET /api/v1/projects/{project_id}/streams/{source_id}/recipes/{recipe_id}/results
+        """
+        return self._call("GET", f"/api/v1/projects/{project_id}/streams/{source_id}/recipes/{recipe_id}/results", query={"limit": limit})
+
+    def restart_live_recipe(self, project_id: str, source_id: str, recipe_id: str) -> Any:
+        """Restart Live Recipe
+
+        POST /api/v1/projects/{project_id}/streams/{source_id}/recipes/{recipe_id}/start-again
+        """
+        return self._call("POST", f"/api/v1/projects/{project_id}/streams/{source_id}/recipes/{recipe_id}/start-again")
+
+    def restart_stream(self, project_id: str, source_id: str) -> Any:
+        """Forget the saved position; change capture takes its snapshots again.
+
+        POST /api/v1/projects/{project_id}/streams/{source_id}/start-again
+        """
+        return self._call("POST", f"/api/v1/projects/{project_id}/streams/{source_id}/start-again")
+
+    def test_stream(self, project_id: str, source_id: str) -> Any:
+        """Test Stream
+
+        POST /api/v1/projects/{project_id}/streams/{source_id}/test
+        """
+        return self._call("POST", f"/api/v1/projects/{project_id}/streams/{source_id}/test")
+
+    def read_stream_throughput(self, project_id: str, source_id: str) -> Any:
+        """Read Stream Throughput
+
+        GET /api/v1/projects/{project_id}/streams/{source_id}/throughput
+        """
+        return self._call("GET", f"/api/v1/projects/{project_id}/streams/{source_id}/throughput")
 
     def get_saved_statistical_tests(self, project_id: str, *, left_dataset_id: str | None = None, right_dataset_id: str | None = None) -> Any:
         """Get Saved Statistical Tests

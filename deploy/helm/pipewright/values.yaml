@@ -142,6 +142,17 @@ ticker:
     requests: { cpu: 50m, memory: 128Mi }
     limits: { cpu: 500m, memory: 256Mi }
 
+# The live-source runner (D1): reads webhooks' events, change logs and queues
+# every few seconds. Several replicas share the sources under a lease.
+liveRunner:
+  replicaCount: 1
+  intervalSeconds: 1
+  # A batch is at most 5,000 events, but saving a table kept current reads its
+  # whole current version, so give it what the largest followed table needs.
+  resources:
+    requests: { cpu: 100m, memory: 512Mi }
+    limits: { cpu: "1", memory: 2Gi }
+
 ingress:
   enabled: false
   className: nginx

@@ -216,11 +216,16 @@ def apply_single_step(
     context: StepContext | None = None,
 ) -> tuple[pd.DataFrame, list[str]]:
     """Run one step through the IR and return the frame and its warnings."""
+    from service_transformations.steps.flags import is_enabled, without_flags
+
     step_type = step.step_type
     if step_type not in STEP_APPLY_FUNCTIONS and step_type not in CONTEXT_STEP_APPLY_FUNCTIONS:
         raise BadRequestError(f'Unsupported transformation step "{step_type}".')
 
-    config = dict(step.config or {})
+    if not is_enabled(step.config):
+        # Turned off (E1): the rows pass through, unchecked and unchanged.
+        return dataframe.copy(), []
+    config = without_flags(step.config)
     if step_type == "tool":
         # Already the IR path -- a tool builds its own node over a Scan of the
         # frame and the backend runs it -- with tool-aware warnings ("could not

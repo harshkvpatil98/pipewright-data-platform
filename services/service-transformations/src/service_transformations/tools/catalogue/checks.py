@@ -186,7 +186,7 @@ _declare("assert.matches", "Check values match a pattern", "Every value matches 
          _matches,
          _mark("a code too short", ({"code": "AB12"}, {"code": "A1"}), {"column": "code", "pattern": r"[A-Z]{2}\d{2}"},
                (False, True)),
-         params=(_COLUMN, Param("pattern", "Pattern", ParamKind.TEXT)),
+         params=(_COLUMN, Param("pattern", "Pattern", ParamKind.TEXT, regex=True)),
          synonyms=("assert regex", "pattern check", "format check", "matches"), columns_key="column")
 
 _READS = {
@@ -386,7 +386,7 @@ _declare("assert.schema", "Check the columns", "The data has these columns (each
          "name:number, name:date, name:text, name:true or false), and, if asked, no others.", _schema,
          Example(rows=({"id": 1, "name": "a"},), params={"columns": ["id:number", "name"]}, output="id",
                  expect=(1,), note="Passes: id is a number and name is there."),
-         params=(Param("columns", "Expected columns", ParamKind.LIST, placeholder="id:number\nname:text"),
+         params=(Param("columns", "Expected columns", ParamKind.LIST, placeholder="id:number\nname:text", snapshot=True),
                  Param("extra_allowed", "Other columns are fine", ParamKind.BOOLEAN, required=False, default=True)),
          synonyms=("assert schema", "schema check", "expected columns", "column check", "schema snapshot"),
          rows=False, columns_key=None)

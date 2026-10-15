@@ -91,6 +91,8 @@ def secondary_input_ids(steps: list[dict[str, Any]] | None) -> tuple[tuple[str, 
         config = raw.get("config")
         config = config if isinstance(config, dict) else {}
         step_type = raw.get("step_type")
+        if config.get("_enabled") is False:
+            continue  # a step turned off reads nothing (E1)
         if step_type == "join_datasets":
             dataset_id = config.get("right_dataset_id")
             if isinstance(dataset_id, str) and dataset_id:

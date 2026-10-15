@@ -424,6 +424,9 @@ class AnnotationRead(BaseModel):
     certified_by_username: str | None
     owner_username: str | None
     column_notes: dict[str, str]
+    #: Tags and classifications per column, from the recipe's metadata steps (E1).
+    column_tags: dict[str, list[str]] = Field(default_factory=dict)
+    column_classes: dict[str, dict[str, str]] = Field(default_factory=dict)
 
 
 class GlossaryBinding(BaseModel):

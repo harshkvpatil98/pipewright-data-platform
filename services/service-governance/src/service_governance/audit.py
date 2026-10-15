@@ -64,6 +64,8 @@ READ_ONLY_POSTS = frozenset(
         "/api/v1/projects/{id}/metrics/{id}/preview",
         "/api/v1/projects/{id}/datasets/{id}/pipelines/preview",
         "/api/v1/transformations/tools/preview",
+        "/api/v1/transformations/tools/regex/test",
+        "/api/v1/projects/{id}/pipelines/{id}/merge/preview",
         "/api/v1/projects/{id}/workflows/{id}/backfill/preview",
         "/api/v1/projects/{id}/extraction/connections/{id}/preview",
         "/api/v1/projects/{id}/workbench/preview",

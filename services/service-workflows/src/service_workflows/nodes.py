@@ -134,6 +134,8 @@ def run_transformation_node(config: dict[str, Any], context: NodeContext) -> Nod
         # The workflow reports the overall outcome; per-step notifications would
         # be noise on every run.
         notify_on_complete=False,
+        # The recipe's parameters as this task sets them (E1).
+        parameters=config.get("parameters") if isinstance(config.get("parameters"), dict) else None,
     )
     return NodeResult(
         success=True,

@@ -261,6 +261,14 @@ def _step_lineage(
         input_columns=list(columns),
         output_columns=list(columns),
     )
+    from service_transformations.steps.flags import is_enabled, without_flags
+
+    if not is_enabled(config):
+        # Turned off (E1): the step passes its input through, so it changes
+        # and reads nothing.
+        lineage.notes.append("This step is turned off, so it changes nothing.")
+        return lineage
+    config = without_flags(config)
     handler = _HANDLERS.get(step_type)
     if handler is None:
         lineage.notes.append(

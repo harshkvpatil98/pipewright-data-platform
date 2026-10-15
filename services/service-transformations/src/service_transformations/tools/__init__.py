@@ -111,30 +111,53 @@ def search(query: str, limit: int = 25) -> list[ToolSpec]:
         total = 0
         for word in words:
             best = 0
+            # A single letter is a whole word or nothing: the "t" of "t test"
+            # is not the start of "training".
+            starts = rf"\b{re.escape(word)}\b" if len(word) == 1 else rf"\b{re.escape(word)}"
             for text, weight in haystacks:
                 if text == word:
                     best = max(best, weight + 50)
-                elif re.search(rf"\b{re.escape(word)}", text):
+                elif re.search(starts, text):
                     # A word boundary, not just a substring: "phone" should
                     # find "Standardise a phone number" ahead of a tool whose
                     # summary happens to contain "phonetic".
                     best = max(best, weight + 25)
-                elif word in text:
+                elif len(word) > 1 and word in text:
                     best = max(best, weight)
             if best == 0:
                 total = 0
                 break
             total += best
-        title_words = [word for word in re.split(r"[^a-z0-9]+", spec.title.lower()) if word and word not in _STOPWORDS]
-        if total and words == title_words:
-            # The whole query is the tool's name: "moving average" is Moving
-            # average, ahead of Exponential moving average.
-            total += 200
         if total:
+            total += _phrase_bonus(words, spec)
             scored.append((total, spec))
 
     scored.sort(key=lambda pair: (-pair[0], pair[1].name))
     return [spec for _, spec in scored[:limit]]
+
+
+def _words(text: str) -> list[str]:
+    return [word for word in re.split(r"[^a-z0-9]+", text.lower()) if word and word not in _STOPWORDS]
+
+
+def _phrase_bonus(words: list[str], spec: ToolSpec) -> int:
+    """More for a query that, as a whole, names the tool.
+
+    Every word matching somewhere is the floor; the whole query being the
+    tool's title, a synonym or its own name ("distance" is Distance, not Grow a
+    shape by a distance) is what puts the tool people meant first.
+    """
+    phrase = " ".join(words)
+    title = _words(spec.title)
+    if words == title:
+        # "moving average" is Moving average, ahead of Exponential moving average.
+        return 200
+    if phrase in {" ".join(_words(synonym)) for synonym in spec.synonyms} or phrase == " ".join(
+            _words(spec.name.rsplit(".", 1)[-1])):
+        return 150
+    if len(words) > 1 and re.search(rf"\b{re.escape(phrase)}\b", " ".join(title)):
+        return 60
+    return 0
 
 
 def _load() -> None:
@@ -150,9 +173,11 @@ def _load() -> None:
         conversions,
         datetimes,
         encoding,
+        escape,
         geo,
         lookups,
         matching,
+        metadata,
         ml,
         nested,
         nulls,

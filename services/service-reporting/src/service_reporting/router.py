@@ -539,6 +539,27 @@ def build_router(
     ) -> AnnotationRead:
         return update_annotation(db, project_id, dataset_id, payload, current_user)
 
+    @router.get("/projects/{project_id}/catalog/{dataset_id}/dictionary")
+    def download_data_dictionary(
+        project_id: uuid.UUID,
+        dataset_id: uuid.UUID,
+        format: str = "markdown",
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ):
+        """A dataset's data dictionary, as Markdown or CSV (E1)."""
+        from fastapi import Response
+
+        from service_reporting.service import data_dictionary
+
+        if format not in ("markdown", "csv"):
+            from shared_python.errors import BadRequestError
+
+            raise BadRequestError("A data dictionary comes as markdown or csv.")
+        body, media_type, filename = data_dictionary(db, project_id, dataset_id, current_user, kind=format)
+        return Response(content=body, media_type=media_type,
+                        headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+
     # ---- glossary terms linked to a dataset (from the dataset's side) ----
 
     @router.get(

@@ -36,6 +36,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from service_transformations.steps.context import other_dataset_of
+from service_transformations.steps.flags import REMARKS
 
 import pandas as pd
 
@@ -144,6 +145,13 @@ def step_keys(base: str, steps: list[Any], other_of: Callable[[str, dict[str, An
             keys.append(None)
             continue
         config = dict(step.config or {})
+        if config.get("_enabled") is False:
+            # Turned off: its result is its input's, so it is found under the
+            # same address and turning it on and off again reuses everything.
+            keys.append(previous)
+            continue
+        for remark in REMARKS:  # a note or a group changes nothing the step makes
+            config.pop(remark, None)
         extra = ""
         if other_dataset_of(step.step_type, config):
             extra = other_of(step.step_type, config) if other_of is not None else None

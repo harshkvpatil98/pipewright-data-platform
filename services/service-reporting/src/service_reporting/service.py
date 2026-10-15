@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import secrets
 import time
 import uuid
@@ -1295,7 +1296,119 @@ def _annotation_read(
         certified_by_username=names.get(note.certified_by_user_id) if note.certified_by_user_id else None,
         owner_username=names.get(note.owner_user_id) if note.owner_user_id else None,
         column_notes=dict(note.column_notes_json or {}),
+        column_tags=dict(note.column_tags_json or {}),
+        column_classes=dict(note.column_classes_json or {}),
     )
+
+
+def annotate_from_recipe(db: Session, *, project_id: uuid.UUID, dataset_id: uuid.UUID,
+                         notes: list[dict[str, Any]], user_id: uuid.UUID | None) -> list[str]:
+    """Write what a recipe's metadata steps say to its output's catalogue entry (E1).
+
+    Called after a run stores its output, in the run's transaction. Something
+    that cannot be written (an owner who is not a user, a glossary term that
+    does not exist) is a warning on the run, not a failed run: the data is
+    already right.
+    """
+    from service_auth.models import User
+
+    note = db.scalar(select(CatalogAnnotation).where(CatalogAnnotation.dataset_id == dataset_id))
+    if note is None:
+        note = CatalogAnnotation(project_id=project_id, dataset_id=dataset_id, owner_user_id=user_id)
+        db.add(note)
+        db.flush()
+    warnings: list[str] = []
+    column_notes = dict(note.column_notes_json or {})
+    column_tags = {key: list(value) for key, value in (note.column_tags_json or {}).items()}
+    column_classes = {key: dict(value) for key, value in (note.column_classes_json or {}).items()}
+    for item in notes:
+        tool, column = item.get("tool"), item.get("column")
+        if tool == "meta.describe_column":
+            column_notes[str(column)] = str(item.get("description") or "")
+        elif tool == "meta.tag_column":
+            column_tags[str(column)] = list(dict.fromkeys(
+                str(tag).strip().lower() for tag in item.get("tags") or [] if str(tag).strip()))
+        elif tool == "meta.classify_column":
+            column_classes.setdefault(str(column), {})["classification"] = str(item.get("level"))
+        elif tool == "meta.mark_personal":
+            column_classes.setdefault(str(column), {})["personal"] = str(item.get("kind"))
+        elif tool == "meta.describe_dataset":
+            note.description = str(item.get("description") or "") or None
+        elif tool == "meta.owner":
+            owner = db.scalar(select(User).where(User.username == str(item.get("owner") or "").strip().lower()))
+            if owner is None:
+                warnings.append(f"The recipe names {item.get('owner')!r} as the owner, who is not a user here.")
+            else:
+                note.owner_user_id = owner.id
+        elif tool == "meta.glossary_term":
+            wanted = str(item.get("term") or "").strip()
+            term = db.scalar(select(GlossaryTerm).where(GlossaryTerm.project_id == project_id,
+                                                        GlossaryTerm.slug == slugify(wanted)))
+            if term is None:
+                warnings.append(f"The recipe links {column!r} to the glossary term {wanted!r}, which this project "
+                                "does not have.")
+                continue
+            bindings = list(term.bindings_json or [])
+            binding = {"dataset_id": str(dataset_id), "column": str(column)}
+            if binding not in bindings:
+                term.bindings_json = [*bindings, binding]
+    note.column_notes_json = {k: v for k, v in column_notes.items() if v.strip()} or None
+    note.column_tags_json = {k: v for k, v in column_tags.items() if v} or None
+    note.column_classes_json = column_classes or None
+    db.flush()
+    return warnings
+
+
+def data_dictionary(db: Session, project_id: uuid.UUID, dataset_id: uuid.UUID, current_user: UserRead,
+                    *, kind: str = "markdown") -> tuple[str, str, str]:
+    """A dataset's data dictionary: each column's type, what it means and what is known of its values (E1)."""
+    ensure_owned_project(db, project_id, current_user.id)
+    dataset = _get_dataset(db, project_id, dataset_id)
+    annotation = _annotation_read(db, dataset_id, db.scalar(
+        select(CatalogAnnotation).where(CatalogAnnotation.dataset_id == dataset_id)))
+    terms: dict[str, list[str]] = {}
+    for term in db.scalars(select(GlossaryTerm).where(GlossaryTerm.project_id == project_id)).all():
+        for binding in term.bindings_json or []:
+            if str(binding.get("dataset_id")) == str(dataset_id):
+                terms.setdefault(str(binding.get("column")), []).append(term.term)
+    schema = {str(c.get("name")): c for c in (dataset.schema_json or {}).get("columns") or []}
+    profile = {str(c.get("name")): c for c in (dataset.profile_json or {}).get("columns") or []}
+    order = [str(name) for name in (dataset.schema_json or {}).get("ordered_columns") or schema]
+    rows = []
+    for name in order:
+        column = schema.get(name, {})
+        stats = profile.get(name, {})
+        classes = annotation.column_classes.get(name, {})
+        rows.append({
+            "column": name, "type": column.get("canonical_type") or column.get("inferred_type") or "",
+            "description": annotation.column_notes.get(name, ""),
+            "tags": ", ".join(annotation.column_tags.get(name, [])),
+            "classification": classes.get("classification", ""), "personal data": classes.get("personal", ""),
+            "glossary": ", ".join(terms.get(name, [])),
+            "empty share": "" if stats.get("null_percentage") is None else f"{float(stats['null_percentage']):.1f}%",
+            "distinct values": "" if stats.get("unique_count") is None else f"{int(stats['unique_count']):,}",
+        })
+    safe = re.sub(r"[^A-Za-z0-9._-]+", "_", dataset.name).strip("_") or "dataset"
+    if kind == "csv":
+        import csv
+        import io
+
+        buffer = io.StringIO()
+        writer = csv.DictWriter(buffer, fieldnames=list(rows[0]) if rows else ["column"])
+        writer.writeheader()
+        writer.writerows(rows)
+        return buffer.getvalue(), "text/csv", f"{safe}_dictionary.csv"
+    lines = [f"# {dataset.name}", ""]
+    if annotation.description:
+        lines += [annotation.description, ""]
+    if annotation.owner_username:
+        lines += [f"Owner: {annotation.owner_username}", ""]
+    lines += [f"{dataset.row_count or 0:,} rows, {len(rows):,} columns.", ""]
+    headers = list(rows[0]) if rows else ["column"]
+    lines += ["| " + " | ".join(headers) + " |", "|" + "---|" * len(headers)]
+    for row in rows:
+        lines.append("| " + " | ".join(str(row[h]).replace("|", "\\|") for h in headers) + " |")
+    return "\n".join(lines) + "\n", "text/markdown", f"{safe}_dictionary.md"
 
 
 def update_annotation(
@@ -1609,3 +1722,14 @@ def total_dashboards(db: Session) -> int:
 
 def total_reports(db: Session) -> int:
     return db.scalar(select(func.count(ScheduledReport.id))) or 0
+
+
+def _offer_annotator() -> None:
+    # Reporting owns the catalogue; recipes say what their output is through
+    # this hook, never by importing it (E1).
+    from service_transformations.tools.catalogue.metadata import register_output_annotator
+
+    register_output_annotator(annotate_from_recipe)
+
+
+_offer_annotator()

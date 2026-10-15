@@ -720,6 +720,10 @@ def _typed_exactly(expr: Expr, schema: dict[str, PWType]) -> bool:
         source = expr.value.type_of(schema)
         if expr.to.kind is not Kind.STRING and source.kind in (Kind.STRING, Kind.UNKNOWN):
             return False
+        # A float or a time written as text: 1.0 is "1.0" here and "1" in
+        # PostgreSQL, a date "2026-01-01 00:00:00" here and "2026-01-01" there.
+        if expr.to.kind is Kind.STRING and (source.is_float or source.is_temporal or source.kind is Kind.UNKNOWN):
+            return False
         return _typed_exactly(expr.value, schema)
     if isinstance(expr, Call):
         position = TEMPORAL_ARGUMENT.get(expr.name)

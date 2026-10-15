@@ -8,6 +8,7 @@ from pydantic import model_validator, BaseModel, ConfigDict, Field
 
 from service_datasets.schemas import DatasetDetailRead
 from service_pipeline_runs.schemas import PipelineRunRead
+from service_transformations.parameters import RecipeParameter
 
 
 class TransformationStep(BaseModel):
@@ -22,6 +23,8 @@ class TransformationPipelineCreate(BaseModel):
     description: str | None = Field(default=None, max_length=2000)
     status: Literal["draft", "active"] = "draft"
     steps_json: list[dict[str, Any]] = Field(default_factory=list)
+    #: Values a run is given, {{name}} in any setting (E1).
+    parameters: list[RecipeParameter] = Field(default_factory=list, max_length=50)
 
 
 class TransformationPipelineUpdate(BaseModel):
@@ -59,6 +62,10 @@ class TransformationPipelineRead(BaseModel):
     #: How a run computes: every row, only added rows, or only changed partitions (D2).
     incremental_mode: Literal["full", "append", "partition"] = "full"
     partition_column: str | None = None
+    #: Values a run is given, {{name}} in any setting (E1).
+    parameters: list[dict[str, Any]] = Field(default_factory=list)
+    #: The recipe this was branched from, to merge back into (E1).
+    branched_from_id: uuid.UUID | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -85,6 +92,15 @@ class TransformationPipelineListResponse(BaseModel):
 
 class TransformationPreviewRequest(BaseModel):
     steps: list[dict[str, Any]] = Field(default_factory=list)
+    #: The recipe's parameters as the Studio has them, and values to try (E1).
+    parameters: list[dict[str, Any]] = Field(default_factory=list)
+    parameter_values: dict[str, Any] = Field(default_factory=dict)
+
+
+class TransformationRunRequest(BaseModel):
+    """What a run is given besides the recipe (E1): values for its parameters."""
+
+    parameters: dict[str, Any] = Field(default_factory=dict)
 
 
 class TransformationPreviewSchemaColumn(BaseModel):

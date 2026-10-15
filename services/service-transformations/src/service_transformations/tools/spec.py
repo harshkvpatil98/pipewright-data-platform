@@ -103,6 +103,11 @@ class Param:
     #: Inclusive bounds for NUMBER/INTEGER.
     minimum: float | None = None
     maximum: float | None = None
+    #: A regular expression: the form offers a tester on sample values (E1).
+    regex: bool = False
+    #: A list the form can fill from the data's columns as they are now, as
+    #: name:type lines (a schema snapshot, E1).
+    snapshot: bool = False
 
     def coerce(self, raw: Any) -> Any:
         """Validate one supplied value, or say plainly what is wrong with it."""
@@ -234,6 +239,10 @@ class ToolSpec:
     #: a model's coefficients), not the data's rows, so it may describe even
     #: nothing ("0 values; too few to test").
     describes: bool = False
+    #: What it needs that a deployment may not have ("a web service the
+    #: administrator allows", "the notebook sandbox"); the structural tests do
+    #: not run it, and its own tests run it against that thing.
+    needs: str = ""
 
     def resolve(self, config: dict[str, Any]) -> dict[str, Any]:
         """Validate a supplied config into the parameters ``build`` expects."""

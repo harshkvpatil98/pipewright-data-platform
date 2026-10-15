@@ -46,6 +46,11 @@ def preview_dataset_transformations(
 
     # A preview hands rows to a person, so it starts from what they may see.
     reader = Reader.for_user(db, project_id, current_user)
+    # Parameters are written in first, as a run would (E1).
+    from service_transformations.parameters import resolve
+
+    payload = payload.model_copy(update={"steps": resolve(payload.steps, payload.parameters,
+                                                          payload.parameter_values)})
 
     read: dict[str, int] = {}
 

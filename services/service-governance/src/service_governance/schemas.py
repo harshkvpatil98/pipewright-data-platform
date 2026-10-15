@@ -180,6 +180,8 @@ class CommentCreate(BaseModel):
     parent_id: uuid.UUID | None = None
     #: The cell a new thread on a dataset is about.
     anchor: CellAnchor | None = None
+    #: The step a new thread on a recipe is about (E1), by the step's id.
+    step_id: str | None = Field(default=None, min_length=1, max_length=64)
 
 
 class CommentRead(BaseModel):
@@ -196,6 +198,7 @@ class CommentRead(BaseModel):
     created_at: datetime
     parent_id: uuid.UUID | None = None
     anchor: CellAnchor | None = None
+    step_id: str | None = None
     #: On a thread's first comment, the replies to it, oldest first.
     replies: list["CommentRead"] = Field(default_factory=list)
 

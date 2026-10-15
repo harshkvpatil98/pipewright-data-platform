@@ -174,6 +174,8 @@ class TestExecutionAgreesWithTheLocalPath:
         from service_transformations.executor import apply_transformation_steps
 
         spec = tools.TOOLS[name]
+        if spec.needs:
+            pytest.skip(f"{name} needs {spec.needs}")
         frame = pd.DataFrame(list(spec.example.rows))
         column = spec.example.column or (list(frame.columns)[0] if len(frame.columns) else None)
         config = {"tool": name, **spec.example.params}

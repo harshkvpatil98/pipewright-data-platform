@@ -52,6 +52,8 @@ def suggest_change(
         "name": (payload.name or recipe.name).strip()[:160],
         "description": recipe.description,
         "steps_json": steps,
+        # A suggestion is of steps; the parameters stay as they are (E1).
+        "parameters": list(recipe.parameters_json or []),
     }
     detail = propose_change(
         db,

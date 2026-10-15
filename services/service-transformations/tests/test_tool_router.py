@@ -158,6 +158,17 @@ class TestGeneratedReference:
             " open('docs/transformation-tools.md','w').write(as_markdown())\""
         )
 
+    def test_the_studio_s_search_copy_matches_the_registry(self) -> None:
+        from pathlib import Path
+
+        from service_transformations.tools.docs import search_snapshot
+
+        root = Path(__file__).resolve().parents[3]
+        copy = root / "apps" / "web" / "src" / "features" / "studio" / "tools" / "search-catalogue.json"
+        assert copy.exists() and copy.read_text(encoding="utf-8") == search_snapshot(), (
+            "The Studio's search-catalogue.json is out of date. Regenerate it with:\n"
+            "  python scripts/generate-tool-reference.py")
+
     def test_every_tool_appears_in_it(self) -> None:
         import service_transformations.tools as tools
         from service_transformations.tools.docs import as_markdown

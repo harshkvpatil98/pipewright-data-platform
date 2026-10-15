@@ -573,7 +573,7 @@ _declare("clean.address_part", "Take part of an address", CLEAN, "Take the house
              ["SW1A 2AA", "10118"], {"part": "postcode"}),
          params=(Param("part", "Part", ParamKind.SELECT, default="postcode",
                        options=("house number", "street", "unit", "city", "region", "postcode", "country")),),
-         synonyms=("parse address", "address components", "postcode from address", "city from address", "zip code"),
+         synonyms=("parse address", "address components", "postcode from address", "city from address", "zip code from address"),
          accepts=Accepts.TEXTUAL, warns_lost=False)
 
 

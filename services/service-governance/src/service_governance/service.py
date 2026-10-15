@@ -476,7 +476,8 @@ def _comment_read(row: Comment, names: dict[uuid.UUID, str], replies: list[Comme
         resolved_by_username=names.get(row.resolved_by_user_id) if row.resolved_by_user_id else None,
         created_at=row.created_at,
         parent_id=row.parent_id,
-        anchor=CellAnchor.model_validate(row.anchor_json) if row.anchor_json else None,
+        anchor=CellAnchor.model_validate(row.anchor_json) if row.anchor_json and "column" in row.anchor_json else None,
+        step_id=(row.anchor_json or {}).get("step_id"),
         replies=replies or [],
     )
 
@@ -500,10 +501,18 @@ def add_comment(
         root = parent if parent.parent_id is None else db.get(Comment, parent.parent_id)
         if root is None:
             raise NotFoundError("The comment you are replying to is not here.")
-        if payload.anchor is not None:
-            raise BadRequestError("A reply belongs to its thread's cell; leave the cell out.")
+        if payload.anchor is not None or payload.step_id is not None:
+            raise BadRequestError("A reply belongs to its thread's cell or step; leave it out.")
     if payload.anchor is not None and payload.target_type != "dataset":
         raise BadRequestError("Only a dataset's cells can have a thread.")
+    if payload.step_id is not None and payload.target_type != "pipeline":
+        raise BadRequestError("Only a recipe's steps can have a thread.")
+    if payload.step_id is not None:
+        from service_transformations.models import TransformationPipeline
+
+        recipe = db.get(TransformationPipeline, payload.target_id)
+        if recipe is None or payload.step_id not in (recipe.step_ids_json or []):
+            raise BadRequestError("That step is not in the recipe as it was last saved.")
     if payload.anchor is not None:
         anchor = payload.anchor
         has_key = anchor.row_key_column is not None and anchor.row_key_value is not None
@@ -521,7 +530,8 @@ def add_comment(
         author_user_id=current_user.id,
         mentions_json=mentions or None,
         parent_id=root.id if root is not None else None,
-        anchor_json=payload.anchor.model_dump() if payload.anchor is not None else None,
+        anchor_json=(payload.anchor.model_dump() if payload.anchor is not None
+                     else {"step_id": payload.step_id} if payload.step_id is not None else None),
     )
     db.add(comment)
     if root is not None and root.resolved_at is not None:

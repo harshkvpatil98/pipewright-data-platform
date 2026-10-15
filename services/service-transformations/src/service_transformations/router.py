@@ -20,6 +20,7 @@ from service_transformations.preview import preview_dataset_transformations
 from service_transformations.recipe_suggestions import RecipeSuggestion, suggest_change
 from service_transformations.replay import replay_pipeline_run
 from service_transformations.run import run_saved_transformation_pipeline
+from service_transformations import recipe_management as manage
 from service_transformations.schemas import (
     IncrementalSettings,
     ReplayResult,
@@ -27,6 +28,7 @@ from service_transformations.schemas import (
     TransformationPipelineListResponse,
     TransformationPipelineRead,
     TransformationPreviewRequest,
+    TransformationRunRequest,
     TransformationPreviewResponse,
     TransformationPipelineUpdate,
     TransformationRunResponse,
@@ -81,6 +83,35 @@ def _json_safe(value: Any) -> Any:
     except (TypeError, ValueError):
         pass
     return value
+
+
+class RegexTestRequest(BaseModel):
+    pattern: str = Field(max_length=2000)
+    values: list[str] = Field(default_factory=list, max_length=50)
+    replacement: str | None = Field(default=None, max_length=2000)
+
+
+class RegexTestResult(BaseModel):
+    value: str
+    matched: bool
+    spans: list[list[int]]
+    groups: list[str]
+    replaced: str | None
+
+
+class RegexTestResponse(BaseModel):
+    valid: bool
+    error: str | None
+    results: list[RegexTestResult]
+
+
+class TokenRevealRequest(BaseModel):
+    token: str = Field(min_length=5, max_length=10_000)
+    key_name: str = Field(default="default", min_length=1, max_length=100)
+
+
+class TokenRevealResponse(BaseModel):
+    value: str
 
 
 def build_router(
@@ -301,6 +332,7 @@ def build_router(
     def post_run_transformation_pipeline(
         project_id: uuid.UUID,
         pipeline_id: uuid.UUID,
+        payload: TransformationRunRequest | None = None,
         db: Session = Depends(get_db),
         current_user: UserRead = Depends(get_current_user),
         storage_backend = Depends(_get_storage_backend),
@@ -312,6 +344,7 @@ def build_router(
             current_user=current_user,
             storage_backend=storage_backend,
             settings=settings,
+            parameters=payload.parameters if payload is not None else None,
         )
 
     @router.post(
@@ -416,6 +449,113 @@ def build_router(
     ) -> ChangeRequestDetail:
         """Suggest a change to a recipe for someone who may edit it to accept or decline."""
         return suggest_change(db, project_id, pipeline_id, payload, current_user)
+
+    # ------------------------------------------------------ the regex tester (E1)
+
+    @router.post('/transformations/tools/regex/test', response_model=RegexTestResponse)
+    def post_regex_test(payload: RegexTestRequest,
+                        current_user: UserRead = Depends(get_current_user)) -> RegexTestResponse:
+        """Try a pattern on sample values with the engine's own regular expressions (Python's), which
+        differ from a browser's in places (named groups, lookbehind), so the Studio asks here."""
+        import re
+
+        try:
+            pattern = re.compile(payload.pattern)
+        except re.error as exc:
+            return RegexTestResponse(valid=False, error=f"That pattern will not compile: {exc}.", results=[])
+        results = []
+        for value in payload.values[:50]:
+            text = value[:500]
+            matches = list(pattern.finditer(text))
+            first = matches[0] if matches else None
+            results.append(RegexTestResult(
+                value=text, matched=bool(matches), spans=[[m.start(), m.end()] for m in matches[:20]],
+                groups=[g if g is not None else "" for g in first.groups()] if first else [],
+                replaced=pattern.sub(payload.replacement, text) if payload.replacement is not None else None,
+            ))
+        return RegexTestResponse(valid=True, error=None, results=results)
+
+    # --------------------------------------------- revealing a reversible token (E1)
+
+    @router.post('/transformations/tokens/reveal', response_model=TokenRevealResponse)
+    def post_token_reveal(payload: TokenRevealRequest,
+                          current_user: UserRead = Depends(get_current_user)) -> TokenRevealResponse:
+        """Turn a reversible token back into its value. A deployment administrator only; the request is
+        in the audit log like every write."""
+        from shared_python.errors import ForbiddenError
+        from shared_python.security.reversible_tokens import reveal
+
+        if current_user.role != "admin":
+            raise ForbiddenError("Only an administrator of this deployment can reveal a token.")
+        return TokenRevealResponse(value=reveal(payload.token, payload.key_name))
+
+    # ------------------------------------------------------ managing recipes (E1)
+
+    @router.put('/projects/{project_id}/pipelines/{pipeline_id}/parameters', response_model=TransformationPipelineRead)
+    def put_recipe_parameters(project_id: uuid.UUID, pipeline_id: uuid.UUID, payload: manage.ParametersUpdate,
+                              db: Session = Depends(get_db),
+                              current_user: UserRead = Depends(get_current_user)) -> TransformationPipelineRead:
+        from service_transformations.service import _serialize_pipeline
+
+        return _serialize_pipeline(manage.set_parameters(db, project_id=project_id, pipeline_id=pipeline_id,
+                                                         payload=payload, current_user=current_user))
+
+    @router.get('/projects/{project_id}/recipe-templates', response_model=manage.TemplateListResponse)
+    def get_saved_templates(project_id: uuid.UUID, db: Session = Depends(get_db),
+                            current_user: UserRead = Depends(get_current_user)) -> manage.TemplateListResponse:
+        return manage.list_templates(db, project_id=project_id, current_user=current_user)
+
+    @router.post('/projects/{project_id}/recipe-templates', response_model=manage.TemplateRead,
+                 status_code=status.HTTP_201_CREATED)
+    def post_saved_template(project_id: uuid.UUID, payload: manage.TemplateCreate, db: Session = Depends(get_db),
+                            current_user: UserRead = Depends(get_current_user)) -> manage.TemplateRead:
+        return manage.create_template(db, project_id=project_id, payload=payload, current_user=current_user)
+
+    @router.delete('/projects/{project_id}/recipe-templates/{template_id}', status_code=status.HTTP_204_NO_CONTENT)
+    def delete_saved_template(project_id: uuid.UUID, template_id: uuid.UUID, db: Session = Depends(get_db),
+                              current_user: UserRead = Depends(get_current_user)) -> None:
+        manage.delete_template(db, project_id=project_id, template_id=template_id, current_user=current_user)
+
+    @router.post('/projects/{project_id}/pipelines/{pipeline_id}/branch', response_model=TransformationPipelineRead,
+                 status_code=status.HTTP_201_CREATED)
+    def post_branch(project_id: uuid.UUID, pipeline_id: uuid.UUID, payload: manage.BranchCreate,
+                    db: Session = Depends(get_db),
+                    current_user: UserRead = Depends(get_current_user)) -> TransformationPipelineRead:
+        from service_transformations.service import _serialize_pipeline
+
+        return _serialize_pipeline(manage.branch(db, project_id=project_id, pipeline_id=pipeline_id, payload=payload,
+                                                 current_user=current_user))
+
+    @router.post('/projects/{project_id}/pipelines/{pipeline_id}/merge', response_model=manage.MergeResult)
+    def post_merge(project_id: uuid.UUID, pipeline_id: uuid.UUID, payload: manage.MergeRequest,
+                   db: Session = Depends(get_db),
+                   current_user: UserRead = Depends(get_current_user)) -> manage.MergeResult:
+        return manage.merge(db, project_id=project_id, branch_id=pipeline_id, payload=payload,
+                            current_user=current_user)
+
+    @router.post('/projects/{project_id}/pipelines/{pipeline_id}/merge/preview', response_model=manage.MergeResult)
+    def post_merge_preview(project_id: uuid.UUID, pipeline_id: uuid.UUID, payload: manage.MergeRequest,
+                           db: Session = Depends(get_db),
+                           current_user: UserRead = Depends(get_current_user)) -> manage.MergeResult:
+        """What merging would do, and what conflicts, without merging."""
+        return manage.merge(db, project_id=project_id, branch_id=pipeline_id, payload=payload,
+                            current_user=current_user, preview=True)
+
+    @router.post('/projects/{project_id}/pipelines/{pipeline_id}/copy', response_model=manage.CopyResult,
+                 status_code=status.HTTP_201_CREATED)
+    def post_copy(project_id: uuid.UUID, pipeline_id: uuid.UUID, payload: manage.CopyRequest,
+                  db: Session = Depends(get_db),
+                  current_user: UserRead = Depends(get_current_user)) -> manage.CopyResult:
+        return manage.copy_to(db, project_id=project_id, pipeline_id=pipeline_id, payload=payload,
+                              current_user=current_user)
+
+    @router.post('/projects/{project_id}/pipelines/{pipeline_id}/split', response_model=manage.SplitResult,
+                 status_code=status.HTTP_201_CREATED)
+    def post_split(project_id: uuid.UUID, pipeline_id: uuid.UUID, payload: manage.SplitRequest,
+                   db: Session = Depends(get_db), current_user: UserRead = Depends(get_current_user),
+                   storage_backend = Depends(_get_storage_backend)) -> manage.SplitResult:
+        return manage.split(db, project_id=project_id, pipeline_id=pipeline_id, payload=payload,
+                            current_user=current_user, storage_backend=storage_backend)
 
     return router
 

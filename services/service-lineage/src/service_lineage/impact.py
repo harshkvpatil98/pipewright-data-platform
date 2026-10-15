@@ -221,6 +221,8 @@ def secondary_input_impact(
         raw = raw if isinstance(raw, dict) else {}
         step_type = raw.get("step_type")
         config = raw.get("config") if isinstance(raw.get("config"), dict) else {}
+        if config.get("_enabled") is False:
+            continue  # turned off, so nothing it would read can break it (E1)
 
         if step_type == "join_datasets" and config.get("right_dataset_id") == dataset_id:
             keys = [name for name in _string_list(config.get("right_on")) if name in wanted]

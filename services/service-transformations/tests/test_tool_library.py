@@ -77,6 +77,8 @@ def predict(frame: pd.DataFrame, config: dict):
 def run(spec: tools.ToolSpec, frame: pd.DataFrame) -> pd.DataFrame:
     from service_transformations.tools.catalogue.checks import CheckFailed
 
+    if spec.needs:
+        pytest.skip(f"{spec.name} needs {spec.needs}; test_tools_e1_code.py runs it against one")
     try:
         result, _ = apply_tool(frame, config_for(spec, frame))
     except CheckFailed:
@@ -334,6 +336,8 @@ class TestCompilesToIR:
         if spec.dynamic_columns:
             pytest.skip(f"{name}'s columns come from its values, which lineage says it cannot know")
         predicted = list(build(frame, config).schema())
+        if spec.needs:
+            pytest.skip(f"{name} needs {spec.needs}")
         actual = list(apply_tool(frame, config)[0].columns)
         assert predicted == actual, f"{name}: lineage would report {predicted}, got {actual}"
 
@@ -356,6 +360,8 @@ class TestLineageMatchesTheEngine:
         if spec.dynamic_columns:
             assert predicted.dynamic, f"{name} gives columns from its values; lineage must say it cannot know them"
             return
+        if spec.needs:
+            pytest.skip(f"{name} needs {spec.needs}")
         actual = list(apply_tool(frame, config)[0].columns)
         assert predicted.output_columns == actual, (
             f"{name}: lineage says {predicted.output_columns}, engine produced {actual}"

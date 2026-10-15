@@ -69,3 +69,11 @@ def watching_reads() -> Iterator[list[bool]]:
         yield reads
     finally:
         _READS.reset(token)
+
+
+def note_outside_read() -> None:
+    """Say a result depends on something outside the data (a web service), as a
+    clock read does: what it gave cannot be kept and reused (E1)."""
+    reads = _READS.get()
+    if reads is not None:
+        reads.append(True)

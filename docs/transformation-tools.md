@@ -1,6 +1,6 @@
 # Transformation tools
 
-363 tools across 20 categories. Every one compiles to the
+379 tools across 22 categories. Every one compiles to the
 relational IR, so every one gets type inference, column lineage and
 pushdown without a second implementation.
 
@@ -16,14 +16,16 @@ test suite, so this file cannot describe behaviour the code does not have.
 - [Join & combine](#join--combine) (6)
 - [Type & conversion](#type--conversion) (14)
 - [Encoding & privacy](#encoding--privacy) (17)
-- [Geospatial](#geospatial) (15)
+- [Code & escape hatches](#code--escape-hatches) (6)
+- [Geospatial](#geospatial) (17)
 - [Enrichment & lookup](#enrichment--lookup) (6)
 - [Deduplication & matching](#deduplication--matching) (8)
+- [Metadata & documentation](#metadata--documentation) (7)
 - [Machine learning](#machine-learning) (18)
 - [Nested data](#nested-data) (6)
 - [Missing data](#missing-data) (11)
 - [Numeric](#numeric) (30)
-- [Rows](#rows) (16)
+- [Rows](#rows) (17)
 - [Sampling & splitting](#sampling--splitting) (10)
 - [Statistics](#statistics) (27)
 - [Reshape](#reshape) (3)
@@ -114,7 +116,7 @@ Offered on **temporal** columns.
 
 True on the public holidays of a country (and region), from each country's published rules.
 
-Also known as: _is holiday_, _bank holiday_, _public holiday_, _holiday calendar_
+Also known as: _is holiday_, _holiday_, _bank holiday_, _public holiday_, _holiday calendar_
 
 Offered on **temporal** columns.
 
@@ -1322,7 +1324,7 @@ Offered on **textual** columns.
 
 Apply the country's usual spacing and padding.
 
-Also known as: _zip_, _postcode_
+Also known as: _zip_, _zip code_, _postcode_
 
 Offered on **textual** columns.
 
@@ -1499,7 +1501,7 @@ Offered on **textual** columns.
 
 Take the house number, street, unit, city, region, postcode or country from an address written on one line with commas, by UK and US rules (a UK postcode, a US state and ZIP code). A part it cannot find is empty; other countries' addresses mostly give the street and city only.
 
-Also known as: _parse address_, _address components_, _postcode from address_, _city from address_, _zip code_
+Also known as: _parse address_, _address components_, _postcode from address_, _city from address_, _zip code from address_
 
 Offered on **textual** columns.
 
@@ -2495,7 +2497,153 @@ Also known as: _uuid_, _guid_, _generate id_, _unique id_, _row id_
 | `a@x.com` | `f0a85006-e7b0-5ef7-82fc-c74a2f8ecb05` |
 
 
+## Code & escape hatches
+
+### Transform with SQL
+
+`code.sql`
+
+Write a SELECT over the data at this step, called input: filters, new columns, groups, joins of input with itself and window functions. It is checked and pushed down like any step, and its columns are known before it runs.
+
+Also known as: _sql step_, _sql_, _query_, _select_, _custom sql_, _write sql_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| SELECT | text | yes | none |
+
+| `region` | `sales` |
+|---|---|
+| `n` | `11` |
+| `s` | `5` |
+
+### Transform with Python
+
+`code.python`
+
+Run Python on the rows, as a pandas DataFrame called data; what it leaves in result (or data) goes on. It runs in the notebook's sandbox, with its limits on memory, time, imports and the network, and is turned off where those limits cannot be held.
+
+Also known as: _python step_, _python_, _pandas_, _custom code_, _script_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Python | text | yes | none |
+
+_Adds a column double from v. Runs only where the sandbox is usable._
+
+### Query JSON (jq)
+
+`code.json_query`
+
+Take values out of JSON text with a jq-style query: paths (.customer.id), positions (.items[0]), every element (.items[]), pipes, and length, keys, values, first, last, join(", "), map(.name) and tostring. Several answers come back as a JSON list.
+
+Also known as: _jq_, _json query_, _json path_, _extract json_, _jmespath_
+
+Offered on **textual** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Query | text | yes | none |
+
+| `j` | `j` |
+|---|---|
+| `{"items": [{"sku": "a"}, {"sku": "b"}]}` | `a, b` |
+| `{}` | _(empty)_ |
+
+### Look up in a small table
+
+`code.lookup_table`
+
+Replace values from a table written here, value=replacement on each line (codes to names), keeping or emptying what is not listed, or writing a default. Pushes down.
+
+Also known as: _lookup table inline_, _map values_, _code to name_, _translate codes_, _mapping table_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Table | list | yes | none |
+| For anything else | text | no | none |
+| Keep values not listed | boolean | no | `True` |
+
+| `c` | `c` |
+|---|---|
+| `GB` | `United Kingdom` |
+| `FR` | `France` |
+| `XX` | `Other` |
+
+### Write text from a template
+
+`code.template`
+
+Write a new text column from a template with {column} where each column's value goes (an empty value writes nothing; {{ and }} write braces): an email greeting, a label, a URL.
+
+Also known as: _template render_, _mail merge_, _format string_, _string template_, _build text_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Template | text | yes | none |
+| New column | text | no | none |
+
+| `first` | `text` |
+|---|---|
+| `Ana` | `Dear Ana of Leeds` |
+| `Ben` | `Dear Ben of ` |
+
+### Look up each value in a web service
+
+`code.http_enrich`
+
+Call a web service once for each different value (GET with {value} in the address, or POST a JSON body) and keep part of its JSON answer, picked with a jq-style query. Only hosts an administrator allows; a secret comes from the server's own settings, never the recipe. The run says how many calls it made.
+
+Also known as: _http enrich_, _api lookup_, _call api_, _web service_, _rest lookup_, _enrich from api_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Address | text | yes | none |
+| Method | `GET` / `POST` | no | `GET` |
+| Body for POST | text | no | none |
+| Keep from the answer | text | no | `.` |
+| Secret to send | text | no | none |
+| | The name of a secret in the server's ENRICHMENT_SECRETS. | | |
+| Send it in the header | text | no | `Authorization` |
+| New column | text | no | none |
+
+_Each different sku is fetched once and its name kept._
+
+
 ## Geospatial
+
+### Find places from addresses
+
+`geo.geocode`
+
+The latitude and longitude of each address, from the Nominatim-style geocoding service an administrator sets (GEOCODER_URL), one call per different address, at most one a second to OpenStreetMap's own server as it asks.
+
+Also known as: _geocode_, _address to coordinates_, _lat long from address_, _find location_
+
+Offered on **textual** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Only in country | text | no | none |
+| Start the new names with | text | no | none |
+
+_Latitude and longitude columns, from the configured geocoder._
+
+### Find addresses from places
+
+`geo.reverse_geocode`
+
+The address (or its city, postcode or country) of each latitude and longitude, from the configured geocoding service.
+
+Also known as: _reverse geocode_, _coordinates to address_, _address from lat long_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Latitude | column | yes | none |
+| Longitude | column | yes | none |
+| Give | `address` / `city` / `postcode` / `country` / `country code` | no | `address` |
+| New column | text | no | none |
+
+_An address column, from the configured geocoder._
 
 ### Distance between two places
 
@@ -3130,6 +3278,140 @@ Also known as: _golden record_, _master record_, _single customer view_, _entity
 |---|---|
 | `Acme Ltd` | `Leeds` |
 | `ACME Limited` | `York` |
+
+
+## Metadata & documentation
+
+### Describe a column
+
+`meta.describe_column`
+
+Say what a column of the output means; each run writes it to the dataset's catalogue entry.
+
+Also known as: _set column description_, _document column_, _column comment_, _describe field_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Column | column | yes | none |
+| Description | text | yes | none |
+
+| `email` | `email` |
+|---|---|
+| `a@x.com` | `a@x.com` |
+
+_The rows pass through; the description goes on the output's catalogue entry._
+
+### Tag a column
+
+`meta.tag_column`
+
+Give a column of the output tags (finance, gdpr, kpi), written to its catalogue entry each run.
+
+Also known as: _set column tags_, _label column_, _tag field_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Column | column | yes | none |
+| Tags | list | yes | none |
+
+| `email` | `email` |
+|---|---|
+| `a@x.com` | `a@x.com` |
+
+_The rows pass through; the tags go on the column in the catalogue._
+
+### Classify a column
+
+`meta.classify_column`
+
+Say how sensitive a column of the output is: public, internal, confidential or restricted.
+
+Also known as: _set column classification_, _sensitivity_, _data classification_, _confidential_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Column | column | yes | none |
+| Classification | `public` / `internal` / `confidential` / `restricted` | yes | `internal` |
+
+| `email` | `email` |
+|---|---|
+| `a@x.com` | `a@x.com` |
+
+_The rows pass through; the classification goes on the column in the catalogue._
+
+### Mark personal data
+
+`meta.mark_personal`
+
+Say a column of the output holds personal data, and of what kind, for the catalogue, retention and erasure requests to find; who may see it is set by policies.
+
+Also known as: _mark column pii_, _pii_, _gdpr_, _personal data_, _sensitive personal_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Column | column | yes | none |
+| Kind | `email address` / `phone number` / `name` / `postal address` / `date of birth` / `government id` / `financial account` / `location` / `online identifier` / `other personal data` | yes | `email address` |
+
+| `email` | `email` |
+|---|---|
+| `a@x.com` | `a@x.com` |
+
+_The rows pass through; the marking goes on the column in the catalogue._
+
+### Link a column to a glossary term
+
+`meta.glossary_term`
+
+Bind a column of the output to a term in the project's glossary (revenue, active customer), so the term knows where its data is.
+
+Also known as: _link to glossary term_, _business glossary_, _definition_, _semantic term_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Column | column | yes | none |
+| Glossary term | text | yes | none |
+
+| `email` | `email` |
+|---|---|
+| `a@x.com` | `a@x.com` |
+
+_The rows pass through; the term is bound to the output's column._
+
+### Set the dataset's owner
+
+`meta.owner`
+
+Name the person who answers for the output dataset, by their username; written to its catalogue entry each run.
+
+Also known as: _set dataset owner_, _data owner_, _steward_, _responsible person_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Owner's username | text | yes | none |
+
+| `email` | `email` |
+|---|---|
+| `a@x.com` | `a@x.com` |
+
+_The rows pass through; the owner goes on the output's catalogue entry._
+
+### Describe the dataset
+
+`meta.describe_dataset`
+
+Say what the output dataset is for; written to its catalogue entry each run.
+
+Also known as: _dataset description_, _document dataset_, _readme_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Description | text | yes | none |
+
+| `email` | `email` |
+|---|---|
+| `a@x.com` | `a@x.com` |
+
+_The rows pass through; the description goes on the output's catalogue entry._
 
 
 ## Machine learning
@@ -4426,6 +4708,23 @@ Also known as: _filter_, _where_, _exclude_, _remove rows_
 | `region` | `region` |
 |---|---|
 | `eu` | `eu` |
+
+### Keep rows where a formula holds
+
+`rows.filter_formula`
+
+Keep, or drop, the rows where a formula is true, such as AND([amount] > 100, [region] = "eu"); a row where it is empty is not kept.
+
+Also known as: _filter formula_, _filter by formula_, _where clause_, _custom filter_, _filter expression_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Formula | text | yes | none |
+| Then | `keep` / `exclude` | yes | `keep` |
+
+| `amount` | `amount` |
+|---|---|
+| `50` | `150` |
 
 ### Keep the first rows
 
@@ -6356,7 +6655,7 @@ Also known as: _rank without gaps_, _dense_
 
 Where a row sits in its group, from 0 (first) to 1 (last).
 
-Also known as: _percentile rank_, _relative rank_
+Also known as: _percentile rank_, _percentile_, _relative rank_
 
 | Setting | Type | Required | Default |
 |---|---|---|---|

@@ -722,3 +722,33 @@ def describe() -> dict[str, Any]:
             "cpu_seconds": DEFAULT_CPU_SECONDS,
         },
     }
+
+
+# --------------------------------------------------- the recipe's Python step
+
+
+def run_recipe_step(code: str, frame: Any) -> Any:
+    """A recipe's Python step (E1): the rows as `data`; `result` (or `data`) goes on.
+
+    The same gate and the same limits as a notebook cell: where the sandbox
+    cannot hold them the step is refused with the reason, never run unsafely.
+    """
+    require_usable()
+    outcome = run(code, {"data": frame})
+    if not outcome.ok:
+        raise BadRequestError(f"The Python step stopped: {outcome.error}")
+    produced = outcome.frames.get("result")
+    if produced is None:
+        produced = outcome.frames.get("data")
+    if produced is None:
+        raise BadRequestError("The Python step left no table in result or data.")
+    return produced.reset_index(drop=True)
+
+
+def _offer_to_recipes() -> None:
+    from service_transformations.tools.catalogue.escape import register_python_runner
+
+    register_python_runner(run_recipe_step)
+
+
+_offer_to_recipes()

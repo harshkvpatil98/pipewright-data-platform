@@ -79,6 +79,21 @@ def _parameters(spec: ToolSpec) -> list[str]:
     return lines
 
 
+def search_snapshot() -> str:
+    """What a search reads of every tool, as JSON, in registry order (E1).
+
+    Checked in beside the Studio, whose tests rank the everyday searches
+    against the real catalogue the way the server does.
+    """
+    import json
+
+    from service_transformations.tools import TOOLS
+
+    items = [{"name": spec.name, "title": spec.title, "category": spec.category, "summary": spec.summary,
+              "synonyms": list(spec.synonyms)} for spec in TOOLS.values()]
+    return json.dumps(items, indent=1, ensure_ascii=False) + "\n"
+
+
 def as_markdown() -> str:
     """The whole catalogue, grouped by category."""
     total = len(TOOLS)
@@ -133,6 +148,7 @@ def as_json() -> list[dict[str, Any]]:
             "column_scoped": spec.column_scoped,
             "local_only": spec.local_only,
             "reads_dataset": spec.reads_dataset,
+            "needs": spec.needs,
             "params": [
                 {
                     "key": param.key,
@@ -145,6 +161,8 @@ def as_json() -> list[dict[str, Any]]:
                     "placeholder": param.placeholder,
                     "minimum": param.minimum,
                     "maximum": param.maximum,
+                    "regex": param.regex,
+                    "snapshot": param.snapshot,
                 }
                 for param in spec.params
             ],

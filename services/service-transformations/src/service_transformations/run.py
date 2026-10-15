@@ -96,9 +96,11 @@ def _step_dataset_pins(db: Session, steps_json: list[dict[str, Any]]) -> list[Ve
     pins: list[VersionPin] = []
     from service_transformations.steps.context import other_dataset_of
 
+    from service_transformations.steps.flags import step_enabled
+
     for index, step in enumerate(steps_json or [], start=1):
         raw = other_dataset_of(step.get("step_type") or step.get("type"), step.get("config") or {})
-        if raw:
+        if raw and step_enabled(step):
             try:
                 pins.append(head_pin(db, uuid.UUID(str(raw)), role="step"))
             except (ValueError, ApplicationError):
@@ -143,6 +145,7 @@ def run_saved_transformation_pipeline(
     settings: Any,
     notify_on_complete: bool = True,
     replay: ReplayPlan | None = None,
+    parameters: dict[str, Any] | None = None,
 ) -> TransformationRunResponse:
     ensure_owned_project(db, project_id, current_user.id)
     pipeline = get_transformation_pipeline_for_project(db, project_id, pipeline_id)
@@ -168,7 +171,11 @@ def run_saved_transformation_pipeline(
         # does, through ReplayPlan; a caller wanting several runs to share an
         # instant can too). Either way the run evaluates at exactly this value.
         evaluated_at = evaluation_instant()
-        steps_json = pipeline.steps_json
+        # Parameters are written in before anything else, so the run records,
+        # and a replay repeats, the steps exactly as they ran (E1).
+        from service_transformations.parameters import resolve
+
+        steps_json = resolve(list(pipeline.steps_json or []), pipeline.parameters_json, parameters)
         input_pins = [head_pin(db, base_dataset.id, role="base")]
         step_overrides = None
         run_type = "dataset_transformation"
@@ -530,6 +537,13 @@ def run_saved_transformation_pipeline(
                 "stored_file_name": stored.file_name,
             },
         }
+
+        # What the recipe's metadata steps say about its output (E1).
+        from service_transformations.tools.catalogue.metadata import apply_to_output
+
+        summary_json["warnings"] = [*warnings, *apply_to_output(
+            db, project_id=project_id, dataset_id=derived_dataset.id, steps=list(steps_json or []),
+            user_id=current_user.id)]
 
         log_events.append(_log_event("succeeded", "Finished."))
         run_read = mark_pipeline_run_succeeded(

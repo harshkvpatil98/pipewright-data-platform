@@ -60,7 +60,7 @@ simple("clean.url_part", "Part of a URL", CATEGORY,
 
 simple("clean.postal_code", "Standardise a postal code", CATEGORY,
        "Apply the country's usual spacing and padding.", "standardise_postal_code",
-       synonyms=("zip", "postcode"),
+       synonyms=("zip", "zip code", "postcode"),
        params=(Param("region", "Country", ParamKind.SELECT, default="US", options=REGIONS),),
        extra_args=lambda p: (lit(p["region"]),),
        example=_ex(["1234"], ["01234"], {"region": "US"}))

@@ -117,6 +117,11 @@ def _compile_tool(node: Node, config: dict[str, Any]) -> Node:
 
 def compile_step(node: Node, step_type: str, config: dict[str, Any]) -> Node:
     """Wrap ``node`` in whatever the step means. Raises on an unknown type."""
+    from service_transformations.steps.flags import is_enabled, without_flags
+
+    if not is_enabled(config):
+        return node  # turned off: its input passes through (E1)
+    config = without_flags(config)
     if step_type == "tool":
         return _compile_tool(node, config)
     handler = _HANDLERS.get(step_type)

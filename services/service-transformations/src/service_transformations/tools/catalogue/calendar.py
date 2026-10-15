@@ -165,7 +165,7 @@ _declare("date.is_holiday", "Is a public holiday", "True on the public holidays 
          "each country's published rules.", column_extension("date.is_holiday", BOOLEAN, _holiday(False),
                                                              keys=("country", "region")),
          _ex(["2026-12-25", "2026-12-23"], [True, False], {"country": "GB", "region": "ENG"}),
-         params=(_COUNTRY, _REGION), synonyms=("is holiday", "bank holiday", "public holiday", "holiday calendar"))
+         params=(_COUNTRY, _REGION), synonyms=("is holiday", "holiday", "bank holiday", "public holiday", "holiday calendar"))
 _declare("date.holiday_name", "Name of the public holiday", "The name of the public holiday on that day, or "
          "empty.", column_extension("date.holiday_name", STRING, _holiday(True), keys=("country", "region")),
          _ex(["2026-12-25", "2026-12-23"], ["Christmas Day", None], {"country": "GB", "region": "ENG"}),

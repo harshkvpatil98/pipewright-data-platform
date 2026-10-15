@@ -1,0 +1,4287 @@
+[
+ {
+  "name": "date.add_interval",
+  "title": "Add time",
+  "category": "Date & time",
+  "summary": "Add an amount of seconds, minutes, hours, days, weeks, months, quarters or years (a month added to 31 January is 28 or 29 February).",
+  "synonyms": [
+   "add interval",
+   "plus hours",
+   "add hours",
+   "date add",
+   "shift time"
+  ]
+ },
+ {
+  "name": "date.subtract_interval",
+  "title": "Subtract time",
+  "category": "Date & time",
+  "summary": "Take away an amount of seconds, minutes, hours, days, weeks, months, quarters or years.",
+  "synonyms": [
+   "subtract interval",
+   "minus days",
+   "go back",
+   "date sub",
+   "earlier by"
+  ]
+ },
+ {
+  "name": "date.from_timezone",
+  "title": "Read as a time zone",
+  "category": "Date & time",
+  "summary": "Say which time zone times without one were written in, so they become exact moments (a time that the clocks skipped, or passed twice, is empty).",
+  "synonyms": [
+   "from timezone",
+   "localise",
+   "set time zone",
+   "assume time zone"
+  ]
+ },
+ {
+  "name": "date.to_utc",
+  "title": "Convert to UTC",
+  "category": "Date & time",
+  "summary": "Write moments in UTC. Times without a zone are read in the zone given (or as UTC already when none is).",
+  "synonyms": [
+   "to utc",
+   "utc",
+   "gmt",
+   "zulu",
+   "normalise time zone"
+  ]
+ },
+ {
+  "name": "date.is_holiday",
+  "title": "Is a public holiday",
+  "category": "Date & time",
+  "summary": "True on the public holidays of a country (and region), from each country's published rules.",
+  "synonyms": [
+   "is holiday",
+   "holiday",
+   "bank holiday",
+   "public holiday",
+   "holiday calendar"
+  ]
+ },
+ {
+  "name": "date.holiday_name",
+  "title": "Name of the public holiday",
+  "category": "Date & time",
+  "summary": "The name of the public holiday on that day, or empty.",
+  "synonyms": [
+   "holiday name",
+   "which holiday"
+  ]
+ },
+ {
+  "name": "date.fiscal_period",
+  "title": "Fiscal month",
+  "category": "Date & time",
+  "summary": "Which month of the financial year (1 to 12), for a year starting in the month given.",
+  "synonyms": [
+   "fiscal period",
+   "financial month",
+   "fiscal month",
+   "period number"
+  ]
+ },
+ {
+  "name": "date.spine",
+  "title": "Make a calendar of dates",
+  "category": "Date & time",
+  "summary": "Replace the rows with one row for every day (or week, month, quarter, year) from this column's earliest date to its latest, or between dates you give: a calendar to join other data to, with no day missing.",
+  "synonyms": [
+   "date spine",
+   "calendar table",
+   "all dates",
+   "date range",
+   "generate dates",
+   "date dimension"
+  ]
+ },
+ {
+  "name": "date.fill_missing",
+  "title": "Add rows for missing dates",
+  "category": "Date & time",
+  "summary": "Add a row for each date a series skipped, between its first and last date (within each group), with the other columns empty; optionally a column saying which rows were added.",
+  "synonyms": [
+   "fill missing dates",
+   "complete dates",
+   "gap fill dates",
+   "missing days",
+   "densify"
+  ]
+ },
+ {
+  "name": "assert.not_empty",
+  "title": "Check nothing is empty",
+  "category": "Validation",
+  "summary": "Every row has a value in these columns.",
+  "synonyms": [
+   "assert not null",
+   "required",
+   "not empty",
+   "mandatory",
+   "no blanks"
+  ]
+ },
+ {
+  "name": "assert.in_set",
+  "title": "Check values are from a list",
+  "category": "Validation",
+  "summary": "Every value of the column is one of these (empty values pass; check them with Check nothing is empty).",
+  "synonyms": [
+   "assert in set",
+   "allowed values",
+   "accepted values",
+   "enum check"
+  ]
+ },
+ {
+  "name": "assert.in_range",
+  "title": "Check numbers are in a range",
+  "category": "Validation",
+  "summary": "Every value is a number at least the lowest and at most the highest given.",
+  "synonyms": [
+   "assert range",
+   "between",
+   "bounds",
+   "min max check"
+  ]
+ },
+ {
+  "name": "assert.matches",
+  "title": "Check values match a pattern",
+  "category": "Validation",
+  "summary": "Every value matches a regular expression in full.",
+  "synonyms": [
+   "assert regex",
+   "pattern check",
+   "format check",
+   "matches"
+  ]
+ },
+ {
+  "name": "assert.type",
+  "title": "Check values are of a type",
+  "category": "Validation",
+  "summary": "Every value reads as a number, a whole number, a date or true or false.",
+  "synonyms": [
+   "assert type",
+   "type check",
+   "is numeric",
+   "data type check"
+  ]
+ },
+ {
+  "name": "assert.formula",
+  "title": "Check a formula holds",
+  "category": "Validation",
+  "summary": "Every row satisfies a formula that is true or false, such as [shipped] >= [ordered]; a row where it is empty fails.",
+  "synonyms": [
+   "custom assertion",
+   "assert formula",
+   "rule",
+   "business rule",
+   "invariant"
+  ]
+ },
+ {
+  "name": "assert.found_in",
+  "title": "Check every key exists elsewhere",
+  "category": "Validation",
+  "summary": "Every value of the column appears in another dataset's column (each order's customer is a known customer): referential integrity.",
+  "synonyms": [
+   "referential integrity",
+   "foreign key check",
+   "assert exists",
+   "orphan rows",
+   "lookup check"
+  ]
+ },
+ {
+  "name": "assert.unique",
+  "title": "Check values are unique",
+  "category": "Validation",
+  "summary": "No two rows have the same values in these columns (a key).",
+  "synonyms": [
+   "assert unique",
+   "primary key",
+   "unique key",
+   "no duplicate keys"
+  ]
+ },
+ {
+  "name": "assert.no_duplicates",
+  "title": "Check no row is repeated",
+  "category": "Validation",
+  "summary": "No two rows are the same in every column.",
+  "synonyms": [
+   "assert no duplicates",
+   "duplicate rows",
+   "distinct rows check"
+  ]
+ },
+ {
+  "name": "assert.row_count",
+  "title": "Check the number of rows",
+  "category": "Validation",
+  "summary": "There are at least, or at most, this many rows (an import that brought nothing; a join that multiplied).",
+  "synonyms": [
+   "assert row count",
+   "row count",
+   "volume check",
+   "not empty dataset"
+  ]
+ },
+ {
+  "name": "assert.increasing",
+  "title": "Check values only go up",
+  "category": "Validation",
+  "summary": "Each value of the column is at least the one before it (or, strictly, more): a sequence, a running total, timestamps in order.",
+  "synonyms": [
+   "assert monotonic",
+   "increasing",
+   "in order",
+   "sorted check",
+   "sequence check"
+  ]
+ },
+ {
+  "name": "assert.sum_equals",
+  "title": "Check a total",
+  "category": "Validation",
+  "summary": "The column adds up to this, within a tolerance (shares add to 100, debits equal credits).",
+  "synonyms": [
+   "assert sum",
+   "total check",
+   "reconcile",
+   "balance check",
+   "control total"
+  ]
+ },
+ {
+  "name": "assert.fresh",
+  "title": "Check the data is recent",
+  "category": "Validation",
+  "summary": "The newest date or time in the column is no older than this many hours when the recipe runs (a replay checks against the moment of the run it repeats).",
+  "synonyms": [
+   "assert freshness",
+   "freshness",
+   "stale data",
+   "latest date check",
+   "sla"
+  ]
+ },
+ {
+  "name": "assert.schema",
+  "title": "Check the columns",
+  "category": "Validation",
+  "summary": "The data has these columns (each optionally with a type, as name:number, name:date, name:text, name:true or false), and, if asked, no others.",
+  "synonyms": [
+   "assert schema",
+   "schema check",
+   "expected columns",
+   "column check",
+   "schema snapshot"
+  ]
+ },
+ {
+  "name": "assert.distribution_stable",
+  "title": "Check values look as they did",
+  "category": "Validation",
+  "summary": "The column's values are distributed as in another dataset, such as this recipe's own output from the run before: by the Kolmogorov-Smirnov distance for numbers and the population stability index for categories, below a threshold.",
+  "synonyms": [
+   "assert distribution",
+   "drift check",
+   "distribution stable",
+   "psi",
+   "ks test"
+  ]
+ },
+ {
+  "name": "clean.email",
+  "title": "Standardise an email",
+  "category": "Cleansing",
+  "summary": "Trim and lower case. Empty results become null.",
+  "synonyms": [
+   "normalise email",
+   "lowercase email"
+  ]
+ },
+ {
+  "name": "clean.email_domain",
+  "title": "Email domain",
+  "category": "Cleansing",
+  "summary": "The part after the @, lower case.",
+  "synonyms": [
+   "domain",
+   "company from email"
+  ]
+ },
+ {
+  "name": "clean.phone",
+  "title": "Standardise a phone number",
+  "category": "Cleansing",
+  "summary": "Best-effort E.164. Numbers that cannot be made sense of become null.",
+  "synonyms": [
+   "e164",
+   "telephone",
+   "mobile",
+   "normalise phone"
+  ]
+ },
+ {
+  "name": "clean.url",
+  "title": "Standardise a URL",
+  "category": "Cleansing",
+  "summary": "Add a scheme where one is missing.",
+  "synonyms": []
+ },
+ {
+  "name": "clean.url_part",
+  "title": "Part of a URL",
+  "category": "Cleansing",
+  "summary": "Pull out the scheme, host, path, query or fragment.",
+  "synonyms": [
+   "hostname",
+   "domain from url",
+   "path"
+  ]
+ },
+ {
+  "name": "clean.postal_code",
+  "title": "Standardise a postal code",
+  "category": "Cleansing",
+  "summary": "Apply the country's usual spacing and padding.",
+  "synonyms": [
+   "zip",
+   "zip code",
+   "postcode"
+  ]
+ },
+ {
+  "name": "clean.country",
+  "title": "Standardise a country",
+  "category": "Cleansing",
+  "summary": "Map country names and abbreviations to an ISO code. Unrecognised names become null.",
+  "synonyms": [
+   "iso country",
+   "country code",
+   "nationality"
+  ]
+ },
+ {
+  "name": "clean.name_part",
+  "title": "Split a full name",
+  "category": "Cleansing",
+  "summary": "Take the first, middle or last name. Particles stay with the surname.",
+  "synonyms": [
+   "first name",
+   "surname",
+   "last name",
+   "split name"
+  ]
+ },
+ {
+  "name": "clean.boolean_tokens",
+  "title": "Standardise yes/no",
+  "category": "Cleansing",
+  "summary": "Read Y/N, yes/no, 1/0, on/off as true and false.",
+  "synonyms": [
+   "yes no",
+   "y n",
+   "true false"
+  ]
+ },
+ {
+  "name": "clean.line_endings",
+  "title": "Standardise line endings",
+  "category": "Cleansing",
+  "summary": "Turn Windows and old-Mac line endings into plain newlines.",
+  "synonyms": [
+   "crlf",
+   "newlines"
+  ]
+ },
+ {
+  "name": "clean.control_characters",
+  "title": "Remove control characters",
+  "category": "Cleansing",
+  "summary": "Strip the invisible characters that break exports.",
+  "synonyms": [
+   "non printable",
+   "invisible"
+  ]
+ },
+ {
+  "name": "clean.mojibake",
+  "title": "Fix mangled characters",
+  "category": "Cleansing",
+  "summary": "Repair text where UTF-8 was read as Latin-1 -- the Â£ and â€™ problem.",
+  "synonyms": [
+   "encoding",
+   "garbled",
+   "utf8",
+   "latin1"
+  ]
+ },
+ {
+  "name": "clean.trim_quotes",
+  "title": "Trim surrounding quotes",
+  "category": "Cleansing",
+  "summary": "Remove quote marks left by a bad export.",
+  "synonyms": [
+   "unquote",
+   "strip quotes"
+  ]
+ },
+ {
+  "name": "clean.unescape",
+  "title": "Unescape",
+  "category": "Cleansing",
+  "summary": "Turn backslash escapes back into the characters they stand for.",
+  "synonyms": []
+ },
+ {
+  "name": "clean.standardise",
+  "title": "Tidy up text",
+  "category": "Cleansing",
+  "summary": "Collapse whitespace and apply a consistent case, in one step.",
+  "synonyms": [
+   "clean",
+   "tidy",
+   "normalise text",
+   "standardise"
+  ]
+ },
+ {
+  "name": "columns.move",
+  "title": "Move columns",
+  "category": "Columns",
+  "summary": "Move columns to the start or the end, leaving the rest in order.",
+  "synonyms": [
+   "reorder",
+   "move to front",
+   "move to end",
+   "arrange"
+  ]
+ },
+ {
+  "name": "columns.sort",
+  "title": "Sort columns by name",
+  "category": "Columns",
+  "summary": "Put the columns in alphabetical order.",
+  "synonyms": [
+   "alphabetical",
+   "order columns"
+  ]
+ },
+ {
+  "name": "columns.keep_only",
+  "title": "Keep only these columns",
+  "category": "Columns",
+  "summary": "Drop everything else, in the dataset's own order.",
+  "synonyms": [
+   "select",
+   "subset",
+   "choose columns"
+  ]
+ },
+ {
+  "name": "columns.drop",
+  "title": "Drop columns",
+  "category": "Columns",
+  "summary": "Remove one or more columns.",
+  "synonyms": [
+   "remove columns",
+   "delete columns"
+  ]
+ },
+ {
+  "name": "columns.duplicate",
+  "title": "Duplicate a column",
+  "category": "Columns",
+  "summary": "Add a copy, so the original survives an experiment.",
+  "synonyms": [
+   "copy column",
+   "clone"
+  ]
+ },
+ {
+  "name": "columns.rename",
+  "title": "Rename a column",
+  "category": "Columns",
+  "summary": "Give a column a new name.",
+  "synonyms": [
+   "rename"
+  ]
+ },
+ {
+  "name": "columns.bulk_rename",
+  "title": "Rename many columns",
+  "category": "Columns",
+  "summary": "Apply one renaming rule to every column at once.",
+  "synonyms": [
+   "rename all",
+   "clean headers",
+   "snake case",
+   "prefix",
+   "suffix"
+  ]
+ },
+ {
+  "name": "join.as_of",
+  "title": "Join to the nearest earlier row",
+  "category": "Join & combine",
+  "summary": "Bring columns from the other dataset's row that comes just before (or after, or nearest) this row's date or number, optionally matching other columns first: the exchange rate in force on the day, the price at the time of the order.",
+  "synonyms": [
+   "as of join",
+   "asof",
+   "point in time join",
+   "temporal join",
+   "nearest earlier",
+   "rate in force",
+   "effective date",
+   "slowly changing"
+  ]
+ },
+ {
+  "name": "join.range",
+  "title": "Join where a value is in a range",
+  "category": "Join & combine",
+  "summary": "Bring columns from the other dataset's rows whose range (from a low to a high column, both included) holds this row's value: a price band, an age group, a fiscal period, a block of IP addresses.",
+  "synonyms": [
+   "range join",
+   "between join",
+   "band",
+   "bucket lookup",
+   "interval join",
+   "ip range"
+  ]
+ },
+ {
+  "name": "join.fuzzy",
+  "title": "Join on similar text",
+  "category": "Join & combine",
+  "summary": "Bring columns from the other dataset's row whose text is most alike, at or above how alike you ask, with the score of the match: names typed differently, spelling mistakes, words in another order. The same matching the Assistant uses to find duplicates.",
+  "synonyms": [
+   "fuzzy join",
+   "fuzzy match",
+   "approximate join",
+   "similar names",
+   "fuzzy merge",
+   "match names"
+  ]
+ },
+ {
+  "name": "combine.merge_by_position",
+  "title": "Put columns side by side",
+  "category": "Join & combine",
+  "summary": "Add the other dataset's columns row by row: its first row beside this one's first, and so on, as pasting columns next to each other does. This dataset keeps its rows; the run says when the other is longer or shorter.",
+  "synonyms": [
+   "merge by position",
+   "side by side",
+   "paste columns",
+   "zip",
+   "horizontal concat",
+   "cbind"
+  ]
+ },
+ {
+  "name": "combine.intersect",
+  "title": "Keep rows the other dataset also has",
+  "category": "Join & combine",
+  "summary": "Keep the rows whose values (in every column, or the ones chosen) the other dataset has too (INTERSECT).",
+  "synonyms": [
+   "intersect",
+   "in both",
+   "common rows",
+   "overlap"
+  ]
+ },
+ {
+  "name": "combine.except",
+  "title": "Keep rows the other dataset does not have",
+  "category": "Join & combine",
+  "summary": "Keep the rows whose values (in every column, or the ones chosen) the other dataset does not have (EXCEPT).",
+  "synonyms": [
+   "except",
+   "minus",
+   "difference",
+   "not in",
+   "missing from"
+  ]
+ },
+ {
+  "name": "type.to_text",
+  "title": "To text",
+  "category": "Type & conversion",
+  "summary": "Render as text without inventing decimals.",
+  "synonyms": [
+   "to string",
+   "stringify",
+   "as text"
+  ]
+ },
+ {
+  "name": "type.to_number",
+  "title": "To number",
+  "category": "Type & conversion",
+  "summary": "Read as a number. Values that will not parse become null.",
+  "synonyms": [
+   "to float",
+   "parse number",
+   "numeric"
+  ]
+ },
+ {
+  "name": "type.to_integer",
+  "title": "To whole number",
+  "category": "Type & conversion",
+  "summary": "Read as a whole number, dropping any fraction.",
+  "synonyms": [
+   "to int",
+   "integer",
+   "whole"
+  ]
+ },
+ {
+  "name": "type.to_boolean",
+  "title": "To true/false",
+  "category": "Type & conversion",
+  "summary": "Read yes/no/1/0/true/false. Anything else becomes null.",
+  "synonyms": [
+   "to bool",
+   "yes no",
+   "flag"
+  ]
+ },
+ {
+  "name": "type.detect",
+  "title": "Detect the type",
+  "category": "Type & conversion",
+  "summary": "Report what each value looks like, without changing it.",
+  "synonyms": [
+   "what type",
+   "guess type",
+   "profile"
+  ]
+ },
+ {
+  "name": "type.strip_currency",
+  "title": "Strip currency symbols",
+  "category": "Type & conversion",
+  "summary": "Remove symbols and grouping, leaving text a number parser can read.",
+  "synonyms": [
+   "remove dollar",
+   "currency",
+   "money",
+   "thousands separator"
+  ]
+ },
+ {
+  "name": "type.parse_number_locale",
+  "title": "Parse a localised number",
+  "category": "Type & conversion",
+  "summary": "Read a number written with European or US grouping.",
+  "synonyms": [
+   "comma decimal",
+   "thousands separator",
+   "european number"
+  ]
+ },
+ {
+  "name": "type.json_path",
+  "title": "Read a JSON field",
+  "category": "Type & conversion",
+  "summary": "Pull one value out of JSON by dotted path. Missing paths become null.",
+  "synonyms": [
+   "json",
+   "extract json",
+   "nested field"
+  ]
+ },
+ {
+  "name": "type.cast",
+  "title": "Change the type",
+  "category": "Type & conversion",
+  "summary": "Declare a column's type. Values that do not fit become null.",
+  "synonyms": [
+   "convert",
+   "retype",
+   "change type"
+  ]
+ },
+ {
+  "name": "type.coerce_with_fallback",
+  "title": "Convert with a fallback",
+  "category": "Type & conversion",
+  "summary": "Read as a number, using a fixed value where it will not parse.",
+  "synonyms": [
+   "default value",
+   "on error",
+   "safe convert"
+  ]
+ },
+ {
+  "name": "date.year",
+  "title": "Year",
+  "category": "Date & time",
+  "summary": "Extract the year.",
+  "synonyms": [
+   "yyyy"
+  ]
+ },
+ {
+  "name": "date.quarter",
+  "title": "Quarter",
+  "category": "Date & time",
+  "summary": "Extract the quarter.",
+  "synonyms": [
+   "q"
+  ]
+ },
+ {
+  "name": "date.month",
+  "title": "Month number",
+  "category": "Date & time",
+  "summary": "Extract the month number.",
+  "synonyms": [
+   "mm"
+  ]
+ },
+ {
+  "name": "date.week",
+  "title": "ISO week",
+  "category": "Date & time",
+  "summary": "Extract the iso week.",
+  "synonyms": [
+   "week number"
+  ]
+ },
+ {
+  "name": "date.day",
+  "title": "Day of month",
+  "category": "Date & time",
+  "summary": "Extract the day of month.",
+  "synonyms": [
+   "dd"
+  ]
+ },
+ {
+  "name": "date.day_of_week",
+  "title": "Day of week",
+  "category": "Date & time",
+  "summary": "Extract the day of week. Monday is 1, Sunday is 7.",
+  "synonyms": [
+   "weekday"
+  ]
+ },
+ {
+  "name": "date.day_of_year",
+  "title": "Day of year",
+  "category": "Date & time",
+  "summary": "Extract the day of year.",
+  "synonyms": [
+   "ordinal day",
+   "julian"
+  ]
+ },
+ {
+  "name": "date.hour",
+  "title": "Hour",
+  "category": "Date & time",
+  "summary": "Extract the hour.",
+  "synonyms": []
+ },
+ {
+  "name": "date.minute",
+  "title": "Minute",
+  "category": "Date & time",
+  "summary": "Extract the minute.",
+  "synonyms": []
+ },
+ {
+  "name": "date.second",
+  "title": "Second",
+  "category": "Date & time",
+  "summary": "Extract the second.",
+  "synonyms": []
+ },
+ {
+  "name": "date.month_name",
+  "title": "Month name",
+  "category": "Date & time",
+  "summary": "The month's name.",
+  "synonyms": []
+ },
+ {
+  "name": "date.day_name",
+  "title": "Day name",
+  "category": "Date & time",
+  "summary": "The weekday's name.",
+  "synonyms": []
+ },
+ {
+  "name": "date.start_of_period",
+  "title": "Start of period",
+  "category": "Date & time",
+  "summary": "The first instant of the containing period.",
+  "synonyms": [
+   "truncate",
+   "floor date",
+   "month start",
+   "beginning of"
+  ]
+ },
+ {
+  "name": "date.end_of_period",
+  "title": "End of period",
+  "category": "Date & time",
+  "summary": "The last instant of the containing period -- not the start of the next one.",
+  "synonyms": [
+   "month end",
+   "ceiling date",
+   "last day"
+  ]
+ },
+ {
+  "name": "date.add_days",
+  "title": "Add days",
+  "category": "Date & time",
+  "summary": "Shift by a number of days.",
+  "synonyms": [
+   "plus days",
+   "offset",
+   "subtract days"
+  ]
+ },
+ {
+  "name": "date.add_months",
+  "title": "Add months",
+  "category": "Date & time",
+  "summary": "Shift by whole months, clamping to the end of a short month.",
+  "synonyms": [
+   "plus months"
+  ]
+ },
+ {
+  "name": "date.add_years",
+  "title": "Add years",
+  "category": "Date & time",
+  "summary": "Shift by whole years.",
+  "synonyms": []
+ },
+ {
+  "name": "date.add_business_days",
+  "title": "Add business days",
+  "category": "Date & time",
+  "summary": "Shift by working days, skipping Saturdays and Sundays.",
+  "synonyms": [
+   "working days",
+   "weekdays"
+  ]
+ },
+ {
+  "name": "date.days_between",
+  "title": "Days until",
+  "category": "Date & time",
+  "summary": "Days until another date column, counted from this one.",
+  "synonyms": [
+   "date difference",
+   "day diff"
+  ]
+ },
+ {
+  "name": "date.months_between",
+  "title": "Months until",
+  "category": "Date & time",
+  "summary": "Months until another date column, counted from this one.",
+  "synonyms": []
+ },
+ {
+  "name": "date.years_between",
+  "title": "Years until",
+  "category": "Date & time",
+  "summary": "Years until another date column, counted from this one.",
+  "synonyms": []
+ },
+ {
+  "name": "date.seconds_between",
+  "title": "Seconds until",
+  "category": "Date & time",
+  "summary": "Seconds until another date column, counted from this one.",
+  "synonyms": [
+   "duration"
+  ]
+ },
+ {
+  "name": "date.business_days_between",
+  "title": "Business days until",
+  "category": "Date & time",
+  "summary": "Business days until another date column, counted from this one.",
+  "synonyms": [
+   "working days between"
+  ]
+ },
+ {
+  "name": "date.age_years",
+  "title": "Age in years",
+  "category": "Date & time",
+  "summary": "Whole years between this date and today.",
+  "synonyms": [
+   "age",
+   "years old",
+   "tenure"
+  ]
+ },
+ {
+  "name": "date.is_weekend",
+  "title": "Is a weekend",
+  "category": "Date & time",
+  "summary": "True on Saturday and Sunday.",
+  "synonyms": [
+   "saturday",
+   "sunday",
+   "weekend"
+  ]
+ },
+ {
+  "name": "date.fiscal_year",
+  "title": "Fiscal year",
+  "category": "Date & time",
+  "summary": "The financial year, named for the calendar year it ends in.",
+  "synonyms": [
+   "financial year",
+   "fy"
+  ]
+ },
+ {
+  "name": "date.fiscal_quarter",
+  "title": "Fiscal quarter",
+  "category": "Date & time",
+  "summary": "Which quarter of the financial year.",
+  "synonyms": [
+   "financial quarter",
+   "fq"
+  ]
+ },
+ {
+  "name": "date.format",
+  "title": "Format as text",
+  "category": "Date & time",
+  "summary": "Render as text with a chosen pattern.",
+  "synonyms": [
+   "strftime",
+   "date format",
+   "display date"
+  ]
+ },
+ {
+  "name": "date.parse",
+  "title": "Parse a date",
+  "category": "Date & time",
+  "summary": "Read text as a date. Values that cannot be read become null.",
+  "synonyms": [
+   "to date",
+   "text to date",
+   "convert date"
+  ]
+ },
+ {
+  "name": "date.to_timestamp",
+  "title": "Parse a timestamp",
+  "category": "Date & time",
+  "summary": "Read text as a date and time.",
+  "synonyms": [
+   "to datetime",
+   "parse datetime"
+  ]
+ },
+ {
+  "name": "date.to_timezone",
+  "title": "Convert time zone",
+  "category": "Date & time",
+  "summary": "Move a moment to another time zone. Naive values are read as UTC.",
+  "synonyms": [
+   "timezone",
+   "tz",
+   "localise"
+  ]
+ },
+ {
+  "name": "date.to_epoch",
+  "title": "To epoch seconds",
+  "category": "Date & time",
+  "summary": "Seconds since 1970-01-01 UTC.",
+  "synonyms": [
+   "unix time",
+   "timestamp number"
+  ]
+ },
+ {
+  "name": "date.from_epoch",
+  "title": "From epoch",
+  "category": "Date & time",
+  "summary": "Read a number of seconds or milliseconds since 1970 as a moment.",
+  "synonyms": [
+   "unix to date",
+   "epoch to date"
+  ]
+ },
+ {
+  "name": "hash.md5",
+  "title": "MD5",
+  "category": "Encoding & privacy",
+  "summary": "MD5 digest, in hex. Fast and broken -- fine for change detection, never for secrets.",
+  "synonyms": [
+   "checksum",
+   "digest",
+   "fingerprint"
+  ]
+ },
+ {
+  "name": "hash.sha1",
+  "title": "SHA-1",
+  "category": "Encoding & privacy",
+  "summary": "SHA-1 digest, in hex.",
+  "synonyms": []
+ },
+ {
+  "name": "hash.sha256",
+  "title": "SHA-256",
+  "category": "Encoding & privacy",
+  "summary": "SHA-256 digest, in hex.",
+  "synonyms": [
+   "hash",
+   "sha"
+  ]
+ },
+ {
+  "name": "hash.sha512",
+  "title": "SHA-512",
+  "category": "Encoding & privacy",
+  "summary": "SHA-512 digest, in hex.",
+  "synonyms": []
+ },
+ {
+  "name": "hash.hmac_sha256",
+  "title": "HMAC SHA-256",
+  "category": "Encoding & privacy",
+  "summary": "Keyed digest, so the same value hashes differently under a different key.",
+  "synonyms": [
+   "keyed hash",
+   "signature"
+  ]
+ },
+ {
+  "name": "privacy.pseudonymise",
+  "title": "Pseudonymise",
+  "category": "Encoding & privacy",
+  "summary": "A short, stable token per value, salted so it cannot be looked up elsewhere.",
+  "synonyms": [
+   "anonymise",
+   "token",
+   "de-identify",
+   "surrogate"
+  ]
+ },
+ {
+  "name": "privacy.mask_partial",
+  "title": "Mask, keeping the ends",
+  "category": "Encoding & privacy",
+  "summary": "Hide the middle, leaving a few characters visible for recognition.",
+  "synonyms": [
+   "redact",
+   "hide",
+   "last four",
+   "pii"
+  ]
+ },
+ {
+  "name": "privacy.mask_full",
+  "title": "Mask completely",
+  "category": "Encoding & privacy",
+  "summary": "Replace every character, keeping the length.",
+  "synonyms": [
+   "redact fully",
+   "blank out"
+  ]
+ },
+ {
+  "name": "encode.base64",
+  "title": "Base64 encode",
+  "category": "Encoding & privacy",
+  "summary": "Encode as base64.",
+  "synonyms": []
+ },
+ {
+  "name": "encode.base64_decode",
+  "title": "Base64 decode",
+  "category": "Encoding & privacy",
+  "summary": "Decode base64. Values that are not valid base64 become null.",
+  "synonyms": []
+ },
+ {
+  "name": "encode.url",
+  "title": "URL encode",
+  "category": "Encoding & privacy",
+  "summary": "Percent-encode for use in a URL.",
+  "synonyms": [
+   "percent encode",
+   "escape url"
+  ]
+ },
+ {
+  "name": "encode.url_decode",
+  "title": "URL decode",
+  "category": "Encoding & privacy",
+  "summary": "Decode percent-encoding.",
+  "synonyms": []
+ },
+ {
+  "name": "encode.html",
+  "title": "HTML escape",
+  "category": "Encoding & privacy",
+  "summary": "Escape characters that would otherwise be markup.",
+  "synonyms": [
+   "escape html"
+  ]
+ },
+ {
+  "name": "encode.html_unescape",
+  "title": "HTML unescape",
+  "category": "Encoding & privacy",
+  "summary": "Turn HTML entities back into characters.",
+  "synonyms": []
+ },
+ {
+  "name": "code.sql",
+  "title": "Transform with SQL",
+  "category": "Code & escape hatches",
+  "summary": "Write a SELECT over the data at this step, called input: filters, new columns, groups, joins of input with itself and window functions. It is checked and pushed down like any step, and its columns are known before it runs.",
+  "synonyms": [
+   "sql step",
+   "sql",
+   "query",
+   "select",
+   "custom sql",
+   "write sql"
+  ]
+ },
+ {
+  "name": "code.python",
+  "title": "Transform with Python",
+  "category": "Code & escape hatches",
+  "summary": "Run Python on the rows, as a pandas DataFrame called data; what it leaves in result (or data) goes on. It runs in the notebook's sandbox, with its limits on memory, time, imports and the network, and is turned off where those limits cannot be held.",
+  "synonyms": [
+   "python step",
+   "python",
+   "pandas",
+   "custom code",
+   "script"
+  ]
+ },
+ {
+  "name": "code.json_query",
+  "title": "Query JSON (jq)",
+  "category": "Code & escape hatches",
+  "summary": "Take values out of JSON text with a jq-style query: paths (.customer.id), positions (.items[0]), every element (.items[]), pipes, and length, keys, values, first, last, join(\", \"), map(.name) and tostring. Several answers come back as a JSON list.",
+  "synonyms": [
+   "jq",
+   "json query",
+   "json path",
+   "extract json",
+   "jmespath"
+  ]
+ },
+ {
+  "name": "code.lookup_table",
+  "title": "Look up in a small table",
+  "category": "Code & escape hatches",
+  "summary": "Replace values from a table written here, value=replacement on each line (codes to names), keeping or emptying what is not listed, or writing a default. Pushes down.",
+  "synonyms": [
+   "lookup table inline",
+   "map values",
+   "code to name",
+   "translate codes",
+   "mapping table"
+  ]
+ },
+ {
+  "name": "code.template",
+  "title": "Write text from a template",
+  "category": "Code & escape hatches",
+  "summary": "Write a new text column from a template with {column} where each column's value goes (an empty value writes nothing; {{ and }} write braces): an email greeting, a label, a URL.",
+  "synonyms": [
+   "template render",
+   "mail merge",
+   "format string",
+   "string template",
+   "build text"
+  ]
+ },
+ {
+  "name": "code.http_enrich",
+  "title": "Look up each value in a web service",
+  "category": "Code & escape hatches",
+  "summary": "Call a web service once for each different value (GET with {value} in the address, or POST a JSON body) and keep part of its JSON answer, picked with a jq-style query. Only hosts an administrator allows; a secret comes from the server's own settings, never the recipe. The run says how many calls it made.",
+  "synonyms": [
+   "http enrich",
+   "api lookup",
+   "call api",
+   "web service",
+   "rest lookup",
+   "enrich from api"
+  ]
+ },
+ {
+  "name": "geo.geocode",
+  "title": "Find places from addresses",
+  "category": "Geospatial",
+  "summary": "The latitude and longitude of each address, from the Nominatim-style geocoding service an administrator sets (GEOCODER_URL), one call per different address, at most one a second to OpenStreetMap's own server as it asks.",
+  "synonyms": [
+   "geocode",
+   "address to coordinates",
+   "lat long from address",
+   "find location"
+  ]
+ },
+ {
+  "name": "geo.reverse_geocode",
+  "title": "Find addresses from places",
+  "category": "Geospatial",
+  "summary": "The address (or its city, postcode or country) of each latitude and longitude, from the configured geocoding service.",
+  "synonyms": [
+   "reverse geocode",
+   "coordinates to address",
+   "address from lat long"
+  ]
+ },
+ {
+  "name": "geo.distance",
+  "title": "Distance between two places",
+  "category": "Geospatial",
+  "summary": "The distance between two latitude and longitude pairs: haversine on a sphere (within about 0.5%, and it runs in the database) or on the WGS84 ellipsoid by Vincenty's method (to the millimetre).",
+  "synonyms": [
+   "distance between",
+   "haversine",
+   "great circle",
+   "how far",
+   "vincenty",
+   "geodesic"
+  ]
+ },
+ {
+  "name": "geo.bearing",
+  "title": "Direction to another place",
+  "category": "Geospatial",
+  "summary": "The initial compass bearing, in degrees from north (0 to 360), from one place towards another along the great circle.",
+  "synonyms": [
+   "bearing",
+   "heading",
+   "direction",
+   "azimuth",
+   "compass"
+  ]
+ },
+ {
+  "name": "geo.within_radius",
+  "title": "Within a distance of a place",
+  "category": "Geospatial",
+  "summary": "True for places within a distance (haversine) of a centre you give: customers within 10 km of a shop.",
+  "synonyms": [
+   "within radius",
+   "nearby",
+   "geofence",
+   "within distance",
+   "radius search"
+  ]
+ },
+ {
+  "name": "geo.parse_coordinates",
+  "title": "Read coordinates",
+  "category": "Geospatial",
+  "summary": "Read a place written as text into latitude and longitude columns: \"51.5, -0.12\", degrees, minutes and seconds such as 51°30'26\"N 0°7'39\"W, or WKT POINT (lon lat). Anything out of range is empty.",
+  "synonyms": [
+   "parse coordinates",
+   "lat long",
+   "dms",
+   "degrees minutes seconds",
+   "geocoordinates"
+  ]
+ },
+ {
+  "name": "geo.make_point",
+  "title": "Make a point from coordinates",
+  "category": "Geospatial",
+  "summary": "Write a latitude and longitude as one WKT point (POINT (lon lat)) in a geography column.",
+  "synonyms": [
+   "make point",
+   "to wkt",
+   "point from lat long"
+  ]
+ },
+ {
+  "name": "geo.point_in_polygon",
+  "title": "Inside an area",
+  "category": "Geospatial",
+  "summary": "True for places inside an area you give as WKT or GeoJSON (a delivery zone, a region), by longitude and latitude on the map.",
+  "synonyms": [
+   "point in polygon",
+   "inside area",
+   "geofence",
+   "within region",
+   "contains point"
+  ]
+ },
+ {
+  "name": "geo.region",
+  "title": "Which region a place is in",
+  "category": "Geospatial",
+  "summary": "Bring columns from the shape (in another dataset of named areas, as WKT or GeoJSON) that contains each place: its country, sales territory, or time zone from a time zone boundary file such as timezone-boundary-builder's.",
+  "synonyms": [
+   "region lookup",
+   "timezone from coordinates",
+   "spatial join",
+   "which country",
+   "territory",
+   "reverse geocode offline"
+  ]
+ },
+ {
+  "name": "geo.nearest",
+  "title": "Nearest place in another dataset",
+  "category": "Geospatial",
+  "summary": "Bring columns from the nearest place in another dataset (each customer's nearest store), with the distance to it in kilometres.",
+  "synonyms": [
+   "nearest neighbour",
+   "closest",
+   "nearest store",
+   "knn spatial"
+  ]
+ },
+ {
+  "name": "geo.bounding_box",
+  "title": "Bounding box of a shape",
+  "category": "Geospatial",
+  "summary": "The smallest box around a shape, as JSON with min_lon, min_lat, max_lon and max_lat.",
+  "synonyms": [
+   "bounding box",
+   "bbox",
+   "extent",
+   "envelope"
+  ]
+ },
+ {
+  "name": "geo.centroid",
+  "title": "Centre of a shape",
+  "category": "Geospatial",
+  "summary": "The centre of a shape as a WKT point (its centre of mass on the map, which for shapes the size of a country is close to, not exactly, the centre on the globe).",
+  "synonyms": [
+   "centroid",
+   "centre",
+   "center",
+   "middle of shape"
+  ]
+ },
+ {
+  "name": "geo.area",
+  "title": "Area of a shape",
+  "category": "Geospatial",
+  "summary": "The area of a polygon on the earth, on a sphere of the earth's mean radius (holes taken away), in square metres, hectares or square kilometres.",
+  "synonyms": [
+   "area",
+   "surface area",
+   "size of polygon",
+   "hectares"
+  ]
+ },
+ {
+  "name": "geo.buffer",
+  "title": "Grow a shape by a distance",
+  "category": "Geospatial",
+  "summary": "A shape grown outwards by a distance in metres (a circle around a point), measured on a map centred on the shape so the distance holds in every direction.",
+  "synonyms": [
+   "buffer",
+   "radius polygon",
+   "catchment",
+   "expand shape"
+  ]
+ },
+ {
+  "name": "geo.to_geojson",
+  "title": "Write a shape as GeoJSON",
+  "category": "Geospatial",
+  "summary": "Write a WKT shape as GeoJSON, for a map or an API.",
+  "synonyms": [
+   "to geojson",
+   "geojson",
+   "wkt to json"
+  ]
+ },
+ {
+  "name": "geo.geohash_encode",
+  "title": "Geohash of a place",
+  "category": "Geospatial",
+  "summary": "The geohash of a latitude and longitude: a short code for a cell on the map, longer for a smaller cell (7 characters is about 150 m), shared by places near each other.",
+  "synonyms": [
+   "geohash encode",
+   "geohash",
+   "grid cell",
+   "spatial index"
+  ]
+ },
+ {
+  "name": "geo.geohash_decode",
+  "title": "Place of a geohash",
+  "category": "Geospatial",
+  "summary": "The latitude and longitude of the centre of a geohash's cell.",
+  "synonyms": [
+   "geohash decode",
+   "from geohash",
+   "decode geohash"
+  ]
+ },
+ {
+  "name": "lookup.from_dataset",
+  "title": "Look up values",
+  "category": "Enrichment & lookup",
+  "summary": "Bring columns from the first row of another dataset whose key columns match this row's, or a default; never more rows than before (a VLOOKUP). Look up a key by a value just as well: match on any column.",
+  "synonyms": [
+   "lookup",
+   "vlookup",
+   "xlookup",
+   "lookup from dataset",
+   "lookup with default",
+   "reverse lookup",
+   "lookup multiple columns",
+   "map values",
+   "calendar join",
+   "lookup from file",
+   "enrich"
+  ]
+ },
+ {
+  "name": "lookup.hierarchy",
+  "title": "Look up in a hierarchy",
+  "category": "Enrichment & lookup",
+  "summary": "From a table of items and their parents (a category tree, an org chart), give each row its path from the top, its level, its top ancestor or its parent.",
+  "synonyms": [
+   "hierarchy lookup",
+   "parent child",
+   "tree path",
+   "ancestors",
+   "org chart",
+   "category path"
+  ]
+ },
+ {
+  "name": "lookup.date_dimension",
+  "title": "Add calendar columns",
+  "category": "Enrichment & lookup",
+  "summary": "Add the year, quarter, month and its name, ISO week, day of the week and its name, day of the year, weekend, fiscal year and quarter (and, given a country, public holidays) for a date: a date dimension without a table to join.",
+  "synonyms": [
+   "date dimension",
+   "calendar columns",
+   "date parts",
+   "date dimension join",
+   "time dimension"
+  ]
+ },
+ {
+  "name": "lookup.currency_rate",
+  "title": "Convert at historical rates",
+  "category": "Enrichment & lookup",
+  "summary": "Convert an amount using the rate for its currency that was in force on its date, from a table of rates (currency, from date, rate): each row takes the latest rate on or before its date.",
+  "synonyms": [
+   "currency rate join",
+   "historical exchange rate",
+   "fx conversion",
+   "convert currency by date"
+  ]
+ },
+ {
+  "name": "lookup.company_from_domain",
+  "title": "Company from a web domain",
+  "category": "Enrichment & lookup",
+  "summary": "Bring the company for an email address, a web address or a domain, from a dataset of domains and companies you provide (subdomains find their parent: mail.acme.com is acme.com's).",
+  "synonyms": [
+   "company from domain",
+   "firmographics",
+   "email to company",
+   "domain lookup"
+  ]
+ },
+ {
+  "name": "lookup.country_from_ip",
+  "title": "Country from an IP address",
+  "category": "Enrichment & lookup",
+  "summary": "Bring the country (or any column) for an IPv4 or IPv6 address from a dataset of address ranges you provide, such as DB-IP's free country file (start, end, country), whose ranges do not overlap.",
+  "synonyms": [
+   "country from ip",
+   "ip geolocation",
+   "geoip",
+   "ip lookup",
+   "ip to country"
+  ]
+ },
+ {
+  "name": "dedupe.keep_most_complete",
+  "title": "Keep the most complete of repeats",
+  "category": "Deduplication & matching",
+  "summary": "Of rows that share these columns, keep the one with the fewest empty values (the first of those that tie).",
+  "synonyms": [
+   "keep most complete",
+   "best record",
+   "dedupe keep fullest",
+   "most filled"
+  ]
+ },
+ {
+  "name": "dedupe.mark",
+  "title": "Mark repeats",
+  "category": "Deduplication & matching",
+  "summary": "Add a true or false column that is true on each row repeating an earlier one in these columns, to look at before removing.",
+  "synonyms": [
+   "mark duplicates",
+   "flag duplicates",
+   "is duplicate"
+  ]
+ },
+ {
+  "name": "dedupe.count",
+  "title": "Count repeats",
+  "category": "Deduplication & matching",
+  "summary": "Add how many rows share each row's values in these columns (1 for a row seen once).",
+  "synonyms": [
+   "count duplicates",
+   "duplicate count",
+   "how many times"
+  ]
+ },
+ {
+  "name": "dedupe.fuzzy",
+  "title": "Remove near repeats",
+  "category": "Deduplication & matching",
+  "summary": "Remove rows whose value is alike an earlier row's (spelling mistakes, capitals, Ltd and Limited), keeping the first; the run says how many went.",
+  "synonyms": [
+   "fuzzy dedupe",
+   "fuzzy deduplicate",
+   "near duplicates",
+   "edit distance dedupe",
+   "phonetic dedupe",
+   "token dedupe",
+   "soundex dedupe"
+  ]
+ },
+ {
+  "name": "match.cluster",
+  "title": "Group alike values",
+  "category": "Deduplication & matching",
+  "summary": "Number groups of values that are alike, so rows written differently share a number (empty values have none).",
+  "synonyms": [
+   "cluster similar values",
+   "group similar",
+   "fuzzy group",
+   "clustering"
+  ]
+ },
+ {
+  "name": "match.canonical",
+  "title": "Replace alike values with one spelling",
+  "category": "Deduplication & matching",
+  "summary": "Write every value of a group of alike values the way most rows write it (the first in order when they tie).",
+  "synonyms": [
+   "merge cluster to canonical",
+   "canonicalise",
+   "standard spelling",
+   "normalise variants"
+  ]
+ },
+ {
+  "name": "match.survivorship",
+  "title": "Merge repeats into one row",
+  "category": "Deduplication & matching",
+  "summary": "Make one row from each group of rows that share these columns, taking every column's value by a rule: from the most complete row, the most recent, the most common value, the longest, the first or the last (empty values are passed over).",
+  "synonyms": [
+   "survivorship rules",
+   "merge records",
+   "consolidate",
+   "coalesce duplicates",
+   "collapse rows"
+  ]
+ },
+ {
+  "name": "match.golden_record",
+  "title": "Make one record per real thing",
+  "category": "Deduplication & matching",
+  "summary": "Group rows whose column is alike (the same matching as Remove near repeats), then make one row per group by a survivorship rule, numbered so each golden record can be traced.",
+  "synonyms": [
+   "golden record",
+   "master record",
+   "single customer view",
+   "entity resolution",
+   "mdm"
+  ]
+ },
+ {
+  "name": "meta.describe_column",
+  "title": "Describe a column",
+  "category": "Metadata & documentation",
+  "summary": "Say what a column of the output means; each run writes it to the dataset's catalogue entry.",
+  "synonyms": [
+   "set column description",
+   "document column",
+   "column comment",
+   "describe field"
+  ]
+ },
+ {
+  "name": "meta.tag_column",
+  "title": "Tag a column",
+  "category": "Metadata & documentation",
+  "summary": "Give a column of the output tags (finance, gdpr, kpi), written to its catalogue entry each run.",
+  "synonyms": [
+   "set column tags",
+   "label column",
+   "tag field"
+  ]
+ },
+ {
+  "name": "meta.classify_column",
+  "title": "Classify a column",
+  "category": "Metadata & documentation",
+  "summary": "Say how sensitive a column of the output is: public, internal, confidential or restricted.",
+  "synonyms": [
+   "set column classification",
+   "sensitivity",
+   "data classification",
+   "confidential"
+  ]
+ },
+ {
+  "name": "meta.mark_personal",
+  "title": "Mark personal data",
+  "category": "Metadata & documentation",
+  "summary": "Say a column of the output holds personal data, and of what kind, for the catalogue, retention and erasure requests to find; who may see it is set by policies.",
+  "synonyms": [
+   "mark column pii",
+   "pii",
+   "gdpr",
+   "personal data",
+   "sensitive personal"
+  ]
+ },
+ {
+  "name": "meta.glossary_term",
+  "title": "Link a column to a glossary term",
+  "category": "Metadata & documentation",
+  "summary": "Bind a column of the output to a term in the project's glossary (revenue, active customer), so the term knows where its data is.",
+  "synonyms": [
+   "link to glossary term",
+   "business glossary",
+   "definition",
+   "semantic term"
+  ]
+ },
+ {
+  "name": "meta.owner",
+  "title": "Set the dataset's owner",
+  "category": "Metadata & documentation",
+  "summary": "Name the person who answers for the output dataset, by their username; written to its catalogue entry each run.",
+  "synonyms": [
+   "set dataset owner",
+   "data owner",
+   "steward",
+   "responsible person"
+  ]
+ },
+ {
+  "name": "meta.describe_dataset",
+  "title": "Describe the dataset",
+  "category": "Metadata & documentation",
+  "summary": "Say what the output dataset is for; written to its catalogue entry each run.",
+  "synonyms": [
+   "dataset description",
+   "document dataset",
+   "readme"
+  ]
+ },
+ {
+  "name": "ml.kmeans",
+  "title": "Group rows by k-means",
+  "category": "Machine learning",
+  "summary": "Put rows into k clusters of rows alike in the number columns chosen; the run gives the silhouette (how well separated they are).",
+  "synonyms": [
+   "k means",
+   "kmeans",
+   "clustering",
+   "segmentation",
+   "segment customers"
+  ]
+ },
+ {
+  "name": "ml.hierarchical",
+  "title": "Group rows by merging nearest",
+  "category": "Machine learning",
+  "summary": "Build clusters by merging the nearest rows and groups step by step (agglomerative), cut at k clusters.",
+  "synonyms": [
+   "hierarchical clustering",
+   "agglomerative",
+   "dendrogram",
+   "linkage"
+  ]
+ },
+ {
+  "name": "ml.dbscan",
+  "title": "Group rows by density",
+  "category": "Machine learning",
+  "summary": "Find clusters of any shape as crowded regions (DBSCAN); rows in no crowd are left without a cluster.",
+  "synonyms": [
+   "dbscan",
+   "density clustering",
+   "noise detection"
+  ]
+ },
+ {
+  "name": "ml.pca",
+  "title": "Reduce to principal components",
+  "category": "Machine learning",
+  "summary": "Replace many correlated number columns with a few components that keep most of their variation (PCA); the run says how much each keeps.",
+  "synonyms": [
+   "pca",
+   "principal component analysis",
+   "dimensionality reduction",
+   "reduce dimensions"
+  ]
+ },
+ {
+  "name": "ml.anomaly_score",
+  "title": "Score how unusual each row is",
+  "category": "Machine learning",
+  "summary": "A score from 0 (the most ordinary row) to 1 (the most unusual) from an isolation forest over the number columns.",
+  "synonyms": [
+   "anomaly score",
+   "anomaly detection",
+   "outlier score",
+   "novelty"
+  ]
+ },
+ {
+  "name": "ml.forecast_arima",
+  "title": "Forecast with ARIMA",
+  "category": "Machine learning",
+  "summary": "Forecast the next periods of a series with an ARIMA model of the order given (p,d,q), with an interval from the model.",
+  "synonyms": [
+   "arima",
+   "forecast arima",
+   "time series forecast",
+   "box jenkins",
+   "forecast",
+   "predict future",
+   "projection"
+  ]
+ },
+ {
+  "name": "ml.forecast_smoothing",
+  "title": "Forecast with exponential smoothing",
+  "category": "Machine learning",
+  "summary": "Forecast with Holt-Winters exponential smoothing: a level, a trend and (given its length) a season.",
+  "synonyms": [
+   "exponential smoothing",
+   "holt winters",
+   "ets",
+   "forecast smoothing",
+   "forecast",
+   "predict future",
+   "projection"
+  ]
+ },
+ {
+  "name": "ml.forecast_trend_season",
+  "title": "Forecast a trend and a season",
+  "category": "Machine learning",
+  "summary": "Forecast with a straight-line trend plus a repeating season (sines and cosines of its length), fitted by least squares: the additive model Prophet popularised, without its changepoints.",
+  "synonyms": [
+   "prophet",
+   "prophet style",
+   "trend and seasonality",
+   "forecast trend",
+   "forecast",
+   "predict future",
+   "projection"
+  ]
+ },
+ {
+  "name": "ml.impute_knn",
+  "title": "Fill gaps from alike rows",
+  "category": "Machine learning",
+  "summary": "Fill an empty number with the average of the rows most alike in the other columns (k nearest neighbours).",
+  "synonyms": [
+   "knn impute",
+   "nearest neighbour imputation",
+   "fill missing knn"
+  ]
+ },
+ {
+  "name": "ml.impute_iterative",
+  "title": "Fill gaps by regression",
+  "category": "Machine learning",
+  "summary": "Fill empty numbers by predicting each column from the others, round after round until the answers settle (iterative imputation).",
+  "synonyms": [
+   "iterative impute",
+   "mice",
+   "regression imputation"
+  ]
+ },
+ {
+  "name": "ml.naive_bayes",
+  "title": "Predict a label (naive Bayes)",
+  "category": "Machine learning",
+  "summary": "Learn a label from the rows that have it, using number columns, and predict it for every row, with how sure (Gaussian naive Bayes); the run gives the cross-validated accuracy.",
+  "synonyms": [
+   "naive bayes",
+   "classify",
+   "classification",
+   "predict category"
+  ]
+ },
+ {
+  "name": "ml.decision_tree",
+  "title": "Predict a label (decision tree)",
+  "category": "Machine learning",
+  "summary": "Learn a label from the rows that have it with a decision tree of limited depth, predict it for every row, and say which columns it relies on.",
+  "synonyms": [
+   "decision tree",
+   "classification tree",
+   "cart",
+   "predict label"
+  ]
+ },
+ {
+  "name": "ml.feature_importance",
+  "title": "Which columns matter most",
+  "category": "Machine learning",
+  "summary": "How much each column helps predict another: how much worse a random forest does when that column is shuffled (permutation importance).",
+  "synonyms": [
+   "feature importance",
+   "drivers",
+   "what matters",
+   "variable importance",
+   "key drivers"
+  ]
+ },
+ {
+  "name": "ml.one_hot",
+  "title": "One column per value (one-hot)",
+  "category": "Machine learning",
+  "summary": "Turn a column of categories into one 0-or-1 column for each value, for a model that needs numbers.",
+  "synonyms": [
+   "one hot encode",
+   "dummy variables",
+   "indicator columns",
+   "get dummies"
+  ]
+ },
+ {
+  "name": "ml.ordinal",
+  "title": "Number the categories",
+  "category": "Machine learning",
+  "summary": "Give each category a number: in the order you list, or alphabetical (for a model that needs numbers and an order that means something).",
+  "synonyms": [
+   "ordinal encode",
+   "label encode",
+   "category codes",
+   "rank categories"
+  ]
+ },
+ {
+  "name": "ml.target_encode",
+  "title": "Replace categories with their average outcome",
+  "category": "Machine learning",
+  "summary": "Replace each category with the average of a target column for it, pulled towards the overall average when it has few rows (smoothing), for a model that needs numbers.",
+  "synonyms": [
+   "target encode",
+   "mean encoding",
+   "likelihood encoding"
+  ]
+ },
+ {
+  "name": "ml.tfidf",
+  "title": "Key words of each text (TF-IDF)",
+  "category": "Machine learning",
+  "summary": "For each text, the words that set it apart from the rest (term frequency times inverse document frequency), as a JSON object of word to weight.",
+  "synonyms": [
+   "tfidf",
+   "tf idf",
+   "text vectorise",
+   "keywords",
+   "bag of words"
+  ]
+ },
+ {
+  "name": "ml.similarity_matrix",
+  "title": "Most alike rows",
+  "category": "Machine learning",
+  "summary": "For each row, the rows most alike it by cosine similarity: of number columns, or of one text column's words (TF-IDF). Rows are counted from 1.",
+  "synonyms": [
+   "similarity matrix",
+   "cosine similarity",
+   "similar items",
+   "nearest rows",
+   "recommend"
+  ]
+ },
+ {
+  "name": "nested.flatten",
+  "title": "Flatten object into columns",
+  "category": "Nested data",
+  "summary": "Turn a column holding an object into one column per field, named by their path.",
+  "synonyms": [
+   "unnest object",
+   "expand object",
+   "json to columns",
+   "normalize object"
+  ]
+ },
+ {
+  "name": "nested.explode",
+  "title": "Explode array into rows",
+  "category": "Nested data",
+  "summary": "Turn a column holding an array into one row per element, repeating the other columns.",
+  "synonyms": [
+   "unnest array",
+   "array to rows",
+   "expand rows",
+   "flatten array"
+  ]
+ },
+ {
+  "name": "nested.json_extract",
+  "title": "Extract a value by path",
+  "category": "Nested data",
+  "summary": "Pull one value out of a JSON column by its dotted path, e.g. `address.city` or `items.0.sku`.",
+  "synonyms": [
+   "json path",
+   "jsonpath",
+   "get nested value",
+   "pluck"
+  ]
+ },
+ {
+  "name": "nested.collect",
+  "title": "Collect rows into an array",
+  "category": "Nested data",
+  "summary": "The inverse of explode: gather a column's values into one array per group.",
+  "synonyms": [
+   "group into array",
+   "array_agg",
+   "implode",
+   "nest",
+   "unexplode"
+  ]
+ },
+ {
+  "name": "nested.infer_json_schema",
+  "title": "Describe a JSON column's shape",
+  "category": "Nested data",
+  "summary": "Replace the table with one row per field found in a JSON column: its path, the types seen there, and how many documents actually have it.",
+  "synonyms": [
+   "json schema",
+   "describe json",
+   "what is in this column",
+   "shape"
+  ]
+ },
+ {
+  "name": "nested.normalise",
+  "title": "Split a nested array into its own table",
+  "category": "Nested data",
+  "summary": "Turn one document with a repeated section into a child table, carrying the parent's key so the two can be joined back together.",
+  "synonyms": [
+   "child table",
+   "split out",
+   "one to many",
+   "relational",
+   "shred"
+  ]
+ },
+ {
+  "name": "null.fill_constant",
+  "title": "Fill blanks with a value",
+  "category": "Missing data",
+  "summary": "Replace nulls with a fixed value.",
+  "synonyms": [
+   "fill na",
+   "replace null",
+   "default"
+  ]
+ },
+ {
+  "name": "null.fill_from_column",
+  "title": "Fill blanks from another column",
+  "category": "Missing data",
+  "summary": "Where this column is null, take the value from another.",
+  "synonyms": [
+   "coalesce",
+   "fallback column"
+  ]
+ },
+ {
+  "name": "null.empty_to_null",
+  "title": "Treat blanks as missing",
+  "category": "Missing data",
+  "summary": "Turn empty and whitespace-only text into a real null.",
+  "synonyms": [
+   "empty string",
+   "blank to null"
+  ]
+ },
+ {
+  "name": "null.null_to_empty",
+  "title": "Treat missing as blank",
+  "category": "Missing data",
+  "summary": "Turn nulls into empty text, for systems that cannot express null.",
+  "synonyms": [
+   "null to empty string"
+  ]
+ },
+ {
+  "name": "null.normalise_tokens",
+  "title": "Recognise 'NA' as missing",
+  "category": "Missing data",
+  "summary": "Turn the strings exports use for nothing -- NA, N/A, NULL, -, unknown -- into real nulls.",
+  "synonyms": [
+   "na",
+   "n/a",
+   "placeholder",
+   "sentinel"
+  ]
+ },
+ {
+  "name": "null.is_blank",
+  "title": "Flag blanks",
+  "category": "Missing data",
+  "summary": "True where the value is missing or only whitespace.",
+  "synonyms": [
+   "flag nulls",
+   "is empty",
+   "missing"
+  ]
+ },
+ {
+  "name": "numeric.round",
+  "title": "Round",
+  "category": "Numeric",
+  "summary": "Round to a number of decimal places.",
+  "synonyms": [
+   "decimal places",
+   "2dp"
+  ]
+ },
+ {
+  "name": "numeric.round_up",
+  "title": "Round up",
+  "category": "Numeric",
+  "summary": "Round towards positive infinity.",
+  "synonyms": [
+   "ceiling",
+   "ceil"
+  ]
+ },
+ {
+  "name": "numeric.round_down",
+  "title": "Round down",
+  "category": "Numeric",
+  "summary": "Round towards negative infinity.",
+  "synonyms": [
+   "floor"
+  ]
+ },
+ {
+  "name": "numeric.truncate",
+  "title": "Truncate",
+  "category": "Numeric",
+  "summary": "Drop the fractional part, towards zero.",
+  "synonyms": [
+   "integer part",
+   "chop"
+  ]
+ },
+ {
+  "name": "numeric.round_to_multiple",
+  "title": "Round to a multiple",
+  "category": "Numeric",
+  "summary": "Round to the nearest multiple of a step.",
+  "synonyms": [
+   "nearest",
+   "step",
+   "snap"
+  ]
+ },
+ {
+  "name": "numeric.ceil_to_multiple",
+  "title": "Round a multiple up",
+  "category": "Numeric",
+  "summary": "Round up to the next multiple of a step.",
+  "synonyms": []
+ },
+ {
+  "name": "numeric.floor_to_multiple",
+  "title": "Round a multiple down",
+  "category": "Numeric",
+  "summary": "Round down to the previous multiple of a step.",
+  "synonyms": []
+ },
+ {
+  "name": "numeric.absolute",
+  "title": "Absolute value",
+  "category": "Numeric",
+  "summary": "Drop the sign.",
+  "synonyms": [
+   "abs",
+   "magnitude",
+   "positive"
+  ]
+ },
+ {
+  "name": "numeric.sign",
+  "title": "Sign",
+  "category": "Numeric",
+  "summary": "-1, 0 or 1.",
+  "synonyms": []
+ },
+ {
+  "name": "numeric.reciprocal",
+  "title": "Reciprocal",
+  "category": "Numeric",
+  "summary": "One divided by the value. Null where the value is zero.",
+  "synonyms": [
+   "inverse",
+   "1/x"
+  ]
+ },
+ {
+  "name": "numeric.square_root",
+  "title": "Square root",
+  "category": "Numeric",
+  "summary": "The square root.",
+  "synonyms": [
+   "sqrt",
+   "root"
+  ]
+ },
+ {
+  "name": "numeric.power",
+  "title": "Raise to a power",
+  "category": "Numeric",
+  "summary": "Raise to an exponent.",
+  "synonyms": [
+   "exponent",
+   "squared",
+   "cubed"
+  ]
+ },
+ {
+  "name": "numeric.log",
+  "title": "Logarithm",
+  "category": "Numeric",
+  "summary": "Logarithm to a chosen base. Null for values at or below zero.",
+  "synonyms": [
+   "log10",
+   "log2",
+   "logarithm"
+  ]
+ },
+ {
+  "name": "numeric.ln",
+  "title": "Natural logarithm",
+  "category": "Numeric",
+  "summary": "Logarithm to base e.",
+  "synonyms": []
+ },
+ {
+  "name": "numeric.exponential",
+  "title": "Exponential",
+  "category": "Numeric",
+  "summary": "e raised to the value.",
+  "synonyms": [
+   "e^x"
+  ]
+ },
+ {
+  "name": "numeric.modulo",
+  "title": "Remainder",
+  "category": "Numeric",
+  "summary": "The remainder after dividing.",
+  "synonyms": [
+   "mod",
+   "modulus",
+   "remainder"
+  ]
+ },
+ {
+  "name": "numeric.integer_divide",
+  "title": "Integer divide",
+  "category": "Numeric",
+  "summary": "Divide and drop the remainder.",
+  "synonyms": [
+   "floor divide",
+   "quotient"
+  ]
+ },
+ {
+  "name": "numeric.clamp",
+  "title": "Clamp to a range",
+  "category": "Numeric",
+  "summary": "Pull values below the floor up and values above the ceiling down.",
+  "synonyms": [
+   "limit",
+   "cap",
+   "bound",
+   "winsorise"
+  ]
+ },
+ {
+  "name": "numeric.is_even",
+  "title": "Is even",
+  "category": "Numeric",
+  "summary": "True for even whole numbers.",
+  "synonyms": []
+ },
+ {
+  "name": "numeric.is_odd",
+  "title": "Is odd",
+  "category": "Numeric",
+  "summary": "True for odd whole numbers.",
+  "synonyms": []
+ },
+ {
+  "name": "numeric.rescale",
+  "title": "Rescale to a range",
+  "category": "Numeric",
+  "summary": "Map a known input range onto a new output range.",
+  "synonyms": [
+   "normalise",
+   "min max",
+   "scale",
+   "0-1"
+  ]
+ },
+ {
+  "name": "numeric.percent_of",
+  "title": "Percent of a total",
+  "category": "Numeric",
+  "summary": "Express as a percentage of a known total.",
+  "synonyms": [
+   "percentage",
+   "share",
+   "%"
+  ]
+ },
+ {
+  "name": "numeric.bin",
+  "title": "Group into buckets",
+  "category": "Numeric",
+  "summary": "Label each value by which fixed-width bucket it falls in.",
+  "synonyms": [
+   "bucket",
+   "histogram",
+   "bands",
+   "ranges"
+  ]
+ },
+ {
+  "name": "rows.filter",
+  "title": "Keep or drop matching rows",
+  "category": "Rows",
+  "summary": "Keep only the rows a test matches, or drop them.",
+  "synonyms": [
+   "filter",
+   "where",
+   "exclude",
+   "remove rows"
+  ]
+ },
+ {
+  "name": "rows.filter_formula",
+  "title": "Keep rows where a formula holds",
+  "category": "Rows",
+  "summary": "Keep, or drop, the rows where a formula is true, such as AND([amount] > 100, [region] = \"eu\"); a row where it is empty is not kept.",
+  "synonyms": [
+   "filter formula",
+   "filter by formula",
+   "where clause",
+   "custom filter",
+   "filter expression"
+  ]
+ },
+ {
+  "name": "rows.keep_top",
+  "title": "Keep the first rows",
+  "category": "Rows",
+  "summary": "Keep the first N rows in the dataset's current order.",
+  "synonyms": [
+   "top n",
+   "head",
+   "limit",
+   "first rows"
+  ]
+ },
+ {
+  "name": "rows.skip",
+  "title": "Skip the first rows",
+  "category": "Rows",
+  "summary": "Drop the first N rows -- the usual fix for a file with a banner above the data.",
+  "synonyms": [
+   "offset",
+   "drop first",
+   "skip header"
+  ]
+ },
+ {
+  "name": "rows.keep_range",
+  "title": "Keep a range of rows",
+  "category": "Rows",
+  "summary": "Keep N rows starting from a position, counting from zero.",
+  "synonyms": [
+   "slice rows",
+   "page",
+   "middle"
+  ]
+ },
+ {
+  "name": "rows.sort",
+  "title": "Sort rows",
+  "category": "Rows",
+  "summary": "Order by one or more columns. Where nulls go is stated, not left to the engine.",
+  "synonyms": [
+   "order by",
+   "sort",
+   "arrange",
+   "rank"
+  ]
+ },
+ {
+  "name": "rows.deduplicate",
+  "title": "Remove duplicate rows",
+  "category": "Rows",
+  "summary": "Keep one row per distinct combination -- of every column, or of the ones you name.",
+  "synonyms": [
+   "dedupe",
+   "distinct",
+   "unique",
+   "remove duplicates"
+  ]
+ },
+ {
+  "name": "rows.drop_blank",
+  "title": "Drop blank rows",
+  "category": "Rows",
+  "summary": "Remove rows that are empty -- in every column, or in any of the ones you name.",
+  "synonyms": [
+   "remove empty",
+   "drop nulls",
+   "blank rows"
+  ]
+ },
+ {
+  "name": "sample.random",
+  "title": "Random sample",
+  "category": "Sampling & splitting",
+  "summary": "Keep a random share (or number) of the rows, the same ones every run for the same seed.",
+  "synonyms": [
+   "random sample",
+   "sample",
+   "subset",
+   "random rows"
+  ]
+ },
+ {
+  "name": "sample.stratified",
+  "title": "Sample each group alike",
+  "category": "Sampling & splitting",
+  "summary": "Keep the same share (or number) of rows from every group, so small groups are not lost from the sample.",
+  "synonyms": [
+   "stratified sample",
+   "stratify",
+   "proportional sample",
+   "sample by group"
+  ]
+ },
+ {
+  "name": "sample.systematic",
+  "title": "Every nth row",
+  "category": "Sampling & splitting",
+  "summary": "Keep every nth row, starting from a given row.",
+  "synonyms": [
+   "systematic sample",
+   "every nth row",
+   "every other row",
+   "interval sample"
+  ]
+ },
+ {
+  "name": "sample.cluster",
+  "title": "Sample whole groups",
+  "category": "Sampling & splitting",
+  "summary": "Choose some groups at random and keep all their rows (cluster sampling: a few shops, every sale in each).",
+  "synonyms": [
+   "cluster sample",
+   "sample groups",
+   "random groups"
+  ]
+ },
+ {
+  "name": "sample.reservoir",
+  "title": "Sample a fixed number in one pass",
+  "category": "Sampling & splitting",
+  "summary": "Keep exactly this many rows, each row as likely as any other, in one pass over the data (reservoir sampling, for when the total is not known first).",
+  "synonyms": [
+   "reservoir sample",
+   "fixed size sample",
+   "streaming sample",
+   "algorithm r"
+  ]
+ },
+ {
+  "name": "sample.balanced",
+  "title": "Balance the groups",
+  "category": "Sampling & splitting",
+  "summary": "Keep the same number of rows of every value of a column, as many as the smallest group has (for a model that would otherwise learn the commonest answer).",
+  "synonyms": [
+   "balanced sample",
+   "undersample",
+   "class balance",
+   "equal groups"
+  ]
+ },
+ {
+  "name": "sample.train_test",
+  "title": "Split into training and test rows",
+  "category": "Sampling & splitting",
+  "summary": "Label each row train or test at random, a share in test, optionally the same share within each value of a column (stratified).",
+  "synonyms": [
+   "train test split",
+   "holdout",
+   "validation split",
+   "split data"
+  ]
+ },
+ {
+  "name": "sample.time_split",
+  "title": "Split by time",
+  "category": "Sampling & splitting",
+  "summary": "Label rows after a date (or the latest share of them) test and the rest train, so a model is judged on data from after what it learnt from.",
+  "synonyms": [
+   "time based split",
+   "temporal split",
+   "out of time",
+   "backtest split"
+  ]
+ },
+ {
+  "name": "sample.split_by_condition",
+  "title": "Label rows by a condition",
+  "category": "Sampling & splitting",
+  "summary": "Label each row by whether a formula holds for it, with words of your choosing (big and small orders), to filter or deliver each part separately.",
+  "synonyms": [
+   "split by condition",
+   "partition by rule",
+   "label rows",
+   "segment by rule"
+  ]
+ },
+ {
+  "name": "sample.split_into_parts",
+  "title": "Number the rows into parts",
+  "category": "Sampling & splitting",
+  "summary": "Number each row 1 to N to split the data into N parts: in order (the first rows are part 1) or in turn (1, 2, 3, 1, 2, 3).",
+  "synonyms": [
+   "split into n parts",
+   "chunks",
+   "batches",
+   "partition rows",
+   "round robin"
+  ]
+ },
+ {
+  "name": "stats.describe",
+  "title": "Describe the columns",
+  "category": "Statistics",
+  "summary": "One row per column: how many values and empty ones, how many different, and for numbers the mean, spread, lowest, quartiles, median and highest; the commonest value for every column.",
+  "synonyms": [
+   "describe",
+   "summary statistics",
+   "profile",
+   "mean median",
+   "statistics summary"
+  ]
+ },
+ {
+  "name": "stats.correlation_matrix",
+  "title": "Correlation matrix",
+  "category": "Statistics",
+  "summary": "How closely every pair of number columns moves together, from -1 to 1, by Pearson (straight-line), Spearman (rank) or Kendall's tau.",
+  "synonyms": [
+   "correlation matrix",
+   "correlations",
+   "pearson",
+   "spearman",
+   "corr"
+  ]
+ },
+ {
+  "name": "stats.covariance_matrix",
+  "title": "Covariance matrix",
+  "category": "Statistics",
+  "summary": "The covariance of every pair of number columns (sample, n - 1).",
+  "synonyms": [
+   "covariance matrix",
+   "covariances",
+   "cov"
+  ]
+ },
+ {
+  "name": "stats.histogram",
+  "title": "Histogram",
+  "category": "Statistics",
+  "summary": "Count the values in equal-width bins between the lowest and highest (the last bin includes the highest).",
+  "synonyms": [
+   "histogram",
+   "distribution",
+   "bins",
+   "frequency distribution"
+  ]
+ },
+ {
+  "name": "stats.frequency",
+  "title": "Frequency table",
+  "category": "Statistics",
+  "summary": "How often each value appears, commonest first, with its share and the running share.",
+  "synonyms": [
+   "frequency table",
+   "value counts",
+   "counts",
+   "tally",
+   "pareto"
+  ]
+ },
+ {
+  "name": "stats.outliers_iqr",
+  "title": "Find outliers by the middle half",
+  "category": "Statistics",
+  "summary": "True for values more than 1.5 times the interquartile range below the lower quartile or above the upper (Tukey's fences).",
+  "synonyms": [
+   "outliers iqr",
+   "tukey",
+   "box plot outliers",
+   "anomalies",
+   "outlier detection"
+  ]
+ },
+ {
+  "name": "stats.outliers_zscore",
+  "title": "Find outliers by standard deviations",
+  "category": "Statistics",
+  "summary": "True for values more than 3 standard deviations from the mean (suits values that are roughly normal).",
+  "synonyms": [
+   "outliers z score",
+   "z score outliers",
+   "3 sigma",
+   "anomalies",
+   "outlier detection"
+  ]
+ },
+ {
+  "name": "stats.outliers_mad",
+  "title": "Find outliers by median deviation",
+  "category": "Statistics",
+  "summary": "True for values whose modified z-score, from the median absolute deviation, is above 3.5 (robust to the outliers themselves).",
+  "synonyms": [
+   "outliers mad",
+   "robust outliers",
+   "median absolute deviation",
+   "anomalies",
+   "outlier detection"
+  ]
+ },
+ {
+  "name": "stats.outliers_isolation_forest",
+  "title": "Find unusual rows",
+  "category": "Statistics",
+  "summary": "True for rows that an isolation forest separates from the rest quickly, looking at several number columns at once; a score says how unusual each is.",
+  "synonyms": [
+   "isolation forest",
+   "anomaly detection",
+   "multivariate outliers",
+   "unusual rows"
+  ]
+ },
+ {
+  "name": "stats.normality",
+  "title": "Test for a normal distribution",
+  "category": "Statistics",
+  "summary": "Test whether the values could come from a normal distribution: Shapiro-Wilk, or D'Agostino-Pearson past 5,000 values.",
+  "synonyms": [
+   "normality test",
+   "shapiro wilk",
+   "is it normal",
+   "gaussian test"
+  ]
+ },
+ {
+  "name": "stats.t_test",
+  "title": "Compare means (t-test)",
+  "category": "Statistics",
+  "summary": "Test whether the mean differs from a value (one-sample), or between two groups (Welch's two-sample, not assuming equal spreads).",
+  "synonyms": [
+   "t test",
+   "ttest",
+   "compare means",
+   "student t",
+   "welch",
+   "significance test"
+  ]
+ },
+ {
+  "name": "stats.paired_t_test",
+  "title": "Compare before and after (paired t-test)",
+  "category": "Statistics",
+  "summary": "Test whether two columns measured on the same rows (before and after) differ on average.",
+  "synonyms": [
+   "paired t test",
+   "before after",
+   "dependent t test",
+   "repeated measures"
+  ]
+ },
+ {
+  "name": "stats.anova",
+  "title": "Compare means of several groups (ANOVA)",
+  "category": "Statistics",
+  "summary": "Test whether the mean is the same in every group (one-way analysis of variance).",
+  "synonyms": [
+   "anova",
+   "f test",
+   "analysis of variance",
+   "compare groups"
+  ]
+ },
+ {
+  "name": "stats.chi_square",
+  "title": "Test whether two categories are related (chi-square)",
+  "category": "Statistics",
+  "summary": "Test whether two columns of categories are independent, or one tells you something about the other.",
+  "synonyms": [
+   "chi square",
+   "chi2",
+   "independence test",
+   "contingency test"
+  ]
+ },
+ {
+  "name": "stats.mann_whitney",
+  "title": "Compare two groups without assuming normal (Mann-Whitney)",
+  "category": "Statistics",
+  "summary": "Test whether values in one group tend to be larger than in the other, by ranks.",
+  "synonyms": [
+   "mann whitney",
+   "wilcoxon rank sum",
+   "u test",
+   "non parametric"
+  ]
+ },
+ {
+  "name": "stats.ks_test",
+  "title": "Compare distributions (Kolmogorov-Smirnov)",
+  "category": "Statistics",
+  "summary": "Test whether two groups are distributed alike, or one column like a normal distribution with its own mean and spread.",
+  "synonyms": [
+   "kolmogorov smirnov",
+   "ks test",
+   "compare distributions",
+   "goodness of fit"
+  ]
+ },
+ {
+  "name": "stats.linear_regression",
+  "title": "Fit a straight line",
+  "category": "Statistics",
+  "summary": "How one number column moves with another: the intercept and slope by least squares, their standard errors and p-values, and R².",
+  "synonyms": [
+   "linear regression",
+   "line of best fit",
+   "trend line",
+   "slope",
+   "ols"
+  ]
+ },
+ {
+  "name": "stats.multiple_regression",
+  "title": "Fit several columns at once",
+  "category": "Statistics",
+  "summary": "How one number column moves with several others together (ordinary least squares), with each one's estimate, standard error and p-value.",
+  "synonyms": [
+   "multiple regression",
+   "multivariate regression",
+   "ols",
+   "drivers"
+  ]
+ },
+ {
+  "name": "stats.logistic_regression",
+  "title": "Fit a yes-or-no outcome",
+  "category": "Statistics",
+  "summary": "How several columns change the odds of a 0-or-1 outcome (logistic regression by maximum likelihood), with each one's estimate and p-value.",
+  "synonyms": [
+   "logistic regression",
+   "logit",
+   "classification model",
+   "odds ratio"
+  ]
+ },
+ {
+  "name": "stats.residuals",
+  "title": "Add fitted values and residuals",
+  "category": "Statistics",
+  "summary": "Fit the column by least squares on others and add, on every row, the fitted value and the residual (what the fit misses), to look for what it does not explain.",
+  "synonyms": [
+   "residual analysis",
+   "residuals",
+   "fitted values",
+   "prediction error"
+  ]
+ },
+ {
+  "name": "stats.confidence_interval",
+  "title": "Confidence interval for the mean",
+  "category": "Statistics",
+  "summary": "The range the true mean is likely in, by Student's t, overall or for each group.",
+  "synonyms": [
+   "confidence interval",
+   "margin of error",
+   "error bars",
+   "ci"
+  ]
+ },
+ {
+  "name": "stats.sample_size",
+  "title": "How many to sample",
+  "category": "Statistics",
+  "summary": "How many responses a survey needs for a margin of error at a confidence, for a share near the one expected (0.5 when unknown), optionally in a finite population. Uses no data.",
+  "synonyms": [
+   "sample size calculator",
+   "survey size",
+   "how many respondents",
+   "power"
+  ]
+ },
+ {
+  "name": "stats.seasonal_decompose",
+  "title": "Split into trend and season",
+  "category": "Statistics",
+  "summary": "Separate a series, in time order, into its trend (a centred moving average), its repeating seasonal pattern of the period given, and what is left (classical decomposition, additive or multiplicative).",
+  "synonyms": [
+   "seasonal decompose",
+   "seasonality",
+   "trend",
+   "stl",
+   "decomposition"
+  ]
+ },
+ {
+  "name": "stats.autocorrelation",
+  "title": "Autocorrelation by lag",
+  "category": "Statistics",
+  "summary": "How much a series, in time order, resembles itself this many rows earlier, for each lag, with the 95% band chance alone stays inside.",
+  "synonyms": [
+   "autocorrelation",
+   "acf",
+   "serial correlation",
+   "lag correlation"
+  ]
+ },
+ {
+  "name": "stats.trend_test",
+  "title": "Test for a trend",
+  "category": "Statistics",
+  "summary": "Is a series, in time order, rising or falling beyond chance? The Mann-Kendall test, with Sen's slope for how fast.",
+  "synonyms": [
+   "trend test",
+   "mann kendall",
+   "is it increasing",
+   "sen slope"
+  ]
+ },
+ {
+  "name": "stats.changepoints",
+  "title": "Find where the level changes",
+  "category": "Statistics",
+  "summary": "Number the stretches of a series, in time order, between points where its average shifts (binary segmentation with a penalty so noise does not count), 1 for the first stretch.",
+  "synonyms": [
+   "changepoint detection",
+   "change point",
+   "level shift",
+   "regime change",
+   "break detection"
+  ]
+ },
+ {
+  "name": "stats.distribution_fit",
+  "title": "Fit a distribution",
+  "category": "Statistics",
+  "summary": "Which of the normal, uniform, exponential and (for positive values) lognormal, gamma and Weibull distributions describes the values best, by maximum likelihood, ranked by AIC, each with a Kolmogorov-Smirnov check.",
+  "synonyms": [
+   "distribution fit",
+   "fit distribution",
+   "which distribution",
+   "maximum likelihood",
+   "aic"
+  ]
+ },
+ {
+  "name": "columns.add",
+  "title": "Add a column with one value",
+  "category": "Columns",
+  "summary": "Add a column holding the same value on every row: a source label, a default, a flag to fill in later.",
+  "synonyms": [
+   "add column",
+   "new column",
+   "constant column",
+   "literal column",
+   "insert column"
+  ]
+ },
+ {
+  "name": "columns.split_by_position",
+  "title": "Split at fixed positions",
+  "category": "Columns",
+  "summary": "Cut text into pieces after given numbers of characters (fixed-width records, codes with parts).",
+  "synonyms": [
+   "split by position",
+   "fixed width",
+   "split at character",
+   "substring columns"
+  ]
+ },
+ {
+  "name": "columns.split_by_pattern",
+  "title": "Split by a pattern",
+  "category": "Columns",
+  "summary": "Split text into columns wherever a regular expression matches: any run of spaces, a dash or a slash, a comma with or without a space.",
+  "synonyms": [
+   "split by regex",
+   "regex split",
+   "split on pattern",
+   "tokenise"
+  ]
+ },
+ {
+  "name": "columns.split_to_rows",
+  "title": "Split into rows",
+  "category": "Columns",
+  "summary": "Give each value in a list (\"red, green, blue\") its own row, repeating the other columns.",
+  "synonyms": [
+   "split to rows",
+   "explode",
+   "unnest",
+   "one row per value",
+   "split rows"
+  ]
+ },
+ {
+  "name": "columns.promote_headers",
+  "title": "Use the first row as column names",
+  "category": "Columns",
+  "summary": "Take the column names from the first row and drop it, for a file whose header was read as data. A blank name becomes column_N.",
+  "synonyms": [
+   "promote headers",
+   "first row as header",
+   "rename from first row",
+   "header row",
+   "use row 1"
+  ]
+ },
+ {
+  "name": "columns.demote_headers",
+  "title": "Turn column names into the first row",
+  "category": "Columns",
+  "summary": "Move the column names into a first row and name the columns column_1, column_2: for data that has to be read without a header.",
+  "synonyms": [
+   "demote headers",
+   "header to row",
+   "headers as data"
+  ]
+ },
+ {
+  "name": "rows.keep_last",
+  "title": "Keep the last rows",
+  "category": "Rows",
+  "summary": "Keep this many rows from the end, in their order.",
+  "synonyms": [
+   "tail",
+   "last n",
+   "keep bottom",
+   "bottom rows"
+  ]
+ },
+ {
+  "name": "rows.skip_last",
+  "title": "Skip the last rows",
+  "category": "Rows",
+  "summary": "Drop this many rows from the end (a totals line, a footer).",
+  "synonyms": [
+   "drop last",
+   "remove footer",
+   "skip bottom",
+   "drop trailing rows"
+  ]
+ },
+ {
+  "name": "rows.reverse",
+  "title": "Reverse the rows",
+  "category": "Rows",
+  "summary": "Put the rows in the opposite order.",
+  "synonyms": [
+   "reverse order",
+   "flip",
+   "upside down",
+   "invert rows"
+  ]
+ },
+ {
+  "name": "rows.shuffle",
+  "title": "Shuffle the rows",
+  "category": "Rows",
+  "summary": "Put the rows in a random order that is the same every run for the same seed.",
+  "synonyms": [
+   "shuffle",
+   "randomise order",
+   "random order",
+   "permute"
+  ]
+ },
+ {
+  "name": "rows.delete",
+  "title": "Delete rows by number",
+  "category": "Rows",
+  "summary": "Delete the rows at these positions, counted from 1 in the order the rows are in.",
+  "synonyms": [
+   "delete row",
+   "remove row",
+   "drop row number"
+  ]
+ },
+ {
+  "name": "rows.insert",
+  "title": "Add a row",
+  "category": "Rows",
+  "summary": "Add one row with the values given, at the start or the end; columns not named are empty.",
+  "synonyms": [
+   "insert row",
+   "add row",
+   "append row",
+   "new row"
+  ]
+ },
+ {
+  "name": "rows.custom_order",
+  "title": "Sort in a chosen order",
+  "category": "Rows",
+  "summary": "Put rows in the order of a list of values (Low, Medium, High; Mon to Sun); values not in the list come after.",
+  "synonyms": [
+   "custom sort",
+   "sort by list",
+   "manual order",
+   "ordinal sort"
+  ]
+ },
+ {
+  "name": "rows.keep_errors",
+  "title": "Keep rows that do not convert",
+  "category": "Rows",
+  "summary": "Keep only the rows whose value cannot be read as a number, a date or true or false, to see what is wrong.",
+  "synonyms": [
+   "keep errors",
+   "show bad values",
+   "invalid rows",
+   "rows that fail"
+  ]
+ },
+ {
+  "name": "rows.remove_errors",
+  "title": "Drop rows that do not convert",
+  "category": "Rows",
+  "summary": "Drop the rows whose value cannot be read as a number, a date or true or false; empty values stay.",
+  "synonyms": [
+   "remove errors",
+   "drop bad values",
+   "drop invalid rows"
+  ]
+ },
+ {
+  "name": "reshape.transpose",
+  "title": "Swap rows and columns",
+  "category": "Reshape",
+  "summary": "Turn each column into a row and each row into a column, naming the new columns from a column of your choice (or row_1, row_2).",
+  "synonyms": [
+   "transpose",
+   "flip rows and columns",
+   "rotate",
+   "swap axes"
+  ]
+ },
+ {
+  "name": "reshape.nest",
+  "title": "Combine columns into one",
+  "category": "Reshape",
+  "summary": "Put several columns into one JSON column, for an API that wants an object or a document store.",
+  "synonyms": [
+   "nest columns",
+   "to struct",
+   "combine into json",
+   "pack columns",
+   "object column"
+  ]
+ },
+ {
+  "name": "reshape.crosstab",
+  "title": "Cross-tab two columns",
+  "category": "Reshape",
+  "summary": "Count (or total) rows by two columns at once: one row per value of the first, one column per value of the second.",
+  "synonyms": [
+   "cross tab",
+   "crosstab",
+   "contingency table",
+   "two way table",
+   "matrix count"
+  ]
+ },
+ {
+  "name": "text.trim",
+  "title": "Trim whitespace",
+  "category": "Text",
+  "summary": "Remove spaces, tabs and newlines from both ends.",
+  "synonyms": [
+   "strip",
+   "whitespace",
+   "clean spaces"
+  ]
+ },
+ {
+  "name": "text.trim_start",
+  "title": "Trim leading whitespace",
+  "category": "Text",
+  "summary": "Remove whitespace from the start only.",
+  "synonyms": [
+   "left trim",
+   "lstrip"
+  ]
+ },
+ {
+  "name": "text.trim_end",
+  "title": "Trim trailing whitespace",
+  "category": "Text",
+  "summary": "Remove whitespace from the end only.",
+  "synonyms": [
+   "right trim",
+   "rstrip"
+  ]
+ },
+ {
+  "name": "text.collapse_whitespace",
+  "title": "Collapse whitespace",
+  "category": "Text",
+  "summary": "Replace every run of whitespace with a single space, and trim the ends.",
+  "synonyms": [
+   "squeeze spaces",
+   "normalise spaces",
+   "double spaces"
+  ]
+ },
+ {
+  "name": "text.upper",
+  "title": "UPPERCASE",
+  "category": "Text",
+  "summary": "Convert to upper case.",
+  "synonyms": [
+   "capitals",
+   "caps",
+   "uppercase"
+  ]
+ },
+ {
+  "name": "text.lower",
+  "title": "Lowercase",
+  "category": "Text",
+  "summary": "Convert to lower case.",
+  "synonyms": [
+   "lowercase",
+   "small"
+  ]
+ },
+ {
+  "name": "text.title_case",
+  "title": "Title Case",
+  "category": "Text",
+  "summary": "Capitalise the first letter of every word.",
+  "synonyms": [
+   "capitalise each word",
+   "proper case",
+   "initcap"
+  ]
+ },
+ {
+  "name": "text.sentence_case",
+  "title": "Sentence case",
+  "category": "Text",
+  "summary": "Capitalise the first letter and lower the rest.",
+  "synonyms": [
+   "first letter capital"
+  ]
+ },
+ {
+  "name": "text.swap_case",
+  "title": "Swap case",
+  "category": "Text",
+  "summary": "Turn upper case into lower and lower into upper.",
+  "synonyms": [
+   "invert case"
+  ]
+ },
+ {
+  "name": "text.pad_left",
+  "title": "Pad left",
+  "category": "Text",
+  "summary": "Pad to a fixed width by adding characters on the left.",
+  "synonyms": [
+   "zero pad",
+   "leading zeros",
+   "fixed width"
+  ]
+ },
+ {
+  "name": "text.pad_right",
+  "title": "Pad right",
+  "category": "Text",
+  "summary": "Pad to a fixed width by adding characters on the right.",
+  "synonyms": []
+ },
+ {
+  "name": "text.truncate",
+  "title": "Truncate",
+  "category": "Text",
+  "summary": "Shorten to a maximum length, optionally ending with a suffix.",
+  "synonyms": [
+   "shorten",
+   "cut",
+   "limit length",
+   "ellipsis"
+  ]
+ },
+ {
+  "name": "text.left",
+  "title": "First characters",
+  "category": "Text",
+  "summary": "Keep the first N characters.",
+  "synonyms": [
+   "first n",
+   "prefix",
+   "head"
+  ]
+ },
+ {
+  "name": "text.right",
+  "title": "Last characters",
+  "category": "Text",
+  "summary": "Keep the last N characters.",
+  "synonyms": [
+   "last n",
+   "suffix",
+   "tail"
+  ]
+ },
+ {
+  "name": "text.substring",
+  "title": "Substring",
+  "category": "Text",
+  "summary": "Take a run of characters from a starting position. Positions count from 1.",
+  "synonyms": [
+   "mid",
+   "slice",
+   "extract range"
+  ]
+ },
+ {
+  "name": "text.extract_before",
+  "title": "Extract before",
+  "category": "Text",
+  "summary": "Everything before the first occurrence of a marker.",
+  "synonyms": [
+   "split before",
+   "up to"
+  ]
+ },
+ {
+  "name": "text.extract_after",
+  "title": "Extract after",
+  "category": "Text",
+  "summary": "Everything after the first occurrence of a marker.",
+  "synonyms": [
+   "split after",
+   "from"
+  ]
+ },
+ {
+  "name": "text.extract_between",
+  "title": "Extract between",
+  "category": "Text",
+  "summary": "The text between two markers. Null when either marker is missing.",
+  "synonyms": [
+   "inner text",
+   "between delimiters"
+  ]
+ },
+ {
+  "name": "text.split_part",
+  "title": "Take one part",
+  "category": "Text",
+  "summary": "Split on a delimiter and keep one part. Parts count from 1.",
+  "synonyms": [
+   "nth field",
+   "delimiter",
+   "csv part"
+  ]
+ },
+ {
+  "name": "text.char_at",
+  "title": "Character at position",
+  "category": "Text",
+  "summary": "The single character at a position, counting from 1.",
+  "synonyms": []
+ },
+ {
+  "name": "text.regex_extract",
+  "title": "Extract with a pattern",
+  "category": "Text",
+  "summary": "The first capture group of a regular expression.",
+  "synonyms": [
+   "regex",
+   "pattern",
+   "capture"
+  ]
+ },
+ {
+  "name": "text.regex_replace",
+  "title": "Replace with a pattern",
+  "category": "Text",
+  "summary": "Replace everything matching a regular expression.",
+  "synonyms": [
+   "regex replace",
+   "substitute"
+  ]
+ },
+ {
+  "name": "text.regex_count",
+  "title": "Count pattern matches",
+  "category": "Text",
+  "summary": "How many times a regular expression matches.",
+  "synonyms": []
+ },
+ {
+  "name": "text.replace",
+  "title": "Find and replace",
+  "category": "Text",
+  "summary": "Replace every occurrence of one piece of text with another.",
+  "synonyms": [
+   "substitute",
+   "swap text"
+  ]
+ },
+ {
+  "name": "text.position",
+  "title": "Position of text",
+  "category": "Text",
+  "summary": "Where a piece of text first appears, counting from 1. Zero when absent.",
+  "synonyms": [
+   "find",
+   "index of",
+   "search"
+  ]
+ },
+ {
+  "name": "text.count_occurrences",
+  "title": "Count occurrences",
+  "category": "Text",
+  "summary": "How many times a piece of text appears.",
+  "synonyms": []
+ },
+ {
+  "name": "text.remove_characters",
+  "title": "Remove characters",
+  "category": "Text",
+  "summary": "Delete every character in a set.",
+  "synonyms": [
+   "strip characters",
+   "delete chars"
+  ]
+ },
+ {
+  "name": "text.keep_characters",
+  "title": "Keep only characters",
+  "category": "Text",
+  "summary": "Delete everything except the characters in a set.",
+  "synonyms": [
+   "whitelist characters",
+   "digits only"
+  ]
+ },
+ {
+  "name": "text.translate",
+  "title": "Swap characters",
+  "category": "Text",
+  "summary": "Replace characters one for one, like tr.",
+  "synonyms": []
+ },
+ {
+  "name": "text.length",
+  "title": "Length",
+  "category": "Text",
+  "summary": "How many characters.",
+  "synonyms": [
+   "size",
+   "characters",
+   "len"
+  ]
+ },
+ {
+  "name": "text.word_count",
+  "title": "Word count",
+  "category": "Text",
+  "summary": "How many whitespace-separated words.",
+  "synonyms": []
+ },
+ {
+  "name": "text.reverse",
+  "title": "Reverse",
+  "category": "Text",
+  "summary": "Reverse the characters.",
+  "synonyms": [
+   "backwards"
+  ]
+ },
+ {
+  "name": "text.repeat",
+  "title": "Repeat",
+  "category": "Text",
+  "summary": "Repeat the text N times.",
+  "synonyms": []
+ },
+ {
+  "name": "text.camel_to_words",
+  "title": "Split camelCase",
+  "category": "Text",
+  "summary": "Insert spaces at camel-case boundaries.",
+  "synonyms": [
+   "camel case",
+   "split words",
+   "unCamel"
+  ]
+ },
+ {
+  "name": "text.slugify",
+  "title": "Make a slug",
+  "category": "Text",
+  "summary": "Lower case, accents folded, everything else turned into hyphens.",
+  "synonyms": [
+   "url slug",
+   "kebab",
+   "handle"
+  ]
+ },
+ {
+  "name": "text.remove_accents",
+  "title": "Remove accents",
+  "category": "Text",
+  "summary": "Fold accented letters to their plain equivalents.",
+  "synonyms": [
+   "unaccent",
+   "ascii fold",
+   "diacritics"
+  ]
+ },
+ {
+  "name": "text.strip_html",
+  "title": "Strip HTML",
+  "category": "Text",
+  "summary": "Remove tags and decode entities, leaving the text.",
+  "synonyms": [
+   "remove tags",
+   "html to text"
+  ]
+ },
+ {
+  "name": "text.normalise_unicode",
+  "title": "Normalise Unicode",
+  "category": "Text",
+  "summary": "Apply a Unicode normalisation form so equal-looking text compares equal.",
+  "synonyms": [
+   "nfc",
+   "nfkc",
+   "unicode"
+  ]
+ },
+ {
+  "name": "text.soundex",
+  "title": "Soundex code",
+  "category": "Text",
+  "summary": "A four-character phonetic code, for matching names that sound alike.",
+  "synonyms": [
+   "phonetic",
+   "sounds like",
+   "fuzzy name"
+  ]
+ },
+ {
+  "name": "text.starts_with",
+  "title": "Starts with",
+  "category": "Text",
+  "summary": "True when the text begins with a given prefix.",
+  "synonyms": [
+   "begins with",
+   "prefix"
+  ]
+ },
+ {
+  "name": "text.ends_with",
+  "title": "Ends with",
+  "category": "Text",
+  "summary": "True when the text ends with a given suffix.",
+  "synonyms": [
+   "suffix"
+  ]
+ },
+ {
+  "name": "text.contains",
+  "title": "Contains",
+  "category": "Text",
+  "summary": "True when the text contains a given piece.",
+  "synonyms": [
+   "includes",
+   "has"
+  ]
+ },
+ {
+  "name": "text.merge_columns",
+  "title": "Merge columns",
+  "category": "Text",
+  "summary": "Join this column to others with a separator, skipping the empty ones.",
+  "synonyms": [
+   "concatenate",
+   "combine columns",
+   "join text"
+  ]
+ },
+ {
+  "name": "check.is_email",
+  "title": "Looks like an email",
+  "category": "Validation",
+  "summary": "True for text shaped like an email address.",
+  "synonyms": [
+   "validate email",
+   "email check"
+  ]
+ },
+ {
+  "name": "check.is_url",
+  "title": "Looks like a URL",
+  "category": "Validation",
+  "summary": "True for text shaped like an http or https URL.",
+  "synonyms": [
+   "validate url"
+  ]
+ },
+ {
+  "name": "check.is_date",
+  "title": "Reads as a date",
+  "category": "Validation",
+  "summary": "True where the value can be read as a date.",
+  "synonyms": [
+   "validate date",
+   "parseable date"
+  ]
+ },
+ {
+  "name": "check.is_number",
+  "title": "Reads as a number",
+  "category": "Validation",
+  "summary": "True where the value can be read as a number.",
+  "synonyms": [
+   "validate number",
+   "numeric check"
+  ]
+ },
+ {
+  "name": "check.in_range",
+  "title": "Within a range",
+  "category": "Validation",
+  "summary": "True where a number falls between two bounds, inclusive.",
+  "synonyms": [
+   "between",
+   "bounds",
+   "range check"
+  ]
+ },
+ {
+  "name": "check.matches_pattern",
+  "title": "Matches a pattern",
+  "category": "Validation",
+  "summary": "True where a regular expression matches.",
+  "synonyms": [
+   "regex check",
+   "format check"
+  ]
+ },
+ {
+  "name": "check.length_between",
+  "title": "Length within bounds",
+  "category": "Validation",
+  "summary": "True where the text's length falls between two bounds.",
+  "synonyms": [
+   "length check",
+   "too long",
+   "too short"
+  ]
+ },
+ {
+  "name": "check.in_set",
+  "title": "One of a list",
+  "category": "Validation",
+  "summary": "True where the value is one of an allowed list.",
+  "synonyms": [
+   "allowed values",
+   "enum",
+   "whitelist",
+   "domain"
+  ]
+ },
+ {
+  "name": "check.quarantine",
+  "title": "Split on a check column",
+  "category": "Validation",
+  "summary": "Keep only the rows that passed a check, or only the ones that failed.",
+  "synonyms": [
+   "quarantine",
+   "split failures",
+   "bad rows",
+   "reject"
+  ]
+ },
+ {
+  "name": "text.transliterate",
+  "title": "Write in Latin letters",
+  "category": "Text",
+  "summary": "Write Cyrillic and Greek in Latin letters and drop accents (Москва to Moskva, Αθήνα to Athina, Øresund to Oresund), for matching and for systems that take plain letters only.",
+  "synonyms": [
+   "transliterate",
+   "romanise",
+   "romanize",
+   "latinise",
+   "to ascii",
+   "cyrillic to latin"
+  ]
+ },
+ {
+  "name": "text.detect_language",
+  "title": "Detect the language",
+  "category": "Text",
+  "summary": "Say which language text is written in, as a two-letter code: by its alphabet where that settles it, otherwise by which of 17 languages' commonest words it uses. Texts under three words are not guessed; with confidence on, a second column says how sure (0 to 1).",
+  "synonyms": [
+   "detect language",
+   "language detection",
+   "which language",
+   "identify language"
+  ]
+ },
+ {
+  "name": "numeric.negate",
+  "title": "Flip the sign",
+  "category": "Numeric",
+  "summary": "Turn positive into negative and back (credits into debits).",
+  "synonyms": [
+   "negate",
+   "minus",
+   "flip sign",
+   "invert sign",
+   "opposite"
+  ]
+ },
+ {
+  "name": "numeric.ratio",
+  "title": "Divide by another column",
+  "category": "Numeric",
+  "summary": "This column divided by another, row by row (empty where the other is 0 or empty): a conversion rate, a share, a margin.",
+  "synonyms": [
+   "ratio",
+   "divide by column",
+   "per",
+   "rate",
+   "share of"
+  ]
+ },
+ {
+  "name": "numeric.convert_currency",
+  "title": "Convert at a fixed rate",
+  "category": "Numeric",
+  "summary": "Multiply by an exchange rate you give (for a rate that changes by day, join to a table of rates with Join to the nearest earlier row).",
+  "synonyms": [
+   "currency convert",
+   "exchange rate",
+   "fx",
+   "convert money"
+  ]
+ },
+ {
+  "name": "numeric.convert_units",
+  "title": "Convert units",
+  "category": "Numeric",
+  "summary": "Convert between units of length, mass, volume, area, speed, time, data, energy, pressure and temperature (kilometres to miles, °F to °C, MiB to GB).",
+  "synonyms": [
+   "unit convert",
+   "units",
+   "metric to imperial",
+   "celsius",
+   "fahrenheit",
+   "miles",
+   "kilograms"
+  ]
+ },
+ {
+  "name": "numeric.bin_custom",
+  "title": "Group into chosen ranges",
+  "category": "Numeric",
+  "summary": "Label each value by the range it falls in, from edges you choose (0, 18, 65, 120 gives 0 to 18, 18 to 65, 65 to 120), with your own labels if you like. A value outside every range is empty.",
+  "synonyms": [
+   "custom bins",
+   "bands",
+   "ranges",
+   "age groups",
+   "bucket by edges"
+  ]
+ },
+ {
+  "name": "numeric.robust_scale",
+  "title": "Scale by the median and spread",
+  "category": "Numeric",
+  "summary": "Subtract the median and divide by the spread of the middle half (the interquartile range), so outliers do not stretch the scale.",
+  "synonyms": [
+   "robust scale",
+   "robust scaling",
+   "median scale",
+   "iqr scale"
+  ]
+ },
+ {
+  "name": "numeric.bin_equal_frequency",
+  "title": "Group into equal-size groups",
+  "category": "Numeric",
+  "summary": "Split the values into this many groups holding about the same number of rows each, labelled by the range each covers.",
+  "synonyms": [
+   "equal frequency bins",
+   "quantile bins",
+   "quantiles",
+   "equal size buckets"
+  ]
+ },
+ {
+  "name": "type.to_decimal",
+  "title": "Change to an exact decimal",
+  "category": "Type & conversion",
+  "summary": "Read as a number with this many decimal places, kept exact rather than as a float and rounded half up from the value as written (1.005 is 1.01): money, quantities that must add up.",
+  "synonyms": [
+   "to decimal",
+   "numeric",
+   "exact number",
+   "money type"
+  ]
+ },
+ {
+  "name": "type.to_json",
+  "title": "Write as JSON",
+  "category": "Type & conversion",
+  "summary": "Write each value as JSON text: text quoted, numbers as numbers, JSON already there kept as it is.",
+  "synonyms": [
+   "to json",
+   "json encode",
+   "serialise",
+   "stringify"
+  ]
+ },
+ {
+  "name": "type.to_list",
+  "title": "Split into a list",
+  "category": "Type & conversion",
+  "summary": "Turn text like \"red, green\" into a JSON list ([\"red\", \"green\"]), to explode or count later.",
+  "synonyms": [
+   "to array",
+   "to list",
+   "split to array",
+   "make list"
+  ]
+ },
+ {
+  "name": "type.strip_thousands",
+  "title": "Remove thousands separators",
+  "category": "Type & conversion",
+  "summary": "Read numbers written with thousands separators (1,234,567 or 1.234.567,89) as numbers.",
+  "synonyms": [
+   "strip thousands",
+   "remove commas",
+   "thousands separator",
+   "grouping"
+  ]
+ },
+ {
+  "name": "null.interpolate_linear",
+  "title": "Fill gaps along a straight line",
+  "category": "Missing data",
+  "summary": "Fill an empty value between two known ones by drawing a straight line between them, spaced by a date or number column. Gaps before the first or after the last known value stay empty.",
+  "synonyms": [
+   "interpolate",
+   "linear interpolation",
+   "fill gaps",
+   "estimate missing"
+  ]
+ },
+ {
+  "name": "null.interpolate_spline",
+  "title": "Fill gaps along a smooth curve",
+  "category": "Missing data",
+  "summary": "Fill an empty value between known ones with a smooth curve through them (a cubic spline), needing at least three known values.",
+  "synonyms": [
+   "spline",
+   "cubic interpolation",
+   "smooth fill",
+   "curve fill"
+  ]
+ },
+ {
+  "name": "null.drop_mostly_empty",
+  "title": "Drop mostly empty columns",
+  "category": "Missing data",
+  "summary": "Drop every column whose share of empty values is above this (0.5 drops columns more than half empty). The first column stays if every one would go.",
+  "synonyms": [
+   "drop empty columns",
+   "remove sparse columns",
+   "mostly null",
+   "drop null columns"
+  ]
+ },
+ {
+  "name": "clean.address",
+  "title": "Standardise an address",
+  "category": "Cleansing",
+  "summary": "Tidy spacing and capitals and write street words one way: in full (Street, Road) or abbreviated (St, Rd), as UK and US addresses use them.",
+  "synonyms": [
+   "standardise address",
+   "normalise address",
+   "clean address",
+   "address format"
+  ]
+ },
+ {
+  "name": "clean.address_part",
+  "title": "Take part of an address",
+  "category": "Cleansing",
+  "summary": "Take the house number, street, unit, city, region, postcode or country from an address written on one line with commas, by UK and US rules (a UK postcode, a US state and ZIP code). A part it cannot find is empty; other countries' addresses mostly give the street and city only.",
+  "synonyms": [
+   "parse address",
+   "address components",
+   "postcode from address",
+   "city from address",
+   "zip code from address"
+  ]
+ },
+ {
+  "name": "clean.currency_code",
+  "title": "Standardise a currency",
+  "category": "Cleansing",
+  "summary": "Write a currency as its ISO 4217 code from a symbol or a name (£ or pounds to GBP, € to EUR); 33 currencies.",
+  "synonyms": [
+   "currency code",
+   "iso 4217",
+   "standardise currency",
+   "currency symbol"
+  ]
+ },
+ {
+  "name": "clean.person_name",
+  "title": "Standardise a person's name",
+  "category": "Cleansing",
+  "summary": "Write a name with the capitals people expect (McDonald, O'Brien, Smith-Jones, Ludwig van Beethoven), tidy spaces, and optionally drop titles such as Mr and Dr.",
+  "synonyms": [
+   "standardise name",
+   "proper case name",
+   "name case",
+   "clean name"
+  ]
+ },
+ {
+  "name": "clean.fix_swapped",
+  "title": "Fix values in the wrong column",
+  "category": "Cleansing",
+  "summary": "Swap two columns' values on the rows where this one does not look like what it should hold and the other does (a phone number typed in the name box). The run says how many rows it swapped.",
+  "synonyms": [
+   "swapped columns",
+   "wrong column",
+   "fix swapped values",
+   "misplaced values"
+  ]
+ },
+ {
+  "name": "clean.units",
+  "title": "Standardise measurements",
+  "category": "Cleansing",
+  "summary": "Read measurements written with their units (\"5 kg\", \"5000g\", \"11 lbs\") as numbers in one unit; a value without a unit, or in another kind of unit, is empty.",
+  "synonyms": [
+   "standardise units",
+   "parse measurements",
+   "units in text",
+   "normalise units"
+  ]
+ },
+ {
+  "name": "privacy.tokenise",
+  "title": "Replace with a reversible token",
+  "category": "Encoding & privacy",
+  "summary": "Replace each value with a token that stays the same for the same value (so it still joins and groups) and that only an administrator can turn back, in Administration, each time recorded in the audit log.",
+  "synonyms": [
+   "tokenise",
+   "tokenize",
+   "reversible",
+   "encrypt value",
+   "detokenise"
+  ]
+ },
+ {
+  "name": "key.surrogate",
+  "title": "Make a key from columns",
+  "category": "Encoding & privacy",
+  "summary": "Make one short key from several columns that is the same whenever they are (a hash of the values): a key for a table that has none.",
+  "synonyms": [
+   "surrogate key",
+   "hash key",
+   "composite key",
+   "row key"
+  ]
+ },
+ {
+  "name": "key.uuid",
+  "title": "Make an ID for each row",
+  "category": "Encoding & privacy",
+  "summary": "Give each row a UUID: made from columns you choose (the same values always give the same ID), or random but the same every run for the same seed.",
+  "synonyms": [
+   "uuid",
+   "guid",
+   "generate id",
+   "unique id",
+   "row id"
+  ]
+ },
+ {
+  "name": "window.row_number",
+  "title": "Row number",
+  "category": "Window & analytic",
+  "summary": "Number the rows 1, 2, 3 within each group, in order.",
+  "synonyms": [
+   "row id",
+   "sequence",
+   "index",
+   "position",
+   "number rows"
+  ]
+ },
+ {
+  "name": "window.rank",
+  "title": "Rank",
+  "category": "Window & analytic",
+  "summary": "Rank rows by this column, with ties sharing a rank and the next rank skipped (1, 2, 2, 4).",
+  "synonyms": [
+   "position",
+   "standing",
+   "order",
+   "league table",
+   "top"
+  ]
+ },
+ {
+  "name": "window.dense_rank",
+  "title": "Dense rank",
+  "category": "Window & analytic",
+  "summary": "Rank rows by this column with no gaps after ties (1, 2, 2, 3).",
+  "synonyms": [
+   "rank without gaps",
+   "dense"
+  ]
+ },
+ {
+  "name": "window.percent_rank",
+  "title": "Percent rank",
+  "category": "Window & analytic",
+  "summary": "Where a row sits in its group, from 0 (first) to 1 (last).",
+  "synonyms": [
+   "percentile rank",
+   "percentile",
+   "relative rank"
+  ]
+ },
+ {
+  "name": "window.cume_dist",
+  "title": "Cumulative distribution",
+  "category": "Window & analytic",
+  "summary": "The share of the group's rows at or before this one, from just above 0 to 1.",
+  "synonyms": [
+   "cdf",
+   "cumulative share",
+   "percentile position"
+  ]
+ },
+ {
+  "name": "window.ntile",
+  "title": "Split into equal groups",
+  "category": "Window & analytic",
+  "summary": "Number the rows 1 to N in order, so each number has as near an equal share of the rows as possible (quartiles, deciles).",
+  "synonyms": [
+   "ntile",
+   "quartile",
+   "decile",
+   "quintile",
+   "bucket",
+   "tercile"
+  ]
+ },
+ {
+  "name": "window.lag",
+  "title": "Value from an earlier row",
+  "category": "Window & analytic",
+  "summary": "The value this many rows before, within the group (empty before the first).",
+  "synonyms": [
+   "lag",
+   "previous row",
+   "prior value",
+   "last value before",
+   "shift"
+  ]
+ },
+ {
+  "name": "window.lead",
+  "title": "Value from a later row",
+  "category": "Window & analytic",
+  "summary": "The value this many rows after, within the group (empty after the last).",
+  "synonyms": [
+   "lead",
+   "next row",
+   "following value",
+   "shift"
+  ]
+ },
+ {
+  "name": "window.first_value",
+  "title": "First value in the group",
+  "category": "Window & analytic",
+  "summary": "The group's first value, in order, on every row.",
+  "synonyms": [
+   "first value",
+   "opening value",
+   "earliest"
+  ]
+ },
+ {
+  "name": "window.last_value",
+  "title": "Last value in the group",
+  "category": "Window & analytic",
+  "summary": "The group's last value, in order, on every row.",
+  "synonyms": [
+   "last value",
+   "closing value",
+   "latest"
+  ]
+ },
+ {
+  "name": "window.nth_value",
+  "title": "Nth value in the group",
+  "category": "Window & analytic",
+  "summary": "The group's value at this position, in order, on every row (empty when the group is shorter).",
+  "synonyms": [
+   "nth value",
+   "second value",
+   "value at position"
+  ]
+ },
+ {
+  "name": "window.cumulative_sum",
+  "title": "Running total",
+  "category": "Window & analytic",
+  "summary": "Add each row's value to the total so far, within the group.",
+  "synonyms": [
+   "cumulative sum",
+   "running sum",
+   "year to date",
+   "cumsum",
+   "accumulate"
+  ]
+ },
+ {
+  "name": "window.cumulative_product",
+  "title": "Running product",
+  "category": "Window & analytic",
+  "summary": "Multiply each row's value into the product so far.",
+  "synonyms": [
+   "cumulative product",
+   "compound",
+   "cumprod"
+  ]
+ },
+ {
+  "name": "window.cumulative_max",
+  "title": "Running highest",
+  "category": "Window & analytic",
+  "summary": "The highest value so far, within the group.",
+  "synonyms": [
+   "cumulative max",
+   "high water mark",
+   "peak so far"
+  ]
+ },
+ {
+  "name": "window.cumulative_min",
+  "title": "Running lowest",
+  "category": "Window & analytic",
+  "summary": "The lowest value so far, within the group.",
+  "synonyms": [
+   "cumulative min",
+   "low water mark",
+   "lowest so far"
+  ]
+ },
+ {
+  "name": "window.cumulative_count",
+  "title": "Running count",
+  "category": "Window & analytic",
+  "summary": "How many values so far, within the group.",
+  "synonyms": [
+   "cumulative count",
+   "count so far"
+  ]
+ },
+ {
+  "name": "window.running_average",
+  "title": "Running average",
+  "category": "Window & analytic",
+  "summary": "The average of the values so far, within the group.",
+  "synonyms": [
+   "cumulative average",
+   "running mean",
+   "expanding mean",
+   "average so far"
+  ]
+ },
+ {
+  "name": "window.moving_average",
+  "title": "Moving average",
+  "category": "Window & analytic",
+  "summary": "The average of this row and the rows just before it.",
+  "synonyms": [
+   "rolling average",
+   "rolling mean",
+   "sma",
+   "trailing average",
+   "smooth"
+  ]
+ },
+ {
+  "name": "window.moving_sum",
+  "title": "Moving total",
+  "category": "Window & analytic",
+  "summary": "The total of this row and the rows just before it.",
+  "synonyms": [
+   "rolling sum",
+   "rolling total",
+   "trailing total"
+  ]
+ },
+ {
+  "name": "window.moving_max",
+  "title": "Moving highest",
+  "category": "Window & analytic",
+  "summary": "The highest of this row and the rows just before it.",
+  "synonyms": [
+   "rolling max",
+   "rolling highest"
+  ]
+ },
+ {
+  "name": "window.moving_min",
+  "title": "Moving lowest",
+  "category": "Window & analytic",
+  "summary": "The lowest of this row and the rows just before it.",
+  "synonyms": [
+   "rolling min",
+   "rolling lowest"
+  ]
+ },
+ {
+  "name": "window.rolling_stdev",
+  "title": "Moving standard deviation",
+  "category": "Window & analytic",
+  "summary": "How spread out this row and the rows just before it are (empty with only one value).",
+  "synonyms": [
+   "rolling standard deviation",
+   "volatility",
+   "rolling std"
+  ]
+ },
+ {
+  "name": "window.ema",
+  "title": "Exponential moving average",
+  "category": "Window & analytic",
+  "summary": "A moving average that weighs recent rows more; the span sets how quickly older rows fade.",
+  "synonyms": [
+   "ewma",
+   "exponentially weighted",
+   "smoothing",
+   "ema"
+  ]
+ },
+ {
+  "name": "window.rolling_correlation",
+  "title": "Moving correlation",
+  "category": "Window & analytic",
+  "summary": "How closely this column moves with another over the last rows: 1 together, -1 opposite, 0 unrelated.",
+  "synonyms": [
+   "rolling correlation",
+   "moving correlation",
+   "co-movement"
+  ]
+ },
+ {
+  "name": "window.session",
+  "title": "Number the sessions",
+  "category": "Window & analytic",
+  "summary": "Group events into sessions: a new session starts after a gap longer than this many minutes, counted 1, 2, 3 within each group.",
+  "synonyms": [
+   "sessionise",
+   "sessionize",
+   "visits",
+   "session window",
+   "activity gap"
+  ]
+ },
+ {
+  "name": "window.difference",
+  "title": "Difference from the row before",
+  "category": "Window & analytic",
+  "summary": "This row's value minus the one before it in the group (empty for the first).",
+  "synonyms": [
+   "difference",
+   "delta",
+   "change",
+   "diff",
+   "increase"
+  ]
+ },
+ {
+  "name": "window.percent_change",
+  "title": "Percent change from the row before",
+  "category": "Window & analytic",
+  "summary": "How much this row's value changed from the one before, as a share of it (0.5 is half as much again).",
+  "synonyms": [
+   "percent change",
+   "growth",
+   "pct change",
+   "rate of change",
+   "relative change"
+  ]
+ },
+ {
+  "name": "window.percent_of_total",
+  "title": "Percent of the group's total",
+  "category": "Window & analytic",
+  "summary": "This row's value as a percentage of its group's total.",
+  "synonyms": [
+   "percent of total",
+   "share of total",
+   "proportion",
+   "contribution",
+   "mix"
+  ]
+ },
+ {
+  "name": "window.normalise",
+  "title": "Scale from 0 to 1",
+  "category": "Window & analytic",
+  "summary": "Rescale so the group's lowest value is 0 and its highest 1 (empty when every value is the same).",
+  "synonyms": [
+   "normalise",
+   "normalize",
+   "min max scale",
+   "0 to 1",
+   "rescale to range"
+  ]
+ },
+ {
+  "name": "window.z_score",
+  "title": "Standard score",
+  "category": "Window & analytic",
+  "summary": "How many standard deviations a value is from its group's average (a z-score).",
+  "synonyms": [
+   "z score",
+   "standardise",
+   "standardize",
+   "standard score",
+   "zscore"
+  ]
+ },
+ {
+  "name": "window.top_n_per_group",
+  "title": "Keep the top rows of each group",
+  "category": "Window & analytic",
+  "summary": "Keep the rows with the highest (or lowest) values of a column within each group.",
+  "synonyms": [
+   "top n per group",
+   "best per group",
+   "highest per category",
+   "top 3"
+  ]
+ },
+ {
+  "name": "null.fill_forward",
+  "title": "Fill down",
+  "category": "Missing data",
+  "summary": "Fill an empty value with the last value above it in the group (merged cells, sparse readings).",
+  "synonyms": [
+   "fill forward",
+   "fill down",
+   "carry forward",
+   "last observation carried forward",
+   "ffill",
+   "merged cells"
+  ]
+ },
+ {
+  "name": "null.fill_backward",
+  "title": "Fill up",
+  "category": "Missing data",
+  "summary": "Fill an empty value with the next value below it in the group.",
+  "synonyms": [
+   "fill backward",
+   "fill up",
+   "back fill",
+   "bfill",
+   "next observation carried backward"
+  ]
+ }
+]

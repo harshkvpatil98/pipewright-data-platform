@@ -57,6 +57,8 @@ def _serialize_pipeline(pipeline: TransformationPipeline) -> TransformationPipel
         revised_at=pipeline.revised_at,
         incremental_mode=pipeline.incremental_mode or "full",
         partition_column=pipeline.partition_column,
+        parameters=list(pipeline.parameters_json or []),
+        branched_from_id=pipeline.branched_from_id,
         created_at=pipeline.created_at,
         updated_at=pipeline.updated_at,
     )
@@ -98,10 +100,14 @@ def create_transformation_pipeline(
     ensure_owned_project(db, project_id, current_user.id)
     get_dataset_model_for_project(db, project_id, dataset_id)
     validated_steps = validate_steps_json(payload.steps_json)
+    from service_transformations.parameters import validate as validate_parameters
+
+    declared = [parameter.model_dump(mode="json") for parameter in validate_parameters(payload.parameters)]
 
     pipeline = TransformationPipeline(
         project_id=project_id,
         base_dataset_id=dataset_id,
+        parameters_json=declared or None,
         created_by_user_id=current_user.id,
         name=_normalize_name(payload.name),
         description=_normalize_description(payload.description),

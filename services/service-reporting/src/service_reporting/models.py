@@ -309,3 +309,8 @@ class CatalogAnnotation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     # {"column_name": "what it means"} -- descriptions the schema cannot hold.
     column_notes_json: Mapped[dict[str, str] | None] = mapped_column(JSON, nullable=True)
+    # {"column_name": ["tag", ...]} and {"column_name": {"classification":
+    # "confidential", "personal": "email"}}: what a recipe's metadata steps
+    # say about its output's columns (E1), shown with the column notes.
+    column_tags_json: Mapped[dict[str, list[str]] | None] = mapped_column(JSON, nullable=True)
+    column_classes_json: Mapped[dict[str, dict[str, str]] | None] = mapped_column(JSON, nullable=True)

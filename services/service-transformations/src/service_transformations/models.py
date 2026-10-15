@@ -63,6 +63,14 @@ class TransformationPipeline(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     #: and says why, when the recipe or its input does not allow it.
     incremental_mode: Mapped[str] = mapped_column(String(16), nullable=False, default="full", server_default="full")
     partition_column: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    #: The values a run is given ({{name}} in any setting, E1): `parameters.py`.
+    parameters_json: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
+    #: The recipe this one was branched from (E1), and the steps and step ids it
+    #: had then: the common ancestor a merge back compares both sides with.
+    branched_from_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey('transformation_pipelines.id', ondelete='SET NULL'), nullable=True
+    )
+    branch_base_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
 
     project: Mapped[Project] = relationship(back_populates='transformation_pipelines')
     base_dataset: Mapped[Dataset] = relationship('Dataset', foreign_keys=[base_dataset_id])
@@ -76,6 +84,31 @@ class TransformationPipeline(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         'PipelineRun',
         back_populates='transformation_pipeline',
         foreign_keys='PipelineRun.pipeline_id',
+    )
+
+
+class RecipeTemplate(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """Steps a project saved to start recipes from, or to add to one (E1).
+
+    Like the built-in templates, but the project's own: saving some steps of a
+    recipe makes one, and applying it adds those steps, which are then edited
+    like any others. Nothing about it runs by itself.
+    """
+
+    __tablename__ = 'recipe_templates'
+    __table_args__ = (
+        UniqueConstraint('project_id', 'name', name='uq_recipe_templates_project_name'),
+        Index('ix_recipe_templates_project_id', 'project_id'),
+    )
+
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey('projects.id', ondelete='CASCADE'), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    steps_json: Mapped[list[dict[str, Any]]] = mapped_column(JSON, nullable=False)
+    created_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey('users.id', ondelete='SET NULL'), nullable=True
     )
 
 

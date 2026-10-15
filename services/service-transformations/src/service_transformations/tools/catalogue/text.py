@@ -174,7 +174,7 @@ simple("text.char_at", "Character at position", CATEGORY,
 simple("text.regex_extract", "Extract with a pattern", CATEGORY,
        "The first capture group of a regular expression.", "regex_extract",
        synonyms=("regex", "pattern", "capture"),
-       params=(Param("pattern", "Pattern", ParamKind.TEXT, placeholder=r"(\d+)"),),
+       params=(Param("pattern", "Pattern", ParamKind.TEXT, regex=True, placeholder=r"(\d+)"),),
        extra_args=lambda p: (lit(p["pattern"]),),
        example=_ex(["order 4471"], ["4471"], {"pattern": r"(\d+)"}))
 
@@ -182,7 +182,7 @@ simple("text.regex_replace", "Replace with a pattern", CATEGORY,
        "Replace everything matching a regular expression.", "regex_replace",
        synonyms=("regex replace", "substitute"),
        params=(
-           Param("pattern", "Pattern", ParamKind.TEXT, placeholder=r"\s+"),
+           Param("pattern", "Pattern", ParamKind.TEXT, regex=True, placeholder=r"\s+"),
            Param("replacement", "Replacement", ParamKind.TEXT, required=False, default=""),
        ),
        extra_args=lambda p: (lit(p["pattern"]), lit(p["replacement"] or "")),
@@ -191,7 +191,7 @@ simple("text.regex_replace", "Replace with a pattern", CATEGORY,
 simple("text.regex_count", "Count pattern matches", CATEGORY,
        "How many times a regular expression matches.", "regex_count",
        accepts=Accepts.TEXTUAL,
-       params=(Param("pattern", "Pattern", ParamKind.TEXT, placeholder=r"\d"),),
+       params=(Param("pattern", "Pattern", ParamKind.TEXT, regex=True, placeholder=r"\d"),),
        extra_args=lambda p: (lit(p["pattern"]),),
        example=_ex(["a1b2c3"], [3], {"pattern": r"\d"}))
 

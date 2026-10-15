@@ -22,7 +22,7 @@ RESOURCE_TYPE = "pipeline"
 
 
 def snapshot_recipe(db: Session, project_id: uuid.UUID, recipe_id: uuid.UUID) -> dict[str, Any] | None:
-    """The parts of a recipe a person changes: its name, notes and steps."""
+    """The parts of a recipe a person changes: its name, notes, steps and parameters."""
     recipe = db.scalar(
         select(TransformationPipeline).where(
             TransformationPipeline.id == recipe_id, TransformationPipeline.project_id == project_id
@@ -34,6 +34,7 @@ def snapshot_recipe(db: Session, project_id: uuid.UUID, recipe_id: uuid.UUID) ->
         "name": recipe.name,
         "description": recipe.description,
         "steps_json": list(recipe.steps_json or []),
+        "parameters": list(recipe.parameters_json or []),
     }
 
 
@@ -67,6 +68,10 @@ def apply_recipe_snapshot(
         recipe.description = snapshot.get("description")
     if "steps_json" in snapshot:
         recipe.steps_json = [step.model_dump(mode="json") for step in validate_steps_json(snapshot["steps_json"] or [])]
+    if "parameters" in snapshot:
+        from service_transformations.parameters import validate
+
+        recipe.parameters_json = [p.model_dump(mode="json") for p in validate(snapshot["parameters"] or [])] or None
     actor = _actor(db, actor_user_id)
     record_save(
         db,
@@ -174,6 +179,8 @@ def describe_recipe_change(before: dict[str, Any] | None, after: dict[str, Any])
         parts.append(f"Adds a {_step_words(new_steps[index])} step (step {index + 1}).")
     if (before.get("description") or "") != (after.get("description") or ""):
         parts.append("Changes its description.")
+    if (before.get("parameters") or []) != (after.get("parameters") or []):
+        parts.append("Changes its parameters.")
     if not parts:
         return "No change to its steps."
     if len(parts) > 3:

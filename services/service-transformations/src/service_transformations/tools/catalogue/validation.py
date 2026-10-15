@@ -74,7 +74,7 @@ simple("check.in_range", "Within a range", CATEGORY,
 simple("check.matches_pattern", "Matches a pattern", CATEGORY,
        "True where a regular expression matches.", "regex_match",
        synonyms=("regex check", "format check"),
-       params=(Param("pattern", "Pattern", ParamKind.TEXT, placeholder=r"^[A-Z]{2}-\d+$"),),
+       params=(Param("pattern", "Pattern", ParamKind.TEXT, regex=True, placeholder=r"^[A-Z]{2}-\d+$"),),
        extra_args=lambda p: (lit(p["pattern"]),),
        example=_ex(["AB-1", "x"], [True, False], {"pattern": r"^[A-Z]{2}-\d+$"}))
 

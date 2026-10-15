@@ -162,7 +162,7 @@ _declare("columns.split_by_pattern", "Split by a pattern", COLUMNS, "Split text 
          _split_pattern_build,
          Example(rows=({"v": "a - b/c"}, {"v": "d"}), params={"pattern": r"\s*[-/]\s*", "parts": 3}, column="v",
                  output="v_2", expect=("b", None)),
-         params=(Param("pattern", "Pattern", ParamKind.TEXT, placeholder=r"\s*,\s*"),
+         params=(Param("pattern", "Pattern", ParamKind.TEXT, regex=True, placeholder=r"\s*,\s*"),
                  Param("parts", "Most columns", ParamKind.INTEGER, default=2, minimum=1, maximum=100),
                  Param("drop", "Drop the original", ParamKind.BOOLEAN, required=False, default=False)),
          synonyms=("split by regex", "regex split", "split on pattern", "tokenise"),

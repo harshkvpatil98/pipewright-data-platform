@@ -298,6 +298,11 @@ def test_previews_are_not_audited_but_changes_are():
     assert not is_audited("GET", f"/api/v1/projects/{project}/charts")
     assert not is_audited("POST", "/api/v1/auth/login")
     assert not is_audited("POST", "/api/v1/transformations/templates/clean_contacts/steps")
+    # Trying a pattern and seeing what a merge would do change nothing (E1); merging and revealing do.
+    assert not is_audited("POST", "/api/v1/transformations/tools/regex/test")
+    assert not is_audited("POST", f"/api/v1/projects/{project}/pipelines/{metric}/merge/preview")
+    assert is_audited("POST", f"/api/v1/projects/{project}/pipelines/{metric}/merge")
+    assert is_audited("POST", "/api/v1/transformations/tokens/reveal")
 
 
 def test_identifiers_are_stripped_so_actions_group():

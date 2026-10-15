@@ -67,6 +67,8 @@ def execute_schedule_operation(
                 storage_backend=storage_backend,
                 settings=settings,
                 notify_on_complete=notify_on_complete,
+                # The recipe's parameters as this schedule sets them (E1).
+                parameters=cfg.get("parameters") if isinstance(cfg.get("parameters"), dict) else None,
             )
             return ScheduleExecutionOutcome(
                 success=True,

@@ -163,7 +163,7 @@ _declare("window.dense_rank", "Dense rank", "Rank rows by this column with no ga
 _declare("window.percent_rank", "Percent rank", "Where a row sits in its group, from 0 (first) to 1 (last).",
          _value_tool("percent_rank", "percent_rank", rank_by_column=True),
          _example((0.0, 0.5, 0.0, 1.0, 1.0), within=["region"], output="sales_percent_rank"),
-         params=_RANK_PARAMS, synonyms=("percentile rank", "relative rank"), null_answer=True)
+         params=_RANK_PARAMS, synonyms=("percentile rank", "percentile", "relative rank"), null_answer=True)
 _declare("window.cume_dist", "Cumulative distribution", "The share of the group's rows at or before this one, "
          "from just above 0 to 1.", _value_tool("cume_dist", "cume_dist", rank_by_column=True),
          _example((1 / 3, 2 / 3, 0.5, 1.0, 1.0), within=["region"], output="sales_cume_dist"),

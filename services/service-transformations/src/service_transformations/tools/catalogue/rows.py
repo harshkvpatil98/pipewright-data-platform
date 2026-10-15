@@ -107,6 +107,39 @@ frame("rows.filter", "Keep or drop matching rows", CATEGORY,
       ))
 
 
+def _filter_formula(node: Node, params: dict) -> Node:
+    from shared_python.types import BOOLEAN
+
+    from service_transformations.formula.parser import parse_formula
+
+    schema = node.schema()
+    predicate = parse_formula(str(params["formula"]), columns=list(schema))
+    found = predicate.type_of(schema)
+    if found.kind not in (Kind.BOOLEAN, Kind.UNKNOWN):
+        raise BadRequestError(f"The formula gives a {found.kind.value}, not true or false: compare it with "
+                              "something, as in [amount] > 100.")
+    if params["mode"] == "exclude":
+        # As above: a row where the formula is empty is kept by an exclusion.
+        predicate = call("not", call("coalesce", predicate, Literal(False, BOOLEAN)))
+    return Filter(input=node, predicate=predicate)
+
+
+frame("rows.filter_formula", "Keep rows where a formula holds", CATEGORY,
+      "Keep, or drop, the rows where a formula is true, such as AND([amount] > 100, [region] = \"eu\"); a row "
+      "where it is empty is not kept.", _filter_formula,
+      synonyms=("filter formula", "filter by formula", "where clause", "custom filter", "filter expression"),
+      params=(
+          Param("formula", "Formula", ParamKind.TEXT, placeholder="[amount] > 100"),
+          Param("mode", "Then", ParamKind.SELECT, default="keep", options=("keep", "exclude")),
+      ),
+      example=Example(
+          rows=({"amount": 50}, {"amount": 150}, {"amount": None}),
+          params={"formula": "[amount] > 100", "mode": "keep"},
+          output="amount",
+          expect=(150,),
+      ))
+
+
 def _keep_top(node: Node, params: dict) -> Node:
     return Limit(input=node, count=int(params["count"]))
 

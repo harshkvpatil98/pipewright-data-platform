@@ -1,19 +1,7 @@
 import { slugify } from "@/lib/help/markdown";
 import type { AreaId, NavArea, NavTab } from "@/lib/navigation";
 
-/**
- * The help pages, in the order the help's side list shows them (A6, W2).
- * Each is a Markdown file in `docs/user/`, named by its slug; `help.test.ts`
- * fails if a file is missing from this list or the list names a file that
- * does not exist.
- */
-export const HELP_GROUPS: { label: string; slugs: string[] }[] = [
-  { label: "Start here", slugs: ["index", "glossary", "whats-new"] },
-  { label: "Using Pipewright", slugs: ["overview", "data", "build", "automate", "trust", "share"] },
-  { label: "Running Pipewright", slugs: ["admin", "security", "api"] },
-];
-
-export const HELP_SLUGS = HELP_GROUPS.flatMap((group) => group.slugs);
+export { HELP_GROUPS, HELP_SLUGS } from "./groups";
 
 /** The page's address in the app: `index` is the help's front page. */
 export function helpPath(slug: string, anchor?: string): string {

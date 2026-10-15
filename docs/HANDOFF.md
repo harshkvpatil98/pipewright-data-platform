@@ -248,7 +248,7 @@ honesty; if you verify one, update its status here.
 | The v1 source registry is hidden, not removed | `service-sources` (`/api/v1/projects/{id}/sources`, the "Register source" records) is no longer shown anywhere in the web app since A1; its API and tables stay for compatibility. A4 did not retire it: nothing reads it, and deleting the tables needs a decision about existing rows |
 | Column names appear in lineage and recipe definitions | Policies (A6) hold on every path that hands rows or values to a person; lineage and recipes describe the data's shape, so a denied column's name still appears there |
 | No warehouse destinations | Datasets deliver to PostgreSQL, MySQL, S3 (or a compatible store) and a server folder. Snowflake, BigQuery and Redshift are not destinations until a customer names one |
-| Checks and charts compute in the request | Bounded: charts, checks and analyses refuse a dataset over 500,000 rows before reading it, and read a columnar copy rather than the file (A8: checks on 4M rows 22s to 1s). A check in a workflow runs on the worker. Only uploads over 25MB, deliveries over 50,000 rows and database copies are handed to the worker |
+| Checks and charts compute in the request | Bounded: charts, the Assistant's analyses and policy previews refuse a dataset over 500,000 rows before reading it; checks read any size. All read a columnar copy rather than the file (A8: checks on 4M rows 22s to 1s). A check in a workflow runs on the worker. Only uploads over 25MB, deliveries over 50,000 rows and database copies are handed to the worker |
 | Embedding sites are listed per deployment, not per embed | `EMBED_ALLOWED_ORIGINS` is the web's one list; an embed cannot narrow it to one partner's site. Signed links, expiry, per-link filters and turning an embed off are per embed |
 | Activity goes back 2,000 items | `api_gateway/activity.py` pages by position up to `MAX_OFFSET`; the audit log and runs pages hold everything |
 | Page bodies are written in English in the code | Y7 moved the shell and navigation (266 strings) into `messages/en.json` and every date and number into `lib/format.ts`; the rest of each page's words are inline, so a second language needs them moved first. English is the one language shipped |
@@ -498,6 +498,29 @@ measured cold-user task results and what moved to later phases. Rules for anyone
   and text sorting only through `lib/format.ts`, in the catalogue's locale
   (en-GB). `i18n.test.ts` fails a formatter or `toLocaleString` anywhere
   else, and the language lint reads the catalogue.
+- **One version** (A9): the gateway's `APP_VERSION` default, its
+  pyproject, `apps/web/package.json` (and the lock file), the client's
+  pyproject and the Helm chart's `version`/`appVersion` move together;
+  `test_one_version.py` fails otherwise. Regenerate the client and
+  `docs/api/openapi.json` (`scripts/generate-client.py`) after a bump.
+- **A new installation's first administrator** is made at start-up from
+  `AUTH_BOOTSTRAP_USERNAME`/`_PASSWORD` while no account exists
+  (`api_gateway/first_run.py`); `platform-bootstrap-user` still makes others.
+- **The browser calls the API at `/api/v1` on its own host** (the web image's
+  default); Caddy and the chart's ingress send `/api` to the gateway, and the
+  API reference is `/api/docs`. The web's server reaches the gateway by
+  `API_INTERNAL_BASE_URL`, which the chart fills in itself.
+- **The Helm chart is installed on a new kind cluster in CI by the deployment
+  guide's own commands** (`scripts/helm-install-check.sh` reads the shell
+  blocks of "On Kubernetes with Helm"). Changing those steps changes the
+  test; a hook (the migration job) must not read the release's own
+  ConfigMap or Secret, which Helm makes after hooks.
+- **The help's pictures are of the demo**, taken by
+  `apps/web/e2e/screenshots.mjs` into `docs/user/images/` and shown with
+  `![what it shows](images/name.png)`; `help.test.ts` fails a missing,
+  undescribed or unused picture. Retake them after changing a pictured page.
+  `apps/web/scripts/build-docs-site.mjs` builds the same pages as a static
+  site; `.github/workflows/docs-site.yml` publishes it only when started.
 - **CI has no `.env`.** Locally `api_gateway/config.py` loads
   `apps/api-gateway/.env` into the environment, so a test that stores a
   secret sets its own `APP_SECRET_ENCRYPTION_KEY`. Run

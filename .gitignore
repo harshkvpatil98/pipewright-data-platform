@@ -66,3 +66,6 @@ apps/web/CLAUDE.md
 apps/web/test-results/
 apps/web/playwright-report/
 apps/web/e2e/.auth/
+
+# The static help site, built by apps/web/scripts/build-docs-site.mjs (A9).
+docs-site/

@@ -1,11 +1,11 @@
 # Pipewright
 
-Pipewright is a production-style data pipeline platform. It combines a Next.js
-frontend, a FastAPI gateway, PostgreSQL persistence and modular Python domain
-services so a team can move from a source database or a file all the way
-through transformation, quality enforcement, versioning, publishing, scheduling
-and audit inside one project-scoped workflow — and, where the source is a live
-table, write a reviewed change back to it.
+Pipewright is a data workbench a team runs on its own servers. It brings data
+in from files, databases and business apps, lets people clean and combine it
+in a visual Studio without writing code, checks that it is right, runs the
+work on a timetable, and delivers the results to databases, storage, BI tools
+and dashboards. Every step is recorded and every version of every dataset is
+kept.
 
 The name is *pipe* + *-wright* (a maker, as in shipwright or wheelwright): the
 craft of building data pipelines.
@@ -15,16 +15,22 @@ craft of building data pipelines.
 ![Node 22](https://img.shields.io/badge/node-22-339933?logo=node.js&logoColor=white)
 ![Next.js 16](https://img.shields.io/badge/next.js-16-000000?logo=next.js&logoColor=white)
 
-## Why this project matters
+## What it is for
 
-Most portfolio apps stop at CRUD. This one models the operational side of data
-work: ingestion that explains what it inferred, transformations that compile to
-one relational algebra and push down to the source, datasets that are versioned
-and can be queried as of a point in time, permissions decided in one place, an
-audit trail of every mutating request, and a background runtime whose health is
-a fact rather than a guess.
+- **For** teams that own their data without a data-engineering team (finance,
+  operations, analysts); organisations that must keep data on their own
+  infrastructure, with single sign-on, policies on every read and a full
+  audit log; and consultancies serving several clients, with work moved
+  between projects and dashboards embedded in a client's own site.
+- **Not for** replacing a data warehouse, big data (it works on one machine,
+  in memory), real-time streaming, an enterprise BI suite, or machine
+  learning.
+- **Tested at** uploads of 200MB, charts of datasets up to 500,000 rows,
+  checks on 4 million rows, and deliveries of a million rows; the full
+  envelope, and what is not proven yet, are in
+  [docs/positioning.md](docs/positioning.md).
 
-It is also deliberately honest about its limits. Every connector carries a tier
+It is deliberately honest about its limits. Every connector carries a tier
 that says whether it has ever run against a real system, a capability that does
 not work on this deployment is declared as such, and the known gaps are listed
 in one table ([docs/HANDOFF.md §7](docs/HANDOFF.md#7-known-gaps--stated-not-hidden))
@@ -251,7 +257,7 @@ like any other. `samples/demo-customers.csv` is a second file to upload by hand.
 | `http://localhost:3000/system-status` | Health, runtime heartbeats and queue depths |
 | `http://localhost:8000/api/v1/health/live` | Gateway liveness |
 | `http://localhost:8000/metrics` | Prometheus metrics |
-| `http://localhost:8000/docs` | Interactive API reference (also `/redoc`) |
+| `http://localhost:8000/api/docs` | Interactive API reference (also `/api/redoc`) |
 
 ## Configuration
 

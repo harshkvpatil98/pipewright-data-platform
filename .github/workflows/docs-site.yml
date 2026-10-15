@@ -1,0 +1,50 @@
+# Publish the help as a static site on GitHub Pages (adoption-readiness A9, Z3).
+#
+# Built from docs/user with the same Markdown reader the in-product help
+# uses, so the two cannot differ. It runs only when someone starts it, or
+# for a release tag: publishing is public, so it is never a side effect of
+# an ordinary push. Pages must be set to "GitHub Actions" in the
+# repository's settings first.
+name: Docs site
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: docs-site
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build the site
+        run: node apps/web/scripts/build-docs-site.mjs docs-site
+      - name: Upload it
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs-site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publish
+        id: deployment
+        uses: actions/deploy-pages@v4

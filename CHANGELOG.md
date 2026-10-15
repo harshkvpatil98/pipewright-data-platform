@@ -13,6 +13,35 @@ the test counts at the time — is in the session log in
 
 ---
 
+## 1.0.0 — launch gate, A9 (2026-10-15)
+
+The first version with a number: the gateway, the web app, the Python client
+and the Helm chart all say 1.0.0, and a test keeps them together. Release
+notes: [docs/release-notes/1.0.0.md](docs/release-notes/1.0.0.md).
+
+- **A new installation can be signed in to.** The first administrator is made
+  from `AUTH_BOOTSTRAP_USERNAME` and `AUTH_BOOTSTRAP_PASSWORD` when the
+  gateway starts with no accounts; before, nothing read them, so a fresh
+  install by any document had nobody who could sign in.
+- **The Helm chart installs on a new cluster**, by the deployment guide's own
+  steps, in CI on every change. Its migration job no longer reads settings
+  Helm has not made yet, its Secret carries `APP_SECRET_ENCRYPTION_KEY`, the
+  web finds the gateway inside the cluster by itself, and the ingress lets
+  uploads of 200MB through.
+- **One image for every deployment.** The web image calls the API at
+  `/api/v1` on its own host, which Caddy and the ingress send to the gateway;
+  before, it called `localhost:8000` unless rebuilt. The API reference moved
+  to `/api/docs`, inside what the proxies send to the gateway (`/docs`
+  redirects).
+- **A truthful demo**: its recipe and check run as it is made, its chart
+  reads the cleaned orders, and its words are the product's.
+- **Docs**: screenshots of the demo in the help, taken by a script; a static
+  docs site built from the same pages (published by a manual workflow); the
+  API reference as of this release in `docs/api/openapi.json`; a rewritten
+  deployment guide; [what Pipewright is for](docs/positioning.md); and a
+  [protocol for cold-user sessions](docs/cold-user-sessions.md), not yet
+  run.
+
 ## A8 — adoption pack (2026-10-15)
 
 - **Signed webhooks**: a channel that posts each chosen event as JSON signed

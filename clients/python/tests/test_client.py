@@ -42,6 +42,15 @@ def test_the_generated_operations_match_the_api() -> None:
     assert _render()(app.openapi()) == (PACKAGE / "_operations.py").read_text()
 
 
+def test_the_committed_api_reference_is_the_apis() -> None:
+    """docs/api/openapi.json is the reference as of this commit (A9, Z3)."""
+    spec = importlib.util.spec_from_file_location("_generate_reference", PACKAGE / "_generate.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    committed = PACKAGE.parents[2] / ".." / "docs" / "api" / "openapi.json"
+    assert module.reference(app.openapi()) == committed.resolve().read_text()
+
+
 def test_every_operation_has_a_name_of_its_own() -> None:
     generated = (PACKAGE / "_operations.py").read_text()
     assert generated.count("    def ") > 300

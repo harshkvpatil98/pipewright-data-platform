@@ -1675,8 +1675,8 @@ would; nothing found is left open.
   first 5MB for analysis). Every read of a stored dataset goes through
   `read_copy.frame_of`: the settings confirmed at import, kept per version
   (0055), and a columnar copy beside the file used only when it reads back
-  identically. Charts, checks and analyses refuse a dataset over 500,000 rows
-  before reading it.
+  identically. Charts, the Assistant's analyses and policy previews refuse a
+  dataset over 500,000 rows before reading it; checks read any size.
 - **Y1, signed webhooks.** A webhook channel posts JSON signed with
   HMAC-SHA256 over the time and body, through the outbound guard, tries
   three times on 408, 429, 5xx or no answer, and shows every attempt
@@ -1761,6 +1761,51 @@ A phase with no features. Checklist, every line true:
   published; Helm chart installs on a clean cluster following the docs alone.
 - Positioning statement agreed and true: what it is for, what it is not for,
   the row-count and deployment envelope it supports today.
+
+### A9 specification (written 2026-10-15)
+
+**Measured before starting.**
+
+| | Now |
+|---|---|
+| Defects from the review | D1–D20 hold (A6); A8's walk: 77 pages at two widths, none with a problem |
+| Cold-user tasks | scripted in the browser suite (A7); never run with people outside the team |
+| Docs | `/help` in every deployment, readable without signing in; no site of its own, no screenshots (the help cannot show an image) |
+| Release notes | a changelog by phase; no version has notes |
+| API reference | live at the gateway's `/docs`; nothing in the repository says what it was at a given version |
+| Demo | one click on Home; its words break the voice ("guarded by a rule", "published", an em-dash in a dataset name), and its dashboard says "shaped and validated" though its recipe and check never run and the chart reads the raw file |
+| Version | web 0.1.0, gateway 0.2.0, client 0.2.0, Helm chart 0.1.0 |
+| Helm | YAML and brace checks only; never installed on a cluster |
+| Positioning | none written |
+
+**Z1. A truthful demo.** The demo's recipe and check run as it is made, the
+chart reads the recipe's result, and every word is the product's; a test
+holds its story to what is in it.
+
+**Z2. Screenshots that match.** A script seeds the demo on a clean
+database and photographs the pages the help describes; the help shows
+images; a test fails an image that is missing or has no description.
+
+**Z3. Docs, notes and reference.** A static site built from `docs/user`
+with the help's own rules; release notes for 1.0.0; the API reference as of
+the release committed and held current by a test, like the client.
+
+**Z4. Helm on a clean cluster.** CI creates a kind cluster, builds and loads
+both images, installs PostgreSQL and the chart by the deployment guide's
+steps, and signs in through the ingress-free service.
+
+**Z5. One version, and what it is for.** 1.0.0 everywhere, held together by
+a test; `docs/positioning.md` says what Pipewright is for, what it is not
+for and the measured envelope, and the README says the same.
+
+**Z6. Cold users.** A protocol anyone can run with five people: the four
+tasks from A1–A3, their targets, what to record. Running it needs people
+outside the team, which only the owner can arrange; this phase says so
+rather than claiming it.
+
+**Z7. The gate.** Walk every page; `npm run verify` and the browser suite
+green; tagging, publishing images and the docs site wait for the owner's
+word, because they are public.
 
 ---
 

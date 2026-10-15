@@ -120,3 +120,11 @@ def render(spec: dict[str, Any]) -> str:
             lines.append(f"        return self._call({', '.join(call)})")
             lines.append("")
     return "\n".join(lines).rstrip() + "\n"
+
+
+def reference(spec: dict) -> str:
+    """The OpenAPI document as committed in docs/api/openapi.json: sorted, so a
+    change to the API shows as a readable diff."""
+    import json
+
+    return json.dumps(spec, indent=1, sort_keys=True, ensure_ascii=False) + "\n"

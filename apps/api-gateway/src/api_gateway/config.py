@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     )
 
     app_name: str = "Pipewright API Gateway"
-    app_version: str = "0.2.0"
+    app_version: str = "1.0.0"
     app_env: Literal["development", "staging", "production", "test"] = "development"
     app_host: str = "0.0.0.0"
     app_port: int = 8000

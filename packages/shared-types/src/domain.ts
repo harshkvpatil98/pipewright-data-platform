@@ -938,6 +938,9 @@ export type TransformationPipelineRecord = {
   /** A stable id per step, in order. */
   step_ids?: string[];
   revised_at?: string | null;
+  /** How a run computes (D2): every row, only rows added since the last run, or only changed partitions. */
+  incremental_mode?: "full" | "append" | "partition";
+  partition_column?: string | null;
   created_at: string;
   updated_at: string;
 };

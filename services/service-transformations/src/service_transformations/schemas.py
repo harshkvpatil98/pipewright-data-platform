@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import model_validator, BaseModel, ConfigDict, Field
 
 from service_datasets.schemas import DatasetDetailRead
 from service_pipeline_runs.schemas import PipelineRunRead
@@ -56,8 +56,27 @@ class TransformationPipelineRead(BaseModel):
     revision: int = 1
     step_ids: list[str] = Field(default_factory=list)
     revised_at: datetime | None = None
+    #: How a run computes: every row, only added rows, or only changed partitions (D2).
+    incremental_mode: Literal["full", "append", "partition"] = "full"
+    partition_column: str | None = None
     created_at: datetime
     updated_at: datetime
+
+
+class IncrementalSettings(BaseModel):
+    """How a recipe's runs compute (D2): every row each time, only rows added at the
+    end since the last run, or only the partitions whose rows changed."""
+
+    mode: Literal["full", "append", "partition"]
+    partition_column: str | None = Field(default=None, max_length=255)
+
+    @model_validator(mode="after")
+    def _partition_needs_a_column(self) -> "IncrementalSettings":
+        if self.mode == "partition" and not (self.partition_column or "").strip():
+            raise ValueError("Choose the column whose values divide the data into partitions.")
+        if self.mode != "partition":
+            self.partition_column = None
+        return self
 
 
 class TransformationPipelineListResponse(BaseModel):

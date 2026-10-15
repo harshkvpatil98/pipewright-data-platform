@@ -35,7 +35,7 @@ from service_transformations.contracts import get_transformation_pipeline_for_pr
 from service_transformations.dataset_access import build_step_context
 from service_transformations.execution_context import ExecutionContext, VersionPin, head_pin
 from service_transformations.executor import apply_single_step
-from service_transformations.prefix_cache import run_steps
+from service_transformations.prefix_cache import describe_input, run_steps
 from service_transformations.ir.clock import evaluation_instant, frozen_clock
 from service_transformations.schemas import TransformationRunResponse
 from service_transformations.validators import validate_steps_json
@@ -75,6 +75,34 @@ def _log_event(stage: str, message: str, *, details: dict[str, object] | None = 
 
 def _build_log_events(events: list[dict[str, object]]) -> dict[str, object]:
     return {"events": list(events)}
+
+
+def _scan_of_schema(schema_json: dict[str, Any] | None):
+    """The input as the IR sees it, from the dataset's recorded schema rather than a read of it."""
+    from service_transformations.ir.nodes import Scan
+    from shared_python.types import BOOLEAN, DATE, FLOAT64, INT64, STRING, UNKNOWN
+    from shared_python.types.lattice import timestamp
+
+    types = {"int": INT64, "float": FLOAT64, "decimal": FLOAT64, "bool": BOOLEAN, "string": STRING,
+             "datetime": timestamp(), "date": DATE}
+    kinds = {str(c.get("name")): str(c.get("inferred_type")) for c in (schema_json or {}).get("columns") or []
+             if isinstance(c, dict)}
+    names = [str(n) for n in (schema_json or {}).get("ordered_columns") or kinds]
+    return Scan("working", tuple((name, types.get(kinds.get(name, ""), UNKNOWN)) for name in names))
+
+
+def _step_dataset_pins(db: Session, steps_json: list[dict[str, Any]]) -> list[VersionPin]:
+    """The current version of every dataset a join or union step reads."""
+    pins: list[VersionPin] = []
+    for index, step in enumerate(steps_json or [], start=1):
+        config = step.get("config") or {}
+        raw = config.get("right_dataset_id") or config.get("other_dataset_id")
+        if (step.get("step_type") or step.get("type")) in ("join_datasets", "union_datasets") and raw:
+            try:
+                pins.append(head_pin(db, uuid.UUID(str(raw)), role="step"))
+            except (ValueError, ApplicationError):
+                continue
+    return pins
 
 
 def _dataframe_to_csv_bytes(dataframe: pd.DataFrame) -> bytes:
@@ -231,38 +259,97 @@ def run_saved_transformation_pipeline(
         if identity is not None:
             base = "|".join([identity, str(base_file_type), json.dumps(base_spec, sort_keys=True, default=str), "everything"])
 
-        # Every clock-dependent function reads the frozen instant for the whole
-        # of the recipe, so `today()` in step 1 and step 5 agree, and a replay
-        # of this run can install the same instant and get the same answer;
-        # a step that reads it is never kept.
-        with frozen_clock(evaluated_at):
-            ran = run_steps(
-                base=base,
-                load=load,
-                steps=steps,
-                apply=lambda frame, step: apply_single_step(frame, step, step_context),
-                before_step=before_step,
-                describe=lambda frame: {"rows": int(len(frame)), "columns": int(len(frame.columns)),
-                                        "file_size": read.get("bytes", 0)},
-                accept=accept,
-            )
-        working = ran.frame
-        warnings.extend(ran.warnings)
-        row_count_before = ran.source["rows"]
-        column_count_before = ran.source["columns"]
-        if ran.reused_input:
-            log_events.append(_log_event(
-                "reused",
-                "Reused the input's rows" + (
-                    f" and what its first {count_of(ran.reused_steps, 'step')} made" if ran.reused_steps else ""
-                ) + " from a recent preview or run of the same version, and ran the rest.",
-                details={"reused_steps": ran.reused_steps},
-            ))
+        # A recipe that computes only what changed (D2, O7) decides from its last
+        # run and the steps whether this run can; when it cannot, it runs in full
+        # and its log says why.
+        incremental_outcome = None
+        loaded: dict[str, pd.DataFrame] = {}
+        if replay is None and (pipeline.incremental_mode or "full") != "full":
+            from service_ingestion.read_copy import parse as parse_stored
+            from service_transformations import incremental
+
+            step_heads = {pin.dataset_id: pin for pin in _step_dataset_pins(db, steps_json)}
+            decision = incremental.decide(db, pipeline=pipeline, steps=list(steps_json),
+                                          scan=_scan_of_schema(base_dataset.schema_json), base_pin=input_pins[0],
+                                          step_heads=step_heads)
+            if decision.mode != "full":
+                current_stage = "incremental"
+                raw: dict[str, bytes] = {}
+
+                def read_raw() -> bytes:
+                    if "bytes" not in raw:
+                        raw["bytes"] = storage_backend.read_bytes(base_file_path)
+                        read["bytes"] = len(raw["bytes"])
+                        accept({"file_size": read["bytes"]})
+                    return raw["bytes"]
+
+                def read_whole() -> pd.DataFrame:
+                    if "frame" not in loaded:
+                        loaded["frame"] = load()
+                    return loaded["frame"]
+
+                current = incremental.Input(
+                    raw=read_raw, whole=read_whole,
+                    parse=lambda payload: parse_stored(payload, file_type=base_file_type, spec=base_spec),
+                    file_type=str(base_file_type), spec=base_spec,
+                )
+                runner = incremental.run_append if decision.mode == "append" else incremental.run_partitions
+                with frozen_clock(evaluated_at):
+                    produced = runner(decision, now=current, steps=steps, storage=storage_backend,
+                                      apply=lambda frame, step: apply_single_step(frame, step, step_context))
+                if isinstance(produced, str):
+                    decision = incremental.Decision("full", produced)
+                else:
+                    incremental_outcome = produced
+                    # What the steps read is recorded whether or not they had rows to read it for.
+                    known = {pin.dataset_id for pin in context.inputs if pin.role == "step"}
+                    context.inputs.extend(pin for key, pin in step_heads.items() if key not in known)
+                    log_events.append(_log_event("incremental", produced.message, details={
+                        key: value for key, value in produced.details.items() if key not in ("warnings", "input_kinds")}))
+            if decision.mode == "full" and decision.reason:
+                log_events.append(_log_event("incremental", f"Ran in full: {decision.reason}."))
+
+        if incremental_outcome is not None:
+            working = incremental_outcome.frame
+            warnings.extend(incremental_outcome.details.get("warnings") or [])
+            # The input was not necessarily read whole: its counts are the version's own.
+            row_count_before = int(base_dataset.row_count or 0) if "frame" not in loaded else int(len(loaded["frame"]))
+            column_count_before = len((base_dataset.schema_json or {}).get("ordered_columns") or []) \
+                if "frame" not in loaded else int(len(loaded["frame"].columns))
+        else:
+            # Every clock-dependent function reads the frozen instant for the whole
+            # of the recipe, so `today()` in step 1 and step 5 agree, and a replay
+            # of this run can install the same instant and get the same answer;
+            # a step that reads it is never kept.
+            with frozen_clock(evaluated_at):
+                ran = run_steps(
+                    base=base,
+                    load=(lambda: loaded["frame"]) if "frame" in loaded else load,
+                    steps=steps,
+                    apply=lambda frame, step: apply_single_step(frame, step, step_context),
+                    before_step=before_step,
+                    describe=lambda frame: describe_input(frame, file_size=read.get("bytes", 0)),
+                    accept=accept,
+                )
+            working = ran.frame
+            warnings.extend(ran.warnings)
+            row_count_before = ran.source["rows"]
+            column_count_before = ran.source["columns"]
+        if incremental_outcome is None and ran.reused_input:
+            if ran.reused_steps and ran.reused_steps == len(steps):
+                said = (f"Reused what all {count_of(len(steps), 'step')} made from a recent preview or run of "
+                        "the same version; nothing needed running again.")
+            elif ran.reused_steps:
+                said = (f"Reused the input's rows and what its first {count_of(ran.reused_steps, 'step')} made "
+                        "from a recent preview or run of the same version, and ran the rest.")
+            else:
+                said = "Reused the input's rows from a recent preview or run of the same version, and ran every step."
+            log_events.append(_log_event("reused", said, details={"reused_steps": ran.reused_steps}))
 
         row_count_after = int(len(working))
         column_count_after = int(len(working.columns))
 
-        csv_bytes = _dataframe_to_csv_bytes(working)
+        csv_bytes = incremental_outcome.csv_bytes if incremental_outcome is not None else _dataframe_to_csv_bytes(working)
         if len(csv_bytes) > settings.max_upload_size_bytes:
             raise BadRequestError("Transformed result exceeds the configured maximum output size.")
 
@@ -405,9 +492,16 @@ def run_saved_transformation_pipeline(
             )
         ]
 
+        if incremental_outcome is not None:
+            input_kinds = incremental_outcome.details.get("input_kinds")
+        else:
+            input_kinds = ran.source.get("frame_kinds") if isinstance(ran.source, dict) else None
         summary_json: dict[str, object] = {
             "transformation_type": "dataset_transformation",
             "execution_context": context.to_dict(),
+            # How the input's columns read, so the next incremental run can tell whether rows
+            # read on their own come out the same (D2).
+            "input_kinds": input_kinds,
             "pipeline_id": str(pipeline.id),
             "pipeline_name": pipeline.name,
             "pipeline": {"id": str(pipeline.id), "name": pipeline.name},

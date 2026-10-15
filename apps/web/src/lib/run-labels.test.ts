@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatNotificationEventLabel, formatRunStatusLabel, formatRunTypeLabel } from "@/lib/run-labels";
+import { formatNotificationEventLabel, formatRunStatusLabel, formatRunTypeLabel, formatStageLabel } from "@/lib/run-labels";
 
 describe("formatRunTypeLabel", () => {
   it("maps known run types", () => {
@@ -36,5 +36,17 @@ describe("formatNotificationEventLabel", () => {
 
   it("falls back for unknown types", () => {
     expect(formatNotificationEventLabel("custom_alert")).toBe("custom alert");
+  });
+});
+
+describe("formatStageLabel", () => {
+  it("names each stage in words, the new ones included", () => {
+    expect(formatStageLabel("parse")).toBe("Reading the rows");
+    expect(formatStageLabel("incremental")).toBe("Computing only what changed");
+    expect(formatStageLabel("reused")).toBe("Reusing earlier work");
+    expect(formatStageLabel("check_contract")).toBe("Checking the contract");
+    expect(formatStageLabel("apply_step_3")).toBe("Step 3");
+    expect(formatStageLabel("something_new")).toBe("Something new");
+    expect(formatStageLabel(null)).toBe("Step");
   });
 });

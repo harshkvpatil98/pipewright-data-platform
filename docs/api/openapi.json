@@ -12793,6 +12793,37 @@
     "title": "IncidentRead",
     "type": "object"
    },
+   "IncrementalSettings": {
+    "description": "How a recipe's runs compute (D2): every row each time, only rows added at the\nend since the last run, or only the partitions whose rows changed.",
+    "properties": {
+     "mode": {
+      "enum": [
+       "full",
+       "append",
+       "partition"
+      ],
+      "title": "Mode",
+      "type": "string"
+     },
+     "partition_column": {
+      "anyOf": [
+       {
+        "maxLength": 255,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Partition Column"
+     }
+    },
+    "required": [
+     "mode"
+    ],
+    "title": "IncrementalSettings",
+    "type": "object"
+   },
    "IngestSpecListResponse": {
     "properties": {
      "items": {
@@ -25909,6 +25940,16 @@
       "title": "Id",
       "type": "string"
      },
+     "incremental_mode": {
+      "default": "full",
+      "enum": [
+       "full",
+       "append",
+       "partition"
+      ],
+      "title": "Incremental Mode",
+      "type": "string"
+     },
      "name": {
       "title": "Name",
       "type": "string"
@@ -25924,6 +25965,17 @@
        }
       ],
       "title": "Output Dataset Id"
+     },
+     "partition_column": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Partition Column"
      },
      "project_id": {
       "format": "uuid",
@@ -48158,6 +48210,91 @@
      }
     ],
     "summary": "Patch Project Pipeline",
+    "tags": [
+     "transformations"
+    ]
+   }
+  },
+  "/api/v1/projects/{project_id}/pipelines/{pipeline_id}/incremental": {
+   "put": {
+    "description": "How the recipe's runs compute: every row, only rows added since the last run, or\nonly the partitions whose rows changed. Each falls back to a full run, and says why.",
+    "operationId": "put_incremental_api_v1_projects__project_id__pipelines__pipeline_id__incremental_put",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "pipeline_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Pipeline Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/IncrementalSettings"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TransformationPipelineRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Put Incremental",
     "tags": [
      "transformations"
     ]

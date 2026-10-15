@@ -42,14 +42,17 @@ def preview_dataset_transformations(
     from service_datasets.service import stored_file_identity
     from service_enterprise.policy_view import Reader, narrow_frame, view_for
     from service_transformations.executor import apply_single_step, validate_steps_json
-    from service_transformations.prefix_cache import run_steps
+    from service_transformations.prefix_cache import describe_input, run_steps
 
     # A preview hands rows to a person, so it starts from what they may see.
     reader = Reader.for_user(db, project_id, current_user)
 
+    read: dict[str, int] = {}
+
     def load():
         try:
             file_bytes = storage_backend.read_bytes(dataset.file_path)
+            read["bytes"] = len(file_bytes)
         except FileNotFoundError as exc:
             raise NotFoundError(
                 "This dataset's stored file is missing. The dataset record still exists, so re-uploading the file restores it."
@@ -98,7 +101,7 @@ def preview_dataset_transformations(
         steps=validate_steps_json(payload.steps),
         apply=lambda frame, step: apply_single_step(frame, step, context),
         other_of=other_of,
-        describe=lambda frame: {"rows": int(len(frame)), "schema": build_schema_summary(frame)},
+        describe=lambda frame: describe_input(frame, file_size=read.get("bytes", 0)),
     )
     transformed, warnings, outcomes = ran.frame, ran.warnings, ran.outcomes
 

@@ -138,6 +138,11 @@ PROPOSAL_SEGMENTS = frozenset({"suggest"})
 # approval does not refuse it. Saving the recipe is what needs approval.
 DRAFT_SEGMENTS = frozenset({"shared"})
 
+# How a recipe's runs compute (D2): every row, or only what changed. An editor
+# chooses it, but it is not a change to what the recipe does -- an incremental
+# run is proven to give what a full run gives -- so it is never held for review.
+RUN_SETTING_SEGMENTS = frozenset({"incremental"})
+
 # Anything touching who has access, or the project's own existence.
 ADMIN_SEGMENTS = frozenset({"members", "memberships", "transfer"})
 
@@ -182,6 +187,7 @@ def review_refusal(method: str, path: str) -> str | None:
     segments = set(parts)
     if segments & (
         ADMIN_SEGMENTS | READ_ONLY_SEGMENTS | OPERATOR_SEGMENTS | PERSONAL_SEGMENTS | PROPOSAL_SEGMENTS | DRAFT_SEGMENTS
+        | RUN_SETTING_SEGMENTS
     ):
         return None
     return _REVIEW_DEFAULT if segments & REVIEWABLE_SEGMENTS else None
@@ -257,7 +263,7 @@ def required_role(method: str, path: str) -> str:
     if segments & (READ_ONLY_SEGMENTS | PERSONAL_SEGMENTS | PROPOSAL_SEGMENTS):
         return "viewer"
 
-    if segments & EDITOR_SEGMENTS:
+    if segments & (EDITOR_SEGMENTS | RUN_SETTING_SEGMENTS):
         return "editor"
 
     if segments & OPERATOR_SEGMENTS:

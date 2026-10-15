@@ -23,7 +23,7 @@ import { ActionMenu } from "@/components/ui/action-menu";
 import { missingPromised } from "@/features/contracts/contract-words";
 import { AddDataDialog } from "@/features/datasets/components/add-data-dialog";
 import { useUnsavedChangesGuard } from "@/features/navigation/unsaved-changes-guard";
-import { DetailsDrawer, type ExecutionPlan } from "@/features/studio/details-drawer";
+import { DetailsDrawer, type ExecutionPlan, type IncrementalMode } from "@/features/studio/details-drawer";
 import { DataGrid, type GridColumn } from "@/features/studio/grid/data-grid";
 import { RecipeTemplatesDialog } from "@/features/studio/recipe-templates-dialog";
 import { clearDraft, draftKey, readDraft, writeDraft, type RecipeDraft } from "@/features/studio/recipe-draft";
@@ -52,6 +52,7 @@ type PreviewResponse = {
   row_count_after: number;
   column_count_before: number;
   column_count_after: number;
+  schema_before: { ordered_columns: string[] };
   schema_after: {
     columns: { name: string; inferred_type: string; canonical_type?: string | null }[];
   };
@@ -120,6 +121,11 @@ export function StudioPage({
   const [saved, setSaved] = useState<{ id: string; name: string } | null>(
     recipe ? { id: recipe.id, name: recipe.name } : null,
   );
+  // How the saved recipe's runs compute (D2): every row, or only what changed.
+  const [eachRun, setEachRun] = useState<{ mode: IncrementalMode; column: string | null }>({
+    mode: recipe?.incremental_mode ?? "full",
+    column: recipe?.partition_column ?? null,
+  });
   // Who may do what with a saved recipe (C2). Someone who may edit works in
   // its shared copy with everyone else editing it; anyone else, or anyone in
   // a project whose changes need approval, suggests instead of saving.
@@ -1032,6 +1038,19 @@ export function StudioPage({
             columns={preview?.schema_after.columns ?? []}
             plan={plan}
             counted={error ? undefined : preview?.step_outcomes}
+            runs={
+              saved
+                ? {
+                    projectId,
+                    recipeId: saved.id,
+                    mode: eachRun.mode,
+                    column: eachRun.column,
+                    inputColumns: preview?.schema_before.ordered_columns ?? [],
+                    canChange: role === null ? true : role === "editor" || role === "admin",
+                    onChanged: (mode, column) => setEachRun({ mode, column }),
+                  }
+                : null
+            }
             steps={stored(steps)}
             discussion={saved ? { projectId, recipeId: saved.id, currentUsername: currentUser.username } : null}
             onApplyFile={(next) => {

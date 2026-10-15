@@ -119,6 +119,20 @@ def _digest(*parts: Any) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
+def describe_input(frame: pd.DataFrame, *, file_size: int) -> dict[str, Any]:
+    """What previews and runs need to know about an input, worked out once when it is read.
+
+    One shape for both: a preview and a run of the same version share what they keep, so
+    each must find what it needs in what the other described (a run reusing a preview's
+    input once found no file size, and stopped).
+    """
+    from service_transformations.incremental import column_kinds
+    from service_transformations.tabular import build_schema_summary
+
+    return {"rows": int(len(frame)), "columns": int(len(frame.columns)), "file_size": int(file_size),
+            "schema": build_schema_summary(frame), "frame_kinds": column_kinds(frame)}
+
+
 def step_keys(base: str, steps: list[Any], other_of: Callable[[str, dict[str, Any]], str | None] | None) -> list[str | None]:
     """The address of the result after each step; None from the first step that has none."""
     keys: list[str | None] = []

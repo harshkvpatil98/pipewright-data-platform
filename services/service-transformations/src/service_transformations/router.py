@@ -21,6 +21,7 @@ from service_transformations.recipe_suggestions import RecipeSuggestion, suggest
 from service_transformations.replay import replay_pipeline_run
 from service_transformations.run import run_saved_transformation_pipeline
 from service_transformations.schemas import (
+    IncrementalSettings,
     ReplayResult,
     TransformationPipelineCreate,
     TransformationPipelineListResponse,
@@ -39,6 +40,7 @@ from service_transformations import tools
 from service_transformations.tools import docs as tool_docs
 from service_transformations.tools.apply import apply_tool
 from service_transformations.service import (
+    set_incremental,
     create_transformation_pipeline,
     get_transformation_pipeline,
     list_transformation_pipelines_for_dataset,
@@ -275,6 +277,22 @@ def build_router(
             dataset_id=dataset_id,
             current_user=current_user,
         )
+
+    @router.put(
+        '/projects/{project_id}/pipelines/{pipeline_id}/incremental',
+        response_model=TransformationPipelineRead,
+    )
+    def put_incremental(
+        project_id: uuid.UUID,
+        pipeline_id: uuid.UUID,
+        payload: IncrementalSettings,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> TransformationPipelineRead:
+        """How the recipe's runs compute: every row, only rows added since the last run, or
+        only the partitions whose rows changed. Each falls back to a full run, and says why."""
+        return set_incremental(db, project_id=project_id, pipeline_id=pipeline_id, settings=payload,
+                               current_user=current_user)
 
     @router.post(
         '/projects/{project_id}/pipelines/{pipeline_id}/run',

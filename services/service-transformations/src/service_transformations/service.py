@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from typing import Any
 from datetime import UTC, datetime
 
 from service_auth.schemas import UserRead
@@ -54,9 +55,36 @@ def _serialize_pipeline(pipeline: TransformationPipeline) -> TransformationPipel
         revision=int(pipeline.revision or 1),
         step_ids=list(pipeline.step_ids_json or []) if len(pipeline.step_ids_json or []) == len(validated_steps) else [],
         revised_at=pipeline.revised_at,
+        incremental_mode=pipeline.incremental_mode or "full",
+        partition_column=pipeline.partition_column,
         created_at=pipeline.created_at,
         updated_at=pipeline.updated_at,
     )
+
+
+def set_incremental(
+    db,
+    *,
+    project_id: uuid.UUID,
+    pipeline_id: uuid.UUID,
+    settings: Any,
+    current_user: UserRead,
+) -> TransformationPipelineRead:
+    """Choose how the recipe's runs compute. Not a change to what it does: an
+    incremental run is proven to give what a full run gives, so a project whose
+    recipe changes need approval does not hold this for review (D2)."""
+    ensure_owned_project(db, project_id, current_user.id)
+    pipeline = get_transformation_pipeline_for_project(db, project_id, pipeline_id)
+    if settings.mode == "partition":
+        base = get_dataset_model_for_project(db, project_id, pipeline.base_dataset_id)
+        columns = [str(name) for name in (base.schema_json or {}).get("ordered_columns", [])]
+        if columns and settings.partition_column not in columns:
+            raise BadRequestError(f"The input has no column {settings.partition_column!r} to partition by.")
+    pipeline.incremental_mode = settings.mode
+    pipeline.partition_column = settings.partition_column
+    db.commit()
+    db.refresh(pipeline)
+    return _serialize_pipeline(pipeline)
 
 
 def create_transformation_pipeline(

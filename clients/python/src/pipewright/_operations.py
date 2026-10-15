@@ -1835,6 +1835,13 @@ class Operations:
         """
         return self._call("PATCH", f"/api/v1/projects/{project_id}/pipelines/{pipeline_id}", body=body)
 
+    def put_incremental(self, project_id: str, pipeline_id: str, *, body: Any) -> Any:
+        """How the recipe's runs compute: every row, only rows added since the last run, or only the partitions whose rows changed. Each falls back to a full run, and says why.
+
+        PUT /api/v1/projects/{project_id}/pipelines/{pipeline_id}/incremental
+        """
+        return self._call("PUT", f"/api/v1/projects/{project_id}/pipelines/{pipeline_id}/incremental", body=body)
+
     def post_run_transformation_pipeline(self, project_id: str, pipeline_id: str) -> Any:
         """Post Run Transformation Pipeline
 

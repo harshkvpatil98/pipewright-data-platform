@@ -123,9 +123,11 @@ def build_profile(*, dataframe: pd.DataFrame, sample_limit: int, file_size_bytes
         unique_count = int(non_null.nunique(dropna=True))
         null_percentage = round((null_count / row_count) * 100, 2) if row_count else 0.0
         unique_percentage = round((unique_count / non_null_count) * 100, 2) if non_null_count else 0.0
-        inferred_type = _infer_series_type(series)
+        # The Python types of the values, worked out once for the two questions that need them.
+        types = _python_types(non_null) if is_object_dtype(series) else None
+        inferred_type = _infer_series_type(series, types=types)
         sample_values = _sample_values(non_null, sample_limit)
-        mixed_type_suspected = _has_mixed_types(non_null)
+        mixed_type_suspected = _has_mixed_types(non_null, types=types)
         possible_identifier = _is_possible_identifier(
             name=str(column),
             unique_count=unique_count,
@@ -216,7 +218,13 @@ def build_profile(*, dataframe: pd.DataFrame, sample_limit: int, file_size_bytes
     }
 
 
-def _infer_series_type(series: pd.Series) -> str:
+def _python_types(values: pd.Series) -> set[str]:
+    """The names of the Python types among a column's values. `map(type, ...)` runs in C: the
+    same answer as asking each value in turn, several times faster on a large column (D2)."""
+    return {kind.__name__ for kind in set(map(type, values.tolist()))}
+
+
+def _infer_series_type(series: pd.Series, *, types: set[str] | None = None) -> str:
     non_null = series.dropna()
     if non_null.empty:
         return 'empty'
@@ -231,7 +239,7 @@ def _infer_series_type(series: pd.Series) -> str:
     if is_string_dtype(series):
         return 'string'
     if is_object_dtype(series):
-        python_types = {type(value).__name__ for value in non_null}
+        python_types = set(types) if types is not None else _python_types(non_null)
         if python_types <= {'str'}:
             return 'string'
         if python_types <= {'dict'}:
@@ -247,8 +255,16 @@ def _infer_series_type(series: pd.Series) -> str:
 
 
 def _sample_values(series: pd.Series, sample_limit: int) -> list[Any]:
+    """The first `sample_limit` different values, in the order they appear. Each distinct value
+    is looked at once: a column of four values used to be walked to its last row (D2)."""
+    try:
+        # drop_duplicates, not pd.unique: it keeps the column's type, so a date-time comes back
+        # as a Timestamp rather than a count of nanoseconds.
+        candidates = series.drop_duplicates().tolist()
+    except TypeError:  # values that cannot be hashed (lists, dicts): every row, in order
+        candidates = series.tolist()
     samples: list[Any] = []
-    for value in series.tolist():
+    for value in candidates:
         normalized = _json_safe_value(value)
         if normalized not in samples:
             samples.append(normalized)
@@ -257,8 +273,8 @@ def _sample_values(series: pd.Series, sample_limit: int) -> list[Any]:
     return samples
 
 
-def _has_mixed_types(series: pd.Series) -> bool:
-    python_types = {type(value).__name__ for value in series.tolist()}
+def _has_mixed_types(series: pd.Series, *, types: set[str] | None = None) -> bool:
+    python_types = types if types is not None else _python_types(series)
     return len(python_types) > 1
 
 

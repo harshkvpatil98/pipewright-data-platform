@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 
+import { apiFetch } from "@/lib/api/client";
+import { extractErrorMessage } from "@/lib/api/errors";
+
 import { RecipeYamlPanel } from "@/features/studio/recipe-yaml-panel";
 import { STEP_BY_TYPE } from "@/features/studio/step-catalog";
 import { estimateSummary, roughCount } from "@/features/studio/studio-words";
@@ -26,6 +29,19 @@ export type ExecutionPlan = {
 /** The rows each step gave in the preview, which reads every stored row. */
 type Counted = { index: number; rows_after: number }[];
 
+export type IncrementalMode = "full" | "append" | "partition";
+
+/** How a saved recipe's runs compute, and whether this person may change it. */
+export type RunEachTime = {
+  projectId: string;
+  recipeId: string;
+  mode: IncrementalMode;
+  column: string | null;
+  inputColumns: string[];
+  canChange: boolean;
+  onChanged: (mode: IncrementalMode, column: string | null) => void;
+};
+
 type Tab = "columns" | "runs" | "file" | "comments";
 
 type DetailsDrawerProps = {
@@ -34,6 +50,8 @@ type DetailsDrawerProps = {
   columns: { name: string; inferred_type: string; canonical_type?: string | null }[];
   plan: ExecutionPlan | null;
   counted?: Counted;
+  /** Null for a recipe not saved yet: there is nothing to run. */
+  runs?: RunEachTime | null;
   steps: { step_type: string; config: Record<string, unknown> }[];
   onApplyFile: (steps: { step_type: string; config: Record<string, unknown> }[]) => void;
   /** Comments are kept with a saved recipe; a new one has nowhere to keep them yet. */
@@ -51,6 +69,7 @@ export function DetailsDrawer({
   columns,
   plan,
   counted,
+  runs = null,
   steps,
   onApplyFile,
   discussion,
@@ -123,7 +142,12 @@ export function DetailsDrawer({
           )
         ) : null}
 
-        {tab === "runs" ? <PlanDetail plan={plan} counted={counted} /> : null}
+        {tab === "runs" ? (
+          <div className="space-y-4">
+            <PlanDetail plan={plan} counted={counted} />
+            <EachRun runs={runs} />
+          </div>
+        ) : null}
 
         {tab === "comments" ? (
           discussion ? (
@@ -239,5 +263,119 @@ function RowsAtEachStep({ estimates, counted }: { estimates: NonNullable<Executi
         })}
       </ul>
     </div>
+  );
+}
+
+const MODES: { id: IncrementalMode; label: string; detail: string }[] = [
+  { id: "full", label: "Every row, every time", detail: "Each run reads and computes all of its input." },
+  {
+    id: "append",
+    label: "Only rows added since the last run",
+    detail: "For an input that grows at the end, as an import's does. Checked each time, never assumed.",
+  },
+  {
+    id: "partition",
+    label: "Only partitions whose rows changed",
+    detail: "Rows are divided by a column; partitions with no change keep the last run's result.",
+  },
+];
+
+/**
+ * How a saved recipe's runs compute. Whatever is chosen, a run that cannot
+ * do less (a step that needs every row, an input that changed in the middle)
+ * computes everything, and its log says why.
+ */
+function EachRun({ runs }: { runs: RunEachTime | null }) {
+  const [mode, setMode] = useState<IncrementalMode>(runs?.mode ?? "full");
+  const [column, setColumn] = useState(runs?.column ?? runs?.inputColumns[0] ?? "");
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
+
+  if (!runs) {
+    return (
+      <div className="border-t border-line pt-3 text-[13px]">
+        <p className="font-medium text-ink">Each run</p>
+        <p className="text-ink-3">Save the recipe to choose how its runs compute.</p>
+      </div>
+    );
+  }
+  const changed = mode !== runs.mode || (mode === "partition" && column !== (runs.column ?? ""));
+  const save = async () => {
+    setSaving(true);
+    setMessage(null);
+    try {
+      await apiFetch(`/projects/${runs.projectId}/pipelines/${runs.recipeId}/incremental`, {
+        method: "PUT",
+        body: JSON.stringify({ mode, partition_column: mode === "partition" ? column : null }),
+      });
+      runs.onChanged(mode, mode === "partition" ? column : null);
+      setMessage({ tone: "ok", text: "Saved. The next run computes this way when it can." });
+    } catch (error) {
+      setMessage({ tone: "error", text: extractErrorMessage(error) });
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <fieldset className="border-t border-line pt-3 text-[13px]" disabled={!runs.canChange || saving}>
+      <legend className="font-medium text-ink">Each run</legend>
+      <p className="mb-2 text-[12px] text-ink-3">
+        A run that cannot do less computes every row, and its log says why.
+      </p>
+      <div className="space-y-2">
+        {MODES.map((option) => (
+          <label key={option.id} className="flex items-start gap-2">
+            <input
+              type="radio"
+              name="each-run"
+              className="mt-1"
+              checked={mode === option.id}
+              onChange={() => setMode(option.id)}
+            />
+            <span>
+              <span className="block text-ink">{option.label}</span>
+              <span className="block text-[12px] text-ink-3">{option.detail}</span>
+            </span>
+          </label>
+        ))}
+      </div>
+      {mode === "partition" ? (
+        <label className="mt-2 block">
+          <span className="block text-[12px] text-ink-3">Divide by</span>
+          <select
+            value={column}
+            onChange={(event) => setColumn(event.target.value)}
+            aria-label="Column that divides the data"
+            className="mt-1 h-8 w-full rounded-lg border border-line bg-sunken px-2 text-[13px] text-ink"
+          >
+            {runs.inputColumns.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
+      {runs.canChange ? (
+        <button
+          type="button"
+          onClick={() => void save()}
+          disabled={!changed || saving || (mode === "partition" && !column)}
+          className="mt-3 rounded-lg border border-line px-3 py-1.5 text-[13px] text-ink transition hover:bg-surface-2 disabled:opacity-50"
+        >
+          {saving ? "Saving…" : "Save how runs compute"}
+        </button>
+      ) : (
+        <p className="mt-2 text-[12px] text-ink-3">An editor of this project can change this.</p>
+      )}
+      {message ? (
+        <p
+          role={message.tone === "error" ? "alert" : "status"}
+          className={message.tone === "error" ? "mt-2 text-[12px] text-danger" : "mt-2 text-[12px] text-accent"}
+        >
+          {message.text}
+        </p>
+      ) : null}
+    </fieldset>
   );
 }

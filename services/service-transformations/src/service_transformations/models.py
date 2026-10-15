@@ -57,6 +57,12 @@ class TransformationPipeline(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         UUID(as_uuid=True), ForeignKey('users.id', ondelete='SET NULL'), nullable=True
     )
     revised_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    #: How a run computes (D2, O7): "full", every row every time; "append", only rows
+    #: added at the end since the last run; "partition", only the partitions of
+    #: `partition_column` whose rows changed. Either falls back to a full run,
+    #: and says why, when the recipe or its input does not allow it.
+    incremental_mode: Mapped[str] = mapped_column(String(16), nullable=False, default="full", server_default="full")
+    partition_column: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     project: Mapped[Project] = relationship(back_populates='transformation_pipelines')
     base_dataset: Mapped[Dataset] = relationship('Dataset', foreign_keys=[base_dataset_id])

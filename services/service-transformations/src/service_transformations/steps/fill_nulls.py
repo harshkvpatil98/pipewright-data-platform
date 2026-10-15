@@ -67,6 +67,10 @@ def apply_fill_nulls(dataframe: pd.DataFrame, config: dict[str, Any]) -> tuple[p
                 continue
             fill_value = modes.iloc[0]
 
-        transformed[column] = series.fillna(fill_value)
+        # `where`, not `fillna`: on a column of Python objects fillna also re-infers the
+        # column's type, which pandas has deprecated and will stop doing; the values
+        # filled are the same either way.
+        filled = series.where(series.notna(), fill_value)
+        transformed[column] = filled.infer_objects() if series.dtype == object else filled
 
     return transformed, warnings

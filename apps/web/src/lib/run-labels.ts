@@ -78,6 +78,10 @@ const STAGE_LABELS: Record<string, string> = {
   schema_drift: "Checking for schema changes",
   load_artifact: "Reading the input dataset",
   load_dataset: "Reading the dataset",
+  // A recipe that computes only what changed, and a run that reused a recent preview's work (D2).
+  incremental: "Computing only what changed",
+  reused: "Reusing earlier work",
+  check_contract: "Checking the contract",
   finalize: "Recording the version",
   connect_destination: "Connecting",
   authenticate_power_bi: "Signing in to Power BI",

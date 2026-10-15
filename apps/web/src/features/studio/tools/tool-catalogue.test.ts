@@ -12,6 +12,7 @@ import {
   toolsNamedForColumn,
   type Tool,
 } from "./tool-catalogue";
+import { datasetColumns } from "./other-datasets";
 
 function tool(overrides: Partial<Tool> & Pick<Tool, "name" | "title">): Tool {
   return {
@@ -252,5 +253,41 @@ describe("toolsNamedForColumn", () => {
   it("ignores short words and finds nothing for a generic name", () => {
     expect(toolsNamedForColumn(all, "id", "string")).toEqual([]);
     expect(toolsNamedForColumn(all, "value", "string")).toEqual([]);
+  });
+});
+
+describe("tools that read another dataset (E1)", () => {
+  const lookup: Tool = {
+    name: "join.as_of",
+    title: "Join to the nearest earlier row",
+    category: "Join & combine",
+    summary: "",
+    synonyms: [],
+    accepts: "any",
+    column_scoped: false,
+    reads_dataset: true,
+    params: [
+      { key: "right_dataset_id", label: "Other dataset", kind: "dataset", required: true, default: null, options: [], help: "", placeholder: "", minimum: null, maximum: null },
+      { key: "bring", label: "Columns to bring", kind: "dataset_columns", required: true, default: null, options: [], help: "", placeholder: "", minimum: null, maximum: null },
+      { key: "by", label: "Match first on", kind: "columns", required: false, default: [], options: [], help: "", placeholder: "", minimum: null, maximum: null },
+    ],
+    example: { rows: [], params: {}, column: null, output: null, expect: [], note: "" },
+  };
+
+  it("starts column lists empty rather than as text", () => {
+    expect(defaultValues(lookup)).toEqual({ right_dataset_id: "", bring: [], by: [] });
+  });
+
+  it("leaves an empty optional list out and keeps the dataset", () => {
+    const config = toConfig(lookup, null, null, { right_dataset_id: "d1", bring: ["rate"], by: [] });
+    expect(config).toEqual({ tool: "join.as_of", right_dataset_id: "d1", bring: ["rate"] });
+  });
+});
+
+describe("datasetColumns", () => {
+  it("reads the names from a stored schema", () => {
+    expect(datasetColumns({ columns: [{ name: "id" }, { name: "rate" }] })).toEqual(["id", "rate"]);
+    expect(datasetColumns(null)).toEqual([]);
+    expect(datasetColumns({ columns: "nope" })).toEqual([]);
   });
 });

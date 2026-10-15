@@ -76,6 +76,7 @@ from service_transformations.ir.nodes import (
     SetOp,
     Sort,
     SortKey,
+    Window,
 )
 
 _INT64 = (-(2**63), 2**63 - 1)
@@ -190,6 +191,13 @@ def _filter(node: Filter, applied: list[Rewrite]) -> Node | None:
         if not below.subset or used <= set(below.subset):
             applied.append(Rewrite("filter below distinct", f"{node.predicate} reads only what decides identity"))
             return Distinct(Filter(below.input, node.predicate), below.subset, below.keep)
+    if isinstance(below, Window) and below.partition_by:
+        # A filter on the partition columns keeps or drops whole partitions, so
+        # every row it keeps sees exactly the rows it saw before. Anything else
+        # would change which rows a rank or a total counts.
+        if node.predicate.columns_used() <= set(below.partition_by):
+            applied.append(Rewrite("filter below window", f"{node.predicate} keeps whole partitions, so it runs first"))
+            return replace(below, input=Filter(below.input, node.predicate))
     return None
 
 
@@ -509,6 +517,28 @@ def prune(node: Node, needed: set[str] | None, applied: list[Rewrite]) -> Node:
         for _, expr in (*node.group_by, *node.aggregates):
             used |= expr.columns_used()
         return _same_or(node, prune(node.input, used, applied))
+    if isinstance(node, Window):
+        functions = node.functions if needed is None else tuple(
+            (name, call) for name, call in node.functions if name in needed)
+        if not functions:
+            # Nothing above reads what the window computes, and it changes no
+            # row: it goes, and so does the work of ordering every partition.
+            applied.append(Rewrite("drop columns nobody reads", f"{node} is not read above"))
+            return prune(node.input, needed, applied)
+        if len(functions) < len(node.functions):
+            dropped = [name for name, _ in node.functions if name not in dict(functions)]
+            applied.append(Rewrite("drop columns nobody reads", f"{node} no longer computes {', '.join(dropped)}"))
+        child_needed = None
+        if needed is not None:
+            child_needed = (set(needed) - {name for name, _ in node.functions}) | set(node.partition_by)
+            for key in node.order_by:
+                child_needed |= key.expr.columns_used()
+            for _, call in functions:
+                child_needed |= call.columns_used()
+        child = prune(node.input, child_needed, applied)
+        if child is node.input and functions == node.functions:
+            return node
+        return replace(node, input=child, functions=functions)
     if isinstance(node, Join):
         sides = _sides(node)
         pairs = _equi_pairs(node.on)

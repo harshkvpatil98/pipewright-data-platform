@@ -35,6 +35,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
+from service_transformations.steps.context import other_dataset_of
+
 import pandas as pd
 
 from shared_python.memory import check_frame, frame_bytes
@@ -143,7 +145,7 @@ def step_keys(base: str, steps: list[Any], other_of: Callable[[str, dict[str, An
             continue
         config = dict(step.config or {})
         extra = ""
-        if step.step_type in ("join_datasets", "union_datasets"):
+        if other_dataset_of(step.step_type, config):
             extra = other_of(step.step_type, config) if other_of is not None else None
             if extra is None:
                 previous = None

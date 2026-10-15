@@ -27,7 +27,6 @@ from __future__ import annotations
 import re
 import threading
 import weakref
-from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import Any
 
@@ -45,6 +44,7 @@ from service_transformations.steps import (
     STEP_APPLY_FUNCTIONS,
     StepContext,
 )
+from service_transformations.steps.context import ACTIVE_CONTEXT
 from service_transformations.validators import validate_steps_json
 from shared_python.words import count_of
 
@@ -59,13 +59,8 @@ EXTENSION_BACKED: frozenset[str] = frozenset(
     {"split_column", "pivot", "unpivot", "join_datasets", "union_datasets"}
 )
 
-# The StepContext for the step being executed, so a join/union Extension can
-# reach the sibling dataset it needs. A contextvar rather than a parameter
-# because the backend's extension signature is `(frame, config)` on purpose:
-# the IR never learns what a bespoke step needs.
-_ACTIVE_CONTEXT: ContextVar[StepContext | None] = ContextVar(
-    "pipewright_step_context", default=None
-)
+# The StepContext for the step being executed (`steps/context.py` says why).
+_ACTIVE_CONTEXT = ACTIVE_CONTEXT
 
 
 def _register_extension_handlers() -> None:
@@ -232,7 +227,11 @@ def apply_single_step(
         # read 3 value(s) as a number") that a generic pass would flatten.
         from service_transformations.tools.apply import apply_tool
 
-        return apply_tool(dataframe, config)
+        token = _ACTIVE_CONTEXT.set(context)
+        try:
+            return apply_tool(dataframe, config)
+        finally:
+            _ACTIVE_CONTEXT.reset(token)
 
     # The original handlers validated a step's config against the frame before
     # doing anything, and their messages name the field that is wrong

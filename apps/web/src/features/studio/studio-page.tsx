@@ -35,6 +35,7 @@ import { newStepId, useRecipeEditing } from "@/features/studio/use-recipe-editin
 import { usePresence } from "@/features/studio/use-presence";
 import { prefillConfig, type StepDefinition } from "@/features/studio/step-catalog";
 import { StepPalette } from "@/features/studio/step-palette";
+import { OtherDatasetsProvider, datasetColumns } from "@/features/studio/tools/other-datasets";
 import { StepsTimeline, type StepOutcome, type TimelineStep } from "@/features/studio/steps-timeline";
 import type { ToolCatalogue } from "@/features/studio/tools/tool-catalogue";
 import { planPhrase, previewScope } from "@/features/studio/studio-words";
@@ -116,6 +117,14 @@ export function StudioPage({
     recipe?.base_dataset_id ?? initialDatasetId ?? datasets[0]?.id ?? "",
   );
   const dataset = useMemo(() => datasets.find((item) => item.id === datasetId) ?? null, [datasets, datasetId]);
+  // Datasets a lookup, an as-of join or a set tool can read besides this one.
+  const otherDatasets = useMemo(
+    () =>
+      datasets
+        .filter((item) => item.id !== datasetId)
+        .map((item) => ({ id: item.id, name: item.name, columns: datasetColumns(item.schema_json) })),
+    [datasets, datasetId],
+  );
 
   // ----------------------------------------------------------- the recipe
   const [saved, setSaved] = useState<{ id: string; name: string } | null>(
@@ -614,6 +623,7 @@ export function StudioPage({
 
   return (
     <AppFrame currentUser={currentUser} commands={toolCommands} heading="Studio" disableWelcomeTour>
+      <OtherDatasetsProvider datasets={otherDatasets}>
       <div className="flex h-full min-h-0 flex-col">
         {/* ---------------------------------------------------------- header */}
         <header className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-line bg-[color:var(--panel)] px-4 py-2.5">
@@ -1143,6 +1153,7 @@ export function StudioPage({
         <p className="text-sm text-ink-2">Anyone with the recipe open sees the saved version straight away.</p>
       </Modal>
 
+      </OtherDatasetsProvider>
     </AppFrame>
   );
 }

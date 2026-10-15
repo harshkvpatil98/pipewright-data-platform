@@ -44,6 +44,7 @@ from service_transformations.ir.nodes import (
     Scan,
     SetOp,
     Sort,
+    Window,
 )
 
 #: Rows assumed for a table with no statistics at all.
@@ -193,6 +194,12 @@ def _walk(node: Node, stats: Mapping[str, TableStats | None], steps: list[NodeEs
         steps.append(NodeEstimate(str(node), rows, f"{node.kind.replace('_', ' ')} of both sides",
                                   left.guessed or right.guessed or node.kind != "union_all"))
         return _Shape(rows, {}, left.guessed or right.guessed)
+
+    if isinstance(node, Window):
+        below = _walk(node.input, stats, steps)
+        steps.append(NodeEstimate(str(node), below.rows, "the rows it is given: a window adds columns, not rows",
+                                  below.guessed))
+        return below
 
     if isinstance(node, Extension):
         below = _walk(node.input, stats, steps)

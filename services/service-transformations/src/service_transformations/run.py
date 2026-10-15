@@ -94,10 +94,11 @@ def _scan_of_schema(schema_json: dict[str, Any] | None):
 def _step_dataset_pins(db: Session, steps_json: list[dict[str, Any]]) -> list[VersionPin]:
     """The current version of every dataset a join or union step reads."""
     pins: list[VersionPin] = []
+    from service_transformations.steps.context import other_dataset_of
+
     for index, step in enumerate(steps_json or [], start=1):
-        config = step.get("config") or {}
-        raw = config.get("right_dataset_id") or config.get("other_dataset_id")
-        if (step.get("step_type") or step.get("type")) in ("join_datasets", "union_datasets") and raw:
+        raw = other_dataset_of(step.get("step_type") or step.get("type"), step.get("config") or {})
+        if raw:
             try:
                 pins.append(head_pin(db, uuid.UUID(str(raw)), role="step"))
             except (ValueError, ApplicationError):

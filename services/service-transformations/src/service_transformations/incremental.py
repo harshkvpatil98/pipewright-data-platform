@@ -54,6 +54,7 @@ from service_transformations.ir.nodes import (
     Scan,
     SetOp,
     Sort,
+    Window,
 )
 
 MODES = ("full", "append", "partition")
@@ -153,6 +154,8 @@ def _expressions(node: Node) -> list[Expr]:
         return [key.expr for key in node.keys]
     if isinstance(node, Join) and node.on is not None:
         return [node.on]
+    if isinstance(node, Window):
+        return [key.expr for key in node.order_by] + [arg for _, call in node.functions for arg in call.args]
     return []
 
 
@@ -243,6 +246,11 @@ def _part_reason(part: Node, name: str, mode: str, p: str | None, config: dict[s
         return f"{name} removes repeated rows across all of them"
     if isinstance(part, (SetOp,)):
         return f"{name} adds another dataset's rows to all of them"
+    if isinstance(part, Window):
+        if mode == "partition" and p in part.partition_by:
+            return None
+        return (f"{name} looks across partitions" if mode == "partition"
+                else f"{name} looks at other rows, so a row added now can change the answer for one made before")
     if isinstance(part, Extension):
         if part.name in ("filter_rows", "derive_column", "split_column"):
             if mode == "partition" and part.name != "filter_rows":
@@ -254,13 +262,21 @@ def _part_reason(part: Node, name: str, mode: str, p: str | None, config: dict[s
         if part.name == "join_datasets":
             other = str(config.get("right_dataset_id") or "")
             how = str(config.get("how") or "inner")
-            if how not in ("inner", "left"):
+            if how not in ("inner", "left", "semi", "anti", "cross"):
                 return f"{name} keeps rows of the other dataset that match nothing, so it needs all of them"
             if other not in unchanged_datasets:
                 return f"{name} joins a dataset that changed since the last run"
             return None
         if part.name == "union_datasets":
             return f"{name} adds another dataset's rows to all of them"
+        from service_transformations.tools import TOOLS
+
+        spec = TOOLS.get(part.name)
+        if spec is not None and spec.row_wise:
+            # A tool that works on each row by itself (a lookup, an as-of join): E1.
+            if spec.reads_dataset and str(config.get("right_dataset_id") or "") not in unchanged_datasets:
+                return f"{name} reads a dataset that changed since the last run"
+            return None
         if part.name == "fill_nulls":
             return f"{name} fills empty values from other rows"
         return f"{name} reshapes all the rows together"

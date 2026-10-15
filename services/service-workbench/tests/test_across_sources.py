@@ -227,3 +227,32 @@ def test_a_source_that_would_send_too_much_stops_the_query(files: Files, monkeyp
 def test_what_it_cannot_run_it_says_plainly(files: Files, sql: str, says: str) -> None:
     with pytest.raises(BadRequestError, match=says):
         across.run(sql, files)
+
+
+def test_window_functions_rank_and_total_across_sources(files: Files, one_place) -> None:
+    # E1: OVER (...) in the select list is a Window node, run here over the joined rows,
+    # or inside one source when the whole query reads only that source and can say it exactly.
+    sql = """SELECT o.id, c.region_id,
+                    RANK() OVER (PARTITION BY c.region_id ORDER BY o.amount DESC) AS place,
+                    SUM(o.amount) OVER (PARTITION BY c.region_id) AS region_total,
+                    COUNT(*) OVER () AS everything,
+                    DENSE_RANK() OVER (ORDER BY c.region_id) AS band
+             FROM shop.orders o JOIN crm.customers c ON o.customer_id = c.id
+             WHERE o.status = 'open'"""
+    outcome = across.run(sql, files)
+    _same(outcome, one_place, sql.replace("crm.customers", "customers").replace("shop.orders", "orders"))
+    lagged = """SELECT o.id, LAG(o.amount, 1, 0) OVER (ORDER BY o.id) AS before,
+                       AVG(o.amount) OVER (ORDER BY o.id ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS moving
+                FROM shop.orders o WHERE o.id < 50 ORDER BY o.id"""
+    outcome = across.run(lagged, files)
+    _same(outcome, one_place, lagged.replace("shop.orders", "orders"), ordered=True)
+    # One source, and every window exact there: the whole query ran in that database.
+    ranked = "SELECT o.id, RANK() OVER (ORDER BY o.amount) AS r FROM shop.orders o WHERE o.id < 10"
+    outcome = across.run(ranked, files)
+    assert "RANK() OVER" in outcome.sources[0].ran
+
+
+def test_a_window_over_groups_is_refused_with_what_to_do(files: Files) -> None:
+    with pytest.raises(BadRequestError, match="group in one query and rank in another"):
+        across.run("SELECT o.status, RANK() OVER (ORDER BY SUM(o.amount)) AS r FROM shop.orders o "
+                   "GROUP BY o.status", files)

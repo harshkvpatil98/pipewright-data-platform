@@ -35,6 +35,8 @@ from service_transformations.ir.nodes import (
     Scan,
     SetOp,
     Sort,
+    Window,
+    window_pushable,
 )
 from service_transformations.ir.rewrites import Rewrite, rewrite
 from service_transformations.ir.sql_backend import Unsupported, to_sql
@@ -50,6 +52,7 @@ _NODE_KIND = {
     Limit: "limit",
     Distinct: "distinct",
     SetOp: "set_ops",
+    Window: "window",
 }
 
 
@@ -168,6 +171,11 @@ def _can_push(node: Node, surface: SourceSurface) -> tuple[bool, str]:
         return False, f"{surface.name} cannot run a {kind} step{detail}"
 
     dialect = surface.dialect
+    if dialect is not None and isinstance(node, Window) and not window_pushable(dialect, node):
+        return False, (
+            f"{dialect} could give tied rows a different order, or lacks part of this window, so "
+            "pushing it could change the result"
+        )
     if dialect is not None:
         for expression in _expressions_of(node):
             if not supported_in(dialect, expression):

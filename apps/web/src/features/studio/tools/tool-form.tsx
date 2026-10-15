@@ -3,6 +3,7 @@
 import { Input, Select } from "@platform/shared-ui";
 
 import type { Tool, ToolParam } from "./tool-catalogue";
+import { useOtherDatasets } from "./other-datasets";
 import { typeLabel } from "@/lib/labels";
 
 export function Field({
@@ -28,12 +29,64 @@ export function ParamInput({
   columns,
   value,
   onChange,
+  chosenDataset = "",
 }: {
   param: ToolParam;
   columns: { name: string }[];
   value: unknown;
   onChange: (next: unknown) => void;
+  /** The other dataset this tool reads, for its column settings. */
+  chosenDataset?: string;
 }) {
+  const others = useOtherDatasets();
+  if (param.kind === "dataset") {
+    return (
+      <Select value={String(value ?? "")} onChange={(event) => onChange(event.target.value)}>
+        <option value="">Choose a dataset…</option>
+        {others.map((dataset) => (
+          <option key={dataset.id} value={dataset.id}>
+            {dataset.name}
+          </option>
+        ))}
+      </Select>
+    );
+  }
+  if (param.kind === "dataset_column" || param.kind === "dataset_columns") {
+    const theirs = others.find((dataset) => dataset.id === chosenDataset)?.columns ?? [];
+    if (!chosenDataset) return <p className="text-xs text-muted">Choose the other dataset first.</p>;
+    if (param.kind === "dataset_column") {
+      return (
+        <Select value={String(value ?? "")} onChange={(event) => onChange(event.target.value)}>
+          <option value="">Choose one of its columns…</option>
+          {theirs.map((name) => (
+            <option key={name} value={name}>
+              {name}
+            </option>
+          ))}
+        </Select>
+      );
+    }
+    return (
+      <ColumnChips
+        label={param.label}
+        names={theirs}
+        value={value}
+        onChange={onChange}
+        empty="Its columns are not known yet."
+      />
+    );
+  }
+  if (param.kind === "columns") {
+    return (
+      <ColumnChips
+        label={param.label}
+        names={columns.map((entry) => entry.name)}
+        value={value}
+        onChange={onChange}
+        empty="This dataset has no columns yet."
+      />
+    );
+  }
   if (param.kind === "select") {
     return (
       <Select value={String(value ?? "")} onChange={(event) => onChange(event.target.value)}>
@@ -70,7 +123,7 @@ export function ParamInput({
       </Select>
     );
   }
-  if (param.kind === "columns" || param.kind === "list") {
+  if (param.kind === "list") {
     const text = Array.isArray(value) ? value.join("\n") : String(value ?? "");
     return (
       <textarea
@@ -103,6 +156,48 @@ export function ParamInput({
         )
       }
     />
+  );
+}
+
+/** Columns to pick, in the order picked, which is the order a tool uses them. */
+function ColumnChips({
+  label,
+  names,
+  value,
+  onChange,
+  empty,
+}: {
+  label: string;
+  names: string[];
+  value: unknown;
+  onChange: (next: unknown) => void;
+  empty: string;
+}) {
+  const picked = Array.isArray(value) ? value.map(String) : [];
+  return (
+    <span className="flex flex-wrap gap-1.5" role="group" aria-label={label}>
+      {names.map((name) => {
+        const position = picked.indexOf(name);
+        const on = position >= 0;
+        return (
+          <button
+            key={name}
+            type="button"
+            aria-pressed={on}
+            onClick={() => onChange(on ? picked.filter((item) => item !== name) : [...picked, name])}
+            className={
+              on
+                ? "rounded-full border border-[color:var(--accent)] bg-[color:var(--accent-soft)] px-2.5 py-1 text-xs text-ink"
+                : "rounded-full border border-line px-2.5 py-1 text-xs text-ink-3 transition hover:bg-sunken"
+            }
+          >
+            {on && picked.length > 1 ? `${position + 1}. ` : ""}
+            {name}
+          </button>
+        );
+      })}
+      {names.length === 0 ? <span className="text-xs text-muted">{empty}</span> : null}
+    </span>
   );
 }
 
@@ -169,6 +264,7 @@ export function ToolFields({
             columns={columns}
             value={values[param.key]}
             onChange={(next) => onValue(param.key, next)}
+            chosenDataset={typeof values.right_dataset_id === "string" ? values.right_dataset_id : ""}
           />
         </Field>
       ))}

@@ -46,6 +46,9 @@ class SourceSurface:
     supports_limit: bool = False
     supports_distinct: bool = False
     supports_set_ops: bool = False
+    #: Window functions (OVER ...): not in MySQL before 8.0, which a connection
+    #: does not say it is past.
+    supports_window: bool = False
     #: Why this source cannot do more, in words a person can act on.
     note: str = ""
 
@@ -70,6 +73,7 @@ def sql_surface(name: str, dialect: str, *, full: bool = True, note: str = "") -
         supports_limit=True,
         supports_distinct=True,
         supports_set_ops=full,
+        supports_window=full,
         note=note,
     )
 
@@ -84,7 +88,7 @@ _SURFACES: dict[str, SourceSurface] = {
         "mysql",
         "mysql",
         full=False,
-        note="No INTERSECT or EXCEPT before 8.0.31, and no DISTINCT ON at all.",
+        note="No INTERSECT or EXCEPT before 8.0.31, no window functions before 8.0, and no DISTINCT ON at all.",
     ),
     "sqlite": sql_surface(
         "sqlite",

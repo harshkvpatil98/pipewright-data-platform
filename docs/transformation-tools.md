@@ -1,6 +1,6 @@
 # Transformation tools
 
-173 tools across 11 categories. Every one compiles to the
+212 tools across 13 categories. Every one compiles to the
 relational IR, so every one gets type inference, column lineage and
 pushdown without a second implementation.
 
@@ -11,15 +11,17 @@ test suite, so this file cannot describe behaviour the code does not have.
 
 - [Cleansing](#cleansing) (15)
 - [Columns](#columns) (7)
+- [Join & combine](#join--combine) (6)
 - [Type & conversion](#type--conversion) (10)
 - [Date & time](#date--time) (33)
 - [Encoding & privacy](#encoding--privacy) (14)
 - [Nested data](#nested-data) (6)
-- [Missing data](#missing-data) (6)
+- [Missing data](#missing-data) (8)
 - [Numeric](#numeric) (23)
 - [Rows](#rows) (7)
 - [Text](#text) (43)
 - [Validation](#validation) (9)
+- [Window & analytic](#window--analytic) (31)
 
 
 ## Cleansing
@@ -276,7 +278,7 @@ Also known as: _reorder_, _move to front_, _move to end_, _arrange_
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| Columns | columns | yes | — |
+| Columns | columns | yes | none |
 | Move to | `start` / `end` | yes | `start` |
 
 | `a` | `columns` |
@@ -309,7 +311,7 @@ Also known as: _select_, _subset_, _choose columns_
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| Columns to keep | columns | yes | — |
+| Columns to keep | columns | yes | none |
 
 | `a` | `columns` |
 |---|---|
@@ -325,7 +327,7 @@ Also known as: _remove columns_, _delete columns_
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| Columns to drop | columns | yes | — |
+| Columns to drop | columns | yes | none |
 
 | `a` | `columns` |
 |---|---|
@@ -341,7 +343,7 @@ Also known as: _copy column_, _clone_
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| Column | column | yes | — |
+| Column | column | yes | none |
 
 | `a` | `a_copy` |
 |---|---|
@@ -357,8 +359,8 @@ Also known as: _rename_
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| Column | column | yes | — |
-| New name | text | yes | — |
+| Column | column | yes | none |
+| New name | text | yes | none |
 
 | `a` | `columns` |
 |---|---|
@@ -375,12 +377,202 @@ Also known as: _rename all_, _clean headers_, _snake case_, _prefix_, _suffix_
 | Setting | Type | Required | Default |
 |---|---|---|---|
 | Rule | `snake_case` / `lower` / `upper` / `prefix` / `suffix` / `replace` / `regex` | yes | `snake_case` |
-| Find | text | no | — |
-| Replace with | text | no | — |
+| Find | text | no | none |
+| Replace with | text | no | none |
 
 | `Order ID` | `columns` |
 |---|---|
 | `1` | `order_id,customer_name` |
+
+
+## Join & combine
+
+### Join to the nearest earlier row
+
+`join.as_of`
+
+Bring columns from the other dataset's row that comes just before (or after, or nearest) this row's date or number, optionally matching other columns first: the exchange rate in force on the day, the price at the time of the order.
+
+Also known as: _as of join_, _asof_, _point in time join_, _temporal join_, _nearest earlier_, _rate in force_, _effective date_, _slowly changing_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Other dataset | dataset | yes | none |
+| This dataset's date or number | column | yes | none |
+| The other dataset's date or number | dataset_column | yes | none |
+| Columns to bring | dataset_columns | yes | none |
+| | Columns of the other dataset to add to each row. | | |
+| Which row | `earlier` / `later` / `nearest` | no | `earlier` |
+| At most this far (days for dates) | number | no | none |
+| Match first on | columns | no | none |
+| Their columns to match | dataset_columns | no | none |
+| Ending for a name already taken | text | no | `_right` |
+
+| `day` | `rate` |
+|---|---|
+| `2026-01-03` | `1.1` |
+| `2026-01-05` | `1.2` |
+| `2025-12-30` | _(empty)_ |
+
+The other dataset in this example:
+
+| `at` | `rate` |
+|---|---|
+| `2026-01-01` | `1.1` |
+| `2026-01-05` | `1.2` |
+| `2026-01-09` | `1.15` |
+
+### Join where a value is in a range
+
+`join.range`
+
+Bring columns from the other dataset's rows whose range (from a low to a high column, both included) holds this row's value: a price band, an age group, a fiscal period, a block of IP addresses.
+
+Also known as: _range join_, _between join_, _band_, _bucket lookup_, _interval join_, _ip range_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Other dataset | dataset | yes | none |
+| This dataset's value | column | yes | none |
+| Their range starts at | dataset_column | yes | none |
+| Their range ends at | dataset_column | yes | none |
+| Columns to bring | dataset_columns | yes | none |
+| | Columns of the other dataset to add to each row. | | |
+| When several ranges hold it | `every match` / `first match` | no | `every match` |
+| Rows in no range | `keep` / `drop` | no | `keep` |
+| Ending for a name already taken | text | no | `_right` |
+
+| `age` | `band` |
+|---|---|
+| `9` | `child` |
+| `40` | `adult` |
+| `70` | `senior` |
+| _(empty)_ | _(empty)_ |
+
+The other dataset in this example:
+
+| `from` | `to` | `band` |
+|---|---|---|
+| `0` | `17` | `child` |
+| `18` | `64` | `adult` |
+| `65` | `130` | `senior` |
+
+### Join on similar text
+
+`join.fuzzy`
+
+Bring columns from the other dataset's row whose text is most alike, at or above how alike you ask, with the score of the match: names typed differently, spelling mistakes, words in another order. The same matching the Assistant uses to find duplicates.
+
+Also known as: _fuzzy join_, _fuzzy match_, _approximate join_, _similar names_, _fuzzy merge_, _match names_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Other dataset | dataset | yes | none |
+| Their text column | dataset_column | yes | none |
+| Columns to bring | dataset_columns | yes | none |
+| | Columns of the other dataset to add to each row. | | |
+| Alike by | `letters` / `edits` / `tokens` / `jaro_winkler` / `sound` | no | `letters` |
+| | letters: shared letters in order; edits: few typing changes apart; tokens: the same words in any order; jaro_winkler: alike from the start; sound: sounds alike (English names). | | |
+| How alike, from 0 to 1 | number | no | `0.86` |
+| Ignore company endings (Ltd, Inc) | boolean | no | `True` |
+| Rows that match nothing | `keep` / `drop` | no | `keep` |
+| Name of the score column | text | no | none |
+| Ending for a name already taken | text | no | `_right` |
+
+| `customer` | `id` |
+|---|---|
+| `ACME Ltd` | `1` |
+| `Globex Corp.` | `2` |
+| `Initech` | _(empty)_ |
+
+The other dataset in this example:
+
+| `company` | `id` |
+|---|---|
+| `Acme Limited` | `1` |
+| `Globex Corporation` | `2` |
+
+### Put columns side by side
+
+`combine.merge_by_position`
+
+Add the other dataset's columns row by row: its first row beside this one's first, and so on, as pasting columns next to each other does. This dataset keeps its rows; the run says when the other is longer or shorter.
+
+Also known as: _merge by position_, _side by side_, _paste columns_, _zip_, _horizontal concat_, _cbind_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Other dataset | dataset | yes | none |
+| Columns to bring | dataset_columns | yes | none |
+| | Columns of the other dataset to add to each row. | | |
+| Ending for a name already taken | text | no | `_right` |
+
+| `name` | `score` |
+|---|---|
+| `a` | `10` |
+| `b` | `20` |
+
+The other dataset in this example:
+
+| `score` |
+|---|
+| `10` |
+| `20` |
+
+### Keep rows the other dataset also has
+
+`combine.intersect`
+
+Keep the rows whose values (in every column, or the ones chosen) the other dataset has too (INTERSECT).
+
+Also known as: _intersect_, _in both_, _common rows_, _overlap_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Other dataset | dataset | yes | none |
+| Compare on | columns | no | none |
+| | Leave empty to compare every column; the other dataset must have them. | | |
+| Repeated rows | `remove` / `keep` | no | `remove` |
+| | Remove gives each row once, as SQL's INTERSECT and EXCEPT do. | | |
+
+| `id` | `id` |
+|---|---|
+| `1` | `2` |
+| `2` | `3` |
+
+The other dataset in this example:
+
+| `id` |
+|---|
+| `2` |
+| `3` |
+| `4` |
+
+### Keep rows the other dataset does not have
+
+`combine.except`
+
+Keep the rows whose values (in every column, or the ones chosen) the other dataset does not have (EXCEPT).
+
+Also known as: _except_, _minus_, _difference_, _not in_, _missing from_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Other dataset | dataset | yes | none |
+| Compare on | columns | no | none |
+| | Leave empty to compare every column; the other dataset must have them. | | |
+| Repeated rows | `remove` / `keep` | no | `remove` |
+| | Remove gives each row once, as SQL's INTERSECT and EXCEPT do. | | |
+
+| `id` | `id` |
+|---|---|
+| `1` | `1` |
+
+The other dataset in this example:
+
+| `id` |
+|---|
+| `2` |
 
 
 ## Type & conversion
@@ -503,7 +695,7 @@ Also known as: _json_, _extract json_, _nested field_
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| Path | text | yes | — |
+| Path | text | yes | none |
 
 | `value` | `value` |
 |---|---|
@@ -823,7 +1015,7 @@ Offered on **temporal** columns.
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| Other date column | column | yes | — |
+| Other date column | column | yes | none |
 
 | `when` | `when` |
 |---|---|
@@ -839,7 +1031,7 @@ Offered on **temporal** columns.
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| Other date column | column | yes | — |
+| Other date column | column | yes | none |
 
 | `when` | `when` |
 |---|---|
@@ -855,7 +1047,7 @@ Offered on **temporal** columns.
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| Other date column | column | yes | — |
+| Other date column | column | yes | none |
 
 | `when` | `when` |
 |---|---|
@@ -873,7 +1065,7 @@ Offered on **temporal** columns.
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| Other date column | column | yes | — |
+| Other date column | column | yes | none |
 
 | `when` | `when` |
 |---|---|
@@ -891,7 +1083,7 @@ Offered on **temporal** columns.
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| Other date column | column | yes | — |
+| Other date column | column | yes | none |
 
 | `when` | `when` |
 |---|---|
@@ -1126,7 +1318,7 @@ Offered on **textual** columns.
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| Key | text | yes | — |
+| Key | text | yes | none |
 
 | `value` | `value` |
 |---|---|
@@ -1144,7 +1336,7 @@ Offered on **textual** columns.
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| Salt | text | yes | — |
+| Salt | text | yes | none |
 | | Use a different salt per project. The same value maps to the same token under one salt and a different one under another. | | |
 
 | `value` | `value` |
@@ -1279,10 +1471,10 @@ Also known as: _unnest object_, _expand object_, _json to columns_, _normalize o
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| Column | column | yes | — |
-| Fields | columns | yes | — |
+| Column | column | yes | none |
+| Fields | columns | yes | none |
 | | Dotted paths, e.g. address.city. Use 'Describe a JSON column's shape' to list what is there. | | |
-| Prefix | text | no | — |
+| Prefix | text | no | none |
 | Remove the original column | boolean | no | `True` |
 
 | `who` | `address.city` |
@@ -1301,7 +1493,7 @@ Also known as: _unnest array_, _array to rows_, _expand rows_, _flatten array_
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| Column | column | yes | — |
+| Column | column | yes | none |
 | Keep rows with an empty array | boolean | no | `True` |
 
 | `items` | `items` |
@@ -1320,9 +1512,9 @@ Also known as: _json path_, _jsonpath_, _get nested value_, _pluck_
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| Column | column | yes | — |
-| Path | text | yes | — |
-| New column | text | no | — |
+| Column | column | yes | none |
+| Path | text | yes | none |
+| New column | text | no | none |
 
 | `payload` | `city` |
 |---|---|
@@ -1338,9 +1530,9 @@ Also known as: _group into array_, _array_agg_, _implode_, _nest_, _unexplode_
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| Group by | columns | yes | — |
-| Collect | column | yes | — |
-| New column | text | no | — |
+| Group by | columns | yes | none |
+| Collect | column | yes | none |
+| New column | text | no | none |
 
 | `sku` | `skus` |
 |---|---|
@@ -1357,7 +1549,7 @@ Also known as: _json schema_, _describe json_, _what is in this column_, _shape_
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| Column | column | yes | — |
+| Column | column | yes | none |
 
 | `payload` | `path` |
 |---|---|
@@ -1376,11 +1568,11 @@ Also known as: _child table_, _split out_, _one to many_, _relational_, _shred_
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| Nested column | column | yes | — |
-| Parent key | column | yes | — |
-| Fields to keep | columns | yes | — |
+| Nested column | column | yes | none |
+| Parent key | column | yes | none |
+| Fields to keep | columns | yes | none |
 | | Dotted paths inside each element, e.g. sku or product.name. | | |
-| Child column prefix | text | no | — |
+| Child column prefix | text | no | none |
 
 | `lines` | `sku` |
 |---|---|
@@ -1401,7 +1593,7 @@ Also known as: _fill na_, _replace null_, _default_
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| Value | text | yes | — |
+| Value | text | yes | none |
 
 | `value` | `value` |
 |---|---|
@@ -1418,7 +1610,7 @@ Also known as: _coalesce_, _fallback column_
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| Other column | column | yes | — |
+| Other column | column | yes | none |
 
 | `value` | `value` |
 |---|---|
@@ -1466,7 +1658,7 @@ Offered on **textual** columns.
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| Also treat as missing | text | no | — |
+| Also treat as missing | text | no | none |
 | | A comma-separated list, on top of the built-in ones. | | |
 
 | `value` | `value` |
@@ -1488,6 +1680,52 @@ Also known as: _flag nulls_, _is empty_, _missing_
 | `a` | `False` |
 | _(empty)_ | `True` |
 | `  ` | `True` |
+
+### Fill down
+
+`null.fill_forward`
+
+Fill an empty value with the last value above it in the group (merged cells, sparse readings).
+
+Also known as: _fill forward_, _fill down_, _carry forward_, _last observation carried forward_, _ffill_, _merged cells_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Within each | columns | no | none |
+| | Start again for each combination of these columns. Leave empty for one group of every row. | | |
+| In the order of | columns | no | none |
+| | Put each group in this order first. Leave empty to keep the order the rows are in. | | |
+| Largest first | boolean | no | `False` |
+
+| `v` | `v_filled` |
+|---|---|
+| `1.0` | `1.0` |
+| _(empty)_ | `1.0` |
+| _(empty)_ | _(empty)_ |
+| `3.0` | `3.0` |
+
+### Fill up
+
+`null.fill_backward`
+
+Fill an empty value with the next value below it in the group.
+
+Also known as: _fill backward_, _fill up_, _back fill_, _bfill_, _next observation carried backward_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Within each | columns | no | none |
+| | Start again for each combination of these columns. Leave empty for one group of every row. | | |
+| In the order of | columns | no | none |
+| | Put each group in this order first. Leave empty to keep the order the rows are in. | | |
+| Largest first | boolean | no | `False` |
+
+| `v` | `v_filled` |
+|---|---|
+| _(empty)_ | `2.0` |
+| `2.0` | `2.0` |
+| _(empty)_ | _(empty)_ |
+| `3.0` | `3.0` |
 
 
 ## Numeric
@@ -1883,9 +2121,9 @@ Also known as: _filter_, _where_, _exclude_, _remove rows_
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| Column | column | yes | — |
+| Column | column | yes | none |
 | Test | `equals` / `not equals` / `greater than` / `at least` / `less than` / `at most` / `contains` / `starts with` / `ends with` / `is empty` / `is not empty` | yes | `equals` |
-| Value | text | no | — |
+| Value | text | no | none |
 | Then | `keep` / `exclude` | yes | `keep` |
 
 | `region` | `region` |
@@ -1954,7 +2192,7 @@ Also known as: _order by_, _sort_, _arrange_, _rank_
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| Sort by | columns | yes | — |
+| Sort by | columns | yes | none |
 | Largest first | boolean | no | `False` |
 | Blanks first | boolean | no | `False` |
 
@@ -1974,7 +2212,7 @@ Also known as: _dedupe_, _distinct_, _unique_, _remove duplicates_
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| Compare only these columns | columns | no | `[]` |
+| Compare only these columns | columns | no | none |
 | | Leave empty to compare whole rows. | | |
 | Which to keep | `first` / `last` | yes | `first` |
 
@@ -1993,7 +2231,7 @@ Also known as: _remove empty_, _drop nulls_, _blank rows_
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| Look at these columns | columns | no | `[]` |
+| Look at these columns | columns | no | none |
 | | Leave empty to look at every column. | | |
 | Drop when | `all` / `any` | yes | `all` |
 | | 'all': every named column is blank. 'any': at least one is. | | |
@@ -2182,7 +2420,7 @@ Offered on **textual** columns.
 | Setting | Type | Required | Default |
 |---|---|---|---|
 | Maximum length | integer | yes | `50` |
-| Suffix | text | no | — |
+| Suffix | text | no | none |
 
 | `value` | `value` |
 |---|---|
@@ -2255,7 +2493,7 @@ Offered on **textual** columns.
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| Marker | text | yes | — |
+| Marker | text | yes | none |
 
 | `value` | `value` |
 |---|---|
@@ -2273,7 +2511,7 @@ Offered on **textual** columns.
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| Marker | text | yes | — |
+| Marker | text | yes | none |
 
 | `value` | `value` |
 |---|---|
@@ -2291,8 +2529,8 @@ Offered on **textual** columns.
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| Opening marker | text | yes | — |
-| Closing marker | text | yes | — |
+| Opening marker | text | yes | none |
+| Closing marker | text | yes | none |
 
 | `value` | `value` |
 |---|---|
@@ -2345,7 +2583,7 @@ Offered on **textual** columns.
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| Pattern | text | yes | — |
+| Pattern | text | yes | none |
 
 | `value` | `value` |
 |---|---|
@@ -2363,8 +2601,8 @@ Offered on **textual** columns.
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| Pattern | text | yes | — |
-| Replacement | text | no | — |
+| Pattern | text | yes | none |
+| Replacement | text | no | none |
 
 | `value` | `value` |
 |---|---|
@@ -2380,7 +2618,7 @@ Offered on **textual** columns.
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| Pattern | text | yes | — |
+| Pattern | text | yes | none |
 
 | `value` | `value` |
 |---|---|
@@ -2398,8 +2636,8 @@ Offered on **textual** columns.
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| Find | text | yes | — |
-| Replace with | text | no | — |
+| Find | text | yes | none |
+| Replace with | text | no | none |
 
 | `value` | `value` |
 |---|---|
@@ -2417,7 +2655,7 @@ Offered on **textual** columns.
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| Text to find | text | yes | — |
+| Text to find | text | yes | none |
 
 | `value` | `value` |
 |---|---|
@@ -2433,7 +2671,7 @@ Offered on **textual** columns.
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| Text to count | text | yes | — |
+| Text to count | text | yes | none |
 
 | `value` | `value` |
 |---|---|
@@ -2451,7 +2689,7 @@ Offered on **textual** columns.
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| Characters | text | yes | — |
+| Characters | text | yes | none |
 
 | `value` | `value` |
 |---|---|
@@ -2469,7 +2707,7 @@ Offered on **textual** columns.
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| Characters to keep | text | yes | — |
+| Characters to keep | text | yes | none |
 
 | `value` | `value` |
 |---|---|
@@ -2485,8 +2723,8 @@ Offered on **textual** columns.
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| From | text | yes | — |
-| To | text | yes | — |
+| From | text | yes | none |
+| To | text | yes | none |
 
 | `value` | `value` |
 |---|---|
@@ -2649,7 +2887,7 @@ Offered on **textual** columns.
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| Prefix | text | yes | — |
+| Prefix | text | yes | none |
 
 | `value` | `value` |
 |---|---|
@@ -2668,7 +2906,7 @@ Offered on **textual** columns.
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| Suffix | text | yes | — |
+| Suffix | text | yes | none |
 
 | `value` | `value` |
 |---|---|
@@ -2687,7 +2925,7 @@ Offered on **textual** columns.
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| Text | text | yes | — |
+| Text | text | yes | none |
 
 | `value` | `value` |
 |---|---|
@@ -2706,7 +2944,7 @@ Offered on **textual** columns.
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| Other columns | columns | yes | — |
+| Other columns | columns | yes | none |
 | Separator | text | no | ` ` |
 
 | `first` | `first` |
@@ -2805,7 +3043,7 @@ Offered on **textual** columns.
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| Pattern | text | yes | — |
+| Pattern | text | yes | none |
 
 | `value` | `value` |
 |---|---|
@@ -2842,7 +3080,7 @@ Also known as: _allowed values_, _enum_, _whitelist_, _domain_
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| Allowed values | list | yes | — |
+| Allowed values | list | yes | none |
 | | One per line. | | |
 
 | `value` | `value` |
@@ -2860,7 +3098,7 @@ Also known as: _quarantine_, _split failures_, _bad rows_, _reject_
 
 | Setting | Type | Required | Default |
 |---|---|---|---|
-| Check column | column | yes | — |
+| Check column | column | yes | none |
 | | A true/false column produced by one of the checks above. | | |
 | Keep | `passes` / `failures` | yes | `passes` |
 
@@ -2868,3 +3106,781 @@ Also known as: _quarantine_, _split failures_, _bad rows_, _reject_
 |---|---|
 | `True` | `2` |
 | `False` | `3` |
+
+
+## Window & analytic
+
+### Row number
+
+`window.row_number`
+
+Number the rows 1, 2, 3 within each group, in order.
+
+Also known as: _row id_, _sequence_, _index_, _position_, _number rows_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Within each | columns | no | none |
+| | Start again for each combination of these columns. Leave empty for one group of every row. | | |
+| In the order of | columns | no | none |
+| | Put each group in this order first. Leave empty to keep the order the rows are in. | | |
+| Largest first | boolean | no | `False` |
+
+| `region` | `row_number` |
+|---|---|
+| `north` | `1` |
+| `north` | `2` |
+| `south` | `1` |
+| `north` | `3` |
+| `south` | `2` |
+
+### Rank
+
+`window.rank`
+
+Rank rows by this column, with ties sharing a rank and the next rank skipped (1, 2, 2, 4).
+
+Also known as: _position_, _standing_, _order_, _league table_, _top_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Within each | columns | no | none |
+| | Start again for each combination of these columns. Leave empty for one group of every row. | | |
+| Largest first | boolean | no | `False` |
+
+| `sales` | `sales_rank` |
+|---|---|
+| `10.0` | `3` |
+| `20.0` | `2` |
+| `5.0` | `2` |
+| `30.0` | `1` |
+| `15.0` | `1` |
+
+### Dense rank
+
+`window.dense_rank`
+
+Rank rows by this column with no gaps after ties (1, 2, 2, 3).
+
+Also known as: _rank without gaps_, _dense_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Within each | columns | no | none |
+| | Start again for each combination of these columns. Leave empty for one group of every row. | | |
+| Largest first | boolean | no | `False` |
+
+| `sales` | `sales_dense_rank` |
+|---|---|
+| `10.0` | `3` |
+| `20.0` | `2` |
+| `5.0` | `2` |
+| `30.0` | `1` |
+| `15.0` | `1` |
+
+### Percent rank
+
+`window.percent_rank`
+
+Where a row sits in its group, from 0 (first) to 1 (last).
+
+Also known as: _percentile rank_, _relative rank_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Within each | columns | no | none |
+| | Start again for each combination of these columns. Leave empty for one group of every row. | | |
+| Largest first | boolean | no | `False` |
+
+| `sales` | `sales_percent_rank` |
+|---|---|
+| `10.0` | `0.0` |
+| `20.0` | `0.5` |
+| `5.0` | `0.0` |
+| `30.0` | `1.0` |
+| `15.0` | `1.0` |
+
+### Cumulative distribution
+
+`window.cume_dist`
+
+The share of the group's rows at or before this one, from just above 0 to 1.
+
+Also known as: _cdf_, _cumulative share_, _percentile position_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Within each | columns | no | none |
+| | Start again for each combination of these columns. Leave empty for one group of every row. | | |
+| Largest first | boolean | no | `False` |
+
+| `sales` | `sales_cume_dist` |
+|---|---|
+| `10.0` | `0.3333333333333333` |
+| `20.0` | `0.6666666666666666` |
+| `5.0` | `0.5` |
+| `30.0` | `1.0` |
+| `15.0` | `1.0` |
+
+### Split into equal groups
+
+`window.ntile`
+
+Number the rows 1 to N in order, so each number has as near an equal share of the rows as possible (quartiles, deciles).
+
+Also known as: _ntile_, _quartile_, _decile_, _quintile_, _bucket_, _tercile_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Number of groups | integer | yes | `4` |
+| Within each | columns | no | none |
+| | Start again for each combination of these columns. Leave empty for one group of every row. | | |
+| Largest first | boolean | no | `False` |
+
+| `sales` | `sales_group` |
+|---|---|
+| `10.0` | `1` |
+| `20.0` | `1` |
+| `5.0` | `1` |
+| `30.0` | `2` |
+| `15.0` | `2` |
+
+### Value from an earlier row
+
+`window.lag`
+
+The value this many rows before, within the group (empty before the first).
+
+Also known as: _lag_, _previous row_, _prior value_, _last value before_, _shift_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Rows back | integer | yes | `1` |
+| Within each | columns | no | none |
+| | Start again for each combination of these columns. Leave empty for one group of every row. | | |
+| In the order of | columns | no | none |
+| | Put each group in this order first. Leave empty to keep the order the rows are in. | | |
+| Largest first | boolean | no | `False` |
+
+| `sales` | `sales_previous` |
+|---|---|
+| `10.0` | _(empty)_ |
+| `20.0` | `10.0` |
+| `5.0` | _(empty)_ |
+| `30.0` | `20.0` |
+| `15.0` | `5.0` |
+
+### Value from a later row
+
+`window.lead`
+
+The value this many rows after, within the group (empty after the last).
+
+Also known as: _lead_, _next row_, _following value_, _shift_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Rows ahead | integer | yes | `1` |
+| Within each | columns | no | none |
+| | Start again for each combination of these columns. Leave empty for one group of every row. | | |
+| In the order of | columns | no | none |
+| | Put each group in this order first. Leave empty to keep the order the rows are in. | | |
+| Largest first | boolean | no | `False` |
+
+| `sales` | `sales_next` |
+|---|---|
+| `10.0` | `20.0` |
+| `20.0` | `30.0` |
+| `5.0` | `15.0` |
+| `30.0` | _(empty)_ |
+| `15.0` | _(empty)_ |
+
+### First value in the group
+
+`window.first_value`
+
+The group's first value, in order, on every row.
+
+Also known as: _first value_, _opening value_, _earliest_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Within each | columns | no | none |
+| | Start again for each combination of these columns. Leave empty for one group of every row. | | |
+| In the order of | columns | no | none |
+| | Put each group in this order first. Leave empty to keep the order the rows are in. | | |
+| Largest first | boolean | no | `False` |
+
+| `sales` | `sales_first` |
+|---|---|
+| `10.0` | `10.0` |
+| `20.0` | `10.0` |
+| `5.0` | `5.0` |
+| `30.0` | `10.0` |
+| `15.0` | `5.0` |
+
+### Last value in the group
+
+`window.last_value`
+
+The group's last value, in order, on every row.
+
+Also known as: _last value_, _closing value_, _latest_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Within each | columns | no | none |
+| | Start again for each combination of these columns. Leave empty for one group of every row. | | |
+| In the order of | columns | no | none |
+| | Put each group in this order first. Leave empty to keep the order the rows are in. | | |
+| Largest first | boolean | no | `False` |
+
+| `sales` | `sales_last` |
+|---|---|
+| `10.0` | `30.0` |
+| `20.0` | `30.0` |
+| `5.0` | `15.0` |
+| `30.0` | `30.0` |
+| `15.0` | `15.0` |
+
+### Nth value in the group
+
+`window.nth_value`
+
+The group's value at this position, in order, on every row (empty when the group is shorter).
+
+Also known as: _nth value_, _second value_, _value at position_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Position | integer | yes | `2` |
+| Within each | columns | no | none |
+| | Start again for each combination of these columns. Leave empty for one group of every row. | | |
+| In the order of | columns | no | none |
+| | Put each group in this order first. Leave empty to keep the order the rows are in. | | |
+| Largest first | boolean | no | `False` |
+
+| `sales` | `sales_nth` |
+|---|---|
+| `10.0` | `20.0` |
+| `20.0` | `20.0` |
+| `5.0` | `15.0` |
+| `30.0` | `20.0` |
+| `15.0` | `15.0` |
+
+### Running total
+
+`window.cumulative_sum`
+
+Add each row's value to the total so far, within the group.
+
+Also known as: _cumulative sum_, _running sum_, _year to date_, _cumsum_, _accumulate_
+
+Offered on **numeric** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Within each | columns | no | none |
+| | Start again for each combination of these columns. Leave empty for one group of every row. | | |
+| In the order of | columns | no | none |
+| | Put each group in this order first. Leave empty to keep the order the rows are in. | | |
+| Largest first | boolean | no | `False` |
+| Rows that tie in the order | `each in turn` / `together` | no | `each in turn` |
+| | Each in turn counts tied rows one after another, as a spreadsheet does. Together gives tied rows the same answer, which a database can work out too. | | |
+
+| `sales` | `sales_running_total` |
+|---|---|
+| `10.0` | `10.0` |
+| `20.0` | `30.0` |
+| `5.0` | `5.0` |
+| `30.0` | `60.0` |
+| `15.0` | `20.0` |
+
+### Running product
+
+`window.cumulative_product`
+
+Multiply each row's value into the product so far.
+
+Also known as: _cumulative product_, _compound_, _cumprod_
+
+Offered on **numeric** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Within each | columns | no | none |
+| | Start again for each combination of these columns. Leave empty for one group of every row. | | |
+| In the order of | columns | no | none |
+| | Put each group in this order first. Leave empty to keep the order the rows are in. | | |
+| Largest first | boolean | no | `False` |
+| Rows that tie in the order | `each in turn` / `together` | no | `each in turn` |
+| | Each in turn counts tied rows one after another, as a spreadsheet does. Together gives tied rows the same answer, which a database can work out too. | | |
+
+| `sales` | `sales_running_product` |
+|---|---|
+| `10.0` | `10.0` |
+| `20.0` | `200.0` |
+| `5.0` | `5.0` |
+| `30.0` | `6000.0` |
+| `15.0` | `75.0` |
+
+### Running highest
+
+`window.cumulative_max`
+
+The highest value so far, within the group.
+
+Also known as: _cumulative max_, _high water mark_, _peak so far_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Within each | columns | no | none |
+| | Start again for each combination of these columns. Leave empty for one group of every row. | | |
+| In the order of | columns | no | none |
+| | Put each group in this order first. Leave empty to keep the order the rows are in. | | |
+| Largest first | boolean | no | `False` |
+| Rows that tie in the order | `each in turn` / `together` | no | `each in turn` |
+| | Each in turn counts tied rows one after another, as a spreadsheet does. Together gives tied rows the same answer, which a database can work out too. | | |
+
+| `sales` | `sales_running_max` |
+|---|---|
+| `10.0` | `10.0` |
+| `20.0` | `20.0` |
+| `5.0` | `5.0` |
+| `30.0` | `30.0` |
+| `15.0` | `15.0` |
+
+### Running lowest
+
+`window.cumulative_min`
+
+The lowest value so far, within the group.
+
+Also known as: _cumulative min_, _low water mark_, _lowest so far_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Within each | columns | no | none |
+| | Start again for each combination of these columns. Leave empty for one group of every row. | | |
+| In the order of | columns | no | none |
+| | Put each group in this order first. Leave empty to keep the order the rows are in. | | |
+| Largest first | boolean | no | `False` |
+| Rows that tie in the order | `each in turn` / `together` | no | `each in turn` |
+| | Each in turn counts tied rows one after another, as a spreadsheet does. Together gives tied rows the same answer, which a database can work out too. | | |
+
+| `sales` | `sales_running_min` |
+|---|---|
+| `10.0` | `10.0` |
+| `20.0` | `10.0` |
+| `5.0` | `5.0` |
+| `30.0` | `10.0` |
+| `15.0` | `5.0` |
+
+### Running count
+
+`window.cumulative_count`
+
+How many values so far, within the group.
+
+Also known as: _cumulative count_, _count so far_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Within each | columns | no | none |
+| | Start again for each combination of these columns. Leave empty for one group of every row. | | |
+| In the order of | columns | no | none |
+| | Put each group in this order first. Leave empty to keep the order the rows are in. | | |
+| Largest first | boolean | no | `False` |
+| Rows that tie in the order | `each in turn` / `together` | no | `each in turn` |
+| | Each in turn counts tied rows one after another, as a spreadsheet does. Together gives tied rows the same answer, which a database can work out too. | | |
+
+| `sales` | `sales_running_count` |
+|---|---|
+| `10.0` | `1` |
+| `20.0` | `2` |
+| `5.0` | `1` |
+| `30.0` | `3` |
+| `15.0` | `2` |
+
+### Running average
+
+`window.running_average`
+
+The average of the values so far, within the group.
+
+Also known as: _cumulative average_, _running mean_, _expanding mean_, _average so far_
+
+Offered on **numeric** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Within each | columns | no | none |
+| | Start again for each combination of these columns. Leave empty for one group of every row. | | |
+| In the order of | columns | no | none |
+| | Put each group in this order first. Leave empty to keep the order the rows are in. | | |
+| Largest first | boolean | no | `False` |
+| Rows that tie in the order | `each in turn` / `together` | no | `each in turn` |
+| | Each in turn counts tied rows one after another, as a spreadsheet does. Together gives tied rows the same answer, which a database can work out too. | | |
+
+| `sales` | `sales_running_average` |
+|---|---|
+| `10.0` | `10.0` |
+| `20.0` | `15.0` |
+| `5.0` | `5.0` |
+| `30.0` | `20.0` |
+| `15.0` | `10.0` |
+
+### Moving average
+
+`window.moving_average`
+
+The average of this row and the rows just before it.
+
+Also known as: _rolling average_, _rolling mean_, _sma_, _trailing average_, _smooth_
+
+Offered on **numeric** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Rows in the window | integer | yes | `3` |
+| | How many rows, counting this one, the value is worked out over. | | |
+| Within each | columns | no | none |
+| | Start again for each combination of these columns. Leave empty for one group of every row. | | |
+| In the order of | columns | no | none |
+| | Put each group in this order first. Leave empty to keep the order the rows are in. | | |
+| Largest first | boolean | no | `False` |
+
+| `sales` | `sales_moving_average` |
+|---|---|
+| `10.0` | `10.0` |
+| `20.0` | `15.0` |
+| `5.0` | `5.0` |
+| `30.0` | `25.0` |
+| `15.0` | `10.0` |
+
+### Moving total
+
+`window.moving_sum`
+
+The total of this row and the rows just before it.
+
+Also known as: _rolling sum_, _rolling total_, _trailing total_
+
+Offered on **numeric** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Rows in the window | integer | yes | `3` |
+| | How many rows, counting this one, the value is worked out over. | | |
+| Within each | columns | no | none |
+| | Start again for each combination of these columns. Leave empty for one group of every row. | | |
+| In the order of | columns | no | none |
+| | Put each group in this order first. Leave empty to keep the order the rows are in. | | |
+| Largest first | boolean | no | `False` |
+
+| `sales` | `sales_moving_total` |
+|---|---|
+| `10.0` | `10.0` |
+| `20.0` | `30.0` |
+| `5.0` | `5.0` |
+| `30.0` | `50.0` |
+| `15.0` | `20.0` |
+
+### Moving highest
+
+`window.moving_max`
+
+The highest of this row and the rows just before it.
+
+Also known as: _rolling max_, _rolling highest_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Rows in the window | integer | yes | `3` |
+| | How many rows, counting this one, the value is worked out over. | | |
+| Within each | columns | no | none |
+| | Start again for each combination of these columns. Leave empty for one group of every row. | | |
+| In the order of | columns | no | none |
+| | Put each group in this order first. Leave empty to keep the order the rows are in. | | |
+| Largest first | boolean | no | `False` |
+
+| `sales` | `sales_moving_max` |
+|---|---|
+| `10.0` | `10.0` |
+| `20.0` | `20.0` |
+| `5.0` | `5.0` |
+| `30.0` | `30.0` |
+| `15.0` | `15.0` |
+
+### Moving lowest
+
+`window.moving_min`
+
+The lowest of this row and the rows just before it.
+
+Also known as: _rolling min_, _rolling lowest_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Rows in the window | integer | yes | `3` |
+| | How many rows, counting this one, the value is worked out over. | | |
+| Within each | columns | no | none |
+| | Start again for each combination of these columns. Leave empty for one group of every row. | | |
+| In the order of | columns | no | none |
+| | Put each group in this order first. Leave empty to keep the order the rows are in. | | |
+| Largest first | boolean | no | `False` |
+
+| `sales` | `sales_moving_min` |
+|---|---|
+| `10.0` | `10.0` |
+| `20.0` | `10.0` |
+| `5.0` | `5.0` |
+| `30.0` | `20.0` |
+| `15.0` | `5.0` |
+
+### Moving standard deviation
+
+`window.rolling_stdev`
+
+How spread out this row and the rows just before it are (empty with only one value).
+
+Also known as: _rolling standard deviation_, _volatility_, _rolling std_
+
+Offered on **numeric** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Rows in the window | integer | yes | `3` |
+| | How many rows, counting this one, the value is worked out over. | | |
+| Within each | columns | no | none |
+| | Start again for each combination of these columns. Leave empty for one group of every row. | | |
+| In the order of | columns | no | none |
+| | Put each group in this order first. Leave empty to keep the order the rows are in. | | |
+| Largest first | boolean | no | `False` |
+
+| `sales` | `sales_moving_stdev` |
+|---|---|
+| `10.0` | _(empty)_ |
+| `20.0` | `7.071068` |
+| `5.0` | _(empty)_ |
+| `30.0` | `7.071068` |
+| `15.0` | `7.071068` |
+
+### Exponential moving average
+
+`window.ema`
+
+A moving average that weighs recent rows more; the span sets how quickly older rows fade.
+
+Also known as: _ewma_, _exponentially weighted_, _smoothing_, _ema_
+
+Offered on **numeric** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Span in rows | number | yes | `10` |
+| Within each | columns | no | none |
+| | Start again for each combination of these columns. Leave empty for one group of every row. | | |
+| In the order of | columns | no | none |
+| | Put each group in this order first. Leave empty to keep the order the rows are in. | | |
+| Largest first | boolean | no | `False` |
+
+| `sales` | `sales_ema` |
+|---|---|
+| `10.0` | `10.0` |
+| `20.0` | `16.666667` |
+| `5.0` | `5.0` |
+| `30.0` | `25.555556` |
+| `15.0` | `11.666667` |
+
+### Moving correlation
+
+`window.rolling_correlation`
+
+How closely this column moves with another over the last rows: 1 together, -1 opposite, 0 unrelated.
+
+Also known as: _rolling correlation_, _moving correlation_, _co-movement_
+
+Offered on **numeric** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| With column | column | yes | none |
+| Rows in the window | integer | yes | `3` |
+| | How many rows, counting this one, the value is worked out over. | | |
+| Within each | columns | no | none |
+| | Start again for each combination of these columns. Leave empty for one group of every row. | | |
+| In the order of | columns | no | none |
+| | Put each group in this order first. Leave empty to keep the order the rows are in. | | |
+| Largest first | boolean | no | `False` |
+
+| `a` | `a_b_correlation` |
+|---|---|
+| `1.0` | _(empty)_ |
+| `2.0` | `1.0` |
+| `3.0` | `0.981981` |
+| `4.0` | `-0.5` |
+
+### Number the sessions
+
+`window.session`
+
+Group events into sessions: a new session starts after a gap longer than this many minutes, counted 1, 2, 3 within each group.
+
+Also known as: _sessionise_, _sessionize_, _visits_, _session window_, _activity gap_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Gap that ends a session, in minutes | number | yes | `30` |
+| Within each | columns | no | none |
+| | Start again for each combination of these columns. Leave empty for one group of every row. | | |
+
+| `at` | `session` |
+|---|---|
+| `2026-01-01 09:00` | `1` |
+| `2026-01-01 09:10` | `1` |
+| `2026-01-01 11:00` | `2` |
+| `2026-01-01 09:05` | `1` |
+
+### Difference from the row before
+
+`window.difference`
+
+This row's value minus the one before it in the group (empty for the first).
+
+Also known as: _difference_, _delta_, _change_, _diff_, _increase_
+
+Offered on **numeric** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Within each | columns | no | none |
+| | Start again for each combination of these columns. Leave empty for one group of every row. | | |
+| In the order of | columns | no | none |
+| | Put each group in this order first. Leave empty to keep the order the rows are in. | | |
+| Largest first | boolean | no | `False` |
+
+| `sales` | `sales_change` |
+|---|---|
+| `10.0` | _(empty)_ |
+| `20.0` | `10.0` |
+| `5.0` | _(empty)_ |
+| `30.0` | `10.0` |
+| `15.0` | `10.0` |
+
+### Percent change from the row before
+
+`window.percent_change`
+
+How much this row's value changed from the one before, as a share of it (0.5 is half as much again).
+
+Also known as: _percent change_, _growth_, _pct change_, _rate of change_, _relative change_
+
+Offered on **numeric** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Within each | columns | no | none |
+| | Start again for each combination of these columns. Leave empty for one group of every row. | | |
+| In the order of | columns | no | none |
+| | Put each group in this order first. Leave empty to keep the order the rows are in. | | |
+| Largest first | boolean | no | `False` |
+
+| `sales` | `sales_pct_change` |
+|---|---|
+| `10.0` | _(empty)_ |
+| `20.0` | `1.0` |
+| `5.0` | _(empty)_ |
+| `30.0` | `0.5` |
+| `15.0` | `2.0` |
+
+### Percent of the group's total
+
+`window.percent_of_total`
+
+This row's value as a percentage of its group's total.
+
+Also known as: _percent of total_, _share of total_, _proportion_, _contribution_, _mix_
+
+Offered on **numeric** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Within each | columns | no | none |
+| | Start again for each combination of these columns. Leave empty for one group of every row. | | |
+
+| `sales` | `sales_pct_of_total` |
+|---|---|
+| `10.0` | `16.666666666666668` |
+| `20.0` | `33.333333333333336` |
+| `5.0` | `25.0` |
+| `30.0` | `50.0` |
+| `15.0` | `75.0` |
+
+### Scale from 0 to 1
+
+`window.normalise`
+
+Rescale so the group's lowest value is 0 and its highest 1 (empty when every value is the same).
+
+Also known as: _normalise_, _normalize_, _min max scale_, _0 to 1_, _rescale to range_
+
+Offered on **numeric** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Within each | columns | no | none |
+| | Start again for each combination of these columns. Leave empty for one group of every row. | | |
+
+| `sales` | `sales_scaled` |
+|---|---|
+| `10.0` | `0.0` |
+| `20.0` | `0.5` |
+| `5.0` | `0.0` |
+| `30.0` | `1.0` |
+| `15.0` | `1.0` |
+
+### Standard score
+
+`window.z_score`
+
+How many standard deviations a value is from its group's average (a z-score).
+
+Also known as: _z score_, _standardise_, _standardize_, _standard score_, _zscore_
+
+Offered on **numeric** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Within each | columns | no | none |
+| | Start again for each combination of these columns. Leave empty for one group of every row. | | |
+
+| `sales` | `sales_z_score` |
+|---|---|
+| `10.0` | `-1.0` |
+| `20.0` | `0.0` |
+| `5.0` | `-0.707107` |
+| `30.0` | `1.0` |
+| `15.0` | `0.707107` |
+
+### Keep the top rows of each group
+
+`window.top_n_per_group`
+
+Keep the rows with the highest (or lowest) values of a column within each group.
+
+Also known as: _top n per group_, _best per group_, _highest per category_, _top 3_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| By column | column | yes | none |
+| Rows per group | integer | yes | `3` |
+| Within each | columns | no | none |
+| | Start again for each combination of these columns. Leave empty for one group of every row. | | |
+| Smallest instead | boolean | no | `False` |
+| When rows tie | `keep exactly that many` / `keep every tie` | no | `keep exactly that many` |
+
+| `region` | `sales` |
+|---|---|
+| `north` | `30.0` |
+| `north` | `15.0` |

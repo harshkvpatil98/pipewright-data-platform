@@ -20,57 +20,23 @@ trade and worth being explicit about.
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass, field
-from difflib import SequenceMatcher
 from typing import Any, Iterable
 from shared_python.words import count_of
 
-# Business-entity noise that carries no identity.
-_SUFFIXES = (
-    "ltd", "limited", "llc", "inc", "incorporated", "plc", "gmbh", "sa", "sas",
-    "bv", "nv", "pty", "co", "corp", "corporation", "company", "holdings", "group",
+# The matching itself is shared with the recipe tools that match fuzzily
+# (E1), so the Assistant and a recipe give one answer to one question.
+from shared_python.matching import (  # noqa: E402,F401 - this module's API, as before
+    BLOCK_PREFIX,
+    CONFIDENT_THRESHOLD,
+    DEFAULT_THRESHOLD,
+    MAX_BLOCK_SIZE,
+    SUFFIXES as _SUFFIXES,
+    blocking_key,
+    blocks as _blocks,
+    normalise,
+    similarity,
 )
-
-# Below this, two strings are different things that happen to share letters.
-DEFAULT_THRESHOLD = 0.86
-# Above this, they are the same thing with near-certainty.
-CONFIDENT_THRESHOLD = 0.95
-
-# How many leading characters form a blocking key. Two is enough to cut the
-# comparison count by orders of magnitude while keeping typo'd first letters
-# rare enough to accept.
-BLOCK_PREFIX = 2
-
-# A ceiling on comparisons within one block, so a block of ten thousand
-# identical prefixes cannot hang a request.
-MAX_BLOCK_SIZE = 400
-
-
-def normalise(value: Any) -> str:
-    """Strip everything that is formatting rather than identity."""
-    text = str(value or "").casefold()
-    text = re.sub(r"[^a-z0-9\s]", " ", text)
-    tokens = [token for token in text.split() if token and token not in _SUFFIXES]
-    return " ".join(tokens)
-
-
-def similarity(left: str, right: str) -> float:
-    """How alike two normalised strings are, between 0 and 1.
-
-    Token-sorted before comparison so "Smith John" and "John Smith" match: word
-    order is the most common way the same name is written differently.
-    """
-    if not left or not right:
-        return 0.0
-    if left == right:
-        return 1.0
-
-    left_sorted = " ".join(sorted(left.split()))
-    right_sorted = " ".join(sorted(right.split()))
-    direct = SequenceMatcher(None, left, right).ratio()
-    sorted_ratio = SequenceMatcher(None, left_sorted, right_sorted).ratio()
-    return max(direct, sorted_ratio)
 
 
 @dataclass
@@ -114,25 +80,6 @@ class MatchReport:
             "truncated": self.truncated,
             "summary": self.summary,
         }
-
-
-def blocking_key(value: str) -> str:
-    """A cheap key that puts likely matches in the same bucket.
-
-    Built from the *token-sorted* value, not the raw one: "Smith John" and
-    "John Smith" are the same person, and a plain prefix puts them in different
-    blocks where they are never compared.
-    """
-    tokens = sorted(value.split())
-    return "".join(tokens)[:BLOCK_PREFIX] if tokens else ""
-
-
-def _blocks(keys: Iterable[str]) -> dict[str, list[str]]:
-    """Group values by a cheap key so comparison stays sub-quadratic."""
-    blocks: dict[str, list[str]] = {}
-    for value in keys:
-        blocks.setdefault(blocking_key(value), []).append(value)
-    return blocks
 
 
 def find_duplicates(

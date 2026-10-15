@@ -99,6 +99,11 @@ def secondary_input_ids(steps: list[dict[str, Any]] | None) -> tuple[tuple[str, 
             dataset_id = config.get("other_dataset_id")
             if isinstance(dataset_id, str) and dataset_id:
                 found.append((dataset_id, "unions"))
+        elif step_type == "tool":
+            # A tool that reads another dataset (a lookup, an as-of join): E1.
+            dataset_id = config.get("right_dataset_id")
+            if isinstance(dataset_id, str) and dataset_id:
+                found.append((dataset_id, "joins"))  # an edge kind the graph already draws
     # Preserve order but drop repeats: joining the same dataset twice is one edge.
     seen: set[tuple[str, str]] = set()
     unique: list[tuple[str, str]] = []

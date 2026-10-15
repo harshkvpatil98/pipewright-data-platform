@@ -69,11 +69,39 @@ export const AGGREGATION_FUNCTIONS = [
   "max",
   "count",
   "count_distinct",
+  "count_empty",
   "median",
+  "percentile",
+  "first_quartile",
+  "third_quartile",
+  "mode",
+  "range",
   "std",
+  "variance",
+  "product",
+  "weighted_average",
+  "correlation",
+  "covariance",
+  "any_true",
+  "all_true",
   "first",
   "last",
+  "nth",
+  "list",
+  "join_text",
 ] as const;
+
+/** What else a function needs besides its column: a number or text, or a second column. */
+export const AGGREGATION_NEEDS: Partial<
+  Record<(typeof AGGREGATION_FUNCTIONS)[number], { argument?: string; other?: string }>
+> = {
+  percentile: { argument: "Percentile (0 to 100)" },
+  nth: { argument: "Which one (1 is the first)" },
+  join_text: { argument: "Between them" },
+  weighted_average: { other: "Weighted by" },
+  correlation: { other: "With" },
+  covariance: { other: "With" },
+};
 
 export const CAST_TYPES = ["string", "int", "float", "datetime", "boolean"] as const;
 
@@ -95,10 +123,26 @@ export const FUNCTION_LABELS: Record<(typeof AGGREGATION_FUNCTIONS)[number], str
   max: "Highest",
   count: "Count",
   count_distinct: "Count different",
+  count_empty: "Count empty",
   median: "Median",
+  percentile: "Percentile",
+  first_quartile: "Lower quartile",
+  third_quartile: "Upper quartile",
+  mode: "Most common",
+  range: "Range (highest minus lowest)",
   std: "Spread (std. dev.)",
+  variance: "Variance",
+  product: "Product",
+  weighted_average: "Weighted average",
+  correlation: "Correlation",
+  covariance: "Covariance",
+  any_true: "Any true",
+  all_true: "All true",
   first: "First",
   last: "Last",
+  nth: "Nth value",
+  list: "List of values",
+  join_text: "Text joined together",
 };
 
 export const CAST_TYPE_LABELS: Record<(typeof CAST_TYPES)[number], string> = {
@@ -375,7 +419,7 @@ export const STEP_CATALOG: StepDefinition[] = [
     icon: "merge",
     group: "Combine",
     summary: "Bring in columns from another dataset.",
-    keywords: "lookup merge combine vlookup match",
+    keywords: "lookup merge combine vlookup match semi join anti join cross join full outer exists not exists",
     fields: [
       { key: "right_dataset_id", label: "Dataset to join", kind: "dataset" },
       { key: "left_on", label: "This dataset's key columns", kind: "columns" },
@@ -384,13 +428,17 @@ export const STEP_CATALOG: StepDefinition[] = [
         key: "how",
         label: "Rows to keep",
         kind: "select",
-        options: ["left", "inner", "right", "outer"],
+        options: ["left", "inner", "right", "outer", "semi", "anti", "cross"],
         optionLabels: {
           left: "All rows here",
           inner: "Only matching rows",
           right: "All rows there",
           outer: "All rows from both",
+          semi: "Rows here that have a match (bring nothing)",
+          anti: "Rows here with no match (bring nothing)",
+          cross: "Every row with every row",
         },
+        help: "A semi or anti join keeps or drops rows here and brings no columns; a cross join needs no keys.",
       },
     ],
     defaults: { right_dataset_id: "", left_on: [], right_on: [], how: "left" },

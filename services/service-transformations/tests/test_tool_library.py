@@ -25,8 +25,21 @@ import pytest
 from shared_python.errors import BadRequestError
 
 import service_transformations.tools as tools
-from service_transformations.tools.apply import apply_tool
+from service_transformations.steps.context import ACTIVE_CONTEXT, StepContext
+from service_transformations.tools.apply import apply_tool as _apply_tool
 from service_transformations.tools.spec import ParamKind
+
+
+def apply_tool(frame: pd.DataFrame, config: dict):
+    """Run a tool with its example's other dataset at hand, as a run gives it the real one."""
+    spec = tools.TOOLS.get(config.get("tool"))
+    other = pd.DataFrame(list(spec.example.other) if spec else [])
+    token = ACTIVE_CONTEXT.set(StepContext(resolve_dataset=lambda _id: other.copy(),
+                                           describe_dataset=lambda _id: "the example's other dataset"))
+    try:
+        return _apply_tool(frame, config)
+    finally:
+        ACTIVE_CONTEXT.reset(token)
 
 ALL = sorted(tools.TOOLS)
 
@@ -161,7 +174,7 @@ class TestEdgeCases:
                 values = [v for v in result[target].tolist() if not pd.isna(v)]
                 # Predicates about a value are allowed to answer for null;
                 # anything else inventing a value from nothing is a bug.
-                if spec.name not in ALLOWED_ON_NULL:
+                if spec.name not in ALLOWED_ON_NULL and not spec.null_answer:
                     assert values == [], f"{name} produced {values} from all nulls"
 
     @pytest.mark.parametrize("name", ALL)

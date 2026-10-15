@@ -28,6 +28,13 @@ def _example_table(spec: ToolSpec) -> list[str]:
     for row, produced in zip(example.rows, example.expect):
         given = row.get(column) if column else None
         lines.append(f"| {_cell(given)} | {_cell(produced)} |")
+    if example.other:
+        names = list(dict.fromkeys(name for row in example.other for name in row))
+        lines += ["", "The other dataset in this example:", "",
+                  "| " + " | ".join(f"`{name}`" for name in names) + " |",
+                  "|" + "---|" * len(names)]
+        for row in example.other:
+            lines.append("| " + " | ".join(_cell(row.get(name)) for name in names) + " |")
     if example.note:
         lines.append("")
         lines.append(f"_{example.note}_")
@@ -63,7 +70,7 @@ def _parameters(spec: ToolSpec) -> list[str]:
         kind = param.kind.value
         if param.options:
             kind = " / ".join(f"`{option}`" for option in param.options)
-        default = "—" if param.default in (None, "") else f"`{param.default}`"
+        default = "none" if param.default in (None, "", []) else f"`{param.default}`"
         lines.append(
             f"| {param.label} | {kind} | {'yes' if param.required else 'no'} | {default} |"
         )
@@ -124,6 +131,8 @@ def as_json() -> list[dict[str, Any]]:
             "synonyms": list(spec.synonyms),
             "accepts": spec.accepts.value,
             "column_scoped": spec.column_scoped,
+            "local_only": spec.local_only,
+            "reads_dataset": spec.reads_dataset,
             "params": [
                 {
                     "key": param.key,
@@ -146,6 +155,7 @@ def as_json() -> list[dict[str, Any]]:
                 "output": spec.example.output,
                 "expect": list(spec.example.expect),
                 "note": spec.example.note,
+                "other": [dict(row) for row in spec.example.other],
             },
         }
         for spec in TOOLS.values()

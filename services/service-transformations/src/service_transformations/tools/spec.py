@@ -80,6 +80,11 @@ class ParamKind(str, Enum):
     SELECT = "select"
     #: A free list of strings, one per line in the UI.
     LIST = "list"
+    #: Another dataset in the project, saved as `right_dataset_id` (E1).
+    DATASET = "dataset"
+    #: One or several columns of that other dataset.
+    DATASET_COLUMN = "dataset_column"
+    DATASET_COLUMNS = "dataset_columns"
 
 
 @dataclass(frozen=True)
@@ -131,7 +136,15 @@ class Param:
                 )
             return raw
 
-        if self.kind in (ParamKind.COLUMNS, ParamKind.LIST):
+        if self.kind is ParamKind.DATASET:
+            import uuid
+
+            try:
+                return str(uuid.UUID(str(raw).strip()))
+            except ValueError:
+                raise BadRequestError(f"{self.label} must be a dataset in this project.") from None
+
+        if self.kind in (ParamKind.COLUMNS, ParamKind.LIST, ParamKind.DATASET_COLUMNS):
             if isinstance(raw, str):
                 items = [part.strip() for part in raw.splitlines() if part.strip()]
             elif isinstance(raw, (list, tuple)):
@@ -165,6 +178,14 @@ class Example:
     #: Which column to assert on. Defaults to the tool's output column.
     output: str | None = None
     note: str = ""
+    #: Rows of the other dataset, for a tool that reads one (E1). The example's
+    #: `right_dataset_id` is `EXAMPLE_DATASET`, and the reference and the tests
+    #: hand these rows to it.
+    other: tuple[dict[str, Any], ...] = ()
+
+
+#: The dataset id a documented example reads its `other` rows from.
+EXAMPLE_DATASET = "00000000-0000-0000-0000-0000000000e1"
 
 
 #: ``(input_node, resolved_params) -> output_node``
@@ -188,6 +209,20 @@ class ToolSpec:
     column_scoped: bool = True
     #: Set when a tool cannot be pushed to a source and must run locally.
     local_only: bool = False
+    #: Its answer for a missing value is a real answer (a rank, a row number,
+    #: "is it empty?"), so the all-empty test does not expect empties back.
+    null_answer: bool = False
+    #: An empty result where the input had a value means the tool could not
+    #: read it, so the run says so. Off for tools whose empties are their
+    #: meaning: the value before the first row, a total of nothing.
+    warns_lost: bool = True
+    #: Reads another dataset, saved under ``right_dataset_id`` so bundles,
+    #: promotion, lineage, previews, runs and kept results follow it.
+    reads_dataset: bool = False
+    #: A tool that runs here whose every output row comes from one input row
+    #: (and the other dataset), so an incremental run may apply it to new rows
+    #: alone. Tools that are IR projections and filters need not say so.
+    row_wise: bool = False
 
     def resolve(self, config: dict[str, Any]) -> dict[str, Any]:
         """Validate a supplied config into the parameters ``build`` expects."""

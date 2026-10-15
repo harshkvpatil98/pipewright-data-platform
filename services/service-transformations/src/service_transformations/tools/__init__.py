@@ -139,6 +139,7 @@ def _load() -> None:
     from service_transformations.tools.catalogue import (  # noqa: F401
         cleansing,
         columns,
+        combine,
         conversions,
         datetimes,
         encoding,
@@ -148,6 +149,7 @@ def _load() -> None:
         rows,
         text,
         validation,
+        windows,
     )
 
 

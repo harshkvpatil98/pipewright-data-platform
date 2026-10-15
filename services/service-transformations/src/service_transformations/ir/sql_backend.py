@@ -11,6 +11,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from shared_python.types import Kind
+
 from service_transformations.ir.expressions import (
     FUNCTIONS,
     Call,
@@ -32,6 +34,8 @@ from service_transformations.ir.nodes import (
     Scan,
     SetOp,
     Sort,
+    Window,
+    window_pushable,
 )
 
 
@@ -136,7 +140,10 @@ def _compile(node: Node, d: Dialect, alias_seed: list[int]) -> str:
     if isinstance(node, Sort):
         inner = _compile(node.input, d, alias_seed)
         alias = _next_alias(alias_seed)
-        return f"SELECT * FROM ({inner}) AS {alias} ORDER BY {_order_by(node.keys, d)}"
+        return f"SELECT * FROM ({inner}) AS {alias} ORDER BY {_order_by(node.keys, d, node.input.schema())}"
+
+    if isinstance(node, Window):
+        return _window_sql(node, d, alias_seed)
 
     if isinstance(node, Limit):
         if not d.supports_limit_offset:
@@ -148,7 +155,8 @@ def _compile(node: Node, d: Dialect, alias_seed: list[int]) -> str:
             # kept the wrong rows (found by the D2 rewrite tests).
             inner = _compile(node.input.input, d, alias_seed)
             alias = _next_alias(alias_seed)
-            sql = f"SELECT * FROM ({inner}) AS {alias} ORDER BY {_order_by(node.input.keys, d)}"
+            sql = (f"SELECT * FROM ({inner}) AS {alias} "
+                   f"ORDER BY {_order_by(node.input.keys, d, node.input.input.schema())}")
         else:
             inner = _compile(node.input, d, alias_seed)
             alias = _next_alias(alias_seed)
@@ -204,14 +212,49 @@ def _compile(node: Node, d: Dialect, alias_seed: list[int]) -> str:
     raise Unsupported(f"No SQL form for {type(node).__name__}.")
 
 
-def _order_by(keys, d: Dialect) -> str:
+def _order_by(keys, d: Dialect, schema: dict | None = None) -> str:
     parts = []
     for key in keys:
-        piece = f"{_expr(key.expr, d)} {key.direction.upper()}"
+        rendered = _expr(key.expr, d)
+        if d.name == "postgres" and schema is not None and key.expr.type_of(schema).kind is Kind.STRING:
+            # PostgreSQL orders text by the database's collation, where "a"
+            # comes before "B"; everywhere else here, and in SQLite and DuckDB,
+            # text is ordered by its characters' codes. "C" is that order, so
+            # a sort, a rank or a first value cannot change with where it ran.
+            rendered = f'{rendered} COLLATE "C"'
+        piece = f"{rendered} {key.direction.upper()}"
         if d.supports_nulls_ordering:
             piece += " NULLS FIRST" if key.nulls_first else " NULLS LAST"
         parts.append(piece)
     return ", ".join(parts)
+
+
+def _window_sql(node: Window, d: Dialect, alias_seed: list[int]) -> str:
+    from service_transformations.ir.window_functions import WINDOW_FUNCTIONS
+
+    if not window_pushable(d.name, node):
+        raise Unsupported(
+            f"{d.name} cannot give exactly these window values (an order among tied rows, or a "
+            "function it does not have); the window runs here."
+        )
+    inner = _compile(node.input, d, alias_seed)
+    alias = _next_alias(alias_seed)
+    schema = node.input.schema()
+    partition = (
+        "PARTITION BY " + ", ".join(d.quote(name) for name in node.partition_by) if node.partition_by else ""
+    )
+    selects = [f"{alias}.{d.quote(name)}" for name in schema]
+    for name, call in node.functions:
+        spec = WINDOW_FUNCTIONS[call.function]
+        rendered = [_expr(arg, d) for arg in call.args]
+        function_sql = spec.sql[d.name].format(*(rendered + [""] * 3))
+        clauses = [partition] if partition else []
+        if node.order_by and not call.frame.whole:
+            clauses.append(f"ORDER BY {_order_by(node.order_by, d, schema)}")
+            if spec.framed:
+                clauses.append("RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW")
+        selects.append(f"{function_sql} OVER ({' '.join(clauses)}) AS {d.quote(name)}")
+    return f"SELECT {', '.join(selects)} FROM ({inner}) AS {alias}"
 
 
 def _needs_wrapping(arm: Node) -> bool:
@@ -221,10 +264,7 @@ def _needs_wrapping(arm: Node) -> bool:
 
 def _join_sql(node: Join, d: Dialect, alias_seed: list[int]) -> str:
     if node.how in ("semi", "anti"):
-        raise Unsupported(
-            f"A {node.how} join is written as EXISTS/NOT EXISTS, which needs a "
-            "correlated subquery this compiler does not build yet."
-        )
+        return _exists_sql(node, d, alias_seed)
     if node.how == "full" and not d.supports_full_outer_join:
         raise Unsupported(f"{d.name} has no FULL OUTER JOIN.")
 
@@ -262,6 +302,24 @@ def _join_sql(node: Join, d: Dialect, alias_seed: list[int]) -> str:
     if node.on is not None:
         sql += f" ON {_join_condition(node.on, d, left_alias, right_alias)}"
     return sql
+
+
+def _exists_sql(node: Join, d: Dialect, alias_seed: list[int]) -> str:
+    """A semi join keeps the left rows that match; an anti join the ones that do not.
+
+    Written as EXISTS and NOT EXISTS, so a left row is never repeated however
+    many right rows it matches, and an empty key matches nothing (an anti join
+    keeps it), as the pandas backend does.
+    """
+    left = _compile(node.left, d, alias_seed)
+    right = _compile(node.right, d, alias_seed)
+    left_alias = _next_alias(alias_seed)
+    right_alias = _next_alias(alias_seed)
+    columns = ", ".join(f"{left_alias}.{d.quote(name)}" for name in node.left.schema())
+    condition = _join_condition(node.on, d, left_alias, right_alias) if node.on is not None else "TRUE"
+    keyword = "EXISTS" if node.how == "semi" else "NOT EXISTS"
+    return (f"SELECT {columns} FROM ({left}) AS {left_alias} WHERE {keyword} "
+            f"(SELECT 1 FROM ({right}) AS {right_alias} WHERE {condition})")
 
 
 def _join_condition(on: Expr, d: Dialect, left_alias: str, right_alias: str) -> str:

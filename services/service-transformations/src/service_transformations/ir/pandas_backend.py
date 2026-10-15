@@ -32,6 +32,7 @@ from service_transformations.ir.nodes import (
     Scan,
     SetOp,
     Sort,
+    Window,
 )
 from shared_python.words import count_of
 
@@ -128,14 +129,21 @@ def execute(node: Node, sources: dict[str, pd.DataFrame]) -> pd.DataFrame:
         if frame.empty:
             return frame
         temp_names = []
+        ascending: list[bool] = []
         for index, key in enumerate(node.keys):
+            values = evaluate(key.expr, frame)
+            # Each key places its own empty values: pandas' na_position is one
+            # setting for every key, so a second key sorted descending with
+            # nulls first had its nulls put wherever the first key said.
+            flag = f"__sort_null_{index}"
+            frame[flag] = (values.notna() if key.nulls_first else values.isna()).astype(int)
             temp = f"__sort_{index}"
-            frame[temp] = evaluate(key.expr, frame)
-            temp_names.append(temp)
+            frame[temp] = values
+            temp_names += [flag, temp]
+            ascending += [True, key.direction == "asc"]
         frame = frame.sort_values(
             by=temp_names,
-            ascending=[key.direction == "asc" for key in node.keys],
-            na_position="first" if node.keys[0].nulls_first else "last",
+            ascending=ascending,
             kind="mergesort",  # stable, so equal keys keep their input order
         )
         return frame.drop(columns=temp_names).reset_index(drop=True)
@@ -154,6 +162,13 @@ def execute(node: Node, sources: dict[str, pd.DataFrame]) -> pd.DataFrame:
     if isinstance(node, SetOp):
         return _set_op(node, sources)
 
+    if isinstance(node, Window):
+        from service_transformations.ir.pandas_window import run_window
+
+        frame = execute(node.input, sources)
+        with _shared_over(frame):
+            return run_window(node, frame, evaluate)
+
     if isinstance(node, Extension):
         frame = execute(node.input, sources)
         handler = _EXTENSIONS.get(node.name)
@@ -167,6 +182,8 @@ def execute(node: Node, sources: dict[str, pd.DataFrame]) -> pd.DataFrame:
 
 
 def _aggregate(node: Aggregate, sources: dict[str, pd.DataFrame]) -> pd.DataFrame:
+    from service_transformations.ir.pandas_aggregates import aggregate
+
     frame = execute(node.input, sources)
 
     keys: list[str] = []
@@ -175,21 +192,24 @@ def _aggregate(node: Aggregate, sources: dict[str, pd.DataFrame]) -> pd.DataFram
         working[name] = evaluate(expr, frame)
         keys.append(name)
 
-    # Materialise each aggregate's argument so `sum(a * b)` works, not just
-    # `sum(a)`.
-    specs: list[tuple[str, str, str]] = []
+    # Materialise each aggregate's arguments so `sum(a * b)` works, not just
+    # `sum(a)`; constants (a percentile's share, a separator) stay constants.
+    specs: list[tuple[str, str, list[str], list[Any]]] = []
     for index, (name, expr) in enumerate(node.aggregates):
         assert isinstance(expr, Call)
-        temp = f"__agg_{index}"
-        working[temp] = (
-            evaluate(expr.args[0], frame)
-            if expr.args
-            else pd.Series(1, index=frame.index)
-        )
-        specs.append((name, expr.name, temp))
+        columns: list[str] = []
+        constants: list[Any] = []
+        for position, arg in enumerate(expr.args):
+            if isinstance(arg, Literal) and position > 0:
+                constants.append(arg.value)
+                continue
+            temp = f"__agg_{index}_{position}"
+            working[temp] = evaluate(arg, frame)
+            columns.append(temp)
+        specs.append((name, expr.name, columns, constants))
 
     if not keys:
-        row = {name: _apply_aggregate(func, working[temp]) for name, func, temp in specs}
+        row = {name: aggregate(working, [], func, columns, constants) for name, func, columns, constants in specs}
         return pd.DataFrame([row])
 
     if working.empty:
@@ -197,49 +217,13 @@ def _aggregate(node: Aggregate, sources: dict[str, pd.DataFrame]) -> pd.DataFram
         # no key columns to restore -- so the result lost its grouping columns
         # entirely. SQL returns zero rows with the full column list.
         return pd.DataFrame({name: pd.Series(dtype="object") for name in
-                             [*keys, *[name for name, _, _ in specs]]})
+                             [*keys, *[name for name, _, _, _ in specs]]})
 
-    grouped = working.groupby(keys, dropna=False, sort=True)
     out = pd.DataFrame()
-    for name, func, temp in specs:
-        out[name] = _aggregate_series(grouped[temp], func)
+    for name, func, columns, constants in specs:
+        out[name] = aggregate(working, keys, func, columns, constants)
     out = out.reset_index()
-    return out[[*keys, *[name for name, _, _ in specs]]]
-
-
-_AGGREGATE_METHODS = {
-    "sum": "sum",
-    "avg": "mean",
-    "min": "min",
-    "max": "max",
-    "median": "median",
-    "count": "count",
-    "count_distinct": "nunique",
-    "stddev": "std",
-    "first": "first",
-    "last": "last",
-}
-
-
-def _aggregate_series(grouped, func: str):
-    method = _AGGREGATE_METHODS.get(func)
-    if method is None:
-        raise IRError(f"No pandas implementation for aggregate {func!r}.")
-    if func == "sum":
-        # `min_count=1` because pandas sums an all-null group to 0 while SQL
-        # returns NULL. Without it, a group with no data reports a total of
-        # zero, which reads as a real answer rather than an absent one.
-        return grouped.sum(min_count=1)
-    return getattr(grouped, method)()
-
-
-def _apply_aggregate(func: str, series: pd.Series):
-    method = _AGGREGATE_METHODS.get(func)
-    if method is None:
-        raise IRError(f"No pandas implementation for aggregate {func!r}.")
-    if func == "sum":
-        return series.sum(min_count=1)
-    return getattr(series, method)()
+    return out[[*keys, *[name for name, _, _, _ in specs]]]
 
 
 def _join(node: Join, sources: dict[str, pd.DataFrame]) -> pd.DataFrame:
@@ -364,7 +348,9 @@ _ARITHMETIC = {
     "add": lambda a, b: a + b,
     "sub": lambda a, b: a - b,
     "mul": lambda a, b: a * b,
-    "div": lambda a, b: a / b,
+    # Dividing by zero has no answer here either: SQL gives none (or stops),
+    # where pandas would give infinity, a number that then sums and averages.
+    "div": lambda a, b: a / b.where(b != 0),
     "mod": lambda a, b: a % b,
 }
 

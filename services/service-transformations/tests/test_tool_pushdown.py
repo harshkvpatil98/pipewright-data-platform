@@ -172,10 +172,18 @@ class TestExecutionAgreesWithTheLocalPath:
         if column:
             config["column"] = column
 
+        from service_transformations.steps.context import ACTIVE_CONTEXT, StepContext
+
+        other = pd.DataFrame(list(spec.example.other))
+        context = StepContext(resolve_dataset=lambda _id: other.copy(), describe_dataset=lambda _id: "other")
         through_steps, _ = apply_transformation_steps(
-            frame, [{"step_type": "tool", "config": config}]
+            frame, [{"step_type": "tool", "config": config}], context
         )
-        through_ir = pandas_backend.execute(build(frame, config), {SOURCE: frame})
+        token = ACTIVE_CONTEXT.set(context)
+        try:
+            through_ir = pandas_backend.execute(build(frame, config), {SOURCE: frame})
+        finally:
+            ACTIVE_CONTEXT.reset(token)
         pd.testing.assert_frame_equal(
             through_steps.reset_index(drop=True), through_ir.reset_index(drop=True)
         )

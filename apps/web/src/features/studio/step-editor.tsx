@@ -4,6 +4,7 @@ import { useId, useRef } from "react";
 
 import {
   AGGREGATION_FUNCTIONS,
+  AGGREGATION_NEEDS,
   CAST_TYPE_LABELS,
   CAST_TYPES,
   FILTER_OPERATORS,
@@ -406,7 +407,7 @@ function ConditionEditor({
   );
 }
 
-type AggRow = { column: string; function: string; alias?: string };
+type AggRow = { column: string; function: string; alias?: string; argument?: string | number; other_column?: string };
 
 function AggregationEditor({
   value,
@@ -447,6 +448,39 @@ function AggregationEditor({
               </option>
             ))}
           </select>
+          {AGGREGATION_NEEDS[row.function as (typeof AGGREGATION_FUNCTIONS)[number]]?.argument ? (
+            <input
+              className={cx(inputClass, "w-[90px]")}
+              aria-label={AGGREGATION_NEEDS[row.function as (typeof AGGREGATION_FUNCTIONS)[number]]?.argument}
+              placeholder={AGGREGATION_NEEDS[row.function as (typeof AGGREGATION_FUNCTIONS)[number]]?.argument}
+              value={row.argument ?? ""}
+              onChange={(event) =>
+                update(index, {
+                  argument:
+                    row.function === "join_text" || event.target.value === ""
+                      ? event.target.value
+                      : Number(event.target.value),
+                })
+              }
+            />
+          ) : null}
+          {AGGREGATION_NEEDS[row.function as (typeof AGGREGATION_FUNCTIONS)[number]]?.other ? (
+            <select
+              className={cx(inputClass, "w-[120px]")}
+              aria-label={AGGREGATION_NEEDS[row.function as (typeof AGGREGATION_FUNCTIONS)[number]]?.other}
+              value={row.other_column ?? ""}
+              onChange={(event) => update(index, { other_column: event.target.value })}
+            >
+              <option value="">
+                {AGGREGATION_NEEDS[row.function as (typeof AGGREGATION_FUNCTIONS)[number]]?.other}…
+              </option>
+              {columns.map((column) => (
+                <option key={column} value={column}>
+                  {column}
+                </option>
+              ))}
+            </select>
+          ) : null}
           <button
             type="button"
             onClick={() => onChange(value.filter((_, i) => i !== index))}

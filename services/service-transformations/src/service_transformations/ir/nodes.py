@@ -377,6 +377,131 @@ class SetOp(Node):
 
 
 @dataclass(frozen=True)
+class WindowFrame:
+    """Which rows of the partition a framed function sees, ending at the current row.
+
+    ``peers`` counts every row that ties with the current one on the ordering
+    (SQL's ``RANGE ... CURRENT ROW``), so the answer cannot depend on how ties
+    arrive. ``rows`` counts rows one by one (``ROWS ... CURRENT ROW``), which is
+    what a running total in a spreadsheet does, and which can. ``start`` is the
+    number of rows before the current one (``rows`` only); None is the start of
+    the partition. ``whole`` is the entire partition, whatever the order.
+    """
+
+    unit: LiteralType["peers", "rows"] = "peers"
+    start: int | None = None
+    whole: bool = False
+
+    def __post_init__(self) -> None:
+        if self.start is not None and (self.unit != "rows" or self.start < 0):
+            raise IRError("A frame can start a number of rows back only when it counts rows.")
+
+    def __str__(self) -> str:
+        if self.whole:
+            return "the whole partition"
+        if self.start is None:
+            return "every row so far" if self.unit == "rows" else "every row so far, ties together"
+        return f"the last {self.start + 1} rows"
+
+
+@dataclass(frozen=True)
+class WindowCall:
+    """One window function: its name in `WINDOW_FUNCTIONS`, arguments and frame."""
+
+    function: str
+    args: tuple[Expr, ...] = ()
+    frame: WindowFrame = WindowFrame()
+
+    def __post_init__(self) -> None:
+        from service_transformations.ir.window_functions import WINDOW_FUNCTIONS
+
+        spec = WINDOW_FUNCTIONS.get(self.function)
+        if spec is None:
+            raise IRError(
+                f"There is no window function called {self.function!r}. "
+                f"Known: {', '.join(sorted(WINDOW_FUNCTIONS))}."
+            )
+        if not spec.min_args <= len(self.args) <= spec.max_args:
+            raise IRError(f"{self.function} takes {spec.min_args} to {spec.max_args} arguments, not {len(self.args)}.")
+        for arg in self.args[spec.value_args:]:
+            from service_transformations.ir.expressions import Literal
+
+            if not isinstance(arg, Literal):
+                raise IRError(f"{self.function}'s settings must be constants, not {arg}.")
+        if (self.frame.unit != "peers" or self.frame.start is not None or self.frame.whole) and not spec.framed:
+            raise IRError(f"{self.function} does not take a frame.")
+
+    def columns_used(self) -> set[str]:
+        used: set[str] = set()
+        for arg in self.args:
+            used |= arg.columns_used()
+        return used
+
+    def __str__(self) -> str:
+        return f"{self.function}({', '.join(str(a) for a in self.args)})"
+
+
+@dataclass(frozen=True)
+class Window(Node):
+    """Give every row values computed over the other rows of its partition.
+
+    The rows themselves are unchanged and stay in their order; the node adds
+    one column per function. Partitions are the distinct combinations of
+    ``partition_by`` (an empty value is a partition of its own, as in SQL), and
+    within one the rows are ordered by ``order_by`` with nulls placed as each
+    key says. Which functions may push down is in `window_functions`.
+    """
+
+    input: Node
+    partition_by: tuple[str, ...] = ()
+    order_by: tuple[SortKey, ...] = ()
+    functions: tuple[tuple[str, WindowCall], ...] = ()
+
+    def __post_init__(self) -> None:
+        from service_transformations.ir.window_functions import WINDOW_FUNCTIONS
+
+        if not self.functions:
+            raise IRError("A window must compute at least one value.")
+        incoming = self.input.schema()
+        missing = set(self.partition_by) - incoming.keys()
+        for key in self.order_by:
+            missing |= key.expr.columns_used() - incoming.keys()
+        for name, call in self.functions:
+            missing |= call.columns_used() - incoming.keys()
+            if name in incoming:
+                raise IRError(f"Column {name!r} already exists; a window adds new columns.")
+            if WINDOW_FUNCTIONS[call.function].needs_order and not self.order_by:
+                raise IRError(f"{call.function} needs the rows in an order; say which.")
+        if missing:
+            raise IRError(
+                f"The window uses {noun(len(missing), 'a column', 'columns')} that do not exist here: "
+                f"{listing(sorted(missing))}."
+            )
+        names = [name for name, _ in self.functions]
+        duplicates = {n for n in names if names.count(n) > 1}
+        if duplicates:
+            raise IRError(f"Two columns would share a name: {listing(sorted(duplicates))}.")
+
+    def schema(self) -> Schema:
+        from service_transformations.ir.window_functions import WINDOW_FUNCTIONS
+
+        incoming = self.input.schema()
+        out = dict(incoming)
+        for name, call in self.functions:
+            spec = WINDOW_FUNCTIONS[call.function]
+            out[name] = spec.result([arg.type_of(incoming) for arg in call.args[: max(spec.value_args, 1)]])
+        return out
+
+    def children(self) -> list[Node]:
+        return [self.input]
+
+    def __str__(self) -> str:
+        parts = ", ".join(f"{name} = {call}" for name, call in self.functions)
+        by = f" by {', '.join(self.partition_by)}" if self.partition_by else ""
+        return f"Window({parts}{by})"
+
+
+@dataclass(frozen=True)
 class Extension(Node):
     """An operation the algebra does not model.
 
@@ -456,6 +581,29 @@ def pushable_to(dialect: str, node: Node) -> bool:
         return node.on is None or supported_in(dialect, node.on)
     if isinstance(node, Sort):
         return all(supported_in(dialect, key.expr) for key in node.keys)
+    if isinstance(node, Window):
+        return window_pushable(dialect, node)
+    return True
+
+
+def window_pushable(dialect: str, node: "Window") -> bool:
+    """Whether every function of this window means exactly the same in ``dialect``."""
+    from service_transformations.ir.window_functions import WINDOW_DIALECTS, WINDOW_FUNCTIONS
+
+    if dialect not in WINDOW_DIALECTS:
+        return False
+    if not all(supported_in(dialect, key.expr) for key in node.order_by):
+        return False
+    for _, call in node.functions:
+        spec = WINDOW_FUNCTIONS[call.function]
+        if dialect not in spec.sql or not all(supported_in(dialect, arg) for arg in call.args):
+            return False
+        if spec.tie_safe is False:
+            return False
+        if spec.tie_safe == "frame" and node.order_by and not call.frame.whole and call.frame.unit != "peers":
+            # A frame counted in rows over an ordering with ties: which tied row
+            # is "before" is not something a database promises.
+            return False
     return True
 
 

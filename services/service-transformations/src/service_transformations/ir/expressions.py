@@ -293,7 +293,15 @@ FUNCTIONS: dict[str, Signature] = {
     "add": _define("add", 2, 2, _numeric_result, _same("({0} + {1})")),
     "sub": _define("sub", 2, 2, _numeric_result, _same("({0} - {1})")),
     "mul": _define("mul", 2, 2, _numeric_result, _same("({0} * {1})")),
-    "div": _define("div", 2, 2, _const(FLOAT64), _same("({0} / {1})")),
+    # Division is always exact division, and dividing by zero gives no answer.
+    # PostgreSQL and SQLite divide two whole numbers as whole numbers (7 / 2 is
+    # 3) and PostgreSQL stops the query on a zero, so each is told plainly.
+    "div": _define("div", 2, 2, _const(FLOAT64), {
+        "postgres": "(CAST({0} AS DOUBLE PRECISION) / NULLIF({1}, 0))",
+        "sqlite": "(CAST({0} AS REAL) / NULLIF({1}, 0))",
+        "duckdb": "(CAST({0} AS DOUBLE) / NULLIF({1}, 0))",
+        "mysql": "({0} / NULLIF({1}, 0))",
+    }),
     "mod": _define("mod", 2, 2, _numeric_result, _same("MOD({0}, {1})", ("postgres", "mysql", "duckdb"))),
     "neg": _define("neg", 1, 1, _first, _same("(-{0})")),
     "abs": _define("abs", 1, 1, _first, _same("ABS({0})")),
@@ -448,9 +456,9 @@ FUNCTIONS: dict[str, Signature] = {
         1,
         1,
         _const(FLOAT64),
-        # No portable median: Postgres needs an ordered-set aggregate and MySQL
-        # has none at all. Declaring nothing keeps it local and correct.
-        {"duckdb": "MEDIAN({0})"},
+        # PostgreSQL's ordered-set aggregate interpolates between the middle
+        # two exactly as pandas does; MySQL and SQLite have no median at all.
+        {"duckdb": "MEDIAN({0})", "postgres": "PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY {0})"},
         is_aggregate=True,
     ),
     # Order-dependent: "first" means first in the frame's current order, which
@@ -468,11 +476,9 @@ FUNCTIONS: dict[str, Signature] = {
         {"postgres": "VAR_SAMP({0})", "duckdb": "VAR_SAMP({0})", "mysql": "VAR_SAMP({0})"},
         is_aggregate=True,
     ),
-    "string_agg": _define(
-        "string_agg", 1, 2, _const(STRING),
-        {"postgres": "STRING_AGG({0}, {1})", "duckdb": "STRING_AGG({0}, {1})"},
-        is_aggregate=True,
-    ),
+    # The order of the pieces is the order rows arrive, which SQL does not
+    # promise without its own ORDER BY: local, like first and last.
+    "string_agg": _define("string_agg", 1, 2, _const(STRING), {}, is_aggregate=True),
     "any_true": _define(
         "any_true", 1, 1, _const(BOOLEAN),
         {"postgres": "BOOL_OR({0})", "duckdb": "BOOL_OR({0})"},
@@ -484,6 +490,37 @@ FUNCTIONS: dict[str, Signature] = {
         is_aggregate=True,
     ),
     "product": _define("product", 1, 1, _const(FLOAT64), {"duckdb": "PRODUCT({0})"}, is_aggregate=True),
+    # E1: the rest of the aggregate step's functions.
+    "count_null": _define("count_null", 1, 1, _const(INT64), _same("(COUNT(*) - COUNT({0}))"), is_aggregate=True),
+    # The commonest value, the smallest when several tie: no database's MODE()
+    # promises which it picks, so this stays local.
+    "mode": _define("mode", 1, 1, _first, {}, is_aggregate=True),
+    "nth": _define("nth", 2, 2, _first, {}, is_aggregate=True),
+    "list_agg": _define("list_agg", 1, 1, _const(PWType(Kind.JSON)), {}, is_aggregate=True),
+    # (value, share from 0 to 1): linear between the two nearest, as pandas.
+    "percentile": _define(
+        "percentile", 2, 2, _const(FLOAT64),
+        {"postgres": "PERCENTILE_CONT({1}) WITHIN GROUP (ORDER BY {0})", "duckdb": "QUANTILE_CONT({0}, {1})"},
+        is_aggregate=True,
+    ),
+    "range": _define("range", 1, 1, _numeric_result, _same("(MAX({0}) - MIN({0}))"), is_aggregate=True),
+    "corr": _define("corr", 2, 2, _const(FLOAT64), {"postgres": "CORR({0}, {1})", "duckdb": "CORR({0}, {1})"},
+                    is_aggregate=True),
+    "covar": _define(
+        "covar", 2, 2, _const(FLOAT64),
+        {"postgres": "COVAR_SAMP({0}, {1})", "duckdb": "COVAR_SAMP({0}, {1})"}, is_aggregate=True,
+    ),
+    # (value, weight): rows missing either take no part.
+    "weighted_avg": _define("weighted_avg", 2, 2, _const(FLOAT64), {
+        "postgres": "(SUM(CASE WHEN {0} IS NOT NULL AND {1} IS NOT NULL THEN CAST({0} AS DOUBLE PRECISION) * {1} END)"
+                    " / NULLIF(SUM(CASE WHEN {0} IS NOT NULL AND {1} IS NOT NULL THEN {1} END), 0))",
+        "sqlite": "(SUM(CASE WHEN {0} IS NOT NULL AND {1} IS NOT NULL THEN CAST({0} AS REAL) * {1} END)"
+                  " / NULLIF(SUM(CASE WHEN {0} IS NOT NULL AND {1} IS NOT NULL THEN {1} END), 0))",
+        "duckdb": "(SUM(CASE WHEN {0} IS NOT NULL AND {1} IS NOT NULL THEN CAST({0} AS DOUBLE) * {1} END)"
+                  " / NULLIF(SUM(CASE WHEN {0} IS NOT NULL AND {1} IS NOT NULL THEN {1} END), 0))",
+        "mysql": "(SUM(CASE WHEN {0} IS NOT NULL AND {1} IS NOT NULL THEN {0} * {1} END)"
+                 " / NULLIF(SUM(CASE WHEN {0} IS NOT NULL AND {1} IS NOT NULL THEN {1} END), 0))",
+    }, is_aggregate=True),
 
     # ==================================================================
     # Phase 16: the functions the tool library needs.

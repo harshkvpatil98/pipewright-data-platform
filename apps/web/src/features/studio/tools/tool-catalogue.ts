@@ -16,7 +16,18 @@
 export type ToolParam = {
   key: string;
   label: string;
-  kind: "text" | "number" | "integer" | "boolean" | "column" | "columns" | "select" | "list";
+  kind:
+    | "text"
+    | "number"
+    | "integer"
+    | "boolean"
+    | "column"
+    | "columns"
+    | "select"
+    | "list"
+    | "dataset"
+    | "dataset_column"
+    | "dataset_columns";
   required: boolean;
   default: unknown;
   options: string[];
@@ -33,6 +44,8 @@ export type ToolExample = {
   output: string | null;
   expect: unknown[];
   note: string;
+  /** Rows of the other dataset, for a tool that reads one. */
+  other?: Record<string, unknown>[];
 };
 
 export type Tool = {
@@ -43,6 +56,10 @@ export type Tool = {
   synonyms: string[];
   accepts: "any" | "text" | "numeric" | "temporal" | "boolean" | "textual";
   column_scoped: boolean;
+  /** Runs here: the database it reads cannot do exactly the same. */
+  local_only?: boolean;
+  /** Reads another dataset, chosen in its `right_dataset_id` setting. */
+  reads_dataset?: boolean;
   params: ToolParam[];
   example: ToolExample;
 };
@@ -168,7 +185,8 @@ export function groupByCategory(tools: Tool[]): { category: string; tools: Tool[
 export function defaultValues(tool: Tool): Record<string, unknown> {
   const values: Record<string, unknown> = {};
   for (const param of tool.params) {
-    values[param.key] = param.default ?? (param.kind === "boolean" ? false : "");
+    const many = param.kind === "columns" || param.kind === "dataset_columns" || param.kind === "list";
+    values[param.key] = param.default ?? (param.kind === "boolean" ? false : many ? [] : "");
   }
   return values;
 }
@@ -191,7 +209,8 @@ export function toConfig(
   if (into && into.trim()) config.into = into.trim();
   for (const param of tool.params) {
     const value = values[param.key];
-    if (value === "" || value === undefined || value === null) {
+    const emptyList = Array.isArray(value) && value.length === 0 && !param.required;
+    if (value === "" || value === undefined || value === null || emptyList) {
       if (param.required && param.default === null) config[param.key] = value ?? "";
       continue;
     }

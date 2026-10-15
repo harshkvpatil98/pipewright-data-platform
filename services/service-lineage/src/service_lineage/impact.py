@@ -277,7 +277,38 @@ def secondary_input_impact(
                 )
             )
 
+        elif step_type == "tool" and config.get("right_dataset_id") == dataset_id:
+            # A tool that reads this dataset (a lookup, an as-of or fuzzy join,
+            # E1) names the columns it reads in its settings.
+            named = sorted(wanted & _tool_columns(config))
+            if named:
+                findings.append(
+                    ImpactFinding(
+                        kind="pipeline",
+                        id=pipeline_id,
+                        name=pipeline_name,
+                        severity="breaks",
+                        detail=f"Step {index + 1} reads {_quote_all(named)} from this dataset.",
+                        columns=tuple(named),
+                    )
+                )
+
     return findings
+
+
+#: The settings in which a tool names columns of the other dataset.
+_OTHER_COLUMN_SETTINGS = ("right_on", "right_by", "bring", "right_low", "right_high", "right_value",
+                          "right_key", "right_parent")
+
+
+def _tool_columns(config: dict[str, Any]) -> set[str]:
+    names: set[str] = set()
+    for key in _OTHER_COLUMN_SETTINGS:
+        value = config.get(key)
+        if isinstance(value, str):
+            names.add(value)
+        names.update(_string_list(value))
+    return names
 
 
 def _string_list(value: Any) -> list[str]:

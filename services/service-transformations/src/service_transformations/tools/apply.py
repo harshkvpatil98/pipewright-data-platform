@@ -73,7 +73,7 @@ def _warnings(
     produces null. That is right, and invisible unless somebody says so.
     """
     spec = get(str(config.get("tool")))
-    if not spec.column_scoped:
+    if not spec.column_scoped or not spec.warns_lost:
         return []
     source = config.get("column")
     target = config.get("into") or source

@@ -212,9 +212,14 @@ class TestPushdown:
         assert not pushable_to("postgres", Extension(SCAN, "custom", ()))
 
     def test_a_node_using_an_unsupported_function_does_not_push(self) -> None:
-        node = Aggregate(SCAN, aggregates=(("m", Call("median", (Column("amount"),))),))
+        # Mode, not median: median lowers to PostgreSQL's PERCENTILE_CONT since
+        # E1 (proven in test_aggregates.py); no database's MODE() says which
+        # of two equally common values it picks.
+        node = Aggregate(SCAN, aggregates=(("m", Call("mode", (Column("amount"),))),))
         assert not pushable_to("postgres", node)
-        assert pushable_to("duckdb", node)
+        # Support is per dialect: SQLite has no median at all.
+        median = Aggregate(SCAN, aggregates=(("m", Call("median", (Column("amount"),))),))
+        assert pushable_to("duckdb", median) and not pushable_to("sqlite", median)
 
     def test_ordinary_nodes_push(self) -> None:
         node = Filter(SCAN, Call("gt", (Column("amount"), Literal(1, INT64))))
@@ -276,7 +281,7 @@ class TestSqlRefusals:
             to_sql(Extension(SCAN, "custom", ()), "postgres")
 
     def test_a_missing_function_lowering_refuses(self) -> None:
-        node = Aggregate(SCAN, aggregates=(("m", Call("median", (Column("amount"),))),))
+        node = Aggregate(SCAN, aggregates=(("m", Call("mode", (Column("amount"),))),))
         with pytest.raises(Unsupported, match="no lowering"):
             to_sql(node, "postgres")
 
@@ -291,9 +296,16 @@ class TestSqlRefusals:
         with pytest.raises(Unsupported, match="FULL OUTER"):
             to_sql(node, "sqlite")
 
-    def test_a_semi_join_refuses_rather_than_producing_a_wrong_join(self) -> None:
+    def test_a_semi_join_is_written_as_exists_rather_than_a_join(self) -> None:
+        # E1 replaced the refusal with EXISTS: a semi join must never repeat a
+        # left row, which an INNER JOIN would. That the two backends agree on
+        # it is in test_ir_differential.py.
         node = Join(SCAN, OTHER, on=Call("eq", (Column("id"), Column("id"))), how="semi")
-        assert not can_compile(node, "postgres")
+        sql = to_sql(node, "postgres")
+        assert "WHERE EXISTS" in sql and "JOIN" not in sql
+        anti = Join(SCAN, OTHER, on=Call("eq", (Column("id"), Column("id"))), how="anti")
+        assert "WHERE NOT EXISTS" in to_sql(anti, "postgres")
+        assert can_compile(node, "sqlite")
 
     def test_an_unknown_dialect_is_an_error(self) -> None:
         with pytest.raises(Unsupported, match="No SQL dialect"):

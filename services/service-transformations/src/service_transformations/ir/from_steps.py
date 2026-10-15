@@ -400,10 +400,22 @@ def _remove_duplicates(node: Node, config: dict[str, Any]) -> Node:
 def _aggregate(node: Node, config: dict[str, Any]) -> Node:
     group_by = tuple((name, Column(name)) for name in config.get("group_by") or ())
     aggregates: list[tuple[str, Expr]] = []
-    for spec in config["aggregations"]:
+    from service_transformations.steps.aggregate import EXTRA_AGGREGATIONS, _argument, ir_call
+
+    for index, spec in enumerate(config["aggregations"], start=1):
         column = spec["column"]
         function = spec["function"]
         name = spec.get("alias") or f"{column}_{function}"
+        if function in EXTRA_AGGREGATIONS:
+            extra = EXTRA_AGGREGATIONS[function]
+            resolved = dict(spec)
+            if extra.get("argument"):
+                resolved["argument"] = _argument(spec.get("argument"), extra, index, function)
+            if extra.get("other") and not spec.get("other_column"):
+                raise IRError(f"{function.replace('_', ' ')} needs other_column.")
+            ir_function, rest = ir_call(resolved)
+            aggregates.append((name, Call(ir_function, (Column(column), *rest))))
+            continue
         ir_function = _AGGREGATE_FUNCTIONS.get(function)
         if ir_function is None:
             raise IRError(f"Unsupported aggregate function {function!r}.")
@@ -419,6 +431,8 @@ def _joined_schema(node: Node, right_columns, config: dict[str, Any]) -> tuple[t
     right_on = config.get("right_on") or config.get("on") or []
     left_on = [left_on] if isinstance(left_on, str) else list(left_on)
     right_on = [right_on] if isinstance(right_on, str) else list(right_on)
+    if str(config.get("how") or "inner") in ("semi", "anti"):
+        return tuple(node.schema().items())
     shared = {right_key for left_key, right_key in zip(left_on, right_on) if left_key == right_key}
     right = dict(right_columns)
     if config.get("select_right_columns"):
@@ -448,6 +462,9 @@ def _join_datasets(node: Node, config: dict[str, Any]) -> Node:
             freeze_config({k: v for k, v in config.items() if not k.startswith("_")}),
             output_schema=_joined_schema(node, right_columns, config) if right_columns else None,
         )
+    how = str(config.get("how", "inner"))
+    if how == "cross":
+        return Join(node, right, on=None, how="cross", right_suffix=str(config.get("suffix") or "_right"))
     left_on = config.get("left_on") or config["on"]
     right_on = config.get("right_on") or config["on"]
     if isinstance(left_on, str):
@@ -461,7 +478,6 @@ def _join_datasets(node: Node, config: dict[str, Any]) -> Node:
     on = conditions[0] if len(conditions) == 1 else Call("and", tuple(conditions))
     if config.get("select_right_columns"):
         right = Project(right, _identity(list(dict.fromkeys([*right_on, *config["select_right_columns"]]))))
-    how = str(config.get("how", "inner"))
     # The step says "outer" where the IR, like SQL, says "full".
     return Join(node, right, on=on, how="full" if how == "outer" else how,
                 right_suffix=str(config.get("suffix") or "_right"))

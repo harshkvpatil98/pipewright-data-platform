@@ -463,6 +463,12 @@ def _handle_aggregate(lineage: StepLineage, config: dict[str, Any], _resolve: Sc
                 _names(lineage, column)
             if column and column in lineage.input_columns:
                 _edge(lineage, column, alias, "aggregate")
+            # A correlation, covariance or weighted average reads a second column.
+            other = _as_str(entry.get("other_column"))
+            if other:
+                _names(lineage, other)
+                if other in lineage.input_columns:
+                    _edge(lineage, other, alias, "aggregate")
 
     lineage.output_columns = _dedupe(outputs)
 
@@ -534,6 +540,11 @@ def _handle_join(lineage: StepLineage, config: dict[str, Any], resolve: SchemaRe
         resolved = resolve(right_dataset_id)
         right_columns = list(resolved) if resolved is not None else None
 
+    if _as_str(config.get("how")) in ("semi", "anti"):
+        # Keeps or drops this dataset's rows by whether they match; brings nothing.
+        lineage.output_columns = list(lineage.input_columns)
+        return
+
     if right_columns is None:
         lineage.dynamic = True
         lineage.notes.append(
@@ -601,8 +612,8 @@ def _handle_tool(lineage: StepLineage, config: dict[str, Any], _resolve: SchemaR
     from shared_python.errors import BadRequestError
     from shared_python.types.lattice import UNKNOWN
 
-    from service_transformations.ir.expressions import Column as IRColumn
     from service_transformations.ir.nodes import IRError, Node, Project, Scan
+    from service_transformations.ir.provenance import columns_read, provenance
     from service_transformations.tools import build as build_tool
 
     name = _as_str(config.get("tool")) or "tool"
@@ -626,20 +637,26 @@ def _handle_tool(lineage: StepLineage, config: dict[str, Any], _resolve: SchemaR
 
     lineage.output_columns = list(node.schema())
 
-    if isinstance(node, Project):
-        for produced, expression in node.projections:
-            if isinstance(expression, IRColumn) and expression.name == produced:
-                continue  # passed through untouched
-            used = sorted(expression.columns_used())
-            if not used:
-                _edge(lineage, None, produced, name)
-            for column in used:
-                if column in lineage.input_columns:
-                    _edge(lineage, column, produced, name)
-        return
+    # Traced through the whole tree, so a tool that builds a window and then
+    # computes over it (a percent change is a lag and a division) still says
+    # which of the input's columns its result is made from.
+    origins = provenance(node)
+    for produced in node.schema():
+        origin = origins.get(produced)
+        if origin is None:
+            continue
+        if origin.unchanged and origin.sources == {produced}:
+            continue  # passed through untouched
+        used = sorted(origin.sources)
+        if not used:
+            _edge(lineage, None, produced, name)
+        for column in used:
+            if column in lineage.input_columns:
+                _edge(lineage, column, produced, name)
 
-    # A filter, sort, limit or distinct keeps every column and reads some.
-    for column in sorted(_columns_read(node)):
+    # A filter, sort, limit, distinct or window keeps rows or orders them by
+    # columns it reads without producing them.
+    for column in sorted(columns_read(node) | (_columns_read(node) if not isinstance(node, Project) else set())):
         if column in lineage.input_columns:
             _read(lineage, column, name)
 

@@ -22,7 +22,7 @@ from shared_python.statistics import TableStats
 
 from service_transformations.ir.estimate import estimate
 from service_transformations.ir.expressions import Call, Column, Expr
-from service_transformations.ir.nodes import Aggregate, Distinct, Filter, Join, Limit, Node, Project, SetOp, Sort
+from service_transformations.ir.nodes import Aggregate, Distinct, Filter, Join, Limit, Node, Project, SetOp, Sort, Window
 from service_transformations.ir.rewrites import Rewrite
 
 
@@ -74,6 +74,8 @@ def _map_children(node: Node, fn) -> Node:
                     left_suffix=node.left_suffix, right_suffix=node.right_suffix)
     if isinstance(node, SetOp):
         return SetOp(fn(node.left), fn(node.right), kind=node.kind)
+    if isinstance(node, Window):
+        return Window(fn(node.input), node.partition_by, node.order_by, node.functions)
     return node  # a Scan, or an Extension, which this does not look inside
 
 

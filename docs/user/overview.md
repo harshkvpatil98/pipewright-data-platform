@@ -34,6 +34,6 @@ Use **Send a test** to check one works before relying on it. A failure to send n
 
 ## Settings
 
-Rename the project, describe what it is for, archive it when it is no longer used (it stays readable), or delete it with everything in it.
+Rename the project, describe what it is for, archive it when it is no longer used (it stays readable), or delete it with everything in it. An admin can switch on **Changes need approval**: recipes and workflows are then changed by suggesting, and someone else accepts or declines under [Approvals](trust.md#approvals).
 
 **Move this project's work** downloads a bundle: one file with the project's recipes, checks, contracts, metrics, charts, dashboards, workflows and schedules, but none of its data or passwords. **Import a bundle** in another project, here or on another Pipewright, shows first what will be made and what will be left out and why. Things are matched by name: the datasets, imports and destinations the bundle uses must already exist in the project, or you choose stand-ins for them. Anything whose name the project already uses is left as it is.

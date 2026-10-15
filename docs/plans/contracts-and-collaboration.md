@@ -9,7 +9,7 @@ one machine, with nothing waiting on a vendor account. Phase 20 (queues and
 streaming windows) and Phase 22 (statistics and a cost model) stay partial,
 and Phase 23 has not started; `docs/HANDOFF.md` §8 keeps that ledger.
 
-**Status:** C1 (data contracts) done 2026-10-15; C2 (working together) next.
+**Status:** C1 (data contracts) and C2 (working together) done 2026-10-15.
 
 Each phase measures first, says what it will deliver and when it is done,
 then records what shipped. The rules in `AGENTS.md` and the A0 vocabulary
@@ -196,17 +196,161 @@ relying on a dataset but is not itself notified (its owner can follow).
 
 ---
 
-## C2 — Working together (roadmap Phase 21, the rest)
+## C2 — Working together (roadmap Phase 21, the rest) *(done 2026-10-15)*
 
 **Why.** Two analysts in the same recipe today overwrite each other without
 knowing it, and a viewer who sees a mistake can only describe it in a
 comment.
 
-### C2 specification
+### C2 specification (written 2026-10-15)
 
-Written at the start of C2, measured first; the baseline above already
-shows the first defect: two saves of the same recipe from the same starting
-point both succeed, and the second silently drops the first's step.
+**Measured before starting** (dev stack and the code):
+
+| | Now |
+|---|---|
+| Two people saving one recipe | Both saves from the same starting point succeed; the second silently drops the first's step |
+| Seeing who else is there | Nothing: no presence anywhere |
+| Editing together | The Studio holds the recipe in the browser and saves it whole; another person's change is seen only on reload, and saving over it loses it |
+| A viewer who spots a mistake | Can read, cannot comment (operator and up) and cannot propose; the Studio has no way to propose a change |
+| Recipe change requests | Recipes have no snapshot or restorer: a proposed recipe change has no "before", its summary reads "Changed .", and approving one would fail with "'pipeline' changes cannot be applied automatically" |
+| "Changes need approval" | The help describes it; nothing can switch it on (the project setting is ignored) |
+| Comments | Flat, one level, per object; no replies and nothing about a cell |
+| A dataset's history | "History" opens a record of where it came from; nothing lists what happened to it over time |
+
+**W1. No silent overwrites.** A recipe has a revision. A save that names
+the revision it started from is refused with 409 when someone saved since,
+saying who and when; the Studio always names it. Anything else that changes
+a recipe (an approved suggestion, a restored version, the API) moves the
+revision on too.
+
+**W2. Editing a recipe together.** Each recipe has one shared working copy,
+merged on the server: the steps are a sequence of stable ids ordered by
+fractional positions, step settings are last-writer-wins per setting, a
+removed step is a tombstone, and every change carries a Lamport stamp, so
+changes merge the same in any order (`service_transformations/coedit.py`
+and its TypeScript twin, held together by shared fixtures and a convergence
+test). The Studio sends its changes as they happen and asks for others'
+every two seconds; others' changes appear without a reload, and undo never
+takes back someone else's work, because their changes are applied to the
+whole undo history. Saving writes the shared copy; a change made outside
+the Studio resets it and keeps the person's unsaved steps as their browser
+draft, with a message saying why.
+
+**W3. Who is here.** People with the Studio open on a recipe show at its
+top, and each person's initials sit on the step they have open; someone
+who closes the page or goes quiet for 20 seconds disappears.
+
+**W4. Suggest instead of save.** Recipes get a snapshot and restorer, so
+their change requests have a "before", a summary in words and can be
+approved. Someone who may not edit (a viewer or operator), or anyone in a
+project whose changes need approval, sees **Suggest these changes** where
+Save was: it becomes a change request with a title and note. Editors see
+"2 suggestions" in the Studio and on Approvals, open one to see the steps
+added, removed and changed, and accept (applied as a new version, credited
+to its author) or decline with a note; the author is told either way. The
+project setting "Changes need approval" can be switched on by an admin.
+
+**W5. Threads on a cell.** Comments take replies and an anchor: a column,
+and a row by its identifier column's value (or its row number in that
+version, said so). On the dataset page a cell with a thread is marked, and
+any cell can start one; a thread resolves as a whole, and mentions notify
+as before.
+
+**W6. What happened to a dataset.** The dataset's History page gains a
+feed, newest first: each new version (who or which run, rows and columns
+before and after), schema changes, check results, contract problems,
+alerts, incidents, comments and changes to its settings, paged.
+
+**Done when.** Two browsers on one recipe see each other within two
+seconds, both edit without either losing work, and an old revision's save
+is refused with the reason; a viewer's suggestion is accepted by an editor
+and applied as the recipe's next version; a cell thread is started,
+replied to and resolved; the dataset feed shows the run that made each
+version; `npm run verify` green with no `.env`; every page walked at two
+widths; CI green.
+
+### What shipped
+
+- **W1, no silent overwrites.** Recipes carry a `revision`, stable step ids
+  and who saved last (migration 0061). `PATCH` with `expected_revision`
+  from an older revision is refused with 409: "Ann Lee saved this recipe at
+  … after you opened it". Every save is in the recipe's history.
+- **W2, editing together.** `service_transformations/coedit.py` and
+  `apps/web/src/features/studio/coedit.ts`: a CRDT of stable step ids at
+  fractional positions, last-writer-wins registers per setting, position,
+  removal and name, Lamport stamps; `coedit-fixtures.json` holds the cases
+  both sides must agree on, merged in every order. The server keeps the
+  merged copy and the batches (`recipe_shared_copies`,
+  `recipe_edit_batches`); the Studio sends changes every 300 ms and asks for
+  others' every 2 s (`use-recipe-editing.ts`). Undo is per person and
+  selective: it takes back a change only while the register still holds it.
+  Saving writes the shared copy; a change from outside (an accepted
+  suggestion, a restored version, the API) starts a new epoch, says why, and
+  offers back what the person had not saved. A convergence test runs 40
+  trials of three people editing at random.
+- **W3, who is here.** `service_governance/presence.py`: one row per tab,
+  a beat every 5 s, gone after 20 s or on closing; initials in each
+  person's colour at the top of the Studio and on the step they have open.
+- **W4, suggestions and approval.** Recipes have a snapshot and restorer
+  (`service_transformations/versioning.py`), so their change requests have
+  a "before", a summary and can be accepted. `POST …/pipelines/{id}/suggest`
+  is open to a viewer; editors review step by step (`recipe-diff.ts`) in the
+  Studio's drawer and under Approvals (now Accept and Decline, Accepted and
+  Declined), and the author is told either way. Reviewers hear of a new
+  suggestion (a new "Suggestions and reviews" notification category). An
+  admin can switch on "Changes need approval".
+- **W5, threads on a cell.** Comments take `parent_id` and an anchor (a
+  column, and a row by its identifier's value or its number in a version);
+  threads resolve as a whole, a reply reopens one, and everyone in a thread
+  hears of a reply. The dataset page's rows mark commented cells, any cell
+  opens its threads, and "Comment on a cell" chooses one from the keyboard.
+- **W6, what happened to a dataset.** `api_gateway/dataset_activity.py`:
+  versions and what made them, failed runs, checks, schema changes,
+  contracts, alerts, incidents, comments and settings changes, paged; on the
+  dataset's History page.
+
+**Found and fixed on the way.**
+
+- Rehearsing with three people: the Studio compared settings with
+  `JSON.stringify`, so the shared copy (keys sorted) and the saved recipe
+  (keys as written) looked different: Bob's Studio said "Unsaved changes"
+  after Ann saved, and a suggestion listed a step as changed into itself.
+  Comparisons use `stableJson` now, with a test.
+- A page's first two presence requests raced to insert the same row, and the
+  loser failed (seen in the browser as a CORS error); the same race could
+  hit two Studios opening a recipe together. Both now find the other's row;
+  the test fails on the old code three times out of three on PostgreSQL.
+- The accessibility suite found the Studio previewing without end: the
+  editing hook made a new list of steps each render. Memoised, with a test
+  that fails without it.
+- The golden path found the first save of a new recipe reopening as an empty
+  new recipe, because the leave guard still held the page; the page now
+  marks it saved first.
+- Recipe change requests could never have been applied (no restorer), and
+  "Changes need approval" could not be switched on; both work now.
+- Approvals described a recipe suggestion as "Added steps json[step type=sort
+  rows]", the generic snapshot diff. Governance now asks each kind of thing
+  to describe its own changes (`register_summariser`); a recipe says "Adds a
+  sort rows step (step 2).", in its history too.
+- The dataset feed now says when a version gained or lost columns, not only
+  rows.
+
+**Measured at the end.** Live, three browsers on one recipe: each saw the
+others within one presence beat, Bob's rename reached Ann's Studio in 842
+ms, Ann's undo left Bob's rename alone, both said "Saved" after Ann saved,
+Vic (a viewer) saw "Suggest", his suggestion listed only the rename, and
+Ann declined it with a note that reached him. Idle, a Studio asks for the
+shared copy every 2 s and says it is there every 5 s, and nothing else.
+`npm run verify` green with no `.env` (6,608 Python passed, 848 web); every page walked at 1280 and 1024 with no problem; the
+golden path and accessibility suites pass against the dev stack.
+
+**Not done here, and stated.** Changes reach others by asking every two
+seconds, not by a push channel: simple behind any proxy and on any number
+of gateways, at the cost of up to two seconds. Presence and co-editing are
+in the Studio; dashboards and the SQL workbench are still edited one person
+at a time, with saves as before. A cell thread names its row by an
+identifier column only when the profile found one; otherwise by its number
+in one version, which the thread says.
 
 ---
 

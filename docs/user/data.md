@@ -40,6 +40,8 @@ Every table in the project, one row per name. Filter by where it came from (uplo
 On a dataset's page:
 
 - **Rows** shows a preview, and **Columns** shows each column's kind, how often it is empty and how varied it is.
+- **Comment on a cell**: click any cell in Rows (or use **Comment on a cell**) to start a thread about it. A cell with a thread is marked with how many it has. Threads take replies and @mentions, and resolve as a whole; replying to a resolved one opens it again. A row is named by its identifier column (such as an order number) when the dataset has one, so the thread stays with that row in later versions; otherwise by its number in that version.
+- **History** (under **More**) shows what happened to it, newest first: each version and what made it, runs that failed to make one, checks, schema changes, contract problems, alerts and comments.
 - **Clean in Studio** opens it in the [Studio](build.md#studio).
 - **Send to** delivers it to a [destination](automate.md#destinations), Power BI or Tableau, or downloads it as CSV or Parquet.
 - **Version history** lists every saved version. Open, query, compare or restore any of them; restoring adds a new version, so nothing is lost.

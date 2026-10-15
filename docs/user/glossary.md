@@ -26,6 +26,8 @@ Every word Pipewright uses, with one meaning each. If a screen ever uses a word 
 | Metric | A number defined once and used everywhere, so every chart agrees. |
 | Policy | A rule about who sees which rows and columns, or how long data is kept. |
 | Change request | An edit waiting for someone's approval, listed under Approvals. |
+| Suggestion | A change to a recipe sent for someone who may edit it to accept or decline. |
+| Thread | A comment and its replies, on a thing or on one cell of a dataset; it resolves as a whole. |
 | Member | A person with access to a project, as a viewer, operator, editor or admin. |
 | Organisation | A group of people and projects kept apart from other groups. |
 

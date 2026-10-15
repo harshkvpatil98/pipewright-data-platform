@@ -13,6 +13,35 @@ the test counts at the time — is in the session log in
 
 ---
 
+## Phase 21 complete — working together, C2 (2026-10-15)
+
+The rest of roadmap Phase 21; the plan is
+[docs/plans/contracts-and-collaboration.md](docs/plans/contracts-and-collaboration.md).
+
+- **Edit a recipe together.** Everyone with a saved recipe open in the
+  Studio edits one shared copy, merged on the server by rules the Studio
+  shares (a CRDT: stable step ids at fractional positions, last-writer-wins
+  per setting, Lamport stamps). Others' changes arrive within two seconds
+  and nobody's work is written over; undo takes back only your own changes.
+  Saving writes the shared copy; a change from outside starts it again and
+  offers back what you had not saved.
+- **Saves never replace someone else's.** Recipes carry a revision; a save
+  from an older one is refused with 409, saying who saved since and when.
+- **Who is here.** The people with a recipe open, and the step each has
+  open, in the Studio.
+- **Suggest instead of saving.** Viewers, operators, and anyone in a project
+  whose changes need approval, suggest; editors accept or decline step by
+  step, in the Studio or under Approvals, and the author hears which. An
+  admin can now switch on "Changes need approval".
+- **Threads on a cell**, with replies, resolving as a whole, on a dataset's
+  rows; and **what happened to a dataset** on its History page.
+- **Fixed:** recipe change requests could never be applied (recipes had no
+  restorer) and "Changes need approval" could not be switched on; the
+  Studio's first save of a new recipe now reopens it as the saved recipe.
+- Migration 0061; new routes for the shared copy, suggestions, presence,
+  reopening a thread and a dataset's activity, in the Python client and the
+  API reference.
+
 ## Phase 19 complete — data contracts, C1 (2026-10-15)
 
 The second half of roadmap Phase 19; the plan is

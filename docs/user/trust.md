@@ -57,7 +57,7 @@ Policies also set **retention** (how long old runs, history and versions are kep
 
 ## Approvals
 
-In a project that needs approval, changes to recipes, workflows and checks wait here for someone to accept them. Running things is never blocked; only changing what they are.
+Suggested changes wait here for someone to accept or decline them: a [recipe change someone suggested](build.md#suggesting-a-change), or any change in a project whose changes need approval (an admin switches that on under [Settings](overview.md#settings)). A recipe's change is shown step by step. Nobody can accept their own; the person who suggested it hears what became of it. Running things is never blocked; only changing what they are.
 
 ## Audit log
 

@@ -113,16 +113,17 @@ was for that push, not a standing one.
 | 06 | Intelligence | `service-intelligence` | PII, join keys, entity resolution — **no model calls** |
 | 07 | Enterprise | `service-enterprise` | Tenancy, row/column security, retention, SSO, `/metrics` |
 
-**Migrations:** `apps/api-gateway/alembic/versions/`, 60 files, head is `0060_data_contracts`.
+**Migrations:** `apps/api-gateway/alembic/versions/`, 61 files, head is `0061_working_together`.
 
 ### Roadmap v2: in progress
 
 See [`roadmap-v2.md`](./roadmap-v2.md) — 16 phases across 4 tracks, ≈58 sessions.
 Phases **08, 09, 10, 11, 12, 13, 14, 15, 17, 18** and, since 2026-10-15,
-**19** are done (its data contracts as C1 in
+**19 and 21** are done (as C1 and C2 in
 `docs/plans/contracts-and-collaboration.md`), **16** shipped its machinery
 plus 173 tools, and **20, 22** each shipped a first slice as
-production-readiness P9; the progress ledger in §8 tracks the rest.
+production-readiness P9; **23** has not started. The progress ledger in §8
+tracks the rest.
 
 ---
 
@@ -289,7 +290,7 @@ honesty; if you verify one, update its status here.
 | 18 | Time travel | **done** | 3/3 | Immutable versions (0038–0040), temporal reads, `AS OF` SQL, diff, rollback, deterministic replay with recorded execution context, erasure reconciled, pin + two-step prune protocol, viewer/editor matrix, scripted live acceptance. Delivered as production-readiness P7 — see `docs/plans/phase-18-decisions.md` |
 | 19 | Semantic layer & contracts | **done** | 3/3 | Metrics defined once on the IR (`service_reporting/metrics.py`, migration 0044), resolved everywhere. **Data contracts (C1, 2026-10-15)**: `service_quality/data_contracts.py`, migration 0060; promises per column and per dataset, enforced before storing by recipe runs, imports and stream saves, refused on rollback, recorded on erasure; problems once per source, overdue from the freshness promise, followers, what relies on it |
 | 20 | Streaming & CDC | **partial** | 1/4 | Inbound webhooks + PostgreSQL logical-replication CDC (`service_extraction/streams.py`, migration 0045), micro-batch via the ticker, materialised into one append-only versioned dataset, at-least-once stated. MySQL/Mongo/SQL Server CDC, queues, streaming transforms absent |
-| 21 | Collaboration | **partial** | 1/3 | Comments with @mentions on datasets, pipelines, dashboards and change requests (P8). CRDT co-editing, presence, suggestion mode not started |
+| 21 | Collaboration | **done** | 3/3 | Comments with @mentions (P8). **C2 (2026-10-15)**: recipes co-edited in a shared copy merged by a CRDT (`service_transformations/coedit.py` + `studio/coedit.ts`, shared fixtures, selective per-person undo), revisions refusing stale saves, presence with step focus, suggestions any viewer can make and editors accept step by step, threads with replies on dataset cells, a per-dataset change feed (migration 0061) |
 | 22 | Optimizer | **partial** | 1/4 | `ir/rewrites.py`: predicate/limit pushdown through row-wise nodes, filter and limit merging, proven by a four-way differential test and reported in every plan. No statistics, cost model, caching or federation |
 | 23 | Extensibility | not started | 0/3 | Needs most |
 
@@ -301,10 +302,13 @@ increments without declaring P2 complete; later development is outside that snap
 
 ### Recommended next action
 
-**The active plan is `docs/plans/contracts-and-collaboration.md`**: two
+**The last plan was `docs/plans/contracts-and-collaboration.md`**: two
 roadmap v2 phases left partial, finished one after the other. **C1 (Phase
-19's data contracts) is done as of 2026-10-15; C2 (Phase 21, working
-together) is next.** Rules for anyone touching where data lands:
+19's data contracts) and C2 (Phase 21, working together) are done as of
+2026-10-15.** Next in roadmap order: Phase 20 (more change-data capture and
+queues), 22 (statistics and a cost model) and 23 (extensibility); each
+needs its own measured plan first. Rules for anyone touching where data
+lands, or the Studio:
 
 - **Every producer of a dataset version checks its contract before storing
   anything** (`service_quality.data_contracts.check_new_data`, called from
@@ -315,6 +319,14 @@ together) is next.** Rules for anyone touching where data lands:
   upload or a quarantine makes a new dataset, which has no contract yet.
 - A contract's freshness is the dataset's one `FreshnessPolicy`; never add a
   second clock.
+- **The Studio edits a saved recipe through `use-recipe-editing.ts`**, whose
+  merge rules (`coedit.ts`) must stay in step with
+  `service_transformations/coedit.py`: change one, change both, and add the
+  case to `coedit-fixtures.json`, which both test suites read. Compare step
+  settings with `stableJson`, never `JSON.stringify` (key order differs).
+- Anything that changes a recipe outside the Studio calls
+  `coedit.record_save` (or the recipe restorer), so its revision moves on and
+  the shared copy starts again with a reason.
 
 **Before that, the sequence was `docs/plans/adoption-readiness-workflow.md`
 (A0–A9)**, written from the 2026-09-23 adoption review. **A0 (product
@@ -1016,3 +1028,4 @@ Report honestly. If something is unverified, say so and add it to §7.
 | 2026-10-15 | `75332b59` | **Adoption-readiness A8 complete.** Spec Y1–Y8 measured first. A7 leftovers closed: 180s leases renewed from a side thread, Keycloak SSO live in CI, 200MB uploads in half the memory, a columnar read copy (checks on 4M rows 22s to 1s). Y1 signed webhooks with retries and a deliveries view (0056). Y2 project bundles (`api_gateway/bundles.py`). Y3 `clients/python` generated from OpenAPI, `pipewright` CLI. Y4 dashboard embeds: HS256 per-embed secrets, expiry, filters, `EMBED_ALLOWED_ORIGINS` frame-ancestors (0057); fixed every public viewer sharing one rate limit. Y5 metric alerts on every new version, sent after commit by the worker (0058); measures now recorded for uploads, imports and recipes, not only workflows. Y6 Activity stream (0059); audit log now names created and deleted things and API-token actors. Y7 `messages/en.json` + `t()`, dates/numbers only in `lib/format.ts` (en-GB). Y8 walked 77 pages at 1280 and 1024 with no problem after fixing: charts opening on a dataset too large to chart, the Assistant claiming "nothing looks like personal data" when it had not scanned, "quality rule" wording, "New secret" without asking, "Add an alert" for a channel, the guide overstating when checks open incidents. `npm run verify` green with no .env: 6,547 Python passed / 598 skipped, 827 web. **Next: A9.** |
 | 2026-10-15 | `75332b59` | **Adoption-readiness A9 (launch gate) complete, except the owner's steps.** Spec Z1–Z7 measured first. Z1 demo runs its recipe and check, chart on the cleaned orders. Z2 `e2e/screenshots.mjs` → 8 pictures in `docs/user/images`, help shows images; found Title Case on Data health, "metric" wording, Checks default dataset, project making missing from its activity, alert form order. Z3 static docs site (`apps/web/scripts/build-docs-site.mjs`, tested), `docs-site.yml` manual, release notes 1.0.0, `docs/api/openapi.json`. Z4 following the documents on a clean machine found seven install faults, all fixed: no first administrator (now `first_run.py`), migration hook reading resources Helm makes later, no encryption key in the chart Secret, web image calling localhost:8000 (now `/api/v1`), API reference outside `/api` (now `/api/docs`), ingress 1MB body limit, Compose web without the gateway address and no root production settings file; release images now `v1.0.0` and `1.0.0`. CI `helm` job installs on kind by the guide's own commands (green); Compose rehearsed locally with Caddy. Z5 1.0.0 everywhere (`test_one_version.py`), `docs/positioning.md`, README opening. Z6 `docs/cold-user-sessions.md` + files. Z7 76 pages × 2 widths clean; verify green with no .env (6,553 Python / 598 skipped, 831 web); CI all green. **Waiting on the owner:** tag v1.0.0 (publishes images), set Pages to GitHub Actions and run docs-site.yml, run the five cold-user sessions. |
 | 2026-10-15 | `75332b59` | **Phase 19 complete: data contracts (C1).** Plan `docs/plans/contracts-and-collaboration.md`, measured first (a recipe dropping a column others use ran and silently lost it, no schema change, no message; two saves of one recipe silently overwrote each other, kept for C2). `service_quality/data_contracts.py`, migration 0060: promises per column and per dataset, drafted from the data, versioned in words; enforced before storing by recipe runs, imports and stream saves (409 with the reasons, head kept), refused on rollback, recorded on erasure; problems once per source; overdue from the freshness promise; owner and followers told by the worker after commit; what relies on a dataset; Trust → Contracts, the dataset's contract page and editor, a chip, a Studio notice and a restore warning; activity kind, bundles, audit phrases, client, help. Found and fixed: every failed recipe run and import kept only "Waiting to start." in its log (a shared list never seen as changed); a PostgreSQL-only failure in the consumers query (contract tests now run on PostgreSQL too); six run-log and warning strings with retired words, now tested. Rehearsed live on the dev stack: the baseline recipe stopped and then resolved by a good run, an import from PostgreSQL stopped when its table lost a column, overdue opened and closed by the worker, the restore dialog refusing. 77 pages walked at 1280 and 1024, no problem; `npm run verify` green with no `.env`, 6,573 Python passed / 613 skipped, 837 web |
+| 2026-10-15 | `75332b59` | **Phase 21 complete: working together (C2).** Measured first: two saves of one recipe silently overwrote each other; no presence; viewers could neither comment nor propose; recipe change requests had no "before" and could never be applied; "Changes need approval" could not be switched on; comments were flat; a dataset had no history of what happened. Shipped: recipe revisions with stale saves refused (409 naming who); a shared copy per recipe merged by a CRDT twinned in Python and TypeScript with shared fixtures and a three-person convergence test; per-person selective undo; presence with step focus; suggestions from any viewer, reviewed step by step in the Studio and Approvals (Accept/Decline), authors and reviewers told; the approval setting; threads with replies and cell anchors on dataset rows; a per-dataset feed on History (migration 0061). Found and fixed: key-order comparisons calling equal settings different (Bob's Studio stuck on "Unsaved changes"), a presence and shared-copy insert race (test fails 3/3 on old code), an endless Studio preview loop (found by the accessibility suite), a first save reopening as an empty recipe (found by the golden path), and CI's verify failing after C1 because create_all on PostgreSQL altered shared table definitions (fixed and pushed separately). Rehearsed live with three browsers: rename propagated in 842 ms, undo left the other's change, both showed Saved, a viewer's suggestion declined with a note that reached him. `npm run verify` green with no `.env`, 6,608 Python passed / 628 skipped, 848 web; golden path and accessibility suites green against the dev stack; every page walked at 1280 and 1024 with no problem |

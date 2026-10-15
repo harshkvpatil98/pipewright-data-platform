@@ -2,6 +2,16 @@
 
 The changes people notice, newest first. The full record is in the repository's changelog.
 
+## Working together
+
+- **Edit a recipe together.** Everyone with a recipe open in the Studio edits the same copy; others' changes appear within a couple of seconds, and nobody's work is written over. Undo takes back only your own changes.
+- **See who is here.** The people with a recipe open show at the top of the Studio, with their initials on the step each has open.
+- **Suggest instead of saving.** Viewers, operators, and anyone in a project whose changes need approval, suggest a change; editors accept or decline it, step by step, with a note.
+- **Saves never replace someone else's.** A save from an older version is refused, saying who saved since.
+- **Threads on a cell.** Click a cell on a dataset's page to ask about that value; threads take replies and resolve as a whole.
+- **What happened to a dataset.** Its History lists each version and what made it, failed runs, checks, contracts, alerts and comments.
+- **Changes need approval** can now be switched on in a project's Settings.
+
 ## Promises about data
 
 - **Contracts.** Write down what a dataset promises: its columns and what is in them, how many rows, how often it gets new data. New data that breaks a promise is stopped before it replaces what people use, with the reasons on the run. Find them under **Trust → Contracts**, or **More → Write a contract** on any dataset.

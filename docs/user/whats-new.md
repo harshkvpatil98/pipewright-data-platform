@@ -2,6 +2,13 @@
 
 The changes people notice, newest first. The full record is in the repository's changelog.
 
+## Promises about data
+
+- **Contracts.** Write down what a dataset promises: its columns and what is in them, how many rows, how often it gets new data. New data that breaks a promise is stopped before it replaces what people use, with the reasons on the run. Find them under **Trust → Contracts**, or **More → Write a contract** on any dataset.
+- **Follow a contract.** Anyone in the project can follow one, a viewer included, and is told once when it breaks, again when it is kept, and when its promises change.
+- **Warned first.** The Studio says when a recipe's result no longer has a promised column, before it runs; restoring an older version says first whether it keeps the contract.
+- **Failed runs keep their story.** A failed recipe run or import now keeps every line of its log, up to the step where it stopped. Before, it kept only "Waiting to start."
+
 ## For partners, scripts and other sites
 
 - **Dashboards inside other sites.** **Embed** on a dashboard makes a link for a page on your site or a partner's, lasting from a day to a year. Your site's server can make short links of its own that show each customer only their rows. Turn an embed off and every link to it stops.

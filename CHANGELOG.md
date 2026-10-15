@@ -13,6 +13,39 @@ the test counts at the time — is in the session log in
 
 ---
 
+## Phase 19 complete — data contracts, C1 (2026-10-15)
+
+The second half of roadmap Phase 19; the plan is
+[docs/plans/contracts-and-collaboration.md](docs/plans/contracts-and-collaboration.md).
+
+- **Contracts.** A promise about a dataset that new data must keep: each
+  column's kind, always filled, no repeats, only these values, a lowest and
+  highest; other columns allowed or not; how many rows and how far they may
+  fall; how often new data arrives. Drafted from the current data in one
+  click, versioned with what changed in words. Trust → Contracts, and on
+  every dataset page.
+- **Stopped where data lands.** Recipe runs, imports and stream saves check
+  the contract before storing anything; with "stop" the run fails with 409
+  and the reasons and the dataset keeps its current data; with "warn" it
+  lands and the problem is recorded. Rolling back to a version that breaks
+  it is refused, and the restore dialog says so first; erasure is never
+  stopped. The Studio names a promised column the result no longer has
+  before the recipe runs.
+- **Told once.** One problem per source while it lasts, resolved when the
+  source keeps the contract again; overdue data from the dataset's one
+  freshness promise. The owner and followers (a viewer may follow) hear
+  when it breaks, is kept again or changes, as do alert channels taking
+  `data_contract`; whoever changed it is not told of their own change.
+- **What relies on it**: recipes, checks, charts, dashboards, metrics,
+  scheduled deliveries and workflows, worked out when asked; dropping a
+  promise shows what reads that column first.
+- Also: a "Contracts" kind in Activity, contracts in project bundles, five
+  audited routes, the Python client and API reference, migration 0060.
+- **Fixed:** every failed recipe run and import kept only "Waiting to
+  start." in its log; the run service now stores a copy of the log on each
+  write. Six run-log and warning strings used retired words ("schema
+  drift", "artifact", "rule"), now tested.
+
 ## 1.0.0 — launch gate, A9 (2026-10-15)
 
 The first version with a number: the gateway, the web app, the Python client

@@ -10,7 +10,7 @@ The checklist shows the five steps that get a project working (add data, clean i
 
 ## Activity
 
-Everything that happened in the project, newest first, in one list: changes people made, runs that finished or failed, incidents that opened or were resolved, comments, and alerts on measures. Each line says who and when, and links to what it is about. Choose a kind to see only that. The list goes back 2,000 items; the [audit log](trust.md#audit-log) keeps every change, including attempts that were refused.
+Everything that happened in the project, newest first, in one list: changes people made, runs that finished or failed, incidents that opened or were resolved, comments, alerts on measures, and contracts broken or kept again. Each line says who and when, and links to what it is about. Choose a kind to see only that. The list goes back 2,000 items; the [audit log](trust.md#audit-log) keeps every change, including attempts that were refused.
 
 ![The demo project's activity: the project made, the file read and the recipe run](images/activity.png)
 
@@ -36,4 +36,4 @@ Use **Send a test** to check one works before relying on it. A failure to send n
 
 Rename the project, describe what it is for, archive it when it is no longer used (it stays readable), or delete it with everything in it.
 
-**Move this project's work** downloads a bundle: one file with the project's recipes, checks, metrics, charts, dashboards, workflows and schedules, but none of its data or passwords. **Import a bundle** in another project, here or on another Pipewright, shows first what will be made and what will be left out and why. Things are matched by name: the datasets, imports and destinations the bundle uses must already exist in the project, or you choose stand-ins for them. Anything whose name the project already uses is left as it is.
+**Move this project's work** downloads a bundle: one file with the project's recipes, checks, contracts, metrics, charts, dashboards, workflows and schedules, but none of its data or passwords. **Import a bundle** in another project, here or on another Pipewright, shows first what will be made and what will be left out and why. Things are matched by name: the datasets, imports and destinations the bundle uses must already exist in the project, or you choose stand-ins for them. Anything whose name the project already uses is left as it is.

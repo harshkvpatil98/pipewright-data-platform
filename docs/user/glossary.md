@@ -18,6 +18,7 @@ Every word Pipewright uses, with one meaning each. If a screen ever uses a word 
 | Check | A rule the data must pass, such as "every order has an email". |
 | Incident | Something that went wrong and needs a person. |
 | Schema change | A column added, removed or retyped at a source. |
+| Contract | A promise about a dataset that new data must keep: its columns, rows and how often it is refreshed. |
 | Destination | Where data is delivered: a database, a file store or a BI tool. |
 | Dashboard | A page of charts that answer one question together. |
 | Chart | A saved question about a dataset, drawn as a picture. |

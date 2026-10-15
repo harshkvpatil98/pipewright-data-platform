@@ -49,7 +49,7 @@ export function referenceWords(reference: Pick<BundleReference, "kind" | "name" 
 }
 
 /**
- * Move a project's work: its recipes, checks, metrics, charts, dashboards,
+ * Move a project's work: its recipes, checks, contracts, metrics, charts, dashboards,
  * workflows and schedules, as one file (A8, Y2). Importing previews first,
  * and asks for anything the bundle needs that this project lacks.
  */
@@ -144,7 +144,7 @@ export function ProjectBundlePanel({ projectId, projectName }: { projectId: stri
     <>
       <SectionPanel
         title="Move this project's work"
-        description="Take its recipes, checks, metrics, charts, dashboards, workflows and schedules to another project. Data and passwords stay here."
+        description="Take its recipes, checks, contracts, metrics, charts, dashboards, workflows and schedules to another project. Data and passwords stay here."
       >
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" onClick={() => void download()}>

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import type {
+  DataContract,
   AuthUser,
   DatasetPreview,
   DatasetProfileSummary,
@@ -54,6 +55,8 @@ import { describeParserMetadata } from "@/features/datasets/parser-metadata";
 import { formatDate, formatNumber } from "@/lib/format";
 import { formatRunTypeLabel, formatStageLabel } from "@/lib/run-labels";
 import { recipeHref } from "@/lib/navigation";
+import { cx } from "@/lib/utils";
+import { chipWords } from "@/features/contracts/contract-words";
 
 type DatasetDetailPageViewProps = {
   currentUser: AuthUser;
@@ -66,6 +69,8 @@ type DatasetDetailPageViewProps = {
   lineageParent: DatasetRecord | null;
   lineagePipeline: TransformationPipelineRecord | null;
   transformationSuggestions: TransformationSuggestion[];
+  /** The dataset's contract, if it has one (C1). */
+  contract: DataContract | null;
 };
 
 const QUALITY_FLAG_LABELS: Record<string, string> = {
@@ -86,6 +91,7 @@ export function DatasetDetailPageView({
   lineageParent,
   lineagePipeline,
   transformationSuggestions,
+  contract,
 }: DatasetDetailPageViewProps) {
   const router = useRouter();
   const [isRenaming, setIsRenaming] = useState(false);
@@ -195,6 +201,15 @@ export function DatasetDetailPageView({
                 href: `/projects/${projectId}/datasets/${dataset.id}/lineage`,
               },
               {
+                id: "contract",
+                label: contract ? "Contract" : "Write a contract",
+                icon: "contract",
+                description: contract
+                  ? "What it promises the people who use it."
+                  : "Promise its columns and rows; stop data that breaks them.",
+                href: `/projects/${projectId}/datasets/${dataset.id}/contract`,
+              },
+              {
                 id: "health",
                 label: "Data health over time",
                 icon: "activity",
@@ -242,6 +257,21 @@ export function DatasetDetailPageView({
               {formatNumber(dataset.row_count)} rows ·{" "}
               {formatNumber(dataset.column_count)} columns
             </span>
+          ) : null}
+          {contract ? (
+            <Link
+              href={`/projects/${projectId}/datasets/${dataset.id}/contract`}
+              className={cx(
+                "rounded-full border px-3 py-1 text-[13px] hover:underline",
+                contract.status === "broken"
+                  ? "border-danger-line bg-danger-soft text-danger"
+                  : contract.status === "kept"
+                    ? "border-success-line bg-success-soft text-success"
+                    : "border-line bg-surface text-ink-2",
+              )}
+            >
+              {chipWords(contract.status)}
+            </Link>
           ) : null}
         </>
       }
@@ -474,6 +504,7 @@ export function DatasetDetailPageView({
           <DatasetVersionHistoryPanel
             projectId={projectId}
             datasetId={dataset.id}
+            contract={contract}
           />
 
           <DatasetCatalogPanel

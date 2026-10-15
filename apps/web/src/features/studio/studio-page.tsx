@@ -1,10 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import type {
   AuthUser,
+  DataContract,
+  DataContractListResponse,
   DatasetRecord,
   TransformationPipelineRecord,
   TransformationRunResponse,
@@ -16,6 +19,7 @@ import type { Command } from "@/components/shell/command-palette";
 import { STUDIO_TOUR_ID, studioTour } from "@/components/tour/tours";
 import { useTour } from "@/components/tour/tour-provider";
 import { ActionMenu } from "@/components/ui/action-menu";
+import { missingPromised } from "@/features/contracts/contract-words";
 import { AddDataDialog } from "@/features/datasets/components/add-data-dialog";
 import { useUnsavedChangesGuard } from "@/features/navigation/unsaved-changes-guard";
 import { DetailsDrawer, type ExecutionPlan } from "@/features/studio/details-drawer";
@@ -184,6 +188,25 @@ export function StudioPage({ currentUser, projectId, datasets, initialDatasetId,
     const timer = setTimeout(() => startIfUnseen(studioTour, STUDIO_TOUR_ID), 1200);
     return () => clearTimeout(timer);
   }, [startIfUnseen]);
+
+  // The contract on the dataset this recipe's runs write, if any (C1): said
+  // here so a step that drops a promised column is seen before it is run.
+  const outputDatasetId = recipe?.output_dataset_id ?? null;
+  const [resultContract, setResultContract] = useState<DataContract | null>(null);
+  useEffect(() => {
+    if (!outputDatasetId) return;
+    let cancelled = false;
+    apiFetch<DataContractListResponse>(`/projects/${projectId}/contracts`)
+      .then((found) => {
+        if (!cancelled) setResultContract(found.items.find((item) => item.dataset_id === outputDatasetId) ?? null);
+      })
+      .catch(() => {
+        /* the notice is a convenience; the run itself is checked regardless */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, outputDatasetId]);
 
   // ------------------------------------------------------------- preview
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
@@ -646,6 +669,14 @@ export function StudioPage({ currentUser, projectId, datasets, initialDatasetId,
               </div>
             ) : null}
 
+            {resultContract ? (
+              <ContractNotice
+                projectId={projectId}
+                contract={resultContract}
+                missing={preview && !loading && !error ? missingPromised(resultContract.terms, preview.preview_columns) : []}
+              />
+            ) : null}
+
             {preview && preview.warnings.length > 0 ? (
               <div className="mb-2 rounded-xl border border-warning-line bg-warning-soft px-3 py-2 text-[13px] text-warning">
                 {preview.warnings.map((warning) => (
@@ -845,5 +876,46 @@ function IconButton({
     >
       <Icon name={icon} size={16} />
     </button>
+  );
+}
+
+function ContractNotice({
+  projectId,
+  contract,
+  missing,
+}: {
+  projectId: string;
+  contract: DataContract;
+  missing: string[];
+}) {
+  const href = `/projects/${projectId}/datasets/${contract.dataset_id}/contract`;
+  if (missing.length === 0) {
+    return (
+      <div className="mb-2 flex items-start gap-2 rounded-xl border border-line bg-surface px-3 py-2 text-[13px] text-ink-2">
+        <Icon name="contract" size={14} className="mt-0.5 shrink-0" />
+        <span>
+          The result goes to {contract.dataset_name}, which has a{" "}
+          <Link href={href} className="underline">
+            contract
+          </Link>
+          . Every run is checked against it.
+        </span>
+      </div>
+    );
+  }
+  return (
+    <div role="status" className="mb-2 flex items-start gap-2 rounded-xl border border-warning-line bg-warning-soft px-3 py-2 text-[13px] text-warning">
+      <Icon name="contract" size={14} className="mt-0.5 shrink-0" />
+      <span>
+        The result no longer has {missing.join(", ")}, which the{" "}
+        <Link href={href} className="underline">
+          contract on {contract.dataset_name}
+        </Link>{" "}
+        promises.{" "}
+        {contract.enforcement === "stop"
+          ? "Running this recipe will be stopped, and the current data kept."
+          : "Running it will save the result and record a problem."}
+      </span>
+    </div>
   );
 }

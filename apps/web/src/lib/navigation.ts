@@ -345,6 +345,16 @@ export const AREAS: NavArea[] = [
         keywords: t("nav.tabs.trust.schema-changes.keywords"),
       },
       {
+        id: "contracts",
+        label: t("nav.tabs.trust.contracts.label"),
+        icon: "contract",
+        path: "/contracts",
+        persona: "data owner",
+        description: t("nav.tabs.trust.contracts.description"),
+        help: tList("nav.tabs.trust.contracts.help"),
+        keywords: t("nav.tabs.trust.contracts.keywords"),
+      },
+      {
         id: "policies",
         label: t("nav.tabs.trust.policies.label"),
         icon: "shield",

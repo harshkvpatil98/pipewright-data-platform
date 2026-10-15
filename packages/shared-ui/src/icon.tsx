@@ -63,7 +63,8 @@ export type IconName =
   | "redo"
   | "mail"
   | "code"
-  | "compass";
+  | "compass"
+  | "contract";
 
 const PATHS: Record<IconName, React.ReactNode> = {
   home: <path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z" />,
@@ -217,6 +218,15 @@ const PATHS: Record<IconName, React.ReactNode> = {
     <>
       <path d="M14 3.5H7A1.5 1.5 0 0 0 5.5 5v14A1.5 1.5 0 0 0 7 20.5h10a1.5 1.5 0 0 0 1.5-1.5V8z" />
       <path d="M14 3.5V8h4.5M9 12.5h6M9 16h4" />
+    </>
+  ),
+  // A page with a seal: a promise written down (data contracts).
+  contract: (
+    <>
+      <path d="M13.5 3.5H7A1.5 1.5 0 0 0 5.5 5v14A1.5 1.5 0 0 0 7 20.5h5" />
+      <path d="M13.5 3.5 18.5 8.5V11M13.5 3.5v5h5M9 9h2.5M9 12.5h4" />
+      <circle cx="17" cy="16.5" r="3" />
+      <path d="m15.5 19 -.5 2.5 2-1 2 1-.5-2.5" />
     </>
   ),
   folder: (

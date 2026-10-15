@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import type {
+  ContractCheck,
   DatasetPreview,
   DatasetTemporalQueryRequest,
   DatasetTemporalQueryResponse,
@@ -33,6 +35,8 @@ import { cx } from "@/lib/utils";
 type DatasetVersionHistoryPanelProps = {
   projectId: string;
   datasetId: string;
+  /** The dataset's contract, so a restore says first whether the version keeps it (C1). */
+  contract?: { enforcement: "stop" | "warn" } | null;
 };
 
 /**
@@ -46,6 +50,7 @@ type DatasetVersionHistoryPanelProps = {
 export function DatasetVersionHistoryPanel({
   projectId,
   datasetId,
+  contract = null,
 }: DatasetVersionHistoryPanelProps) {
   const [history, setHistory] = useState<DatasetVersionListResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -137,6 +142,28 @@ export function DatasetVersionHistoryPanel({
   const [restoreBusy, setRestoreBusy] = useState(false);
   const [restoreError, setRestoreError] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+
+  // Whether the version to restore keeps the dataset's contract, asked as the
+  // dialog opens so the answer is there before anyone confirms.
+  const [restoreCheck, setRestoreCheck] = useState<ContractCheck | null>(null);
+  useEffect(() => {
+    setRestoreCheck(null);
+    if (!restoring || !contract) return;
+    let cancelled = false;
+    apiFetch<ContractCheck>(
+      `/projects/${projectId}/datasets/${datasetId}/contract/check?version=${restoring.version_number}`,
+    )
+      .then((found) => {
+        if (!cancelled) setRestoreCheck(found);
+      })
+      .catch(() => {
+        if (!cancelled) setRestoreCheck(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [restoring, contract, projectId, datasetId]);
+  const restoreRefused = restoreCheck !== null && !restoreCheck.kept && contract?.enforcement === "stop";
 
   const restore = useCallback(async () => {
     if (!restoring) return;
@@ -629,18 +656,38 @@ export function DatasetVersionHistoryPanel({
               variant="primary"
               size="sm"
               onClick={() => void restore()}
-              disabled={restoreBusy}
+              disabled={restoreBusy || restoreRefused}
             >
               {restoreBusy ? "Restoring…" : "Restore this version"}
             </Button>
           </div>
         }
       >
+        {restoreCheck && !restoreCheck.kept ? (
+          <div className="mb-3 rounded-2xl border border-warning-line bg-warning-soft px-4 py-3 text-sm text-ink-2">
+            <p className="font-medium text-warning">Version {restoring?.version_number} breaks this dataset&rsquo;s contract.</p>
+            <ul className="mt-1 list-disc pl-5">
+              {restoreCheck.reasons.map((reason) => (
+                <li key={reason}>{reason}</li>
+              ))}
+            </ul>
+            <p className="mt-1 text-ink-3">
+              {restoreRefused
+                ? "The contract stops data that breaks it, so this version cannot be restored. Change the contract, or set it to warn, first."
+                : "The contract is set to warn, so restoring it is allowed and the problem is recorded."}{" "}
+              <Link href={`/projects/${projectId}/datasets/${datasetId}/contract`} className="underline">
+                Open the contract
+              </Link>
+            </p>
+          </div>
+        ) : restoreCheck?.kept ? (
+          <p className="mb-3 text-[12.5px] text-success">Version {restoring?.version_number} keeps this dataset&rsquo;s contract.</p>
+        ) : null}
         {restoreError ? (
           <div className="rounded-2xl border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger">
             {restoreError}
           </div>
-        ) : (
+        ) : restoreRefused ? null : (
           <p className="text-[12.5px] text-ink-2">
             The current data will become version {history ? (history.current_version ?? 0) + 1 : "…"},
             holding exactly what version {restoring?.version_number} holds. The restored

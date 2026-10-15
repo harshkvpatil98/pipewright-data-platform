@@ -6,6 +6,7 @@ import { ApiError } from "@/lib/api/errors";
 import { requireCurrentUser } from "@/lib/auth/server";
 import { serverApiFetch } from "@/lib/api/server";
 import type {
+  DataContractListResponse,
   DatasetPreview,
   DatasetProfile,
   DatasetRecord,
@@ -67,7 +68,7 @@ export default async function DatasetDetailPage({ params }: DatasetDetailPagePro
       }
     }
 
-    const [preview, profile, relatedRun, suggestionsPayload] = await Promise.all([
+    const [preview, profile, relatedRun, suggestionsPayload, contracts] = await Promise.all([
       serverApiFetch<DatasetPreview>(`/projects/${projectId}/datasets/${datasetId}/preview`),
       serverApiFetch<DatasetProfile>(`/projects/${projectId}/datasets/${datasetId}/profile`),
       dataset.pipeline_run_id
@@ -78,6 +79,8 @@ export default async function DatasetDetailPage({ params }: DatasetDetailPagePro
             `/projects/${projectId}/datasets/${datasetId}/suggestions`,
           ).catch(() => null)
         : Promise.resolve(null),
+      // Its contract's state, for the chip; one list, so no request per dataset.
+      serverApiFetch<DataContractListResponse>(`/projects/${projectId}/contracts`).catch(() => null),
     ]);
 
     return (
@@ -92,6 +95,7 @@ export default async function DatasetDetailPage({ params }: DatasetDetailPagePro
         lineageParent={lineageParent}
         lineagePipeline={lineagePipeline}
         transformationSuggestions={suggestionsPayload?.suggestions ?? []}
+        contract={contracts?.items.find((item) => item.dataset_id === datasetId) ?? null}
       />
     );
   } catch (error) {

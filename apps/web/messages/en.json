@@ -131,7 +131,7 @@
           "description": "What happened in this project, newest first.",
           "keywords": "activity feed history timeline what happened recent changes log",
           "help": [
-            "Changes, runs, incidents, comments and alerts in one list, with who and when.",
+            "Changes, runs, incidents, comments, alerts and contracts in one list, with who and when.",
             "Choose a kind to see only that.",
             "Each line links to what it is about."
           ]
@@ -342,6 +342,16 @@
             "Columns added, removed or retyped at a source since the last import.",
             "Breaking changes are marked, because they can stop recipes working.",
             "Acknowledge a change once you have dealt with it."
+          ]
+        },
+        "contracts": {
+          "label": "Contracts",
+          "description": "Promises about a dataset that new data must keep.",
+          "keywords": "contract promise agreement schema sla freshness consumers follow",
+          "help": [
+            "A contract is a promise about a dataset: its columns, its rows and how often it gets new data.",
+            "New data that breaks it is stopped before it replaces what people use.",
+            "Follow a contract to be told when it breaks, is kept again or changes."
           ]
         },
         "policies": {

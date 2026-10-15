@@ -73,6 +73,8 @@ A worker that stops opens an incident by itself. Work it was doing is marked fai
 
 **Admin → Audit (all projects)** is every change in every project, as sentences, with filters and an export for an auditor. Refused attempts are recorded too. Each project also has its own audit log under Trust. Set `AUDIT_RETENTION_DAYS` to delete entries older than that many days; it keeps everything by default.
 
+**Reveal a token**, on the same page, turns a value a recipe replaced with **Replace with a reversible token** back into the value, for a platform admin only. Give the token and the key name the step used; each reveal is in the audit trail.
+
 ## Backups
 
 `scripts/backup.sh` copies the database and the stored files. Run it with `--verify` to also restore the copy into a scratch database and count the rows: a backup nobody has restored is a hope, not a backup. Run it on a schedule.
@@ -106,6 +108,9 @@ Set these in the gateway's environment unless they say the web. Changes take eff
 | `STORAGE_BACKEND` | Where stored files live: `local` (the server's disk, the default) or `s3` (a bucket, so several servers share them), with `STORAGE_S3_BUCKET`, `_PREFIX`, `_ENDPOINT_URL`, `_REGION`, `_ACCESS_KEY_ID` and `_SECRET_ACCESS_KEY`. |
 | `PROJECT_RUNS_AT_ONCE` | How many runs one project may have going at once (4): recipe runs, imports, deliveries and workflow runs together. A project's admin can set its own number under **Settings**. Queued work waits its turn; a run someone starts beyond it is refused with the reason. `WORKFLOW_MAX_RUNS_PER_PROJECT`, its name when it counted only workflow runs, is still read. |
 | `RUN_MEMORY_LIMIT_MB` | The most memory one run's data may take (2048). A recipe whose data grows past it stops at the step that did it; a join that would is stopped before it is built. On Linux the background worker also limits its own address space to twice this plus 2GB, so a run that tries to take more fails by itself instead of taking the worker down; `WORKER_ADDRESS_SPACE_CAP=false` turns that off for a library that reserves far more memory than it uses. |
+| `ENRICHMENT_ALLOWED_HOSTS` | The web services a recipe's **Look up each value in a web service** step may call, by host, separated by commas: `api.example.com,maps.example.org`. Unset, no recipe calls out. |
+| `ENRICHMENT_SECRETS` | Keys those services need, as JSON of a name to a value: `{"maps": "…"}`. A recipe names the secret; its value never leaves the server's settings. |
+| `GEOCODER_URL` | A Nominatim-style geocoding service for **Find places from addresses** and **Find addresses from places**, such as `https://nominatim.openstreetmap.org`; allow its host in `ENRICHMENT_ALLOWED_HOSTS` too. OpenStreetMap's own server is called at most once a second, as it asks. |
 | `RECIPE_CACHE_MB`, `RECIPE_CACHE_MINUTES` | How much of what recent previews and runs made each server keeps (512MB) and for how long (30 minutes), so changing a recipe's later step does not run the earlier ones again. 0 keeps nothing. |
 | `WORKFLOW_LEASE_SECONDS` | How long a run whose background worker stopped waits before it is marked failed and can be picked up (180, three minutes). A working worker renews it, however long the run. |
 | `RATE_LIMITS_ENABLED` | Set to `false` only for a load test; sign-in and public addresses are limited otherwise. |

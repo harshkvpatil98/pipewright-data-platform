@@ -31,7 +31,8 @@ import os
 import threading
 import time
 from collections import OrderedDict
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -40,6 +41,7 @@ from service_transformations.steps.flags import REMARKS
 
 import pandas as pd
 
+from shared_python.errors import ApplicationError
 from shared_python.memory import check_frame, frame_bytes
 
 
@@ -177,6 +179,17 @@ class Ran:
     source: Any = None
 
 
+@contextmanager
+def step_named(index: int) -> Iterator[None]:
+    """A refusal from inside says which step it came from (E1), unless a nearer one already did."""
+    try:
+        yield
+    except ApplicationError as exc:
+        if exc.step_index is None:
+            exc.step_index = index
+        raise
+
+
 def run_steps(
     *,
     base: str | None,
@@ -228,9 +241,9 @@ def run_steps(
         if before_step is not None:
             before_step(index, step)
         rows_before, columns_before = int(len(frame)), int(len(frame.columns))
-        with watching_reads() as reads:
+        with watching_reads() as reads, step_named(index):
             frame, step_warnings = apply(frame, step)
-        check_frame(frame, where=f"Step {index + 1} ({step.step_type.replace('_', ' ')})")
+            check_frame(frame, where=f"Step {index + 1} ({step.step_type.replace('_', ' ')})")
         warnings.extend(step_warnings)
         outcomes.append(StepOutcome(index=index, step_type=step.step_type, rows_before=rows_before,
                                     rows_after=int(len(frame)), columns_before=columns_before,

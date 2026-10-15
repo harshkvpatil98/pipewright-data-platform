@@ -6,7 +6,7 @@ transformation tool library**, which shipped its machinery and 173 tools in
 2026-08 and named seven families as not built, and **Phase 23,
 extensibility and ecosystem**, which has not started.
 
-**Status:** E1 (the tool library) and E2 (extensibility) in progress.
+**Status:** E1 (the tool library) done, 2026-10-16; E2 (extensibility) in progress.
 
 Each phase measures first, says what it will deliver and when it is done,
 then records what shipped. The rules in `AGENTS.md` and the A0 vocabulary
@@ -15,7 +15,7 @@ em-dashes; UK spelling; `count_of`, never "(s)".
 
 ---
 
-## E1 — The tool library (roadmap Phase 16)
+## E1 — The tool library (roadmap Phase 16) *(done 2026-10-16)*
 
 **Why.** The Studio is meant to be the only tool an analyst opens. Today a
 running total, a rank within a group, an anti join, a percentile, a random
@@ -172,6 +172,107 @@ each find the right tool first; `coverage.py` accounts for all 447 entries;
 1280 and 1024; and a rehearsal on the dev stack builds a recipe using a
 window, a lookup, a check, a forecast and a parameter, runs it, and compares
 its numbers with PostgreSQL's.
+
+### E1: what shipped (2026-10-16)
+
+**379 tools in 22 categories** (173 before), the IR's 201 functions and a
+`Window` node with 23 window functions, the aggregate step's 27 functions
+and the join step's eight kinds. `tools/coverage.py` maps **all 447
+entries** of the roadmap's list: 364 to tools, 57 to a step setting that
+`test_tool_coverage.py` runs on a sample table, 25 to a Studio or recipe
+feature with the test that exercises it, and one, the custom plugin, to
+E2. The test reads the list from `roadmap-v2.md` itself, so the two
+cannot drift.
+
+| | Before | After |
+|---|---|---|
+| Tools | 173 in 11 categories | 379 in 22 |
+| The roadmap's 447 entries | 7 families named as not built | Every one done by a tool, a step setting or a feature, by test; the plugin is E2's |
+| The 29 everyday searches | 26 found nothing, 2 the wrong tool | All find what they mean first, on the server and in the Studio, against the real catalogue (`test_tool_search.py`, `palette-search.test.ts`) |
+| The IR | No window node | `Window`, pushed down where ties cannot change the answer |
+| The aggregate step | 11 functions | 27, each lowered where exact and proven |
+| The join step | Inner, left, right, outer | Plus full, cross, semi and anti (EXISTS) |
+| Pushdown proof | Per function | Every tool that pushes down, run on SQLite and PostgreSQL against the engine (`test_tool_sql_agreement.py`) |
+| A recipe | No off switch, no copies of steps, no parameters | Steps turn off, duplicate, take notes, group (a macro) and take threads; parameters per run; templates, branches and merges, comparison, the steps on another dataset, one recipe per value |
+
+By part:
+
+- **T1, windows.** The `Window` node, run by both backends with SQL's
+  rules; ranks and totals over peers or a whole partition push down, the
+  order-dependent rest stays here. Rewrites, estimates, the planner, join
+  reordering, incremental runs, provenance and lineage know it; queries
+  across sources take window functions. 31 window and analytic tools.
+- **T2, aggregates and joins.** 16 more aggregate functions, one
+  implementation for the step and the engine; full, cross, semi and anti
+  joins; as-of, range and fuzzy joins, side by side, intersect and except,
+  each reading another dataset as `right_dataset_id`, which kept results,
+  replay pins, lineage and impact follow. A dataset picker in tool forms.
+- **T3, the everyday families.** Rows, columns, reshape, text, numbers,
+  dates, conversion, missing data and cleansing, including holidays by
+  country and region, fiscal periods, a date spine, interpolation,
+  transliteration, language detection, addresses (UK and US rules),
+  measurements and reversible tokens. A formula filter keeps rows where a
+  formula holds, and pushes down.
+- **T4, checks, matching and lookups.** 15 checks inside a recipe that
+  stop the run naming the rows, warn, or mark them to quarantine;
+  deduplication and matching on `shared_python/matching.py`, which the
+  Assistant shares; lookups from a dataset with a default, a hierarchy,
+  calendar columns, historical rates, company from domain and country
+  from IP.
+- **T5, statistics, machine learning, sampling and places.** 28
+  statistics with method, statistic, p-value and a sentence each; 18 models
+  fitted in the step, seeded, with a stated measure of how good they are;
+  12 seeded samples and splits; 17 place tools on WKT, haversine pushed
+  down.
+- **T6, code, metadata and the recipe.** SQL over the step's input
+  (parsed into the IR), sandboxed Python, a jq subset, an inline lookup
+  table, templates, an HTTP lookup per value (allowed hosts, server-side
+  secrets, retries, pacing; never kept or run incrementally, and it says
+  so) and geocoding through a configured service. Metadata steps write the
+  output's catalogue entry on each run; a data dictionary as Markdown or
+  CSV. Parameters, templates, branches with a merge preview and conflicts,
+  comparison, the steps on another dataset, one recipe per value, a thread
+  on one step, a regex tester answered by the engine's own expressions,
+  and token reveal for an administrator. In the Studio: the More menu's
+  dialogs, a step's power, duplicate, group, note and comment buttons,
+  right-click a cell to keep or drop rows like it, and a schema check that
+  fills in the columns as they are now.
+- **T7, accounted for.** `tools/coverage.py` and its test; search ranks
+  a query that names a tool first and treats a single letter as a whole
+  word; the palette leads with steps or tools by whichever matches better;
+  the command palette finds the open step's actions; the Studio's tests rank
+  against a checked-in copy of the catalogue that a server test keeps
+  current.
+
+**Faults found and fixed on the way** (each with a test): PostgreSQL
+divided whole numbers as whole numbers and stopped on a zero; text sorted
+by collation there and by character codes here; a multi-key sort placed
+every key's empties where the first key said; five aggregates were
+declared with no implementation; ROUND rounded half to even here and half
+away from zero in every database; a text-to-number cast gave empty, 0 or
+an error depending on where it ran; a date function over text failed in
+PostgreSQL; SUBSTR with two arguments wrote SQL no database parses; a
+local tool's warnings were dropped; a forecast read periods as nanoseconds
+since 1970; saving parameters reset the shared copy and threw away
+everyone's unsaved changes; a malformed parameter was a 500; a merge
+preview was audited as a merge and the regex tester filled the audit log;
+"t test" found the train/test split first, "distance" found Buffer, "trim"
+found Trim quotes, "remove duplicates" found the fuzzy remover and "zip
+code" found the address parser; an HTTP lookup was refused incremental
+runs with the wrong reason; the Studio's tests loaded two copies of React,
+so a shared component's hooks found none. The rehearsal found four more: a
+step's problem was shown under whichever step was open (the refusal now
+says which step it came from), a tool step that works on no one column read
+"Not set up yet" however it was set up, a failing check said "Rows 1, 2, 3,
+4 and 5 and more" (now "and 265 more") and named itself "Check" rather than
+by its title, and the retired recipe addresses redirected from inside a page
+(now from the web's configuration).
+
+**Deliberately not done.** The custom plugin entry is E2's (X1). Steps in
+a group are grouped by a shared name and stay ordinary steps: a group
+saved as a template is a copy, so changing the template later does not
+change the recipes it was added to. A Python step runs only where the
+notebook sandbox holds (not on macOS), and says so.
 
 ---
 

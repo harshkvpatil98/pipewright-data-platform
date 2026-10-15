@@ -20,7 +20,9 @@ const tidy: TimelineStep[] = [
   { uid: "after", step_type: "limit_rows", config: { count: 5 } },
 ];
 
-function render(openUid: string | null, steps: TimelineStep[] = plain) {
+type Problem = { message: string; incomplete: boolean; uid: string | null } | null;
+
+function render(openUid: string | null, steps: TimelineStep[] = plain, problem: Problem = null) {
   const handlers = {
     onChange: vi.fn(),
     onDuplicate: vi.fn(),
@@ -45,7 +47,7 @@ function render(openUid: string | null, steps: TimelineStep[] = plain) {
         onRemove: () => {},
         onAdd: () => {},
         onTemplates: null,
-        problem: null,
+        problem,
         tools: [],
         columns: [{ name: "x" }],
         datasets: [],
@@ -82,6 +84,21 @@ describe("the steps", () => {
     const { button, unmount } = render("new");
     expect(button("Save the recipe to comment on this step").disabled).toBe(true);
     unmount();
+  });
+
+  it("show a problem under the step that has it, not the open one", () => {
+    const problem = { message: "'manager' is not in this dataset.", incomplete: false, uid: "new" };
+    const { container, unmount } = render("a", plain, problem);
+    const cards = [...container.querySelectorAll("li")].filter((item) => item.textContent?.includes("cannot run"));
+    expect(cards).toHaveLength(1);
+    expect(cards[0].textContent).toContain("Remove columns");
+    unmount();
+    // Said nowhere in particular, it goes under the open step.
+    const open = render("a", plain, { ...problem, uid: null });
+    const under = [...open.container.querySelectorAll("li")].filter((item) => item.textContent?.includes("cannot run"));
+    expect(under).toHaveLength(1);
+    expect(under[0].textContent).toContain("Only a few while we check");
+    open.unmount();
   });
 
   it("move a step up and down", () => {

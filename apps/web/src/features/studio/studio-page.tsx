@@ -56,7 +56,7 @@ import type { ToolCatalogue } from "@/features/studio/tools/tool-catalogue";
 import { planPhrase, previewScope } from "@/features/studio/studio-words";
 import { sortForView, type ViewSort } from "@/features/studio/view-sort";
 import { apiFetch } from "@/lib/api/client";
-import { ApiError, extractErrorMessage } from "@/lib/api/errors";
+import { ApiError, extractErrorMessage, failedStepIndex } from "@/lib/api/errors";
 import { friendlyStepMessage } from "@/lib/labels";
 import { cx } from "@/lib/utils";
 import { countOf, formatCount, formatShortDate, formatTime } from "@/lib/format";
@@ -304,6 +304,8 @@ export function StudioPage({
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Which step the problem is in, when the server says (from 0).
+  const [errorStep, setErrorStep] = useState<number | null>(null);
   // Generation-guarded: a slow response never overwrites a newer one.
   const generation = useRef(0);
 
@@ -321,6 +323,7 @@ export function StudioPage({
       const ticket = ++generation.current;
       setLoading(true);
       setError(null);
+      setErrorStep(null);
       try {
         const response = await apiFetch<PreviewResponse>(
           `/projects/${projectId}/datasets/${activeDatasetId}/pipelines/preview`,
@@ -334,7 +337,10 @@ export function StudioPage({
         // The last good preview is kept, marked stale: a step is added before
         // it is set up, and the data vanishing at that moment is exactly when
         // somebody needs to look at it.
-        if (ticket === generation.current) setError(extractErrorMessage(caught));
+        if (ticket === generation.current) {
+          setError(extractErrorMessage(caught));
+          setErrorStep(failedStepIndex(caught));
+        }
       } finally {
         if (ticket === generation.current) setLoading(false);
       }
@@ -719,7 +725,9 @@ export function StudioPage({
 
   // ------------------------------------------------------------- display
   const incomplete = error !== null && INCOMPLETE.test(error);
-  const problem = error ? { message: error, incomplete } : null;
+  const problem = error
+    ? { message: error, incomplete, uid: errorStep === null ? null : (steps[errorStep]?.uid ?? null) }
+    : null;
   const plan = preview?.execution_plan ?? null;
 
   const toolCommands = useMemo<Command[]>(
@@ -1079,7 +1087,7 @@ export function StudioPage({
               savedStepIds={savedStepIds}
               onAdd={() => openPalette()}
               onTemplates={datasetId ? () => setTemplatesOpen(true) : null}
-              problem={openUid ? problem : null}
+              problem={problem}
               tools={catalogue.items}
               columns={settingsColumns}
               datasets={datasets.filter((item) => item.id !== datasetId).map((item) => ({ id: item.id, name: item.name }))}

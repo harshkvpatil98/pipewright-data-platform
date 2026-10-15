@@ -4,8 +4,8 @@
 last one stopped. Keep it current. If you change project state, update the **Progress ledger**
 and **Session log** at the bottom before you finish.
 
-**Last updated:** 2026-10-15 (roadmap Phase 20 complete as D1, live data)
-**Updated by:** session `75332b59` (adoption-readiness A0–A9, then C1 contracts, C2 working together and D1 live data)
+**Last updated:** 2026-10-16 (roadmap Phase 16 complete as E1, the tool library)
+**Updated by:** session `75332b59` (adoption-readiness A0–A9, then C1, C2, D1, D2 and E1)
 
 ---
 
@@ -113,7 +113,7 @@ was for that push, not a standing one.
 | 06 | Intelligence | `service-intelligence` | PII, join keys, entity resolution — **no model calls** |
 | 07 | Enterprise | `service-enterprise` | Tenancy, row/column security, retention, SSO, `/metrics` |
 
-**Migrations:** `apps/api-gateway/alembic/versions/`, 65 files, head is `0065_incremental_runs`.
+**Migrations:** `apps/api-gateway/alembic/versions/`, 66 files, head is `0066_recipe_management`.
 
 ### Roadmap v2: in progress
 
@@ -121,7 +121,8 @@ See [`roadmap-v2.md`](./roadmap-v2.md) — 16 phases across 4 tracks, ≈58 sess
 Phases **08, 09, 10, 11, 12, 13, 14, 15, 17, 18** and, since 2026-10-15,
 **19 and 21** (as C1 and C2 in `docs/plans/contracts-and-collaboration.md`)
 and **20** and **22** (as D1 and D2 in `docs/plans/live-data-and-performance.md`)
-are done, **16** shipped its machinery plus 173 tools; **23** has not started. The progress ledger in §8
+and, since 2026-10-16, **16** (as E1 in `docs/plans/tools-and-extensibility.md`: 379 tools, all 447
+roadmap entries accounted for) are done; **23** is E2 in the same plan. The progress ledger in §8
 tracks the rest.
 
 ---
@@ -276,7 +277,7 @@ honesty; if you verify one, update its status here.
 | gRPC absent | Needs `grpcio` and a reflection-based dynamic client |
 | Lineage is still derived from `columns.py`, not the IR | P9 made the IR the only *executor*; `service_lineage/from_ir.py` derives schemas, not edges, so cutting lineage over means writing edge derivation first. `test_matches_ir.py` still proves the two agree |
 | Contracts are per dataset, here | C1: a contract is about one dataset in this deployment. Nothing publishes it to another deployment or holds it at the source, and a downstream recipe is listed as relying on a dataset rather than notified itself (its owner can follow). Erasing a person's data is never stopped by a contract, by design; a promise it breaks is recorded |
-| Queries across sources cover the SQL databases and datasets | D2: `service_workbench/across.py` reads PostgreSQL, MySQL and SQLite connections (the ones `service_extraction` runs SQL against) and datasets; a table behind another connector joins once it is imported. Subqueries, WITH, UNION, LATERAL and window functions are refused by name; an outer join joins on equal columns only; a source that would send more than 1,000,000 rows (`MAX_SOURCE_ROWS`) stops the query rather than join part of a table; datasets are read whole, under the reader's policies |
+| Queries across sources cover the SQL databases and datasets | D2: `service_workbench/across.py` reads PostgreSQL, MySQL and SQLite connections (the ones `service_extraction` runs SQL against) and datasets; a table behind another connector joins once it is imported. Subqueries, WITH, UNION and LATERAL are refused by name; window functions run (E1), except over grouped results and with a frame other than ROWS n PRECEDING to the current row or the whole partition; an outer join joins on equal columns only; a source that would send more than 1,000,000 rows (`MAX_SOURCE_ROWS`) stops the query rather than join part of a table; datasets are read whole, under the reader's policies |
 | Table statistics outside PostgreSQL come from the first rows | D2: `table_statistics.py` reads PostgreSQL's own statistics without touching the table; anything else is described from the first 10,000 rows it returns (a random sample would read the whole table) with the database's own row count, MySQL's `TABLE_ROWS` being an estimate itself. Every plan says which. Statistics never run ANALYZE |
 | Estimates assume columns are independent | D2: `ir/estimate.py` multiplies selectivities for AND, the textbook simplification; correlated filters are estimated low. Histograms are kept for numbers and dates only; a text range is a stated guess |
 | Join order by cost is for the IR's own joins | D2: `ir/reorder.py` reorders runs of three or more inner joins on equal columns with no shared column names: queries across sources and estimates. A recipe's "Join another dataset" steps run one at a time, in the order written |
@@ -298,7 +299,12 @@ honesty; if you verify one, update its status here.
 | Temporal SQL runs in SQLite over a copy | `AS OF` queries load the version's artifact into an in-memory SQLite table named `dataset`; the dialect is SQLite's, not the source's, and results are capped at 1,000 rows. Customer SQL sent to customer databases is never rewritten (settled decision #8) |
 | No pagination on version history or diff samples | Listings return every version; diff samples are capped at a declared 20 while counts stay exact. A dataset with thousands of versions would want cursors, which do not exist yet |
 | `today()` is the UTC date of the frozen instant | Before P7 it was the host's local date. Recorded in the run's execution context (`timezone: UTC`); a deliberate semantic change, stated rather than hidden |
-| Tool library is 167, not the roadmap's 420 | Window, statistical/ML, geospatial, fuzzy-matching, enrichment and recipe-management families are absent by name in `roadmap-v2.md`. Each needs something the IR does not have yet (a window node, a geometry type, a network policy) rather than more declarations |
+| The custom plugin entry of the tool list waits on E2 | E1: `tools/coverage.py` accounts for 446 of the roadmap's 447 entries by a tool, a step setting it runs or a feature with its test; "custom-plugin (Phase 23)" is marked `later` until E2's plugin SDK, and `test_tool_coverage.py` allows only that one |
+| A group of steps is a name, not a link | E1: steps next to each other with one `_group` name show, turn off and save as a template together. A template is a copy: changing it later does not change recipes it was added to. Nothing calls a template by reference at run time |
+| Web-service steps need the administrator's word | E1: `code.http_enrich` calls only hosts in `ENRICHMENT_ALLOWED_HOSTS`, with secrets from `ENRICHMENT_SECRETS`, at most 10,000 different values a step (`escape.MAX_DISTINCT`); geocoding needs `GEOCODER_URL`, its host allowed too (OpenStreetMap's own server is paced to one call a second). With neither set, each says so. Such a recipe is never kept or run incrementally |
+| Metadata steps write over a person's edits on each run | E1: a recipe's describe, tag, classify, owner and glossary steps write the output's catalogue entry every time it runs, so the recipe is the documentation; an edit made by hand to the same field lasts until the next run |
+| One recipe per value stops at 50 | E1: `recipe_management.MAX_SPLIT`; a column with more values is refused with the count, and a list of the values wanted can be given instead |
+| The Python step is disabled on macOS | E1: it runs through the notebook sandbox, which macOS cannot hold (see the notebook row); the step says so, and runs on Linux |
 
 ---
 
@@ -316,14 +322,14 @@ honesty; if you verify one, update its status here.
 | 13 | Data grid | **done** | 4/4 | Canvas grid, selection, clipboard, profiling, header interactions, step deltas. Editing wired by 15 |
 | 14 | Formula engine | **done** | 3/3 | Lexer, parser to IR, 87-function catalogue, formulas push down |
 | 15 | Write-back | **done** | 3/3 | Change sets, identity, dry run, blast radius, batching, Table editor page |
-| 16 | Tool library (→420) | **partial** | 3/6 | 173 tools + the registry, harness, API, docs and UI. Window/statistical/geo/enrichment families deliberately absent |
+| 16 | Tool library (→420) | **done** | 6/6 | 173 tools by 2026-08, then **E1 (2026-10-16)**: 379 tools in 22 categories, a `Window` node (`ir/window_functions.py`, `ir/pandas_window.py`), 27 aggregates, 8 join kinds, statistics, ML, sampling, places, checks, matching on `shared_python/matching.py`, lookups, code steps, metadata steps, recipe management (`steps/flags.py`, `parameters.py`, `recipe_management.py`, migration 0066), every pushed tool proven on SQLite and PostgreSQL, all 447 roadmap entries in `tools/coverage.py` |
 | 17 | SQL IDE & notebook | **done** | 3/3 | Workbench, notebook, sandbox, recipe-as-code. Python cells disabled on macOS by design |
 | 18 | Time travel | **done** | 3/3 | Immutable versions (0038–0040), temporal reads, `AS OF` SQL, diff, rollback, deterministic replay with recorded execution context, erasure reconciled, pin + two-step prune protocol, viewer/editor matrix, scripted live acceptance. Delivered as production-readiness P7 — see `docs/plans/phase-18-decisions.md` |
 | 19 | Semantic layer & contracts | **done** | 3/3 | Metrics defined once on the IR (`service_reporting/metrics.py`, migration 0044), resolved everywhere. **Data contracts (C1, 2026-10-15)**: `service_quality/data_contracts.py`, migration 0060; promises per column and per dataset, enforced before storing by recipe runs, imports and stream saves, refused on rollback, recorded on erasure; problems once per source, overdue from the freshness promise, followers, what relies on it |
 | 20 | Streaming & CDC | **done** | 4/4 | P9's webhooks and PostgreSQL CDC, then **D1 (2026-10-15)**: `service_extraction/live/` (PostgreSQL, MySQL binlog, MongoDB change streams, SQL Server CDC; Kafka, Event Hubs, Kinesis, Pub/Sub, Pulsar, RabbitMQ, NATS, MQTT), tables kept current by key after a first copy, positions committed with events, guarantees stated per kind, live recipes with four window kinds, watermarks, lateness and exactly-once state (`live/windows.py`, `live_recipes.py`), `platform-live-runner`, migration 0062, a `live` CI job against every server |
 | 21 | Collaboration | **done** | 3/3 | Comments with @mentions (P8). **C2 (2026-10-15)**: recipes co-edited in a shared copy merged by a CRDT (`service_transformations/coedit.py` + `studio/coedit.ts`, shared fixtures, selective per-person undo), revisions refusing stale saves, presence with step focus, suggestions any viewer can make and editors accept step by step, threads with replies on dataset cells, a per-dataset change feed (migration 0061) |
 | 22 | Optimizer | **done** | 4/4 | P9's five rewrites, then **D2 (2026-10-15)**: statistics per dataset version and per imported database table (`shared_python/statistics.py`, `service_extraction/table_statistics.py`, migration 0063), estimates for every node (`ir/estimate.py`) shown beside counted rows in the Studio, the remaining rewrites and join order by cost (`ir/reorder.py`), queries across sources with IN lists and re-planning (`service_workbench/across.py`), kept results (`prefix_cache.py`), incremental runs (`incremental.py`, migration 0065), runs at once, priorities and a memory ceiling (`service_pipeline_runs/limits.py`, `shared_python/memory.py`, migration 0064) |
-| 23 | Extensibility | not started | 0/3 | Needs most |
+| 23 | Extensibility | in progress | 0/3 | E2 in `docs/plans/tools-and-extensibility.md` |
 
 **Business documentation (2026-09-23):** [Business requirements](business-requirements.md)
 and its [40-page PDF](../output/pdf/Pipewright_Business_Requirements_Document.pdf)
@@ -333,13 +339,42 @@ increments without declaring P2 complete; later development is outside that snap
 
 ### Recommended next action
 
-**The current plan, `docs/plans/live-data-and-performance.md`, is finished**:
-D1 (roadmap Phase 20, live data) and D2 (Phase 22, performance) are done as
-of 2026-10-15, after `docs/plans/contracts-and-collaboration.md` finished C1
-and C2. Phase 23 (extensibility) is the last roadmap phase not started, and
-Phase 16's missing tool families the last partial one; each needs its own
-measured plan. Owner-only items still wait: tagging v1.0.0, publishing the
-docs site, and the cold-user sessions.
+**The current plan is `docs/plans/tools-and-extensibility.md`.** E1
+(roadmap Phase 16, the tool library) is done as of 2026-10-16; E2 (Phase 23,
+extensibility: plugins, scoped tokens and Terraform, importers from other
+tools, a library of shared work, the embedded Studio) is next and the last
+roadmap phase. Owner-only items still wait: tagging v1.0.0, publishing the
+docs site and images, publishing a Terraform provider, and the cold-user
+sessions.
+
+Rules for anyone touching the tool library and recipes (E1):
+
+- **Every roadmap entry stays accounted for.** A tool, step setting or
+  feature that does an entry of Phase 16's list belongs in `tools/coverage.py`;
+  `test_tool_coverage.py` reads the roadmap itself, runs every step entry's
+  config and checks every feature's test exists by name.
+- **A step's flags are underscored settings** (`steps/flags.py`: `_enabled`,
+  `_note`, `_group`), stripped before a step runs, is checked or described.
+  A new place that reads step configs must go through `without_flags`, and
+  `prefix_cache.step_keys` must ignore the remarks (`REMARKS`), or a note
+  would recompute a result. The Studio carries them through a settings form
+  with `keepFlags`.
+- **Parameters are written in first** (`parameters.resolve`), in previews
+  and runs, so everything after them sees plain steps and a replay repeats
+  the steps as they ran. Changing them is not a step change: it keeps the
+  revision and the shared copy.
+- **A tool that asks something outside the data** sets `calls_out` and goes
+  through `escape.call_each`, which marks the result unkeepable; incremental
+  runs refuse it by that flag.
+- **Search answers on both sides.** `tools.search` and the Studio's
+  `rankTools` share their rules; a change to one is a change to both, and
+  `apps/web/src/features/studio/tools/search-catalogue.json` (regenerated by
+  `scripts/generate-tool-reference.py`, checked by `test_tool_router.py`)
+  lets the Studio's tests rank against the real catalogue.
+- **Pushdown is proven, not declared.** A tool that pushes down must agree
+  with the engine on its example in SQLite and PostgreSQL
+  (`test_tool_sql_agreement.py`); anything whose SQL could differ (ties,
+  text casts, collation) stays local and says so.
 
 Rules for anyone touching the optimiser and runs (D2):
 
@@ -844,7 +879,7 @@ modules. Read `spec.py` first; everything else follows from the shape it
 defines. Adding a tool means one declaration in a category module and a run of
 `scripts/generate-tool-reference.py` -- nothing else.
 
-- **One `tool` step type covers all 167.** Editing the step vocabulary, the
+- **One `tool` step type covers all 379** (E1, 2026-10-16). Editing the step vocabulary, the
   validator, the lineage table and the UI catalogue for each new tool is how a
   library of hundreds stops being consistent. `compile_step` handles `tool`
   directly and asks the spec to build its own node.
@@ -869,8 +904,9 @@ defines. Adding a tool means one declaration in a category module and a run of
 - **A setting has to be constant across rows**, and `_literal` checks it. The IR
   will happily let somebody pass a column where a pattern belongs; reading row
   zero and applying it everywhere looks entirely plausible in the output.
-- **Local-only is the honest default.** 109 of the 186 IR functions declare no
-  Postgres lowering. That is the Phase 08 rule, not neglect: SQL that means
+- **Local-only is the honest default.** In 2026-08, 109 of the 186 IR functions
+  declared no Postgres lowering; E1 took the catalogue to 201 and proved every
+  tool that pushes down against SQLite and PostgreSQL. That is the Phase 08 rule, not neglect: SQL that means
   something *close to* the local implementation is worse than none, because the
   difference only shows as numbers that disagree depending on where it ran.
 
@@ -1108,3 +1144,4 @@ Report honestly. If something is unverified, say so and add it to §7.
 | 2026-10-15 | `75332b59` | **Phase 21 complete: working together (C2).** Measured first: two saves of one recipe silently overwrote each other; no presence; viewers could neither comment nor propose; recipe change requests had no "before" and could never be applied; "Changes need approval" could not be switched on; comments were flat; a dataset had no history of what happened. Shipped: recipe revisions with stale saves refused (409 naming who); a shared copy per recipe merged by a CRDT twinned in Python and TypeScript with shared fixtures and a three-person convergence test; per-person selective undo; presence with step focus; suggestions from any viewer, reviewed step by step in the Studio and Approvals (Accept/Decline), authors and reviewers told; the approval setting; threads with replies and cell anchors on dataset rows; a per-dataset feed on History (migration 0061). Found and fixed: key-order comparisons calling equal settings different (Bob's Studio stuck on "Unsaved changes"), a presence and shared-copy insert race (test fails 3/3 on old code), an endless Studio preview loop (found by the accessibility suite), a first save reopening as an empty recipe (found by the golden path), and CI's verify failing after C1 because create_all on PostgreSQL altered shared table definitions (fixed and pushed separately). Rehearsed live with three browsers: rename propagated in 842 ms, undo left the other's change, both showed Saved, a viewer's suggestion declined with a note that reached him. `npm run verify` green with no `.env`, 6,608 Python passed / 628 skipped, 848 web; golden path and accessibility suites green against the dev stack; every page walked at 1280 and 1024 with no problem |
 | 2026-10-15 | `75332b59` | **Phase 20 complete: live data (D1).** Plan `docs/plans/live-data-and-performance.md`, measured first (a change committed during a poll was lost every time; no snapshot, no table "as it is now"; 20,000 changes took 41 polls, 20 minutes; saving rewrote every event; webhook retries stored twice; two kinds; the CDC test skipped on CI). Shipped `service_extraction/live/` (13 kinds: PostgreSQL, MySQL, MongoDB and SQL Server change capture; Kafka, Event Hubs, Kinesis, Pub/Sub, Pulsar, RabbitMQ, NATS, MQTT; webhooks), tables kept current by key after a first copy, positions committed with events and acknowledgements after, guarantees per kind, live recipes (`live/windows.py`: four window kinds, watermark, drop or restate; `live_recipes.py`: steps, lookup, exactly-once state), `platform-live-runner`, migration 0062, a Live feeds tab and page per feed, `docker-compose.live.yml`, `scripts/check-live-servers.py` and a `live` CI job. Faults found: the ::1 outbound refusal, sums counted once per measure, mixed lowest/highest, PostgreSQL deletes skipped, a foreign key broken on PostgreSQL (SQLite hid it), the Kinesis test server's repeats. Rehearsed live: first copy of 1,000 rows in 1s, changes in 6s, 20,000 in 8s, 120 Kafka messages summarised by minute, a webhook retry saved once, the add-feed and live-recipe forms in a browser. 76 pages walked at 1280 and 1024 with no problem. 6,684 Python passed, 667 skipped; 854 web. |
 | 2026-10-15 | `75332b59` | **Phase 22 complete: performance (D2).** Plan `docs/plans/live-data-and-performance.md`, measured first (no statistics; editing step 14 of 15 ran all 15 over a fresh read; no queries across sources; an appended re-run recomputed everything; 900,000,000-row joins unstopped; ten runs at once). Shipped statistics per version and per imported table (0063), estimates beside counted rows, the remaining rewrites and join order by cost, queries across PostgreSQL, MySQL, SQLite and datasets with IN lists and re-planning, kept results, incremental runs (0065), runs at once, priorities and a memory ceiling (0064). Found and fixed 18 faults, among them a plan's SQL naming a denied column, the pandas backend joining empty keys, a MySQL read draining the rest of a table, an erasure leaving statistics behind, and a run crashing on a preview's kept input. Changing step 14 of 15 on 1,000,000 rows: 0.54 to 0.75 s; an appended re-run: 6.5 s against 17.2 s. 7,829 Python tests collected, 863 web |
+| 2026-10-16 | `75332b59` | **Phase 16 complete: the tool library (E1).** Plan `docs/plans/tools-and-extensibility.md`, measured first (173 tools; 26 of 29 everyday searches found nothing; no window node; 11 aggregates; no way to turn a step off). Shipped 379 tools in 22 categories: windows (a `Window` IR node, pushed down where ties cannot change the answer), 27 aggregates and 8 join kinds, the everyday families, checks inside a recipe, matching on `shared_python/matching.py`, lookups, statistics, ML, sampling, places, code and metadata steps; recipes with steps off, notes, groups and threads, parameters, templates, branches and merges, comparison, copies and one recipe per value (migration 0066); every pushed tool proven on SQLite and PostgreSQL; `tools/coverage.py` maps all 447 roadmap entries (the plugin waits on E2). Faults found and fixed: PostgreSQL integer division, collation order, ROUND's halves, text casts, multi-key sort empties, five aggregates with no implementation, SUBSTR with two arguments, parameters resetting the shared copy, a merge preview audited as a merge, "t test" finding the train/test split, a step's problem shown under the open step instead of its own, tool steps saying "Not set up yet" when set up, an HTTP lookup refused incremental runs for the wrong reason, two Reacts in the Studio's tests. Rehearsed on the dev stack: a recipe with a window, a lookup, a check, a forecast and a parameter run with a value matched PostgreSQL on 86 days; an HTTP lookup against a local service; a merge conflict; one recipe per region; a metadata step in the catalogue; the Studio's new tools clicked through at 1280 and 1024. 10,666 Python passed (749 skipped) in the CI environment, 924 web; 73 pages walked at both widths with none failing |

@@ -31,7 +31,43 @@ Everyone who opens a saved recipe in the Studio edits the same copy of it. What 
 
 Someone who may look at a recipe but not change it (a viewer or an operator), or anyone in a project whose changes need approval, sees **Suggest** where Save would be. Change the steps as you would, then **Suggest**: give it a title and a reason, and it goes to the people who may edit the recipe. They see "1 suggestion waiting" in the Studio and under [Approvals](trust.md#approvals), compare it step by step, and accept it (it becomes the recipe's next version) or decline it with a note. You hear which.
 
-**Start from a template** offers recipes for common jobs, such as tidying a customer list, matched to your columns.
+**Start from a template** offers recipes for common jobs, such as tidying a customer list, matched to your columns, and the templates people in this project have saved.
+
+### The tool library
+
+**Add a step** finds nearly 400 tools as well as the common steps, by the words people use: "running total", "previous row", "anti join", "fuzzy join", "t test", "forecast", "geocode". Whichever matches better comes first. The families: rows and columns, text, numbers, dates and holidays, conversion, missing data, cleansing, windows (rank, running totals, moving averages, the row before), summaries (percentiles, mode, correlation, weighted average), joins of every kind (semi, anti, cross, as of a date, within a range, by similar text), checks that stop a run or mark the rows that fail, matching and golden records, lookups, statistics, machine learning, sampling, places, privacy, code and metadata. Each tool shows an example of what it does before you add it.
+
+- **Right-click a cell** in the preview to keep only the rows with its value, or to drop them.
+- A tool that takes a pattern has **Try the pattern on some values**, answered by the same regular expressions a run uses.
+- **Check the columns** has **Fill in the columns as they are now**, so a later change to the columns stops the run.
+- Statistics and models say how they worked out their answer and how far to trust it. Models are fitted on the step's input every run, the same way each time; nothing is kept between runs, and no language model is used.
+- **Look up each value in a web service** and **Find places from addresses** call only services an administrator has allowed, once for each different value, and say how many calls they made. A recipe with one always runs in full.
+
+### Turning steps off, notes and groups
+
+Open a step to see its buttons:
+
+- **Turn this step off** keeps it in the recipe and skips it: its rows pass through unchanged. Turn it on again the same way.
+- **Duplicate this step** adds a copy under it.
+- **Note** says why the step is there; the note is kept with the recipe and changes nothing.
+- **Group this step with the next** puts steps under one name. A group folds away, turns off and on as one, and **Save as a template** keeps its steps for anyone in the project to add to another recipe.
+- **Comment on this step** starts a thread about it under **Details → Comments**.
+
+The command palette (`Ctrl+K`) finds these too: type "disable a step".
+
+### Parameters
+
+Write `{{name}}` in any setting, such as a filter's value or a file name, and declare it under **More → Parameters** with a kind (text, number, whole number, date, true or false) and a default. Each run takes the default unless it is given another value: **More → Run with other values**, a schedule, a workflow or the API. **More → Preview with other values** shows the result with different values without changing the defaults.
+
+### Templates, branches and copies
+
+From **More**:
+
+- **Save steps as a template**: the steps, for anyone in the project, under **Start from a template**.
+- **Branch this recipe**: a copy to try changes in. **Merge into** the recipe it came from shows what would change first; where both changed the same setting, choose whose wins.
+- **Compare with another recipe**: what this one does differently, step by step.
+- **Use on another dataset**: the same steps reading another dataset, such as next month's file. It says if the other dataset lacks a column the steps use.
+- **One recipe for each value**: a copy for each region, client or other value of a column, each keeping only its rows (up to 50).
 
 When it looks right, **Save**, then **Run** to make the result a dataset. Run it again any time, or put it on a [schedule](automate.md#schedules).
 

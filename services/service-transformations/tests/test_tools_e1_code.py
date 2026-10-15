@@ -313,3 +313,21 @@ class TestMerge:
         theirs = [self.BASE[1], self.BASE[0]]
         merged, _, _ = self.merge(list(self.BASE), theirs)
         assert [i for i, _ in merged] == ["b", "a"]
+
+
+def test_a_step_that_asks_a_web_service_is_never_run_incrementally() -> None:
+    """Its answers can change between runs, so rows made last time cannot stand for this run's."""
+    from shared_python.types import STRING
+
+    from service_transformations.incremental import why_not
+    from service_transformations.tools import TOOLS
+    from service_transformations.ir.nodes import Scan
+
+    scan = Scan("orders", (("sku", STRING), ("city", STRING)))
+    for tool in ({"tool": "code.http_enrich", "column": "sku", "url": "https://api.example.com/{value}"},
+                 {"tool": "geo.geocode", "column": "city"}):
+        reason = why_not([{"step_type": "tool", "config": tool}], scan, "append", None, set())
+        assert reason and "asks a web service" in reason, (tool, reason)
+    assert all(TOOLS[name].calls_out for name in ("code.http_enrich", "geo.geocode", "geo.reverse_geocode"))
+    assert not any(spec.calls_out for name, spec in TOOLS.items()
+                   if name not in ("code.http_enrich", "geo.geocode", "geo.reverse_geocode"))

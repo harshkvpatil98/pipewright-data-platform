@@ -2,6 +2,16 @@
 
 The changes people notice, newest first. The full record is in the repository's changelog.
 
+## Nearly 400 tools, and recipes you can manage
+
+- **The whole tool library.** Running totals, ranks and moving averages; percentiles, mode and correlation in a summary; semi, anti, cross, as-of, range and similar-text joins; statistics with what they mean; clustering, forecasts and encodings; samples and splits; distances and areas; checks that stop a run; golden records; lookups with a default; SQL, Python and templates. **Add a step** finds each by the words people use.
+- **Turn a step off**, duplicate it, write a note on it, or put steps in a named group that folds and turns off as one.
+- **Parameters.** Write `{{since}}` in a setting and each run takes a value: by hand, from a schedule, a workflow or the API.
+- **Templates of your own,** saved for the project; **branches** to try changes in and merge back; **compare** two recipes; the same steps **on another dataset**; **one recipe for each value** of a column.
+- **Keep or drop rows like this one**: right-click a cell in the preview.
+- **Recipes document their result.** Metadata steps describe, tag and classify the columns of what a recipe makes, every run; a dataset's data dictionary downloads as a document or CSV.
+- **Comment on one step** of a recipe, and try a pattern on sample values before using it.
+
 ## Faster, and planned from what the data holds
 
 - **Every version knows its values.** A dataset's **Columns** show how each column's values spread, or its commonest values, and every version keeps these figures from when it was written.

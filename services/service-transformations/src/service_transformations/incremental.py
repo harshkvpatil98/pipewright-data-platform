@@ -272,6 +272,8 @@ def _part_reason(part: Node, name: str, mode: str, p: str | None, config: dict[s
         from service_transformations.tools import TOOLS
 
         spec = TOOLS.get(part.name)
+        if spec is not None and spec.calls_out:
+            return f"{name} asks a web service, whose answers can change between runs"
         if spec is not None and spec.row_wise:
             # A tool that works on each row by itself (a lookup, an as-of join): E1.
             if spec.reads_dataset and str(config.get("right_dataset_id") or "") not in unchanged_datasets:

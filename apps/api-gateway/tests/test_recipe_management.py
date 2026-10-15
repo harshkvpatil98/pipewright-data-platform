@@ -358,3 +358,16 @@ def test_a_token_reveals_for_an_administrator_only(world) -> None:
 def test_a_viewer_cannot_branch(world) -> None:
     recipe = _recipe(world, [SHIPPED])
     assert world["vic"].post(f"{_base(world)}/pipelines/{recipe['id']}/branch", json={}).status_code == 403
+
+
+def test_a_refusal_says_which_step_it_came_from(world) -> None:
+    """The Studio shows a problem under the step that has it, not whichever step is open."""
+    steps = [{"step_type": "limit_rows", "config": {"count": 5}},
+             {"step_type": "tool", "config": {"tool": "assert.not_empty", "columns": ["manager"]}}]
+    refused = world["ann"].post(f"{_base(world)}/datasets/{world['orders']['id']}/pipelines/preview",
+                                json={"steps": steps})
+    assert refused.status_code == 400 and refused.json()["step_index"] == 1
+    assert "manager" in refused.json()["detail"]
+    fine = world["ann"].post(f"{_base(world)}/datasets/{world['orders']['id']}/pipelines/preview",
+                             json={"steps": steps[:1]})
+    assert fine.status_code == 200

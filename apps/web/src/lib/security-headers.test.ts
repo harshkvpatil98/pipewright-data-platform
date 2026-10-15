@@ -24,3 +24,20 @@ describe("security headers", () => {
     expect(pattern.test("/embed/a.b.c")).toBe(false);
   });
 });
+
+/* The retired recipe pages' addresses still open the recipe (E1). */
+describe("old recipe addresses", () => {
+  it("redirect to the Studio, a new recipe before an existing one", async () => {
+    const rules = (await nextConfig.redirects?.()) ?? [];
+    const sources = rules.map((rule) => rule.source);
+    const newRecipe = sources.indexOf("/projects/:projectId/pipelines/new");
+    const recipe = sources.indexOf("/projects/:projectId/pipelines/:pipelineId");
+    expect(newRecipe).toBeGreaterThan(-1);
+    expect(newRecipe).toBeLessThan(recipe);
+    const byDataset = rules.find((rule) => rule.source === "/projects/:projectId/datasets/:datasetId/pipelines/:pipelineId");
+    expect(byDataset?.destination).toBe("/projects/:projectId/studio?recipe=:pipelineId");
+    expect(rules.find((rule) => rule.source === "/projects/:projectId/pipelines/:pipelineId")?.destination).toBe(
+      "/projects/:projectId/studio?recipe=:pipelineId",
+    );
+  });
+});

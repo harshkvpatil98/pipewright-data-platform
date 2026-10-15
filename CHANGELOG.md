@@ -13,6 +13,47 @@ the test counts at the time — is in the session log in
 
 ---
 
+## Phase 16 complete: the tool library, E1 (2026-10-16)
+
+Roadmap Phase 16, the transformation tool library; the plan is
+[docs/plans/tools-and-extensibility.md](docs/plans/tools-and-extensibility.md).
+
+- **379 tools in 22 categories** (173 before), every one with an executed
+  example in the [reference](docs/transformation-tools.md) and the
+  library's structural tests (empty, all empty, one row, example, lineage).
+- **Windows.** A `Window` node in the IR, run by both backends with SQL's
+  rules; ranks and totals over peers or a whole partition push down, the
+  order-dependent rest stays here. 31 window tools; queries across sources
+  take window functions.
+- **Summaries and joins.** The aggregate step's 27 functions (percentile,
+  quartiles, mode, weighted average, correlation and more) and the join
+  step's full, cross, semi and anti joins; as-of, range and similar-text
+  joins, side by side, intersect and except.
+- **Every family of the roadmap's list**: rows, columns, reshape, text,
+  numbers, dates and holidays, conversion, missing data, cleansing, checks
+  inside a recipe, matching and golden records (on the Assistant's own
+  matching), lookups, statistics, machine learning, sampling, places,
+  privacy, code steps (SQL, sandboxed Python, jq, templates, a web service
+  per value, geocoding) and metadata steps that document a recipe's result.
+- **Recipes.** Steps turn off, duplicate, take notes, group and take
+  threads; parameters per run from a person, a schedule, a workflow or the
+  API; templates of a project's own, branches merged back with conflicts
+  shown, comparison, the steps on another dataset and one recipe per value.
+  Right-click a cell to keep or drop rows like it; a regex tester; a data
+  dictionary; token reveal for an administrator. Migration
+  `0066_recipe_management`.
+- **Accounted for.** `tools/coverage.py` maps all 447 entries of the
+  roadmap's list to a tool, a step setting it runs, or a feature with its
+  test; the custom plugin waits on Phase 23. The 29 everyday searches
+  measured first (26 found nothing) all find what they mean first.
+- **Proven.** Every tool that pushes down agrees with the engine on SQLite
+  and PostgreSQL. Faults that found: PostgreSQL integer division and
+  division by zero, collation order, ROUND's halves, text casts, empties
+  in a multi-key sort, five aggregates declared without an implementation,
+  SUBSTR with two arguments. Others found on the way: saving parameters
+  reset the shared copy, a merge preview was audited as a merge, and
+  search put the train/test split first for "t test".
+
 ## Phase 22 complete: performance, D2 (2026-10-15)
 
 Roadmap Phase 22, the cost-based optimiser and performance; the plan is

@@ -45,11 +45,13 @@ CATEGORY = "Code & escape hatches"
 def _declare(name: str, title: str, summary: str, build, example: Example, *, params: tuple[Param, ...] = (),
              synonyms: tuple[str, ...] = (), column_scoped: bool = False, local_only: bool = True,
              dynamic_columns: bool = False, null_answer: bool = False, row_wise: bool = False,
-             accepts: Accepts = Accepts.ANY, category: str = CATEGORY, needs: str = "") -> ToolSpec:
+             accepts: Accepts = Accepts.ANY, category: str = CATEGORY, needs: str = "",
+             calls_out: bool = False) -> ToolSpec:
     return register(ToolSpec(
         name=name, title=title, category=category, summary=summary, build=build, example=example, params=params,
         synonyms=synonyms, column_scoped=column_scoped, local_only=local_only, dynamic_columns=dynamic_columns,
         null_answer=null_answer, row_wise=row_wise, warns_lost=False, accepts=accepts, needs=needs,
+        calls_out=calls_out,
     ))
 
 
@@ -542,7 +544,7 @@ _declare("code.http_enrich", "Look up each value in a web service", "Call a web 
                  Param("header", "Send it in the header", ParamKind.TEXT, required=False, default="Authorization"),
                  Param("into", "New column", ParamKind.TEXT, required=False, default="")),
          synonyms=("http enrich", "api lookup", "call api", "web service", "rest lookup", "enrich from api"),
-         column_scoped=True, needs="a web service on a host the administrator allows")
+         column_scoped=True, needs="a web service on a host the administrator allows", calls_out=True)
 
 
 # ------------------------------------------------------------------ geocoding
@@ -635,7 +637,7 @@ _declare("geo.geocode", "Find places from addresses", "The latitude and longitud
                  Param("prefix", "Start the new names with", ParamKind.TEXT, required=False, default="")),
          synonyms=("geocode", "address to coordinates", "lat long from address", "find location"),
          column_scoped=True, category="Geospatial", accepts=Accepts.TEXTUAL,
-         needs="a geocoding service the administrator sets")
+         needs="a geocoding service the administrator sets", calls_out=True)
 _declare("geo.reverse_geocode", "Find addresses from places", "The address (or its city, postcode or country) of "
          "each latitude and longitude, from the configured geocoding service.", _reverse_build,
          Example(rows=({"lat": 51.5034, "lon": -0.1276},), params={"lat": "lat", "lon": "lon"}, column="lat",
@@ -645,5 +647,5 @@ _declare("geo.reverse_geocode", "Find addresses from places", "The address (or i
                        options=("address", "city", "postcode", "country", "country code")),
                  Param("into", "New column", ParamKind.TEXT, required=False, default="")),
          synonyms=("reverse geocode", "coordinates to address", "address from lat long"), category="Geospatial",
-         needs="a geocoding service the administrator sets")
+         needs="a geocoding service the administrator sets", calls_out=True)
 

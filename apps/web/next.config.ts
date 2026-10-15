@@ -11,6 +11,32 @@ const MOVED_PROJECT_PAGES: [from: string, to: string][] = [
 ];
 
 /**
+ * A recipe opens in the Studio; the addresses of the retired recipe pages are
+ * kept for links and bookmarks. Redirected here rather than by a page, so
+ * nothing renders on the way (a page that only redirects tripped React's
+ * development timings now and then).
+ */
+const RECIPE_ADDRESSES = [
+  {
+    source: "/projects/:projectId/pipelines/new",
+    has: [{ type: "query" as const, key: "sourceDatasetId", value: "(?<dataset>.+)" }],
+    destination: "/projects/:projectId/studio?dataset=:dataset",
+    permanent: false,
+  },
+  { source: "/projects/:projectId/pipelines/new", destination: "/projects/:projectId/studio", permanent: false },
+  {
+    source: "/projects/:projectId/pipelines/:pipelineId",
+    destination: "/projects/:projectId/studio?recipe=:pipelineId",
+    permanent: false,
+  },
+  {
+    source: "/projects/:projectId/datasets/:datasetId/pipelines/:pipelineId",
+    destination: "/projects/:projectId/studio?recipe=:pipelineId",
+    permanent: false,
+  },
+];
+
+/**
  * Headers every page is sent with (A6, W7): no guessing content types, no
  * full addresses leaked to other sites, and no camera, microphone or
  * location. Content security policy is left to the proxy in front, which
@@ -44,11 +70,14 @@ const nextConfig: NextConfig = {
     ];
   },
   async redirects() {
-    return MOVED_PROJECT_PAGES.map(([from, to]) => ({
-      source: `/projects/:projectId/${from}`,
-      destination: `/projects/:projectId/${to}`,
-      permanent: true,
-    }));
+    return [
+      ...MOVED_PROJECT_PAGES.map(([from, to]) => ({
+        source: `/projects/:projectId/${from}`,
+        destination: `/projects/:projectId/${to}`,
+        permanent: true,
+      })),
+      ...RECIPE_ADDRESSES,
+    ];
   },
 };
 

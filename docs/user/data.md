@@ -85,3 +85,5 @@ If a [policy](trust.md#policies) limits what your role can see, the page says so
 ## Catalog
 
 Search datasets by name, by column or by what someone wrote about them. Mark owners and certify datasets that others can rely on, and keep a glossary so a word like "active customer" means one thing.
+
+A dataset's **Catalog** panel lists what each column is: its description, tags, classification and whether it holds personal data. A recipe can write these for the dataset it makes, with its metadata steps (**Describe a column**, **Tag a column**, **Classify a column**, **Mark personal data**, **Link a column to a glossary term**, **Set the dataset's owner**, **Describe the dataset**), so each run documents its result; a change made by hand lasts until the recipe's next run. **Data dictionary** downloads the columns and all of this as a document, or **As CSV**.

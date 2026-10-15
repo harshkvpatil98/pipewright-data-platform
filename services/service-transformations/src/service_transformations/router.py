@@ -453,7 +453,7 @@ def build_router(
     # ------------------------------------------------------ the regex tester (E1)
 
     @router.post('/transformations/tools/regex/test', response_model=RegexTestResponse)
-    def post_regex_test(payload: RegexTestRequest,
+    def try_regex(payload: RegexTestRequest,
                         current_user: UserRead = Depends(get_current_user)) -> RegexTestResponse:
         """Try a pattern on sample values with the engine's own regular expressions (Python's), which
         differ from a browser's in places (named groups, lookbehind), so the Studio asks here."""
@@ -478,7 +478,7 @@ def build_router(
     # --------------------------------------------- revealing a reversible token (E1)
 
     @router.post('/transformations/tokens/reveal', response_model=TokenRevealResponse)
-    def post_token_reveal(payload: TokenRevealRequest,
+    def reveal_token(payload: TokenRevealRequest,
                           current_user: UserRead = Depends(get_current_user)) -> TokenRevealResponse:
         """Turn a reversible token back into its value. A deployment administrator only; the request is
         in the audit log like every write."""
@@ -492,7 +492,7 @@ def build_router(
     # ------------------------------------------------------ managing recipes (E1)
 
     @router.put('/projects/{project_id}/pipelines/{pipeline_id}/parameters', response_model=TransformationPipelineRead)
-    def put_recipe_parameters(project_id: uuid.UUID, pipeline_id: uuid.UUID, payload: manage.ParametersUpdate,
+    def set_recipe_parameters(project_id: uuid.UUID, pipeline_id: uuid.UUID, payload: manage.ParametersUpdate,
                               db: Session = Depends(get_db),
                               current_user: UserRead = Depends(get_current_user)) -> TransformationPipelineRead:
         from service_transformations.service import _serialize_pipeline
@@ -501,24 +501,24 @@ def build_router(
                                                          payload=payload, current_user=current_user))
 
     @router.get('/projects/{project_id}/recipe-templates', response_model=manage.TemplateListResponse)
-    def get_saved_templates(project_id: uuid.UUID, db: Session = Depends(get_db),
+    def list_recipe_templates(project_id: uuid.UUID, db: Session = Depends(get_db),
                             current_user: UserRead = Depends(get_current_user)) -> manage.TemplateListResponse:
         return manage.list_templates(db, project_id=project_id, current_user=current_user)
 
     @router.post('/projects/{project_id}/recipe-templates', response_model=manage.TemplateRead,
                  status_code=status.HTTP_201_CREATED)
-    def post_saved_template(project_id: uuid.UUID, payload: manage.TemplateCreate, db: Session = Depends(get_db),
+    def save_recipe_template(project_id: uuid.UUID, payload: manage.TemplateCreate, db: Session = Depends(get_db),
                             current_user: UserRead = Depends(get_current_user)) -> manage.TemplateRead:
         return manage.create_template(db, project_id=project_id, payload=payload, current_user=current_user)
 
     @router.delete('/projects/{project_id}/recipe-templates/{template_id}', status_code=status.HTTP_204_NO_CONTENT)
-    def delete_saved_template(project_id: uuid.UUID, template_id: uuid.UUID, db: Session = Depends(get_db),
+    def delete_recipe_template(project_id: uuid.UUID, template_id: uuid.UUID, db: Session = Depends(get_db),
                               current_user: UserRead = Depends(get_current_user)) -> None:
         manage.delete_template(db, project_id=project_id, template_id=template_id, current_user=current_user)
 
     @router.post('/projects/{project_id}/pipelines/{pipeline_id}/branch', response_model=TransformationPipelineRead,
                  status_code=status.HTTP_201_CREATED)
-    def post_branch(project_id: uuid.UUID, pipeline_id: uuid.UUID, payload: manage.BranchCreate,
+    def branch_recipe(project_id: uuid.UUID, pipeline_id: uuid.UUID, payload: manage.BranchCreate,
                     db: Session = Depends(get_db),
                     current_user: UserRead = Depends(get_current_user)) -> TransformationPipelineRead:
         from service_transformations.service import _serialize_pipeline
@@ -527,14 +527,14 @@ def build_router(
                                                  current_user=current_user))
 
     @router.post('/projects/{project_id}/pipelines/{pipeline_id}/merge', response_model=manage.MergeResult)
-    def post_merge(project_id: uuid.UUID, pipeline_id: uuid.UUID, payload: manage.MergeRequest,
+    def merge_branch(project_id: uuid.UUID, pipeline_id: uuid.UUID, payload: manage.MergeRequest,
                    db: Session = Depends(get_db),
                    current_user: UserRead = Depends(get_current_user)) -> manage.MergeResult:
         return manage.merge(db, project_id=project_id, branch_id=pipeline_id, payload=payload,
                             current_user=current_user)
 
     @router.post('/projects/{project_id}/pipelines/{pipeline_id}/merge/preview', response_model=manage.MergeResult)
-    def post_merge_preview(project_id: uuid.UUID, pipeline_id: uuid.UUID, payload: manage.MergeRequest,
+    def preview_merge(project_id: uuid.UUID, pipeline_id: uuid.UUID, payload: manage.MergeRequest,
                            db: Session = Depends(get_db),
                            current_user: UserRead = Depends(get_current_user)) -> manage.MergeResult:
         """What merging would do, and what conflicts, without merging."""
@@ -543,7 +543,7 @@ def build_router(
 
     @router.post('/projects/{project_id}/pipelines/{pipeline_id}/copy', response_model=manage.CopyResult,
                  status_code=status.HTTP_201_CREATED)
-    def post_copy(project_id: uuid.UUID, pipeline_id: uuid.UUID, payload: manage.CopyRequest,
+    def copy_recipe_to_dataset(project_id: uuid.UUID, pipeline_id: uuid.UUID, payload: manage.CopyRequest,
                   db: Session = Depends(get_db),
                   current_user: UserRead = Depends(get_current_user)) -> manage.CopyResult:
         return manage.copy_to(db, project_id=project_id, pipeline_id=pipeline_id, payload=payload,
@@ -551,7 +551,7 @@ def build_router(
 
     @router.post('/projects/{project_id}/pipelines/{pipeline_id}/split', response_model=manage.SplitResult,
                  status_code=status.HTTP_201_CREATED)
-    def post_split(project_id: uuid.UUID, pipeline_id: uuid.UUID, payload: manage.SplitRequest,
+    def split_recipe_by_value(project_id: uuid.UUID, pipeline_id: uuid.UUID, payload: manage.SplitRequest,
                    db: Session = Depends(get_db), current_user: UserRead = Depends(get_current_user),
                    storage_backend = Depends(_get_storage_backend)) -> manage.SplitResult:
         return manage.split(db, project_id=project_id, pipeline_id=pipeline_id, payload=payload,

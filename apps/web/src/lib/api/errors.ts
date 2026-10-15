@@ -10,6 +10,13 @@ export class ApiError extends Error {
   }
 }
 
+/** Which step of a recipe a refusal came from (from 0), when the server says (E1). */
+export function failedStepIndex(error: unknown): number | null {
+  if (!(error instanceof ApiError) || typeof error.detail !== "object" || error.detail === null) return null;
+  const index = (error.detail as { step_index?: unknown }).step_index;
+  return typeof index === "number" && Number.isInteger(index) && index >= 0 ? index : null;
+}
+
 /** What the browser says when a request never reached the server, by engine. */
 const UNREACHABLE = /failed to fetch|networkerror|load failed|network request failed/i;
 

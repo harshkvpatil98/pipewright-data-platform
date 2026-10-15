@@ -50,7 +50,7 @@ def _declare(name: str, title: str, summary: str, check: Callable[[pd.DataFrame,
     def build(node: Node, settings: dict[str, Any]) -> Node:
         if columns_key and settings.get(columns_key) is not None:
             names = settings[columns_key] if isinstance(settings[columns_key], list) else [settings[columns_key]]
-            columns_of(node, names, "Check")
+            columns_of(node, names, title)
         when = settings.get("on_failure") or "stop the run"
         flag = None
         schema = dict(node.schema())
@@ -73,9 +73,9 @@ def _declare(name: str, title: str, summary: str, check: Callable[[pd.DataFrame,
             return out
         if sentence:
             if failing is not None and failing.any():
-                positions = np.flatnonzero(failing)[:EXAMPLES_SHOWN] + 1
-                sentence += f" Rows {listing([f'{p:,}' for p in positions])}" + (
-                    " and more." if failing.sum() > EXAMPLES_SHOWN else ".")
+                positions = [f"{p:,}" for p in np.flatnonzero(failing)[:EXAMPLES_SHOWN] + 1]
+                rest = int(failing.sum()) - len(positions)
+                sentence += f" Rows {listing([*positions, f'{rest:,} more'] if rest else positions)}."
             message = f"{config.get('title') or name}: {sentence}"
             if when == "stop the run":
                 raise CheckFailed(message)

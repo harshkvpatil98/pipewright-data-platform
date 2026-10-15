@@ -1388,7 +1388,7 @@ that has already been proposed.
 
 ---
 
-## Phase 16 — The transformation tool library: 20 → 400+ ⚠ PARTIAL (2026-08-23)
+## Phase 16 — The transformation tool library: 20 → 400+ ✅ COMPLETE (2026-10-16)
 
 Today there are **20** step types. This is the full inventory of what a Studio needs to be the
 only tool an analyst opens. Every entry compiles to Phase 08's IR, which means every entry gets
@@ -1610,10 +1610,11 @@ depending on where the pipeline ran. 77 functions lower to Postgres.
   needle into a wildcard, so `starts_with(sku, "10%")` would have matched
   "10ABC" in SQL and not locally.
 
-### Deliberately not built
+### Not built in 2026-08, and built in E1 (2026-10-16)
 
-Named rather than implied. Each is a genuine piece of work, not a gap in the
-mechanism — every one of them would be declared exactly the way the 167 are.
+Named at the time rather than implied; each is now built, as E1 in
+[`plans/tools-and-extensibility.md`](plans/tools-and-extensibility.md), and the
+list below is kept as the record of why it waited.
 
 - **Window and analytic functions** (row_number, rank, lag, moving averages).
   The IR has no window node; adding one is a change to the algebra, not a batch
@@ -1633,6 +1634,19 @@ mechanism — every one of them would be declared exactly the way the 167 are.
   shape of work.
 - **Recipe management** (undo, macros, templates, branching). That is a Studio
   feature rather than a transformation, and it belongs with Phase 21.
+
+### What shipped in E1: 379 tools, and all 447 entries accounted for
+
+E1 built every family above: a `Window` node in the IR, 31 window tools,
+statistics, machine learning, sampling and places, fuzzy matching on the
+Assistant's own matching code, enrichment that calls out only to hosts an
+administrator allows, the rest of reshape, and recipe management (steps
+turned off, duplicated, noted and grouped; parameters, templates, branches
+and merges). `services/service-transformations/src/service_transformations/tools/coverage.py`
+names, for each of the 447 entries in the lists above, the tool, the step
+setting or the feature that does it, and a test reads this file's lists to
+hold the two together. The one entry left is the custom plugin, which is
+Phase 23's.
 
 ---
 

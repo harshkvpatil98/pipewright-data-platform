@@ -582,6 +582,13 @@ class Operations:
         """
         return self._call("PATCH", f"/api/v1/projects/{project_id}/catalog/{dataset_id}", body=body)
 
+    def download_data_dictionary(self, project_id: str, dataset_id: str, *, format: str | None = None) -> Any:
+        """A dataset's data dictionary, as Markdown or CSV (E1).
+
+        GET /api/v1/projects/{project_id}/catalog/{dataset_id}/dictionary
+        """
+        return self._call("GET", f"/api/v1/projects/{project_id}/catalog/{dataset_id}/dictionary", query={"format": format})
+
     def read_changes(self, project_id: str, *, status: str | None = None) -> Any:
         """Read Changes
 
@@ -1835,6 +1842,20 @@ class Operations:
         """
         return self._call("PATCH", f"/api/v1/projects/{project_id}/pipelines/{pipeline_id}", body=body)
 
+    def branch_recipe(self, project_id: str, pipeline_id: str, *, body: Any) -> Any:
+        """Branch Recipe
+
+        POST /api/v1/projects/{project_id}/pipelines/{pipeline_id}/branch
+        """
+        return self._call("POST", f"/api/v1/projects/{project_id}/pipelines/{pipeline_id}/branch", body=body)
+
+    def copy_recipe_to_dataset(self, project_id: str, pipeline_id: str, *, body: Any) -> Any:
+        """Copy Recipe To Dataset
+
+        POST /api/v1/projects/{project_id}/pipelines/{pipeline_id}/copy
+        """
+        return self._call("POST", f"/api/v1/projects/{project_id}/pipelines/{pipeline_id}/copy", body=body)
+
     def put_incremental(self, project_id: str, pipeline_id: str, *, body: Any) -> Any:
         """How the recipe's runs compute: every row, only rows added since the last run, or only the partitions whose rows changed. Each falls back to a full run, and says why.
 
@@ -1842,12 +1863,33 @@ class Operations:
         """
         return self._call("PUT", f"/api/v1/projects/{project_id}/pipelines/{pipeline_id}/incremental", body=body)
 
-    def post_run_transformation_pipeline(self, project_id: str, pipeline_id: str) -> Any:
+    def merge_branch(self, project_id: str, pipeline_id: str, *, body: Any) -> Any:
+        """Merge Branch
+
+        POST /api/v1/projects/{project_id}/pipelines/{pipeline_id}/merge
+        """
+        return self._call("POST", f"/api/v1/projects/{project_id}/pipelines/{pipeline_id}/merge", body=body)
+
+    def preview_merge(self, project_id: str, pipeline_id: str, *, body: Any) -> Any:
+        """What merging would do, and what conflicts, without merging.
+
+        POST /api/v1/projects/{project_id}/pipelines/{pipeline_id}/merge/preview
+        """
+        return self._call("POST", f"/api/v1/projects/{project_id}/pipelines/{pipeline_id}/merge/preview", body=body)
+
+    def set_recipe_parameters(self, project_id: str, pipeline_id: str, *, body: Any) -> Any:
+        """Set Recipe Parameters
+
+        PUT /api/v1/projects/{project_id}/pipelines/{pipeline_id}/parameters
+        """
+        return self._call("PUT", f"/api/v1/projects/{project_id}/pipelines/{pipeline_id}/parameters", body=body)
+
+    def post_run_transformation_pipeline(self, project_id: str, pipeline_id: str, *, body: Any = None) -> Any:
         """Post Run Transformation Pipeline
 
         POST /api/v1/projects/{project_id}/pipelines/{pipeline_id}/run
         """
-        return self._call("POST", f"/api/v1/projects/{project_id}/pipelines/{pipeline_id}/run")
+        return self._call("POST", f"/api/v1/projects/{project_id}/pipelines/{pipeline_id}/run", body=body)
 
     def read_recipe_shared_copy(self, project_id: str, pipeline_id: str, *, epoch: int | None = None, after: int | None = None, revision: int | None = None) -> Any:
         """The recipe's shared working copy, or what changed in it since `after`.
@@ -1869,6 +1911,13 @@ class Operations:
         POST /api/v1/projects/{project_id}/pipelines/{pipeline_id}/shared/discard
         """
         return self._call("POST", f"/api/v1/projects/{project_id}/pipelines/{pipeline_id}/shared/discard")
+
+    def split_recipe_by_value(self, project_id: str, pipeline_id: str, *, body: Any) -> Any:
+        """Split Recipe By Value
+
+        POST /api/v1/projects/{project_id}/pipelines/{pipeline_id}/split
+        """
+        return self._call("POST", f"/api/v1/projects/{project_id}/pipelines/{pipeline_id}/split", body=body)
 
     def suggest_recipe_change(self, project_id: str, pipeline_id: str, *, body: Any) -> Any:
         """Suggest a change to a recipe for someone who may edit it to accept or decline.
@@ -1911,6 +1960,27 @@ class Operations:
         POST /api/v1/projects/{project_id}/promote
         """
         return self._call("POST", f"/api/v1/projects/{project_id}/promote", body=body)
+
+    def list_recipe_templates(self, project_id: str) -> Any:
+        """List Recipe Templates
+
+        GET /api/v1/projects/{project_id}/recipe-templates
+        """
+        return self._call("GET", f"/api/v1/projects/{project_id}/recipe-templates")
+
+    def save_recipe_template(self, project_id: str, *, body: Any) -> Any:
+        """Save Recipe Template
+
+        POST /api/v1/projects/{project_id}/recipe-templates
+        """
+        return self._call("POST", f"/api/v1/projects/{project_id}/recipe-templates", body=body)
+
+    def delete_recipe_template(self, project_id: str, template_id: str) -> Any:
+        """Delete Recipe Template
+
+        DELETE /api/v1/projects/{project_id}/recipe-templates/{template_id}
+        """
+        return self._call("DELETE", f"/api/v1/projects/{project_id}/recipe-templates/{template_id}")
 
     def read_reports(self, project_id: str) -> Any:
         """Read Reports
@@ -2689,6 +2759,13 @@ class Operations:
         """
         return self._call("POST", f"/api/v1/transformations/templates/{template_id}/steps", body=body)
 
+    def reveal_token(self, *, body: Any) -> Any:
+        """Turn a reversible token back into its value. A deployment administrator only; the request is in the audit log like every write.
+
+        POST /api/v1/transformations/tokens/reveal
+        """
+        return self._call("POST", "/api/v1/transformations/tokens/reveal", body=body)
+
     def get_tools(self, *, query: str | None = None, category: str | None = None, column_type: str | None = None, limit: int | None = None) -> Any:
         """Get Tools
 
@@ -2702,6 +2779,13 @@ class Operations:
         POST /api/v1/transformations/tools/preview
         """
         return self._call("POST", "/api/v1/transformations/tools/preview", body=body)
+
+    def try_regex(self, *, body: Any) -> Any:
+        """Try a pattern on sample values with the engine's own regular expressions (Python's), which differ from a browser's in places (named groups, lookbehind), so the Studio asks here.
+
+        POST /api/v1/transformations/tools/regex/test
+        """
+        return self._call("POST", "/api/v1/transformations/tools/regex/test", body=body)
 
     def post_recipe_parse(self, *, body: Any) -> Any:
         """Post Recipe Parse

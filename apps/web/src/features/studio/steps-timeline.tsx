@@ -49,8 +49,11 @@ type StepsTimelineProps = {
   savedStepIds?: ReadonlySet<string>;
   onAdd: () => void;
   onTemplates: (() => void) | null;
-  /** A problem with the recipe as it stands, shown under the open step. */
-  problem: { message: string; incomplete: boolean } | null;
+  /**
+   * A problem with the recipe as it stands: under the step it is in, when the
+   * server says which (`uid`), and under the open step otherwise.
+   */
+  problem: { message: string; incomplete: boolean; uid: string | null } | null;
   tools: Tool[];
   columns: { name: string; type?: string }[];
   datasets: { id: string; name: string }[];
@@ -127,12 +130,18 @@ export function StepsTimeline({
         {steps.map((step, index) => {
           const run = runs.get(step.uid);
           const inRun = runOf.get(step.uid);
-          const hidden = Boolean(inRun && folded.has(inRun.start) && !(openUid && inRun.uids.includes(openUid)));
+          // A folded group still shows the step that is open, or that has the problem.
+          const hidden = Boolean(
+            inRun && folded.has(inRun.start) && !inRun.uids.some((uid) => uid === openUid || uid === problem?.uid),
+          );
           const definition = STEP_BY_TYPE.get(step.step_type);
-          const asTool = step.step_type === "tool" ? describeToolStep(step.config, tools) : null;
+          const asTool = step.step_type === "tool" ? describeToolStep(step.config, tools, datasetNames) : null;
           const label = asTool?.label ?? definition?.label ?? humanise(step.step_type);
           const detail = asTool?.detail ?? (definition ? describeStep(step.step_type, step.config, datasetNames) : "");
+          // A tool says whether it is set up; a built-in step with nothing to describe is not.
+          const unset = asTool ? asTool.incomplete : !detail;
           const open = step.uid === openUid;
+          const here = problem !== null && (problem.uid === null ? open : problem.uid === step.uid);
           const off = isOff(step.config);
           const note = noteOf(step.config);
           // A step's form knows only its own settings; turned off and its note are carried over.
@@ -198,9 +207,11 @@ export function StepsTimeline({
                       </span>
                       {off ? <Badge title="Kept in the recipe and skipped when it runs">Off</Badge> : null}
                     </span>
-                    <span className={cx("block truncate text-[13px]", detail ? "text-ink-3" : "italic text-muted")}>
-                      {detail || "Not set up yet"}
-                    </span>
+                    {unset || detail ? (
+                      <span className={cx("block truncate text-[13px]", unset ? "italic text-muted" : "text-ink-3")}>
+                        {unset ? "Not set up yet" : detail}
+                      </span>
+                    ) : null}
                     {note ? <span className="block truncate text-[12.5px] text-ink-2">{note}</span> : null}
                   </span>
                   <PresenceDots
@@ -211,24 +222,18 @@ export function StepsTimeline({
                   {off ? null : <Delta outcome={outcomes?.[index]} />}
                 </button>
 
+                {here && !open && problem ? (
+                  <div className="px-3 pb-2">
+                    <ProblemNote problem={problem} />
+                  </div>
+                ) : null}
+
                 {open ? (
                   <div className="border-t border-line px-3 pb-3 pt-3">
-                    {problem ? (
-                      <p
-                        role="status"
-                        className={cx(
-                          "mb-3 flex items-start gap-2 rounded-lg px-2.5 py-2 text-[13px]",
-                          problem.incomplete ? "bg-info-soft text-info" : "bg-danger-soft text-danger",
-                        )}
-                      >
-                        <Icon name={problem.incomplete ? "info" : "warning"} size={14} className="mt-0.5 shrink-0" />
-                        <span>
-                          <span className="font-medium">
-                            {problem.incomplete ? "Finish setting up this step. " : "This step cannot run. "}
-                          </span>
-                          {friendlyStepMessage(problem.message)}
-                        </span>
-                      </p>
+                    {here && problem ? (
+                      <div className="mb-3">
+                        <ProblemNote problem={problem} />
+                      </div>
                     ) : null}
 
                     {step.step_type === "tool" ? (
@@ -384,6 +389,27 @@ export function StepsTimeline({
         />
       </ol>
     </div>
+  );
+}
+
+/** What is wrong with a step, said under it. */
+function ProblemNote({ problem }: { problem: { message: string; incomplete: boolean } }) {
+  return (
+    <p
+      role="status"
+      className={cx(
+        "flex items-start gap-2 rounded-lg px-2.5 py-2 text-[13px]",
+        problem.incomplete ? "bg-info-soft text-info" : "bg-danger-soft text-danger",
+      )}
+    >
+      <Icon name={problem.incomplete ? "info" : "warning"} size={14} className="mt-0.5 shrink-0" />
+      <span>
+        <span className="font-medium">
+          {problem.incomplete ? "Finish setting up this step. " : "This step cannot run. "}
+        </span>
+        {friendlyStepMessage(problem.message)}
+      </span>
+    </p>
   );
 }
 

@@ -243,6 +243,9 @@ class ToolSpec:
     #: administrator allows", "the notebook sandbox"); the structural tests do
     #: not run it, and its own tests run it against that thing.
     needs: str = ""
+    #: It asks something outside the data (a web service) for each run's
+    #: answers, which can change between runs: never kept, never incremental.
+    calls_out: bool = False
 
     def resolve(self, config: dict[str, Any]) -> dict[str, Any]:
         """Validate a supplied config into the parameters ``build`` expects."""

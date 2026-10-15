@@ -7,6 +7,9 @@ from starlette.requests import Request
 
 class ApplicationError(Exception):
     status_code = 400
+    #: Set by a recipe's step loop: which step (from 0) the refusal came from,
+    #: so the Studio shows it under that step rather than the one open (E1).
+    step_index: int | None = None
 
     def __init__(self, detail: str):
         super().__init__(detail)
@@ -58,4 +61,7 @@ def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(ApplicationError)
     async def handle_application_error(_: Request, exc: ApplicationError) -> JSONResponse:
         headers = {"Retry-After": str(exc.retry_after)} if isinstance(exc, TooManyRequestsError) else None
-        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail}, headers=headers)
+        content: dict = {"detail": exc.detail}
+        if exc.step_index is not None:
+            content["step_index"] = exc.step_index
+        return JSONResponse(status_code=exc.status_code, content=content, headers=headers)

@@ -84,13 +84,32 @@ export function ToolStepEditor({
 export function describeToolStep(
   config: Record<string, unknown>,
   tools: Tool[],
-): { label: string; detail: string } {
+  datasetNames: ReadonlyMap<string, string> = new Map(),
+): { label: string; detail: string; incomplete: boolean } {
   const name = typeof config.tool === "string" ? config.tool : "";
   const tool = tools.find((entry) => entry.name === name);
   const column = typeof config.column === "string" ? config.column : "";
   const into = typeof config.into === "string" ? config.into : "";
-  return {
-    label: tool?.title ?? name ?? "tool",
-    detail: into && into !== column ? `${column} → ${into}` : column,
-  };
+  const label = tool?.title ?? (name || "tool");
+  const empty = (value: unknown) =>
+    value === undefined || value === null || value === "" || (Array.isArray(value) && value.length === 0);
+  // Not set up: no column for a tool that works on one, or a required setting with nothing in it.
+  const incomplete = tool
+    ? (tool.column_scoped && !column) ||
+      tool.params.some((param) => param.required && empty(config[param.key]) && empty(param.default))
+    : false;
+  if (column) return { label, detail: into && into !== column ? `${column} → ${into}` : column, incomplete };
+  // A tool that does not work on one column says what it was given: its columns, the
+  // other dataset, its values.
+  const parts: string[] = [];
+  for (const param of tool?.params ?? []) {
+    const value = config[param.key];
+    if (empty(value) || param.kind === "boolean") continue;
+    if (param.kind === "dataset") parts.push(datasetNames.get(String(value)) ?? "another dataset");
+    else if (Array.isArray(value)) parts.push(value.map(String).join(", "));
+    else if (param.kind === "number" || param.kind === "integer") parts.push(`${param.label.toLowerCase()} ${String(value)}`);
+    else parts.push(String(value));
+  }
+  const detail = parts.slice(0, 3).join(" · ");
+  return { label, detail: detail.length > 80 ? `${detail.slice(0, 79)}…` : detail, incomplete };
 }

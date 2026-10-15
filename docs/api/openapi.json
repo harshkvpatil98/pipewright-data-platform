@@ -414,11 +414,31 @@
       ],
       "title": "Certified By Username"
      },
+     "column_classes": {
+      "additionalProperties": {
+       "additionalProperties": {
+        "type": "string"
+       },
+       "type": "object"
+      },
+      "title": "Column Classes",
+      "type": "object"
+     },
      "column_notes": {
       "additionalProperties": {
        "type": "string"
       },
       "title": "Column Notes",
+      "type": "object"
+     },
+     "column_tags": {
+      "additionalProperties": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      },
+      "title": "Column Tags",
       "type": "object"
      },
      "dataset_id": {
@@ -1581,6 +1601,25 @@
      "file"
     ],
     "title": "Body_upload_dataset_api_v1_projects__project_id__datasets_upload_post",
+    "type": "object"
+   },
+   "BranchCreate": {
+    "properties": {
+     "name": {
+      "anyOf": [
+       {
+        "maxLength": 160,
+        "minLength": 2,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     }
+    },
+    "title": "BranchCreate",
     "type": "object"
    },
    "BundleImportResult": {
@@ -3753,6 +3792,19 @@
       ],
       "title": "Parent Id"
      },
+     "step_id": {
+      "anyOf": [
+       {
+        "maxLength": 64,
+        "minLength": 1,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Step Id"
+     },
      "target_id": {
       "format": "uuid",
       "title": "Target Id",
@@ -3904,6 +3956,17 @@
        }
       ],
       "title": "Resolved By Username"
+     },
+     "step_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Step Id"
      },
      "target_id": {
       "format": "uuid",
@@ -5217,37 +5280,31 @@
     "title": "CopyPlan",
     "type": "object"
    },
-   "CopyRequest": {
+   "CopyResult": {
     "properties": {
-     "connection_id": {
-      "format": "uuid",
-      "title": "Connection Id",
+     "name": {
+      "title": "Name",
       "type": "string"
      },
-     "destination_id": {
+     "pipeline_id": {
       "format": "uuid",
-      "title": "Destination Id",
+      "title": "Pipeline Id",
       "type": "string"
      },
-     "replace_existing": {
-      "default": false,
-      "title": "Replace Existing",
-      "type": "boolean"
-     },
-     "tables": {
+     "warnings": {
       "items": {
        "type": "string"
       },
-      "maxItems": 500,
-      "title": "Tables",
+      "title": "Warnings",
       "type": "array"
      }
     },
     "required": [
-     "connection_id",
-     "destination_id"
+     "pipeline_id",
+     "name",
+     "warnings"
     ],
-    "title": "CopyRequest",
+    "title": "CopyResult",
     "type": "object"
    },
    "CopyStarted": {
@@ -14791,6 +14848,108 @@
     "title": "MemberRoleUpdate",
     "type": "object"
    },
+   "MergeConflict": {
+    "properties": {
+     "step": {
+      "title": "Step",
+      "type": "string"
+     },
+     "step_id": {
+      "title": "Step Id",
+      "type": "string"
+     },
+     "what": {
+      "title": "What",
+      "type": "string"
+     }
+    },
+    "required": [
+     "step_id",
+     "step",
+     "what"
+    ],
+    "title": "MergeConflict",
+    "type": "object"
+   },
+   "MergeRequest": {
+    "properties": {
+     "prefer": {
+      "anyOf": [
+       {
+        "enum": [
+         "recipe",
+         "branch"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Prefer"
+     }
+    },
+    "title": "MergeRequest",
+    "type": "object"
+   },
+   "MergeResult": {
+    "properties": {
+     "added": {
+      "title": "Added",
+      "type": "integer"
+     },
+     "applied": {
+      "title": "Applied",
+      "type": "boolean"
+     },
+     "changed": {
+      "title": "Changed",
+      "type": "integer"
+     },
+     "conflicts": {
+      "items": {
+       "$ref": "#/components/schemas/MergeConflict"
+      },
+      "title": "Conflicts",
+      "type": "array"
+     },
+     "message": {
+      "title": "Message",
+      "type": "string"
+     },
+     "removed": {
+      "title": "Removed",
+      "type": "integer"
+     },
+     "step_ids": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Step Ids",
+      "type": "array"
+     },
+     "steps_json": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Steps Json",
+      "type": "array"
+     }
+    },
+    "required": [
+     "applied",
+     "steps_json",
+     "step_ids",
+     "added",
+     "removed",
+     "changed",
+     "conflicts",
+     "message"
+    ],
+    "title": "MergeResult",
+    "type": "object"
+   },
    "MetricAlertCreate": {
     "properties": {
      "column_name": {
@@ -16868,6 +17027,19 @@
     "title": "OrganisationUpdate",
     "type": "object"
    },
+   "ParametersUpdate": {
+    "properties": {
+     "parameters": {
+      "items": {
+       "$ref": "#/components/schemas/RecipeParameter"
+      },
+      "title": "Parameters",
+      "type": "array"
+     }
+    },
+    "title": "ParametersUpdate",
+    "type": "object"
+   },
    "ParsedIntentRead": {
     "properties": {
      "action": {
@@ -18598,6 +18770,60 @@
     "title": "QueryRunRead",
     "type": "object"
    },
+   "RecipeParameter": {
+    "properties": {
+     "default": {
+      "title": "Default"
+     },
+     "description": {
+      "anyOf": [
+       {
+        "maxLength": 400,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Description"
+     },
+     "kind": {
+      "default": "text",
+      "enum": [
+       "text",
+       "number",
+       "whole number",
+       "date",
+       "true or false"
+      ],
+      "title": "Kind",
+      "type": "string"
+     },
+     "label": {
+      "anyOf": [
+       {
+        "maxLength": 120,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Label"
+     },
+     "name": {
+      "maxLength": 60,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "title": "RecipeParameter",
+    "type": "object"
+   },
    "RecipeParseRequest": {
     "properties": {
      "yaml": {
@@ -18998,6 +19224,122 @@
      "new_password"
     ],
     "title": "RedeemCodeRequest",
+    "type": "object"
+   },
+   "RegexTestRequest": {
+    "properties": {
+     "pattern": {
+      "maxLength": 2000,
+      "title": "Pattern",
+      "type": "string"
+     },
+     "replacement": {
+      "anyOf": [
+       {
+        "maxLength": 2000,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Replacement"
+     },
+     "values": {
+      "items": {
+       "type": "string"
+      },
+      "maxItems": 50,
+      "title": "Values",
+      "type": "array"
+     }
+    },
+    "required": [
+     "pattern"
+    ],
+    "title": "RegexTestRequest",
+    "type": "object"
+   },
+   "RegexTestResponse": {
+    "properties": {
+     "error": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Error"
+     },
+     "results": {
+      "items": {
+       "$ref": "#/components/schemas/RegexTestResult"
+      },
+      "title": "Results",
+      "type": "array"
+     },
+     "valid": {
+      "title": "Valid",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "valid",
+     "error",
+     "results"
+    ],
+    "title": "RegexTestResponse",
+    "type": "object"
+   },
+   "RegexTestResult": {
+    "properties": {
+     "groups": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Groups",
+      "type": "array"
+     },
+     "matched": {
+      "title": "Matched",
+      "type": "boolean"
+     },
+     "replaced": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Replaced"
+     },
+     "spans": {
+      "items": {
+       "items": {
+        "type": "integer"
+       },
+       "type": "array"
+      },
+      "title": "Spans",
+      "type": "array"
+     },
+     "value": {
+      "title": "Value",
+      "type": "string"
+     }
+    },
+    "required": [
+     "value",
+     "matched",
+     "spans",
+     "groups",
+     "replaced"
+    ],
+    "title": "RegexTestResult",
     "type": "object"
    },
    "RememberSpecRequest": {
@@ -23087,6 +23429,51 @@
     "title": "SourceRead",
     "type": "object"
    },
+   "SplitRequest": {
+    "properties": {
+     "column": {
+      "maxLength": 255,
+      "minLength": 1,
+      "title": "Column",
+      "type": "string"
+     },
+     "values": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Values"
+     }
+    },
+    "required": [
+     "column"
+    ],
+    "title": "SplitRequest",
+    "type": "object"
+   },
+   "SplitResult": {
+    "properties": {
+     "created": {
+      "items": {
+       "$ref": "#/components/schemas/CopyResult"
+      },
+      "title": "Created",
+      "type": "array"
+     }
+    },
+    "required": [
+     "created"
+    ],
+    "title": "SplitResult",
+    "type": "object"
+   },
    "SsoStatusResponse": {
     "properties": {
      "issuer": {
@@ -24931,6 +25318,110 @@
     "title": "TableStatisticsRefresh",
     "type": "object"
    },
+   "TemplateCreate": {
+    "properties": {
+     "description": {
+      "anyOf": [
+       {
+        "maxLength": 2000,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Description"
+     },
+     "name": {
+      "maxLength": 160,
+      "minLength": 2,
+      "title": "Name",
+      "type": "string"
+     },
+     "steps_json": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "minItems": 1,
+      "title": "Steps Json",
+      "type": "array"
+     }
+    },
+    "required": [
+     "name",
+     "steps_json"
+    ],
+    "title": "TemplateCreate",
+    "type": "object"
+   },
+   "TemplateListResponse": {
+    "properties": {
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/TemplateRead"
+      },
+      "title": "Items",
+      "type": "array"
+     }
+    },
+    "required": [
+     "items"
+    ],
+    "title": "TemplateListResponse",
+    "type": "object"
+   },
+   "TemplateRead": {
+    "properties": {
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "description": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Description"
+     },
+     "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "step_count": {
+      "title": "Step Count",
+      "type": "integer"
+     },
+     "steps_json": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Steps Json",
+      "type": "array"
+     }
+    },
+    "required": [
+     "id",
+     "name",
+     "description",
+     "steps_json",
+     "step_count",
+     "created_at"
+    ],
+    "title": "TemplateRead",
+    "type": "object"
+   },
    "TemporalQueryRequest": {
     "description": "SQL over one recorded version of a stored dataset (time travel).\n\nExactly one of `version_number` / `as_of` picks the version; neither means\nthe current head. The data is exposed as a table named `dataset`.",
     "properties": {
@@ -25549,6 +26040,41 @@
     "title": "TokenResponse",
     "type": "object"
    },
+   "TokenRevealRequest": {
+    "properties": {
+     "key_name": {
+      "default": "default",
+      "maxLength": 100,
+      "minLength": 1,
+      "title": "Key Name",
+      "type": "string"
+     },
+     "token": {
+      "maxLength": 10000,
+      "minLength": 5,
+      "title": "Token",
+      "type": "string"
+     }
+    },
+    "required": [
+     "token"
+    ],
+    "title": "TokenRevealRequest",
+    "type": "object"
+   },
+   "TokenRevealResponse": {
+    "properties": {
+     "value": {
+      "title": "Value",
+      "type": "string"
+     }
+    },
+    "required": [
+     "value"
+    ],
+    "title": "TokenRevealResponse",
+    "type": "object"
+   },
    "ToolCatalogueResponse": {
     "properties": {
      "categories": {
@@ -25865,6 +26391,14 @@
       "title": "Name",
       "type": "string"
      },
+     "parameters": {
+      "items": {
+       "$ref": "#/components/schemas/RecipeParameter"
+      },
+      "maxItems": 50,
+      "title": "Parameters",
+      "type": "array"
+     },
      "status": {
       "default": "draft",
       "enum": [
@@ -25911,6 +26445,18 @@
       "format": "uuid",
       "title": "Base Dataset Id",
       "type": "string"
+     },
+     "branched_from_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Branched From Id"
      },
      "created_at": {
       "format": "date-time",
@@ -25970,6 +26516,14 @@
        }
       ],
       "title": "Output Dataset Id"
+     },
+     "parameters": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Parameters",
+      "type": "array"
      },
      "partition_column": {
       "anyOf": [
@@ -26154,6 +26708,19 @@
    },
    "TransformationPreviewRequest": {
     "properties": {
+     "parameter_values": {
+      "additionalProperties": true,
+      "title": "Parameter Values",
+      "type": "object"
+     },
+     "parameters": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Parameters",
+      "type": "array"
+     },
      "steps": {
       "items": {
        "additionalProperties": true,
@@ -26307,6 +26874,18 @@
      "inferred_type"
     ],
     "title": "TransformationPreviewSchemaColumn",
+    "type": "object"
+   },
+   "TransformationRunRequest": {
+    "description": "What a run is given besides the recipe (E1): values for its parameters.",
+    "properties": {
+     "parameters": {
+      "additionalProperties": true,
+      "title": "Parameters",
+      "type": "object"
+     }
+    },
+    "title": "TransformationRunRequest",
     "type": "object"
    },
    "TransformationRunResponse": {
@@ -28698,6 +29277,39 @@
     "title": "WorkflowValidationResponse",
     "type": "object"
    },
+   "service_destinations__copy_schemas__CopyRequest": {
+    "properties": {
+     "connection_id": {
+      "format": "uuid",
+      "title": "Connection Id",
+      "type": "string"
+     },
+     "destination_id": {
+      "format": "uuid",
+      "title": "Destination Id",
+      "type": "string"
+     },
+     "replace_existing": {
+      "default": false,
+      "title": "Replace Existing",
+      "type": "boolean"
+     },
+     "tables": {
+      "items": {
+       "type": "string"
+      },
+      "maxItems": 500,
+      "title": "Tables",
+      "type": "array"
+     }
+    },
+    "required": [
+     "connection_id",
+     "destination_id"
+    ],
+    "title": "CopyRequest",
+    "type": "object"
+   },
    "service_enterprise__schemas__PolicyRead": {
     "properties": {
      "column_rules": {
@@ -28812,6 +29424,33 @@
      "searched_events"
     ],
     "title": "ExplainResponse",
+    "type": "object"
+   },
+   "service_transformations__recipe_management__CopyRequest": {
+    "properties": {
+     "base_dataset_id": {
+      "format": "uuid",
+      "title": "Base Dataset Id",
+      "type": "string"
+     },
+     "name": {
+      "anyOf": [
+       {
+        "maxLength": 160,
+        "minLength": 2,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     }
+    },
+    "required": [
+     "base_dataset_id"
+    ],
+    "title": "CopyRequest",
     "type": "object"
    },
    "service_workbench__schemas__ExplainResponse": {
@@ -34193,6 +34832,89 @@
     ]
    }
   },
+  "/api/v1/projects/{project_id}/catalog/{dataset_id}/dictionary": {
+   "get": {
+    "description": "A dataset's data dictionary, as Markdown or CSV (E1).",
+    "operationId": "download_data_dictionary_api_v1_projects__project_id__catalog__dataset_id__dictionary_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "dataset_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Dataset Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "format",
+      "required": false,
+      "schema": {
+       "default": "markdown",
+       "title": "Format",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Download Data Dictionary",
+    "tags": [
+     "reporting"
+    ]
+   }
+  },
   "/api/v1/projects/{project_id}/changes": {
    "get": {
     "operationId": "read_changes_api_v1_projects__project_id__changes_get",
@@ -36630,7 +37352,7 @@
      "content": {
       "application/json": {
        "schema": {
-        "$ref": "#/components/schemas/CopyRequest"
+        "$ref": "#/components/schemas/service_destinations__copy_schemas__CopyRequest"
        }
       }
      },
@@ -36704,7 +37426,7 @@
      "content": {
       "application/json": {
        "schema": {
-        "$ref": "#/components/schemas/CopyRequest"
+        "$ref": "#/components/schemas/service_destinations__copy_schemas__CopyRequest"
        }
       }
      },
@@ -48220,6 +48942,174 @@
     ]
    }
   },
+  "/api/v1/projects/{project_id}/pipelines/{pipeline_id}/branch": {
+   "post": {
+    "operationId": "branch_recipe_api_v1_projects__project_id__pipelines__pipeline_id__branch_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "pipeline_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Pipeline Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/BranchCreate"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TransformationPipelineRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Branch Recipe",
+    "tags": [
+     "transformations"
+    ]
+   }
+  },
+  "/api/v1/projects/{project_id}/pipelines/{pipeline_id}/copy": {
+   "post": {
+    "operationId": "copy_recipe_to_dataset_api_v1_projects__project_id__pipelines__pipeline_id__copy_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "pipeline_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Pipeline Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/service_transformations__recipe_management__CopyRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CopyResult"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Copy Recipe To Dataset",
+    "tags": [
+     "transformations"
+    ]
+   }
+  },
   "/api/v1/projects/{project_id}/pipelines/{pipeline_id}/incremental": {
    "put": {
     "description": "How the recipe's runs compute: every row, only rows added since the last run, or\nonly the partitions whose rows changed. Each falls back to a full run, and says why.",
@@ -48305,6 +49195,259 @@
     ]
    }
   },
+  "/api/v1/projects/{project_id}/pipelines/{pipeline_id}/merge": {
+   "post": {
+    "operationId": "merge_branch_api_v1_projects__project_id__pipelines__pipeline_id__merge_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "pipeline_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Pipeline Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/MergeRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MergeResult"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Merge Branch",
+    "tags": [
+     "transformations"
+    ]
+   }
+  },
+  "/api/v1/projects/{project_id}/pipelines/{pipeline_id}/merge/preview": {
+   "post": {
+    "description": "What merging would do, and what conflicts, without merging.",
+    "operationId": "preview_merge_api_v1_projects__project_id__pipelines__pipeline_id__merge_preview_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "pipeline_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Pipeline Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/MergeRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MergeResult"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Preview Merge",
+    "tags": [
+     "transformations"
+    ]
+   }
+  },
+  "/api/v1/projects/{project_id}/pipelines/{pipeline_id}/parameters": {
+   "put": {
+    "operationId": "set_recipe_parameters_api_v1_projects__project_id__pipelines__pipeline_id__parameters_put",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "pipeline_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Pipeline Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ParametersUpdate"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TransformationPipelineRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Set Recipe Parameters",
+    "tags": [
+     "transformations"
+    ]
+   }
+  },
   "/api/v1/projects/{project_id}/pipelines/{pipeline_id}/run": {
    "post": {
     "operationId": "post_run_transformation_pipeline_api_v1_projects__project_id__pipelines__pipeline_id__run_post",
@@ -48346,6 +49489,23 @@
       }
      }
     ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "anyOf": [
+         {
+          "$ref": "#/components/schemas/TransformationRunRequest"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "title": "Payload"
+       }
+      }
+     }
+    },
     "responses": {
      "200": {
       "content": {
@@ -48664,6 +49824,90 @@
      }
     ],
     "summary": "Discard Recipe Changes",
+    "tags": [
+     "transformations"
+    ]
+   }
+  },
+  "/api/v1/projects/{project_id}/pipelines/{pipeline_id}/split": {
+   "post": {
+    "operationId": "split_recipe_by_value_api_v1_projects__project_id__pipelines__pipeline_id__split_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "pipeline_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Pipeline Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SplitRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SplitResult"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Split Recipe By Value",
     "tags": [
      "transformations"
     ]
@@ -49146,6 +50390,209 @@
     "summary": "Promote Resource To",
     "tags": [
      "governance"
+    ]
+   }
+  },
+  "/api/v1/projects/{project_id}/recipe-templates": {
+   "get": {
+    "operationId": "list_recipe_templates_api_v1_projects__project_id__recipe_templates_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TemplateListResponse"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "List Recipe Templates",
+    "tags": [
+     "transformations"
+    ]
+   },
+   "post": {
+    "operationId": "save_recipe_template_api_v1_projects__project_id__recipe_templates_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/TemplateCreate"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TemplateRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Save Recipe Template",
+    "tags": [
+     "transformations"
+    ]
+   }
+  },
+  "/api/v1/projects/{project_id}/recipe-templates/{template_id}": {
+   "delete": {
+    "operationId": "delete_recipe_template_api_v1_projects__project_id__recipe_templates__template_id__delete",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "template_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Template Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Delete Recipe Template",
+    "tags": [
+     "transformations"
     ]
    }
   },
@@ -57422,6 +58869,71 @@
     ]
    }
   },
+  "/api/v1/transformations/tokens/reveal": {
+   "post": {
+    "description": "Turn a reversible token back into its value. A deployment administrator only; the request is\nin the audit log like every write.",
+    "operationId": "reveal_token_api_v1_transformations_tokens_reveal_post",
+    "parameters": [
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/TokenRevealRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TokenRevealResponse"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Reveal Token",
+    "tags": [
+     "transformations"
+    ]
+   }
+  },
   "/api/v1/transformations/tools": {
    "get": {
     "operationId": "get_tools_api_v1_transformations_tools_get",
@@ -57601,6 +59113,71 @@
      }
     ],
     "summary": "Post Tool Preview",
+    "tags": [
+     "transformations"
+    ]
+   }
+  },
+  "/api/v1/transformations/tools/regex/test": {
+   "post": {
+    "description": "Try a pattern on sample values with the engine's own regular expressions (Python's), which\ndiffer from a browser's in places (named groups, lookbehind), so the Studio asks here.",
+    "operationId": "try_regex_api_v1_transformations_tools_regex_test_post",
+    "parameters": [
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RegexTestRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RegexTestResponse"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Try Regex",
     "tags": [
      "transformations"
     ]

@@ -15,6 +15,11 @@ Every word Pipewright uses, with one meaning each. If a screen ever uses a word 
 | Version | One saved state of a dataset. Every change makes a new one, and old ones stay readable. |
 | Recipe | The ordered steps that turn one dataset into another. |
 | Step | One change inside a recipe, such as removing empty rows. |
+| Tool | One of the ready-made steps in the tool library, such as Running total or Standardise a phone number. |
+| Group | Steps next to each other under one name, which fold, turn off and save as a template together. |
+| Parameter | A value a recipe takes each time it runs, written `{{name}}` in a setting, with a default. |
+| Template | Steps saved to add to any recipe: common jobs come with Pipewright, and a project saves its own. |
+| Branch | A copy of a recipe to try changes in, which can be merged back into the recipe it came from. |
 | Run | One go of a recipe, an import, a workflow, a check or a delivery. |
 | Runs at once | How many runs a project may have going together. Queued work waits its turn; a person's runs go first. |
 | Statistics | What is known about a dataset's or a table's values: how many rows, how often each column is empty, how its values spread. Plans are estimated from them. |

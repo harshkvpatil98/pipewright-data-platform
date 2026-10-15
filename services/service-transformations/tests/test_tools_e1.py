@@ -51,9 +51,9 @@ class TestChecks:
         assert "Check numbers are in a range: 5 rows have a qty outside 0" in message
         assert "Rows 2, 4, 5, 6 and 7." in message
 
-    def test_more_than_five_failing_rows_say_and_more(self) -> None:
+    def test_more_than_five_failing_rows_say_how_many_more(self) -> None:
         frame = pd.DataFrame({"qty": [-1] * 8})
-        with pytest.raises(BadRequestError, match=r"Rows 1, 2, 3, 4 and 5 and more\."):
+        with pytest.raises(BadRequestError, match=r"Rows 1, 2, 3, 4, 5 and 3 more\."):
             run(frame, "assert.in_range", column="qty", minimum=0)
 
     def test_warn_keeps_the_data_and_says_so(self) -> None:

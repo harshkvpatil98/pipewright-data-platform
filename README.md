@@ -70,18 +70,24 @@ in CI, and the server's limits stated on System status. A8 opened it to
 partners and scripts: signed webhooks, project bundles, a generated Python
 client and `pipewright` command line, dashboards embedded in other sites by
 signed links that run out, alerts on a dataset's measures, one activity
-stream per project, and the shell's words in a message catalogue. The progress ledger lives in [docs/HANDOFF.md](docs/HANDOFF.md).
+stream per project, and the shell's words in a message catalogue. A9 finished
+the sequence. Then, on 2026-10-15, four roadmap phases: data contracts (C1)
+and working together on a recipe (C2), live data from database change logs
+and eight queues (D1), and performance (D2): statistics and estimates,
+queries across databases and datasets, kept results so a late edit is
+quick, recipes that compute only what changed, and limits per project and
+per run. The progress ledger lives in [docs/HANDOFF.md](docs/HANDOFF.md).
 
 At a glance, measured on `main`:
 
 | | |
 |---|---|
 | Python domain services | 24, in `services/` |
-| Database migrations | 59 Alembic revisions, head `0059_activity` |
-| Web pages | 64 Next.js App Router pages |
+| Database migrations | 65 Alembic revisions, head `0065_incremental_runs` |
+| Web pages | 68 Next.js App Router pages |
 | Connectors | 211: 50 tier 2 ("Tested", run against a container or fixture in CI), 161 tier 4 ("Not yet tested", written from vendor documentation, offered on request) |
 | Transformation library | 20 pipeline step types plus a `tool` step over 173 tools in 11 categories |
-| Tests | 7,145 Python tests collected and 827 web tests ([results below](#running-tests)), plus 6 browser tests in CI, one of them signing in through a live Keycloak |
+| Tests | 7,829 Python tests collected and 863 web tests ([results below](#running-tests)), plus 6 browser tests in CI, one of them signing in through a live Keycloak |
 
 ## What the platform does
 
@@ -117,10 +123,18 @@ At a glance, measured on `main`:
   source and why the rest do not.
 - **One relational IR** behind every step, tool and formula, with a pandas and
   a SQL backend proven equal by differential tests, a pushdown planner, and
-  provable rewrites (predicate and limit pushdown, filter merging) applied
-  before it splits a plan.
+  provable rewrites (predicates through joins and aggregates, projection
+  pruning, constant folding, join order by cost and more) applied before it
+  splits a plan. Every node is estimated from statistics each dataset
+  version and each imported database table keeps, and says how.
+- **Kept results and incremental runs.** What a recipe's earlier steps made
+  is kept, so changing step 14 of 15 on a million rows takes under a second;
+  a recipe can compute only rows appended since its last run, or only the
+  partitions that changed, with the result a full run gives.
 - **SQL workbench and notebooks**: read-only by default with per-dialect
-  statement timeouts, EXPLAIN, a live schema browser and autocomplete; notebook
+  statement timeouts, EXPLAIN, a live schema browser and autocomplete; one
+  query across PostgreSQL, MySQL, SQLite and datasets, each source running
+  its own part and small sides sent to the other as IN lists; notebook
   Python cells run in a probed sandbox and are disabled, with the reason
   stated, where the sandbox cannot enforce its limits. Recipes round-trip as
   YAML.
@@ -355,7 +369,14 @@ first-time user meets soonest:
 - **Email and Slack delivery** are tested with captured senders, not against a
   real SMTP server or Slack workspace. Webhooks are tested against a local
   receiver.
-- **Streaming** covers inbound webhooks and PostgreSQL CDC only, at-least-once.
+- **Live feeds** follow PostgreSQL, MySQL, MongoDB and SQL Server change logs
+  and eight queues, each tested against a real server or the vendor's test
+  server; MQTT, and RabbitMQ and webhooks without message ids, save each event
+  at least once rather than once, and say so.
+- **Queries across sources** join PostgreSQL, MySQL and SQLite connections and
+  datasets; another connector's tables join once imported. Subqueries, WITH,
+  UNION and window functions are refused, and a source that would send more
+  than 1,000,000 rows stops the query.
 - **Notebooks** run in the request (15 s per Python cell) rather than on the
   worker. Python cells are disabled on macOS, where the sandbox cannot limit
   memory; on Linux they run.

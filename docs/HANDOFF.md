@@ -113,16 +113,15 @@ was for that push, not a standing one.
 | 06 | Intelligence | `service-intelligence` | PII, join keys, entity resolution — **no model calls** |
 | 07 | Enterprise | `service-enterprise` | Tenancy, row/column security, retention, SSO, `/metrics` |
 
-**Migrations:** `apps/api-gateway/alembic/versions/`, 62 files, head is `0062_live_data`.
+**Migrations:** `apps/api-gateway/alembic/versions/`, 65 files, head is `0065_incremental_runs`.
 
 ### Roadmap v2: in progress
 
 See [`roadmap-v2.md`](./roadmap-v2.md) — 16 phases across 4 tracks, ≈58 sessions.
 Phases **08, 09, 10, 11, 12, 13, 14, 15, 17, 18** and, since 2026-10-15,
 **19 and 21** (as C1 and C2 in `docs/plans/contracts-and-collaboration.md`)
-and **20** (as D1 in `docs/plans/live-data-and-performance.md`) are done,
-**16** shipped its machinery plus 173 tools, **22** shipped a first slice as
-production-readiness P9; **23** has not started. The progress ledger in §8
+and **20** and **22** (as D1 and D2 in `docs/plans/live-data-and-performance.md`)
+are done, **16** shipped its machinery plus 173 tools; **23** has not started. The progress ledger in §8
 tracks the rest.
 
 ---
@@ -169,6 +168,22 @@ tracks the rest.
 - **pytest uses `--import-mode=importlib` with no `__init__.py` files.** Two `conftest.py`
   files with the same basename collide and one silently supplies the other's fixtures. Fixtures
   are inlined per module. Do not add a shared `conftest.py` without checking for collisions.
+- **PostgreSQL keeps a JSON column's keys in its own order** (D2). A dict written to
+  `summary_json` comes back shortest key first; never compare keys in order (an incremental
+  run's check did, and matched on SQLite only).
+- **A streamed PostgreSQL statement is a server-side cursor** (D2). With
+  `stream_results=True` on the connection, a `SET LOCAL statement_timeout` fails and aborts the
+  transaction; stream the query only (`text(sql).execution_options(stream_results=True)`).
+- **MySQL drains an unread result** (D2). A read stopped at a row limit leaves the rest of the
+  result to cross the network when the connection is next used;
+  `sql_database.abandon_unread_result` closes it instead.
+- **pandas joins an empty key to an empty key; SQL never does** (D2). The IR's pandas backend
+  sets empty keys aside so it agrees with the SQL backend; the "Join another dataset" step keeps
+  pandas' behaviour, which users have relied on.
+- **`ir.expressions.is_aggregate` means "contains an aggregate"** (D2). To ask whether a call
+  is itself one, read `FUNCTIONS[call.name].is_aggregate`; `ROUND(SUM(x), 2)` is not.
+- **A preview and a run share what they keep** (D2, `prefix_cache.describe_input`). Anything
+  either needs about its input goes in that one description, or the other finds it missing.
 - **Live feeds' round trips need their servers** (D1): `docker compose -f docker-compose.live.yml up -d`,
   `scripts/check-live-servers.py --wait 180`, then run with `LIVE_TEST_SERVERS=1` (and
   `OUTBOUND_ALLOW_LOOPBACK=true` for the queue tests). Without it they skip; the `live` CI job
@@ -261,7 +276,13 @@ honesty; if you verify one, update its status here.
 | gRPC absent | Needs `grpcio` and a reflection-based dynamic client |
 | Lineage is still derived from `columns.py`, not the IR | P9 made the IR the only *executor*; `service_lineage/from_ir.py` derives schemas, not edges, so cutting lineage over means writing edge derivation first. `test_matches_ir.py` still proves the two agree |
 | Contracts are per dataset, here | C1: a contract is about one dataset in this deployment. Nothing publishes it to another deployment or holds it at the source, and a downstream recipe is listed as relying on a dataset rather than notified itself (its owner can follow). Erasing a person's data is never stopped by a contract, by design; a promise it breaks is recorded |
-| Optimizer has rewrites, not statistics | `ir/rewrites.py` applies five provable identities before the planner splits a tree. No row/distinct counts are collected, so no join reordering, no cost model, no caching or federation (Phase 22) |
+| Queries across sources cover the SQL databases and datasets | D2: `service_workbench/across.py` reads PostgreSQL, MySQL and SQLite connections (the ones `service_extraction` runs SQL against) and datasets; a table behind another connector joins once it is imported. Subqueries, WITH, UNION, LATERAL and window functions are refused by name; an outer join joins on equal columns only; a source that would send more than 1,000,000 rows (`MAX_SOURCE_ROWS`) stops the query rather than join part of a table; datasets are read whole, under the reader's policies |
+| Table statistics outside PostgreSQL come from the first rows | D2: `table_statistics.py` reads PostgreSQL's own statistics without touching the table; anything else is described from the first 10,000 rows it returns (a random sample would read the whole table) with the database's own row count, MySQL's `TABLE_ROWS` being an estimate itself. Every plan says which. Statistics never run ANALYZE |
+| Estimates assume columns are independent | D2: `ir/estimate.py` multiplies selectivities for AND, the textbook simplification; correlated filters are estimated low. Histograms are kept for numbers and dates only; a text range is a stated guess |
+| Join order by cost is for the IR's own joins | D2: `ir/reorder.py` reorders runs of three or more inner joins on equal columns with no shared column names: queries across sources and estimates. A recipe's "Join another dataset" steps run one at a time, in the order written |
+| Kept results are per gateway, in memory | D2: `prefix_cache.py` keeps what previews and runs made in each process (`RECIPE_CACHE_MB`, `RECIPE_CACHE_MINUTES`); another replica computes its own. A kept frame is handed on, not copied, which relies on no step changing its input in place: `test_prefix_cache.py` holds every step type to that |
+| Partition runs return rows in another order | D2: an incremental run by partition keeps the unchanged partitions' rows and adds the recomputed ones after them; the rows and values are a full run's, the order is not, so a recipe that sorts runs in full |
+| The worker's address-space cap is Linux only | D2: `shared_python.memory.cap_address_space` uses `RLIMIT_AS`, which macOS does not honour reliably; there the per-step check (`RUN_MEMORY_LIMIT_MB`) is the ceiling. `WORKER_ADDRESS_SPACE_CAP=false` turns the cap off for a library that reserves far more than it uses |
 | 9 engines are declared but undriveable | Cassandra, ScyllaDB, Couchbase, Redis, ArangoDB, HBase, Aerospike, Timestream, HDFS. Each declares only `test`, reports `available: false`, and names the interface this platform *can* read instead |
 | Old duplicate datasets are not merged | Since A4 an import's runs and a recipe's runs add versions to one dataset (`reusable_dataset`, `TransformationPipeline.output_dataset_id`). Datasets created one-per-run before that stay separate records; merging them would rewrite version history, so the Datasets list still folds same-named records into one row ("12 loads") |
 | The v1 source registry is hidden, not removed | `service-sources` (`/api/v1/projects/{id}/sources`, the "Register source" records) is no longer shown anywhere in the web app since A1; its API and tables stay for compatibility. A4 did not retire it: nothing reads it, and deleting the tables needs a decision about existing rows |
@@ -301,7 +322,7 @@ honesty; if you verify one, update its status here.
 | 19 | Semantic layer & contracts | **done** | 3/3 | Metrics defined once on the IR (`service_reporting/metrics.py`, migration 0044), resolved everywhere. **Data contracts (C1, 2026-10-15)**: `service_quality/data_contracts.py`, migration 0060; promises per column and per dataset, enforced before storing by recipe runs, imports and stream saves, refused on rollback, recorded on erasure; problems once per source, overdue from the freshness promise, followers, what relies on it |
 | 20 | Streaming & CDC | **done** | 4/4 | P9's webhooks and PostgreSQL CDC, then **D1 (2026-10-15)**: `service_extraction/live/` (PostgreSQL, MySQL binlog, MongoDB change streams, SQL Server CDC; Kafka, Event Hubs, Kinesis, Pub/Sub, Pulsar, RabbitMQ, NATS, MQTT), tables kept current by key after a first copy, positions committed with events, guarantees stated per kind, live recipes with four window kinds, watermarks, lateness and exactly-once state (`live/windows.py`, `live_recipes.py`), `platform-live-runner`, migration 0062, a `live` CI job against every server |
 | 21 | Collaboration | **done** | 3/3 | Comments with @mentions (P8). **C2 (2026-10-15)**: recipes co-edited in a shared copy merged by a CRDT (`service_transformations/coedit.py` + `studio/coedit.ts`, shared fixtures, selective per-person undo), revisions refusing stale saves, presence with step focus, suggestions any viewer can make and editors accept step by step, threads with replies on dataset cells, a per-dataset change feed (migration 0061) |
-| 22 | Optimizer | **partial** | 1/4 | `ir/rewrites.py`: predicate/limit pushdown through row-wise nodes, filter and limit merging, proven by a four-way differential test and reported in every plan. No statistics, cost model, caching or federation |
+| 22 | Optimizer | **done** | 4/4 | P9's five rewrites, then **D2 (2026-10-15)**: statistics per dataset version and per imported database table (`shared_python/statistics.py`, `service_extraction/table_statistics.py`, migration 0063), estimates for every node (`ir/estimate.py`) shown beside counted rows in the Studio, the remaining rewrites and join order by cost (`ir/reorder.py`), queries across sources with IN lists and re-planning (`service_workbench/across.py`), kept results (`prefix_cache.py`), incremental runs (`incremental.py`, migration 0065), runs at once, priorities and a memory ceiling (`service_pipeline_runs/limits.py`, `shared_python/memory.py`, migration 0064) |
 | 23 | Extensibility | not started | 0/3 | Needs most |
 
 **Business documentation (2026-09-23):** [Business requirements](business-requirements.md)
@@ -312,12 +333,36 @@ increments without declaring P2 complete; later development is outside that snap
 
 ### Recommended next action
 
-**The current plan is `docs/plans/live-data-and-performance.md`**: D1
-(roadmap Phase 20, live data) is done as of 2026-10-15; D2 (Phase 22,
-statistics, a cost model, queries across sources, caching, incremental runs
-and resource limits) is next. Before it, `docs/plans/contracts-and-collaboration.md`
-finished C1 (Phase 19's data contracts) and C2 (Phase 21, working together).
-Phase 23 (extensibility) still needs its own measured plan. Rules for
+**The current plan, `docs/plans/live-data-and-performance.md`, is finished**:
+D1 (roadmap Phase 20, live data) and D2 (Phase 22, performance) are done as
+of 2026-10-15, after `docs/plans/contracts-and-collaboration.md` finished C1
+and C2. Phase 23 (extensibility) is the last roadmap phase not started, and
+Phase 16's missing tool families the last partial one; each needs its own
+measured plan. Owner-only items still wait: tagging v1.0.0, publishing the
+docs site, and the cold-user sessions.
+
+Rules for anyone touching the optimiser and runs (D2):
+
+- **Statistics have one shape** (`shared_python.statistics.TableStats`),
+  whatever made them; the estimator reads only that, so a new source of
+  statistics needs nothing in `ir/estimate.py`. A figure with nothing to
+  work from is `guessed=True`, never a confident number.
+- **Kept results are addressed by everything that decides them.** A new
+  input to a step (another dataset, the clock, a setting read at run time)
+  must reach `prefix_cache.step_keys`, or a stale result will be served. The
+  clock is caught at run time (`ir/clock.watching_reads`); anything else
+  nondeterministic must say so the same way.
+- **What a step allows an incremental run** is read off the IR it compiles
+  to (`incremental.why_not`): a new step type that compiles to a Project or
+  a Filter is row by row automatically; an Extension is refused until
+  `_part_reason` names it. Prove a new case in `test_incremental_runs.py`
+  against a full run.
+- **Runs count against their project** through `service_pipeline_runs.limits`:
+  wrap code that starts runs on someone's behalf in `started_by(...)` (the
+  workflow executor and the schedule executor do), so it is counted, and
+  queued, at the right priority.
+
+Rules for
 anyone touching live feeds:
 
 - **A live feed kind is one class in `service_extraction/live/`** with the
@@ -1062,3 +1107,4 @@ Report honestly. If something is unverified, say so and add it to §7.
 | 2026-10-15 | `75332b59` | **Phase 19 complete: data contracts (C1).** Plan `docs/plans/contracts-and-collaboration.md`, measured first (a recipe dropping a column others use ran and silently lost it, no schema change, no message; two saves of one recipe silently overwrote each other, kept for C2). `service_quality/data_contracts.py`, migration 0060: promises per column and per dataset, drafted from the data, versioned in words; enforced before storing by recipe runs, imports and stream saves (409 with the reasons, head kept), refused on rollback, recorded on erasure; problems once per source; overdue from the freshness promise; owner and followers told by the worker after commit; what relies on a dataset; Trust → Contracts, the dataset's contract page and editor, a chip, a Studio notice and a restore warning; activity kind, bundles, audit phrases, client, help. Found and fixed: every failed recipe run and import kept only "Waiting to start." in its log (a shared list never seen as changed); a PostgreSQL-only failure in the consumers query (contract tests now run on PostgreSQL too); six run-log and warning strings with retired words, now tested. Rehearsed live on the dev stack: the baseline recipe stopped and then resolved by a good run, an import from PostgreSQL stopped when its table lost a column, overdue opened and closed by the worker, the restore dialog refusing. 77 pages walked at 1280 and 1024, no problem; `npm run verify` green with no `.env`, 6,573 Python passed / 613 skipped, 837 web |
 | 2026-10-15 | `75332b59` | **Phase 21 complete: working together (C2).** Measured first: two saves of one recipe silently overwrote each other; no presence; viewers could neither comment nor propose; recipe change requests had no "before" and could never be applied; "Changes need approval" could not be switched on; comments were flat; a dataset had no history of what happened. Shipped: recipe revisions with stale saves refused (409 naming who); a shared copy per recipe merged by a CRDT twinned in Python and TypeScript with shared fixtures and a three-person convergence test; per-person selective undo; presence with step focus; suggestions from any viewer, reviewed step by step in the Studio and Approvals (Accept/Decline), authors and reviewers told; the approval setting; threads with replies and cell anchors on dataset rows; a per-dataset feed on History (migration 0061). Found and fixed: key-order comparisons calling equal settings different (Bob's Studio stuck on "Unsaved changes"), a presence and shared-copy insert race (test fails 3/3 on old code), an endless Studio preview loop (found by the accessibility suite), a first save reopening as an empty recipe (found by the golden path), and CI's verify failing after C1 because create_all on PostgreSQL altered shared table definitions (fixed and pushed separately). Rehearsed live with three browsers: rename propagated in 842 ms, undo left the other's change, both showed Saved, a viewer's suggestion declined with a note that reached him. `npm run verify` green with no `.env`, 6,608 Python passed / 628 skipped, 848 web; golden path and accessibility suites green against the dev stack; every page walked at 1280 and 1024 with no problem |
 | 2026-10-15 | `75332b59` | **Phase 20 complete: live data (D1).** Plan `docs/plans/live-data-and-performance.md`, measured first (a change committed during a poll was lost every time; no snapshot, no table "as it is now"; 20,000 changes took 41 polls, 20 minutes; saving rewrote every event; webhook retries stored twice; two kinds; the CDC test skipped on CI). Shipped `service_extraction/live/` (13 kinds: PostgreSQL, MySQL, MongoDB and SQL Server change capture; Kafka, Event Hubs, Kinesis, Pub/Sub, Pulsar, RabbitMQ, NATS, MQTT; webhooks), tables kept current by key after a first copy, positions committed with events and acknowledgements after, guarantees per kind, live recipes (`live/windows.py`: four window kinds, watermark, drop or restate; `live_recipes.py`: steps, lookup, exactly-once state), `platform-live-runner`, migration 0062, a Live feeds tab and page per feed, `docker-compose.live.yml`, `scripts/check-live-servers.py` and a `live` CI job. Faults found: the ::1 outbound refusal, sums counted once per measure, mixed lowest/highest, PostgreSQL deletes skipped, a foreign key broken on PostgreSQL (SQLite hid it), the Kinesis test server's repeats. Rehearsed live: first copy of 1,000 rows in 1s, changes in 6s, 20,000 in 8s, 120 Kafka messages summarised by minute, a webhook retry saved once, the add-feed and live-recipe forms in a browser. 76 pages walked at 1280 and 1024 with no problem. 6,684 Python passed, 667 skipped; 854 web. |
+| 2026-10-15 | `75332b59` | **Phase 22 complete: performance (D2).** Plan `docs/plans/live-data-and-performance.md`, measured first (no statistics; editing step 14 of 15 ran all 15 over a fresh read; no queries across sources; an appended re-run recomputed everything; 900,000,000-row joins unstopped; ten runs at once). Shipped statistics per version and per imported table (0063), estimates beside counted rows, the remaining rewrites and join order by cost, queries across PostgreSQL, MySQL, SQLite and datasets with IN lists and re-planning, kept results, incremental runs (0065), runs at once, priorities and a memory ceiling (0064). Found and fixed 18 faults, among them a plan's SQL naming a denied column, the pandas backend joining empty keys, a MySQL read draining the rest of a table, an erasure leaving statistics behind, and a run crashing on a preview's kept input. Changing step 14 of 15 on 1,000,000 rows: 0.54 to 0.75 s; an appended re-run: 6.5 s against 17.2 s. 7,829 Python tests collected, 863 web |

@@ -123,7 +123,11 @@ export function AcrossResult({ result }: { result: AcrossResponse }) {
                   {source.method}.
                 </span>
               </p>
-              {source.estimate_how ? <p className="text-[12px] text-ink-3">Estimated from {source.estimate_how}.</p> : null}
+              {source.estimate_how ? (
+                <p className="text-[12px] text-ink-3">
+                  Estimated from {source.estimate_how}.{source.statistics ? ` Its statistics: ${source.statistics}.` : ""}
+                </p>
+              ) : null}
               <pre className="mt-1 overflow-x-auto whitespace-pre-wrap rounded-lg bg-sunken p-2 font-mono text-[12px] leading-5 text-ink-2">
                 {source.ran}
               </pre>

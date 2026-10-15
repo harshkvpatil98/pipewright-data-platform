@@ -56,8 +56,8 @@ and alert on failure.
 | --- | --- | --- |
 | Gateway | replicas / HPA | Stateless once stored files are shared: `STORAGE_BACKEND=s3` (a bucket), or one `ReadWriteMany` volume (`storage.persistence`). Scale on CPU. `gateway.autoscaling.enabled=true`. |
 | Web | replicas / HPA | Stateless; scale on CPU. |
-| Workflow worker | replicas | The queue claim is leased, so many workers share load safely. It also does the long work the pages hand over: uploads over 25MB, deliveries over 50,000 rows and database copies. A project runs at most `WORKFLOW_MAX_RUNS_PER_PROJECT` workflow runs at once (3). |
-| Schedule ticker | **one**, usually | The lease reduces but does not eliminate double-execution across pollers. Run one replica, or give each a distinct `SCHEDULER_RUNTIME_ID`. |
+| Workflow worker | replicas | The queue claim is leased, so many workers share load safely. It also does the long work the pages hand over: uploads over 25MB, deliveries over 50,000 rows and database copies. A project has at most `PROJECT_RUNS_AT_ONCE` runs going at once (4, all kinds together; a project can set its own); the worker takes a person's runs before scheduled ones and backfills, and skips a project at its limit. On Linux it caps its own address space at twice `RUN_MEMORY_LIMIT_MB` plus 2GB, so a run that tries to take more fails with the reason instead of the worker dying (`WORKER_ADDRESS_SPACE_CAP=false` turns that off). |
+| Schedule ticker | **one**, usually | The lease reduces but does not eliminate double-execution across pollers. Run one replica, or give each a distinct `SCHEDULER_RUNTIME_ID`. A due schedule in a project at its runs-at-once limit waits for a later pass. Once a day it also collects again the statistics of database tables imports read (a few tables a pass; PostgreSQL's own, or the first 10,000 rows). |
 | Live runner | replicas | Reads every live feed when it is due (`platform-live-runner`, D1). Each feed is read under a lease, so replicas share feeds and never read one twice at once. A batch is at most 5,000 events; saving a table kept current reads its whole current version, so give it the memory the largest followed table needs (Helm `liveRunner.resources`, 2Gi by default). |
 | Postgres | vertical + read replicas | The single stateful tier; size it first (below). |
 
@@ -68,6 +68,8 @@ gateway replica — no sticky sessions required.
 ## Sizing
 
 Starting points; measure with the perf baseline (below) and adjust.
+
+Each gateway keeps what recent recipe previews and runs made, in memory, so changing a later step does not run the earlier ones again: up to `RECIPE_CACHE_MB` (512MB) for `RECIPE_CACHE_MINUTES` (30). Count it in a gateway's memory, or set 0 to keep nothing. One run's data may take `RUN_MEMORY_LIMIT_MB` (2GB); a step that would grow it past that stops the run with the step and the size.
 
 | Scale | Gateway | Web | Worker | Postgres |
 | --- | --- | --- | --- | --- |

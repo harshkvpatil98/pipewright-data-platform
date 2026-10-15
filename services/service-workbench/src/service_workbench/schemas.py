@@ -77,6 +77,8 @@ class AcrossSourceRead(BaseModel):
     #: All of it, or only rows whose keys were found on the other side of a join.
     method: str
     duration_ms: float
+    #: Where the table's statistics came from: its database's own, a sample, every row, or none.
+    statistics: str = ""
 
 
 class AcrossJoinRead(BaseModel):

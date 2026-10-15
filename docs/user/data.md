@@ -29,6 +29,8 @@ On a connection, choose **See what it holds** (or **Browse tables** for a databa
 
 Each run of an import adds a version to the same dataset, so you keep one dataset with a history rather than a new one per run.
 
+A database table an import reads is described for planning: how many rows it has and how its values spread. PostgreSQL's own statistics are used where it keeps them, without reading the table; anything else is described from its first 10,000 rows. They are collected again after each import and once a day, and every plan that uses them says which kind they are.
+
 ## Live feeds
 
 Data that arrives by itself, in **Data → Live feeds**. Pipewright reads each feed every few seconds (every 5 by default) and saves it to datasets every so often (every minute by default), each save a new version.
@@ -69,7 +71,7 @@ Every table in the project, one row per name. Filter by where it came from (uplo
 
 On a dataset's page:
 
-- **Rows** shows a preview, and **Columns** shows each column's kind, how often it is empty and how varied it is.
+- **Rows** shows a preview, and **Columns** shows each column's kind, how often it is empty and how varied it is. **Values** shows how a number or date column's values spread, from lowest to highest, or a text column's commonest values with their share of the rows. Every version keeps these figures from when it was written, and the Studio estimates from them.
 - **Comment on a cell**: click any cell in Rows (or use **Comment on a cell**) to start a thread about it. A cell with a thread is marked with how many it has. Threads take replies and @mentions, and resolve as a whole; replying to a resolved one opens it again. A row is named by its identifier column (such as an order number) when the dataset has one, so the thread stays with that row in later versions; otherwise by its number in that version.
 - **History** (under **More**) shows what happened to it, newest first: each version and what made it, runs that failed to make one, checks, schema changes, contract problems, alerts and comments.
 - **Clean in Studio** opens it in the [Studio](build.md#studio).

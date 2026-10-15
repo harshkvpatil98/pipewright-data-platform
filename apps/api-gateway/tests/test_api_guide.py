@@ -167,3 +167,8 @@ def test_the_worked_examples_run_as_written(api, tmp_path) -> None:
     download = by_url["/api/v1/projects/$PROJECT/datasets/$DATASET/download"]
     assert download.splitlines()[0] == "id,customer,amount"
     assert len(download.strip().splitlines()) == 5
+    # Example 6: the database's orders beside the imported dataset, one row per customer; order 2
+    # is in both twice, so it matches four times.
+    across = by_url["/api/v1/projects/$PROJECT/workbench/across/run"]
+    assert {row["customer"]: row["matched"] for row in across["rows"]} == {"ann": 1, "bo": 4, "cy": 1}
+    assert {source["source"] for source in across["sources"]} == {"Shop database.orders", 'datasets."Orders"'}

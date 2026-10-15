@@ -141,6 +141,7 @@ def test_two_databases_and_a_dataset_give_what_one_database_gives(files: Files, 
     assert "WHERE" in orders_sql and "'paid'" in orders_sql and '"main"."orders"' in orders_sql
     assert '"id"' not in orders_sql.split("FROM")[1].split("WHERE")[0]  # only the columns used
     assert sources["shop.orders"].rows == int(((ORDERS.status == "paid") & (ORDERS.amount > 20)).sum())
+    assert sources["shop.orders"].statistics == "every row"  # and says where its statistics came from
     assert outcome.rewrites and outcome.joins
 
 

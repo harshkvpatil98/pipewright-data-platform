@@ -2,6 +2,15 @@
 
 The changes people notice, newest first. The full record is in the repository's changelog.
 
+## Faster, and planned from what the data holds
+
+- **Every version knows its values.** A dataset's **Columns** show how each column's values spread, or its commonest values, and every version keeps these figures from when it was written.
+- **Expected rows beside counted rows.** **Details → Where it runs** in the Studio shows the rows each step is expected to leave and how that was worked out, beside the rows the preview counted.
+- **Changing a late step is quick.** What the earlier steps made is kept for a while, so changing step 14 of 15 on a million rows takes under a second.
+- **Recipes that compute only what changed.** Choose **Only rows added since the last run** or **Only partitions whose rows changed**; the result is what a full run gives, and a run that cannot do less says why.
+- **One query across databases and datasets.** **SQL → Across sources** joins tables from several connections and datasets in one SELECT; each database runs its own part, and the page shows what each one sent.
+- **Fair shares.** A project runs up to four runs at once, a person's first; one busy project no longer holds up the others, and a run whose data outgrows the server stops at the step that did it.
+
 ## Live feeds
 
 - **Live feeds have their own tab.** **Data → Live feeds** reads data as it arrives, every few seconds, and saves it to datasets every so often.

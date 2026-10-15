@@ -1852,7 +1852,7 @@ give a wider audience access.
 
 ---
 
-## Phase 22 — Cost-based optimizer & performance ⚠ PARTIAL (2026-09-23: rewrites shipped as P9 — `ir/rewrites.py`; no statistics, cost model, caching or federation)
+## Phase 22 — Cost-based optimizer & performance ✅ COMPLETE (2026-10-15, as D2 in `docs/plans/live-data-and-performance.md`; queries across sources cover PostgreSQL, MySQL and SQLite connections and datasets, so another source joins once it is imported)
 
 Phase 12 decides *where* to run. This decides *how well*.
 

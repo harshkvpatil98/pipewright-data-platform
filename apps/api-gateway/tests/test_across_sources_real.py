@@ -139,7 +139,7 @@ def test_postgresql_mysql_and_a_dataset_in_one_query(db: Session, world: dict) -
     by_source = {source.source: source for source in outcome.sources}
     pg_part = by_source[f"Sales PG.public.{orders}"]
     assert '"public"' in pg_part.ran and "> 30" in pg_part.ran  # PostgreSQL ran its filter, in its dialect
-    assert "PostgreSQL's own statistics" in pg_part.estimate_how or pg_part.estimated is not None
+    assert pg_part.statistics == "PostgreSQL's own statistics" and pg_part.estimated is not None
     my_part = by_source[f"CRM.{customers}"]
     assert "`" in my_part.ran  # MySQL quoting
     history = db.query(QueryRun).filter(QueryRun.project_id == world["project"].id).all()

@@ -122,6 +122,7 @@ export type AcrossResponse = {
     estimate_how: string;
     method: string;
     duration_ms: number;
+    statistics: string;
   }[];
   joins: { joined: string; method: string; rows: number; estimated: number | null; note: string }[];
   rewrites: string[];

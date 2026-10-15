@@ -10,7 +10,7 @@ Build one on the canvas by adding tasks and joining them. Run it by hand, put it
 
 **When a task fails.** A task can try again by itself: open it and set **If it fails** to a number of tries; each wait is twice the last. When a run fails anyway, fix what went wrong and choose **Pick up from where it failed**. Tasks that succeeded are not run again, unless you changed them; a task you changed, and every task after it, runs again. If the background worker stops part way through a run, the run is marked failed with that reason and you can pick it up the same way.
 
-**How many at once.** A project runs up to three workflow runs at the same time (an administrator can change this); more wait their turn, so one project's backfill cannot hold up the others.
+**How many at once.** A project has up to four runs going at the same time: recipe runs, imports, deliveries and workflow runs together (a project's admin can set its own number under **Settings**). Queued work waits its turn, and what a person started goes before scheduled work, which goes before a backfill, so one project's backfill cannot hold up the others. A run you start while the project already has its limit going is refused, saying so; start it again when one finishes. A due schedule in a busy project waits for a later pass rather than failing.
 
 ## Schedules
 

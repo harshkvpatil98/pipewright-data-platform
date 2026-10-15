@@ -13,6 +13,43 @@ the test counts at the time — is in the session log in
 
 ---
 
+## Phase 22 complete: performance, D2 (2026-10-15)
+
+Roadmap Phase 22, the cost-based optimiser and performance; the plan is
+[docs/plans/live-data-and-performance.md](docs/plans/live-data-and-performance.md).
+
+- **Statistics.** Every dataset version keeps its values' spread and
+  commonest values from when it was written; a connected database table is
+  described from PostgreSQL's own statistics or its first 10,000 rows, and
+  says which, collected after each import and once a day. The dataset page
+  shows each column's spread.
+- **Estimates.** Every node of a plan is estimated, saying how; a guess
+  says it is one. The Studio shows each step's expected rows beside the
+  rows the preview counted.
+- **The rest of the rewrites,** join order by cost among them, each proven
+  on both backends.
+- **Queries across sources.** **SQL → Across sources**: one SELECT over
+  PostgreSQL, MySQL and SQLite tables and datasets; each database runs its
+  own part, small sides go to the other as IN lists, and the plan changes as
+  it runs when an estimate is ten times out, saying so.
+- **Caching.** Changing step 14 of a 15-step recipe over 1,000,000 rows
+  takes under a second; previews and runs share what they made.
+- **Incremental runs.** A recipe can compute only rows added since its last
+  run, or only the partitions whose rows changed, with the result a full run
+  gives; a run that cannot says why.
+- **Resource limits.** Four runs at once per project by default, a person's
+  first, a project's own limit in its settings; a memory ceiling per run,
+  and a join counted before it is built.
+- **Faster everywhere:** each recipe step types its input and checks what it
+  emptied in a third of the time; profiling no longer walks every value for
+  its samples; a MySQL import stopped at its row limit no longer reads the
+  rest of the table.
+- Fixed: a plan's SQL could name a column the reader's policy denies; a
+  recipe using a joined column after the join had no plan; the IR's pandas
+  backend joined empty keys to each other; an erasure left the erased value
+  in version statistics; a run's start time moved with every update; a run
+  reusing a preview's input stopped with an error.
+
 ## Phase 20 complete — live data, D1 (2026-10-15)
 
 Roadmap Phase 20, streaming and change data capture; the plan is

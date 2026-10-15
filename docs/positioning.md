@@ -49,7 +49,10 @@ Measured on this release, unless marked as a starting point.
 | Checks | any size; 4,000,000 rows checked in about a second |
 | A delivery to a database | 1,003,735 rows to MySQL in 21 s, on the background worker |
 | Copying a database | up to 2,000,000 rows a table |
-| Workflow runs at once | 3 per project by default (`WORKFLOW_MAX_RUNS_PER_PROJECT`); more wait their turn |
+| Runs at once | 4 per project by default, recipe runs, imports, deliveries and workflows together (`PROJECT_RUNS_AT_ONCE`, or the project's own setting); more wait their turn, a person's first |
+| One run's data | up to 2GB by default (`RUN_MEMORY_LIMIT_MB`); a step past it stops with the step and the size |
+| Changing step 14 of a 15-step recipe | under a second on 1,000,000 rows, from what the earlier steps made |
+| A re-run after rows were appended | computes only the new rows: 1,000 added to 1,000,000 in 6.5 s, against 17.2 s in full |
 | A run whose worker stops | noticed and failed with the reason within 3 minutes; it can then be picked up from where it failed |
 | API response times | p95 budgets on ten endpoints enforced in CI (for example, the project list within 1 s) |
 | People per deployment | starting points, not measured: a trial on one machine; about 50 with two gateways; about 500 with three to six gateways and a larger database ([sizing](operations.md#sizing)) |

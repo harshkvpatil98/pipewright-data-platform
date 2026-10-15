@@ -7,7 +7,7 @@ shipped webhooks and a first PostgreSQL change reader) and **Phase 22, the
 cost-based optimiser** (P9 shipped five rewrites). Phase 16's missing tool
 families and Phase 23 stay where `docs/HANDOFF.md` §8 says they are.
 
-**Status:** D1 (live data) done 2026-10-15; D2 (performance) next.
+**Status:** D1 (live data) and D2 (performance) both done 2026-10-15.
 
 Each phase measures first, says what it will deliver and when it is done,
 then records what shipped. The rules in `AGENTS.md` and the A0 vocabulary
@@ -224,7 +224,7 @@ size shrinks, now never relied on.
 
 ---
 
-## D2 — Performance (roadmap Phase 22)
+## D2 — Performance (roadmap Phase 22) *(done 2026-10-15)*
 
 **Why.** Phase 12 decides *where* work runs; this decides *how well*:
 statistics, a cost model, the remaining rewrites, queries across sources,
@@ -326,3 +326,102 @@ appended re-run computes only the new rows; the 900,000,000-row join stops
 before allocating; ten runs in one project run four at a time with the
 person's first; `npm run verify` is green with no `.env`; every page walked
 at 1280 and 1024; CI green.
+
+### What shipped
+
+- **O1, statistics.** Every dataset version records, when it is written,
+  its rows and per column the empty share, distinct values, lowest and
+  highest, an equal-count histogram for numbers and dates (ISO dates kept as
+  text included) and the twelve commonest values (`profiling.py`,
+  `shared_python/statistics.py`, `DatasetVersion.statistics_json`). The
+  streaming profiler for large files gives the same, from a uniform sample
+  past what it can count exactly, with a distinct-count estimate (Chao1)
+  that says it is one. A table in a connected database is described from
+  PostgreSQL's own statistics (`pg_class`, `pg_stats`; nothing read), else
+  from its first 10,000 rows with the database's own row count, and says
+  which (`service_extraction/table_statistics.py`, `table_statistics`);
+  collected again after an import and by the ticker once a day; an API to
+  read and refresh. The dataset page's **Values** column shows each spread.
+  Policies hold: masked columns lose their histogram and commonest values,
+  and a reader whose rows are filtered gets no statistics at all.
+- **O2, estimates.** `ir/estimate.py` estimates every node from those
+  figures and says how (commonest values, the rest spread over distinct
+  values, histograms with PostgreSQL's commonest values counted apart,
+  joins from distinct keys, groups from the product of distinct counts); a
+  guess says it is one. The Studio's **Details → Where it runs** shows each
+  step's expected rows beside what the preview counted, joins and unions
+  estimated from both datasets.
+- **O3, the remaining rewrites** (`1d0e0c8`): constant folding, projection
+  pruning, predicate pushdown through joins, aggregates and union-alls,
+  transfer across equal keys, limit through union-all, redundant sort
+  removal, common parts of formulas computed once; and join order by cost
+  (`ir/reorder.py`) for runs of three or more inner joins, proven on 40
+  random join trees (22 reordered) on pandas and SQLite.
+- **O4, queries across sources.** `service_workbench/across.py` and
+  `across_project.py`, **SQL → Across sources**: sqlglot to the IR,
+  rewritten and reordered, split so each database runs the largest part it
+  can in its own dialect, datasets read under the reader's policies, joins
+  here; IN lists in batches of 1,000 when they read well under half of the
+  other side; a source past 1,000,000 rows stops the query; the plan says
+  what each source ran, its rows beside the estimate and where its
+  statistics came from; kept in the workbench's history.
+- **O5, adaptive.** Inner joins run smallest side first and choose the next
+  table from the rows that actually came back, so an estimate ten times out
+  turns an IN list into a full read (or back) and can change the order,
+  saying so. Every join counts its exact output from the key counts before
+  it is built (`steps/join_size.py`), against the row cap and the memory
+  ceiling.
+- **O6, caching.** `prefix_cache.py`: each step's result kept by the
+  version's content hash, the reader's policies, every step so far, and a
+  joined dataset's version and policies; previews and runs share them; a
+  step that reads the clock is never kept, nor anything after it; a run
+  keeps nothing past a join (its read records the version). Bounded by
+  `RECIPE_CACHE_MB` and `RECIPE_CACHE_MINUTES`. Each step also got cheaper:
+  empty values counted once per frame, text typed from its first values.
+- **O7, incremental runs.** `incremental.py`: a recipe computes every row,
+  only rows added at the end (checked byte for byte when the input is the
+  same CSV grown, else compared row by row), or only the partitions whose
+  rows changed; which steps allow it is read off the IR; anything else runs
+  in full and its log says why; proven equal to a full run
+  (`test_incremental_runs.py`); set in the Studio's Details; migration 0065.
+- **O8, resource limits.** `service_pipeline_runs/limits.py`: a project's
+  runs at once (its own or `PROJECT_RUNS_AT_ONCE`, 4) across recipe runs,
+  imports, deliveries and workflows; a person's run beyond it is refused
+  with 429 and the reason; the background queue, the workflow queue and due
+  schedules skip a busy project and take a person's work before scheduled
+  work before backfills; `RUN_MEMORY_LIMIT_MB` checked after every step; on
+  Linux the worker caps its address space (checked in a Linux container);
+  migration 0064; the project's setting on its Settings page.
+
+**Measured after** (same machine, dev stack):
+
+| | Before | After |
+|---|---|---|
+| Statistics | None | Every new version and every imported database table; estimates in every Studio plan, within 1% on the rehearsal recipe and 5% to 15% across the estimator's tests |
+| 15 steps over 1,000,000 rows | 7.7 to 8.0 s on this machine (3.93 s when measured on a quieter one); editing step 14 ran all 15 | 4.7 to 5.5 s; editing step 14: 0.54 to 0.75 s; the same steps again: 0.02 s |
+| A recipe that keeps 2 of 40 columns | All 40 in a nested `SELECT *` | The pushed SQL selects the 2 |
+| A filter over a join | Stays above it | Goes below it, to the side it reads; `2 * 50` folded |
+| PostgreSQL × MySQL × dataset | Not possible | 395 ms: MySQL sent 161 rows, PostgreSQL 2,874 of 50,000 for the 161 keys in one IN list |
+| Re-run after 1,000 rows appended to 1,000,000 | Recomputes 1,001,000 | Computes 1,000: 6.5 s against 17.2 s in full, the same result; 200 rows live from a PostgreSQL import in 0.42 s |
+| 3,000 × 3,000 on one key; 30,000 × 30,000 | 9,000,000 rows, +649 MB; nothing stops the other | Counted from the key counts before building: 900,000,000 rows stops with the numbers; 3,000 × 3,000 stops when it would pass the memory ceiling |
+| Ten runs in one project | All at once, first come first served | Four at a time, a person's first; one started beyond that refused with 429 and the reason (live) |
+| Memory per run | No ceiling | 2,048 MB checked after each step; on Linux an allocation past twice that plus 2 GB fails the run, not the worker |
+
+**Faults found and fixed on the way** (each with a test that failed first):
+a plan for a dataset read from a database named a column the reader's policy
+denies, in its SQL; a recipe that used a joined column after the join had no
+plan at all; a MySQL read stopped at its row limit drained the rest of the
+result over the network (1,000 of 500,000 rows: 1.65 s, now 0.06 s); the
+streaming profiler stopped on a column that was text in one chunk and numbers
+in another, and had no tests; PostgreSQL's histogram leaves out its commonest
+values, so a range over them was estimated as empty; dates in a profile were
+nanosecond counts; the IR's pandas backend joined an empty key to an empty
+key, as no SQL database does; a run's start time was reset by every progress
+update; an erasure left each version's statistics holding the erased value;
+a recipe run applied its steps without the memory ceiling; a run that reused
+a Studio preview's kept input stopped with a KeyError; PostgreSQL keeps JSON
+keys in its own order, so a check comparing them in order never matched
+there; profiling walked every value in Python for five samples; the SQL page
+showed em dashes, and a project with datasets but no database had no way to
+query them; "snapshot" was still on screen in the activity log.
+

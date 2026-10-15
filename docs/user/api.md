@@ -213,6 +213,27 @@ curl -s "$PIPEWRIGHT/api/v1/projects/$PROJECT/streams" \
 
 Database changes and queues are made the same way, with a `kind` and its `settings`; `GET /api/v1/projects/$PROJECT/live/kinds` lists every kind with the settings it needs, and `POST /api/v1/projects/$PROJECT/streams/try` checks settings before you save them. A change-capture feed also names a `connection_id` and its `tables`. Add a live recipe, for example orders per minute by region, with `POST /api/v1/projects/$PROJECT/streams/$FEED/recipes`, and read its windows with `GET /api/v1/projects/$PROJECT/streams/$FEED/recipes/$LIVE_RECIPE/results`.
 
+## Example 6: one query across databases and datasets
+
+One SELECT can join tables in several of a project's database connections and its datasets. Name a table as `connection.schema.table` or `connection.table` (the connection's name in lower case with underscores, or in double quotes) and a dataset as `datasets."Name"`. This one sets the database's orders beside what the import in Example 1 brought in:
+
+```bash
+curl -s -X POST "$PIPEWRIGHT/api/v1/projects/$PROJECT/workbench/across/run" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d @- <<EOF | jq '{rows, sources: [.sources[] | {source, rows, method, statistics}]}'
+{"sql": "SELECT o.customer, COUNT(*) AS matched FROM shop_database.orders AS o JOIN datasets.\"Orders\" AS d ON o.id = d.id GROUP BY o.customer"}
+EOF
+```
+
+The answer holds the `rows`, and for each source the SQL it ran (`ran`), how many rows it sent beside the estimate, whether it sent all of them or only those whose keys the other side found (`method`), and where its statistics came from. `notes` says where the plan changed as it ran.
+
+A database table's statistics can be read, or collected again, directly: `GET /api/v1/projects/$PROJECT/extraction/connections/$CONNECTION/statistics?table=orders`, and `POST` to `.../statistics/refresh` with `{"table": "orders"}`.
+
+## Computing only what changed
+
+`PUT /api/v1/projects/$PROJECT/pipelines/$RECIPE/incremental` with `{"mode": "append"}` (only rows added at the end since the last run) or `{"mode": "partition", "partition_column": "region"}` (only the partitions whose rows changed) sets how a recipe's runs compute; `{"mode": "full"}` goes back to every row. A run that could not do less says why in its log. It needs an editor, and is never held for approval: the result is what a full run gives.
+
 ## Saving without replacing someone else's work
 
 A recipe has a `revision`, which goes up with every save. Send the one you started from as `expected_revision` when you change a recipe (`PATCH /api/v1/projects/$PROJECT/pipelines/$RECIPE`), and a save made since by someone else is not replaced: the answer is `409`, saying who saved and when. Read the recipe again, then save. Without `expected_revision` a save replaces whatever is there.
@@ -301,4 +322,5 @@ Its README lists every command; in Python, `from pipewright import Client`. The 
 
 - **Finding ids.** `GET /api/v1/projects` lists projects, and `GET /api/v1/projects/$PROJECT/datasets` lists a project's datasets, each with its `id`. In the app, a page's **Technical details** shows the ids it is about.
 - **Errors.** `401` means the token is missing, wrong or withdrawn; `403` that its owner may not do this, or it is a read token; `404` that the thing does not exist or is not visible to you; `409` that new data breaks a dataset's contract, so it was not saved, or that someone saved a recipe since you read it; `400` and `422` that the request needs changing, with the reason in `detail`.
+- **Busy projects.** A run started while the project already has its limit of runs going (four, unless the project sets its own) is refused with `429`, a `Retry-After` header and the reason; start it again when one finishes.
 - **Long jobs.** Imports and recipes answer when they finish. For work that runs on its own, such as a workflow, start it and then ask for the run until its `status` is `succeeded` or `failed`.

@@ -120,6 +120,8 @@ class SourceRead:
     estimate_how: str
     method: str
     duration_ms: float
+    #: Where the table's statistics came from: its database's own, a sample, every row, or nowhere.
+    statistics: str = ""
 
 
 @dataclass
@@ -555,6 +557,7 @@ class _Piece:
     kind: str
     dialect: str | None
     label: str
+    statistics: str = ""
 
 
 def _origins(node: Node) -> set[str]:
@@ -583,7 +586,8 @@ def _split(node: Node, tables: dict[str, Table], pieces: list[_Piece]) -> Node:
 def _placeholder(node: Node, table: Table, pieces: list[_Piece]) -> Scan:
     key = f"__piece_{len(pieces)}"
     pieces.append(_Piece(key=key, node=node, table_origin=table.origin, kind=table.kind,
-                         dialect=table.dialect, label=table.label))
+                         dialect=table.dialect, label=table.label,
+                         statistics=table.stats.method if table.stats is not None else "none: every estimate is a guess"))
     return Scan(key, tuple(node.schema().items()), origin=key)
 
 
@@ -686,7 +690,8 @@ class _Runner:
         check_frame(frame, where=f"Reading {piece.label}")
         self.outcome_sources.append(SourceRead(
             source=piece.label, ran=ran, rows=int(len(frame)), estimated=round(rows_expected, 1),
-            estimate_how=how, method=method, duration_ms=round((time.perf_counter() - started) * 1000, 1)))
+            estimate_how=how, method=method, duration_ms=round((time.perf_counter() - started) * 1000, 1),
+            statistics=piece.statistics))
         return frame
 
     def _sql(self, piece: _Piece, sql: str) -> pd.DataFrame:

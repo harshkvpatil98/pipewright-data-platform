@@ -16,6 +16,12 @@ Every word Pipewright uses, with one meaning each. If a screen ever uses a word 
 | Recipe | The ordered steps that turn one dataset into another. |
 | Step | One change inside a recipe, such as removing empty rows. |
 | Run | One go of a recipe, an import, a workflow, a check or a delivery. |
+| Runs at once | How many runs a project may have going together. Queued work waits its turn; a person's runs go first. |
+| Statistics | What is known about a dataset's or a table's values: how many rows, how often each column is empty, how its values spread. Plans are estimated from them. |
+| Estimate | The rows a step or a query is expected to give, worked out from statistics. One with nothing to work from says it is a guess. |
+| Query across sources | One SQL query over tables in several databases and datasets; each runs its own part, and joins between them run here. |
+| Incremental run | A recipe run that computes only what changed since the last run (rows added, or a partition's rows), and gives what a full run would. |
+| Partition | Rows that share one value of a chosen column, such as a region or a day; an incremental run computes only the partitions whose rows changed. |
 | Workflow | Tasks that run in order, by hand or on a schedule. |
 | Schedule | When something runs by itself. |
 | Check | A rule the data must pass, such as "every order has an email". |

@@ -18,6 +18,7 @@ import pandas as pd
 from service_transformations.ir.expressions import Call, Case, Cast, Column, Expr, Literal
 from service_transformations.ir.clock import evaluation_instant
 from service_transformations.ir.pandas_functions import HANDLERS as FUNCTION_HANDLERS
+from service_transformations.steps.join_size import check_join
 from service_transformations.ir.nodes import (
     Aggregate,
     Distinct,
@@ -246,6 +247,7 @@ def _join(node: Join, sources: dict[str, pd.DataFrame]) -> pd.DataFrame:
     right = execute(node.right, sources)
 
     if node.how == "cross":
+        check_join(left, right, [], [], "cross")
         return left.merge(right, how="cross")
 
     keys = _equi_keys(node.on)
@@ -258,7 +260,8 @@ def _join(node: Join, sources: dict[str, pd.DataFrame]) -> pd.DataFrame:
     right_keys = [right_name for _, right_name in keys]
 
     if node.how in ("semi", "anti"):
-        marker = right[right_keys].drop_duplicates()
+        # An empty key matches nothing, as in SQL: a semi join drops the row, an anti join keeps it.
+        marker = right[right_keys].dropna().drop_duplicates()
         merged = left.merge(
             marker, how="left", left_on=left_keys, right_on=right_keys,
             indicator=True, suffixes=("", "__probe"),
@@ -278,14 +281,23 @@ def _join(node: Join, sources: dict[str, pd.DataFrame]) -> pd.DataFrame:
     left_side = left.rename(columns=left_renames)
     right_side = right.rename(columns=right_renames)
 
-    merged = left_side.merge(
-        right_side,
-        # pandas calls a full outer join "outer"; passed "full" it failed
-        # deep inside merge (found by the D2 rewrite tests).
-        how="outer" if node.how == "full" else node.how,
-        left_on=[left_renames.get(k, k) for k in left_keys],
-        right_on=[right_renames.get(k, k) for k in right_keys],
-    ).reset_index(drop=True)
+    left_on = [left_renames.get(k, k) for k in left_keys]
+    right_on = [right_renames.get(k, k) for k in right_keys]
+    # pandas calls a full outer join "outer"; passed "full" it failed deep
+    # inside merge (found by the D2 rewrite tests).
+    how = "outer" if node.how == "full" else node.how
+    # Counted before it is built: a join past the row cap or the run's memory
+    # ceiling stops here, with the numbers (D2).
+    check_join(left_side, right_side, left_on, right_on, how, nulls_match=False)
+    # pandas matches an empty key with another empty key; SQL never does, so
+    # the same join gave different rows here and in a database (D2). Rows of
+    # the right side with an empty key take part in no match: they are set
+    # aside, and come back unmatched where the join keeps unmatched right rows.
+    unmatchable = right_side[right_on].isna().any(axis=1)
+    merged = left_side.merge(right_side[~unmatchable], how=how, left_on=left_on, right_on=right_on)
+    if how in ("right", "outer") and unmatchable.any():
+        merged = pd.concat([merged, right_side[unmatchable]], ignore_index=True)
+    merged = merged.reset_index(drop=True)
 
     # Emit exactly the declared schema, in its declared order.
     return merged[list(node.schema().keys())]

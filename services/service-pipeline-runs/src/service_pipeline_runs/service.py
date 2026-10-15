@@ -69,6 +69,8 @@ def create_pipeline_run(
     pipeline_id: uuid.UUID | None = None,
     logs_json: dict[str, object] | None = None,
 ) -> PipelineRun:
+    from service_pipeline_runs.limits import current_origin
+
     ensure_owned_project(db, project_id, current_user.id)
     run = PipelineRun(
         project_id=project_id,
@@ -77,6 +79,7 @@ def create_pipeline_run(
         run_type=run_type,
         status="queued",
         logs_json=_snapshot(logs_json),
+        origin=current_origin(),
     )
     db.add(run)
     db.flush()
@@ -86,8 +89,20 @@ def create_pipeline_run(
 def mark_pipeline_run_running(
     db: Session, *, run: PipelineRun, logs_json: dict[str, object] | None = None
 ) -> PipelineRun:
+    """Start a run, or record its progress while it runs.
+
+    Starting one a person asked for while their project already has its
+    limit going is refused (D2, O8); queued work is held back by the worker
+    instead. Progress keeps the time it started: it used to be reset on
+    every update, so a run's duration was the time since its last step.
+    """
+    if run.status != "running":
+        if run.origin == "person":
+            from service_pipeline_runs.limits import admit
+
+            admit(db, run.project_id)
+        run.started_at = datetime.now(UTC)
     run.status = "running"
-    run.started_at = datetime.now(UTC)
     if logs_json is not None:
         run.logs_json = _snapshot(logs_json)
     db.flush()

@@ -148,6 +148,8 @@ export type ProjectSummary = {
   environment: "development" | "staging" | "production";
   /** When true, definition edits must be proposed for review instead of saved. */
   requires_approval: boolean;
+  /** The project's own limit on runs at once, or null for the server's (D2). */
+  max_runs_at_once?: number | null;
   promoted_from_project_id: string | null;
   source_count: number;
   dataset_count: number;

@@ -153,7 +153,14 @@ def apply_transformation_steps_with_outcomes(
     raw_steps: list[object],
     context: StepContext | None = None,
 ) -> tuple[pd.DataFrame, list[str], list[StepOutcome]]:
-    """As above, and report what each step did on the way through."""
+    """As above, and report what each step did on the way through.
+
+    After every step the data is measured against the run's memory ceiling
+    (`RUN_MEMORY_LIMIT_MB`, D2): a step that grows it past the ceiling stops
+    the run there, named, rather than the next one taking the worker down.
+    """
+    from shared_python.memory import check_frame
+
     steps = validate_steps_json(raw_steps)
     working = dataframe.copy()
     warnings: list[str] = []
@@ -163,6 +170,7 @@ def apply_transformation_steps_with_outcomes(
         rows_before = int(len(working))
         columns_before = int(len(working.columns))
         working, step_warnings = apply_single_step(working, step, context)
+        check_frame(working, where=f"Step {index + 1} ({step.step_type.replace('_', ' ')})")
         warnings.extend(step_warnings)
         outcomes.append(
             StepOutcome(

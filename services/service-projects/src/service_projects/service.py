@@ -49,6 +49,7 @@ def _serialize_summary(project: Project, source_count: int, dataset_count: int) 
         status=project.status,
         environment=project.environment,
         requires_approval=project.requires_approval,
+        max_runs_at_once=project.max_runs_at_once,
         promoted_from_project_id=project.promoted_from_project_id,
         source_count=source_count,
         dataset_count=dataset_count,
@@ -138,6 +139,9 @@ def update_project(
         project.status = fields["status"]
     if "requires_approval" in fields and fields["requires_approval"] is not None:
         project.requires_approval = bool(fields["requires_approval"])
+    if "max_runs_at_once" in fields:
+        # An explicit null goes back to the deployment's limit.
+        project.max_runs_at_once = fields["max_runs_at_once"]
 
     db.commit()
     return get_project_by_id(db, project_id, current_user)

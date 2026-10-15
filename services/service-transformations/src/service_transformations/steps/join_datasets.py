@@ -9,12 +9,9 @@ from service_transformations.steps.common import ensure_columns_exist, ensure_co
 from service_transformations.steps.context import StepContext
 from shared_python.errors import BadRequestError
 from shared_python.words import count_of
+from service_transformations.steps.join_size import MAX_JOIN_RESULT_ROWS, check_join
 
 SUPPORTED_JOIN_TYPES = ("inner", "left", "right", "outer")
-
-# A many-to-many join can multiply row counts without warning, so results are
-# capped and the operator is told rather than silently handed a huge frame.
-MAX_JOIN_RESULT_ROWS = 5_000_000
 
 
 def _validate_config(dataframe: pd.DataFrame, config: dict[str, Any]) -> dict[str, Any]:
@@ -84,16 +81,14 @@ def apply_join_datasets(
     left_rows = int(len(dataframe))
     right_rows = int(len(right))
 
-    # Guard against an accidental cartesian explosion before doing the work.
+    # Counted exactly before the join is built, against the row cap and the
+    # run's memory ceiling (D2). This estimated from duplicate counts before,
+    # and 30,000 rows matching 30,000 on one key passed it.
+    check_join(dataframe, right, settings["left_on"], settings["right_on"], settings["how"],
+               max_rows=MAX_JOIN_RESULT_ROWS)
     left_key_dupes = int(dataframe.duplicated(subset=settings["left_on"]).sum())
     right_key_dupes = int(right.duplicated(subset=settings["right_on"]).sum())
     if left_key_dupes and right_key_dupes:
-        estimated = left_rows * max(1, right_rows // max(1, right_rows - right_key_dupes))
-        if estimated > MAX_JOIN_RESULT_ROWS:
-            raise BadRequestError(
-                "This join has duplicate keys on both sides and would produce an unmanageable number "
-                "of rows. Aggregate or deduplicate one side first."
-            )
         warnings.append(
             "Join keys are non-unique on both sides, so matching rows are multiplied (many-to-many)."
         )
@@ -108,11 +103,6 @@ def apply_join_datasets(
         )
     except ValueError as exc:
         raise BadRequestError(f"Join failed: {exc}") from exc
-
-    if len(merged) > MAX_JOIN_RESULT_ROWS:
-        raise BadRequestError(
-            f"Join produced {len(merged):,} rows, above the {MAX_JOIN_RESULT_ROWS:,} limit."
-        )
 
     if merged.empty and left_rows and right_rows:
         warnings.append(f"Join with '{label}' matched no rows; check that the key columns line up.")

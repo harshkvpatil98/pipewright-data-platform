@@ -52,6 +52,10 @@ class PipelineRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     request_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     claim_owner_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     claim_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    #: Who started it (D2, O8): a person, a schedule, a backfill, or a workflow
+    #: run it is part of. Decides what the worker takes first and what counts
+    #: towards the project's runs at once (`service_pipeline_runs.limits`).
+    origin: Mapped[str] = mapped_column(String(16), nullable=False, default="person", server_default="person")
 
     project: Mapped[Project] = relationship(back_populates="pipeline_runs")
     triggered_by_user: Mapped[User] = relationship(back_populates="pipeline_runs")

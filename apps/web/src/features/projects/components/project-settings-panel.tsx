@@ -37,6 +37,7 @@ export function ProjectSettingsPanel({ project }: ProjectSettingsPanelProps) {
   const [description, setDescription] = useState(project.description ?? "");
   const [status, setStatus] = useState(project.status);
   const [requiresApproval, setRequiresApproval] = useState(project.requires_approval);
+  const [runsAtOnce, setRunsAtOnce] = useState(project.max_runs_at_once ? String(project.max_runs_at_once) : "");
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +47,10 @@ export function ProjectSettingsPanel({ project }: ProjectSettingsPanelProps) {
     name.trim() !== project.name ||
     description.trim() !== (project.description ?? "") ||
     status !== project.status ||
-    requiresApproval !== project.requires_approval;
+    requiresApproval !== project.requires_approval ||
+    runsAtOnce.trim() !== (project.max_runs_at_once ? String(project.max_runs_at_once) : "");
+  const runsLimit = runsAtOnce.trim() ? Number(runsAtOnce) : null;
+  const runsInvalid = runsLimit !== null && (!Number.isInteger(runsLimit) || runsLimit < 1 || runsLimit > 100);
 
   const save = async () => {
     setSaving(true);
@@ -62,6 +66,8 @@ export function ProjectSettingsPanel({ project }: ProjectSettingsPanelProps) {
           description: description.trim() ? description.trim() : null,
           status,
           requires_approval: requiresApproval,
+          // Empty means the server's own limit, sent as an explicit null.
+          max_runs_at_once: runsLimit,
         }),
       });
       setFeedback("Project updated.");
@@ -136,6 +142,24 @@ export function ProjectSettingsPanel({ project }: ProjectSettingsPanelProps) {
             </span>
           </label>
 
+          <label className="block space-y-1.5">
+            <span className="block text-[13px] text-ink-2">Runs at once</span>
+            <input
+              value={runsAtOnce}
+              onChange={(event) => setRunsAtOnce(event.target.value)}
+              inputMode="numeric"
+              placeholder="This server's limit"
+              aria-label="Runs at once"
+              aria-invalid={runsInvalid}
+              className="h-9 w-40 rounded-lg border border-line bg-sunken px-3 text-sm text-ink outline-none focus:border-accent"
+            />
+            <span className="block text-[13px] leading-5 text-ink-3">
+              {runsInvalid
+                ? "A whole number from 1 to 100, or empty for this server's limit."
+                : "How many runs this project may have going together. Queued work waits its turn; a run started beyond it is refused."}
+            </span>
+          </label>
+
           {feedback ? <p className="text-sm text-accent">{feedback}</p> : null}
           {error ? (
             <p role="alert" className="text-sm text-danger">
@@ -147,7 +171,7 @@ export function ProjectSettingsPanel({ project }: ProjectSettingsPanelProps) {
             <Button variant="danger" size="sm" onClick={() => setConfirming(true)}>
               Delete project
             </Button>
-            <Button size="sm" onClick={() => void save()} disabled={!dirty || saving}>
+            <Button size="sm" onClick={() => void save()} disabled={!dirty || saving || runsInvalid}>
               {saving ? "Saving…" : "Save changes"}
             </Button>
           </div>

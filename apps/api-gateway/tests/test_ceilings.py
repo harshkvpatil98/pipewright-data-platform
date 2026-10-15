@@ -12,11 +12,11 @@ def _by_name(items) -> dict[str, object]:
 
 def test_the_stated_limits_follow_the_settings(monkeypatch) -> None:
     monkeypatch.setattr(settings, "max_upload_size_bytes", 200 * 1024 * 1024)
-    monkeypatch.setattr(settings, "workflow_max_runs_per_project", 5)
+    monkeypatch.setattr(settings, "project_runs_at_once", 5)
     stated = _by_name(ceilings(settings))
     assert stated["Largest file you can upload"].value == "200 MB"
     assert stated["Largest file you can upload"].setting == "MAX_UPLOAD_SIZE_BYTES"
-    assert stated["Workflow runs of one project at the same time"].value == "5"
+    assert stated["Runs of one project at the same time"].value == "5"
 
 
 def test_every_limit_says_something() -> None:

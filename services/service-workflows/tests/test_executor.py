@@ -594,7 +594,7 @@ def test_one_project_cannot_take_every_worker(db: Session, actor) -> None:
     from service_workflows.queue import claim_next_run
 
     class Settings:
-        workflow_max_runs_per_project = 2
+        project_runs_at_once = 2
         workflow_lease_seconds = 900
         workflow_worker_id = "w1"
 

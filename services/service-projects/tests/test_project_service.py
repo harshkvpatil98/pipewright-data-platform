@@ -20,6 +20,7 @@ def test_serialize_summary_includes_counts(*_: object) -> None:
         status="active",
         environment="development",
         requires_approval=False,
+        max_runs_at_once=None,
         promoted_from_project_id=None,
         created_at="2026-04-02T00:00:00+00:00",
         updated_at="2026-04-02T00:00:00+00:00",

@@ -21,6 +21,7 @@ from service_schedules.models import ScheduledOperation
 from service_schedules.retry_backoff import compute_next_retry_at
 from service_schedules.runtime import resolve_actor_user_for_schedule
 from service_schedules.schemas import RunDueSchedulesSummary
+from service_pipeline_runs.limits import started_by
 
 
 def _scheduler_runtime_owner(settings: Any | None) -> str:
@@ -56,7 +57,13 @@ def claim_next_due_schedule(
     Returns (row, is_retry_execution, cron_due_instant_utc). The third value is the cron slot instant
     when this is a cron (non-retry) claim; finalize uses it to advance next_run_at after the attempt.
     Retries clear next_retry_at at claim time and leave next_run_at unchanged through finalize.
+
+    A schedule whose project already has its limit of runs going stays due and
+    is taken on a later pass, when one has finished (D2, O8): it waits, rather
+    than failing or being skipped.
     """
+    from service_pipeline_runs.limits import busy_projects
+
     owner = _scheduler_runtime_owner(settings) or "unset-runtime"
     ttl = _claim_ttl_seconds(settings)
     expires = now_utc + timedelta(seconds=ttl)
@@ -78,6 +85,7 @@ def claim_next_due_schedule(
                 ScheduledOperation.enabled.is_(True),
                 or_(is_retry_due, is_cron_due),
                 claim_lease_reclaimable(now_utc),
+                ScheduledOperation.project_id.not_in(busy_projects(settings)),
             )
         )
         .order_by(retry_priority.asc(), due_ts.asc())
@@ -217,14 +225,15 @@ def run_due_schedules_once(
         err: Exception | None = None
         user = resolve_actor_user_for_schedule(db, row)
         try:
-            outcome = execute_schedule_operation(
-                db,
-                row=row,
-                current_user=user,
-                storage_backend=storage_backend,
-                settings=settings,
-                notify_on_complete=False,
-            )
+            with started_by("schedule"):
+                outcome = execute_schedule_operation(
+                    db,
+                    row=row,
+                    current_user=user,
+                    storage_backend=storage_backend,
+                    settings=settings,
+                    notify_on_complete=False,
+                )
             if outcome.success:
                 success_count += 1
             else:

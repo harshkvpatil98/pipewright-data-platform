@@ -124,8 +124,23 @@ def execute_workflow_run(
     """Run every node the graph says should run, in dependency order.
 
     The run is committed as it progresses so a caller polling the API sees nodes
-    complete one by one rather than nothing until the end.
+    complete one by one rather than nothing until the end. The recipe runs and
+    imports its tasks start are part of it: they do not count again towards the
+    project's runs at once, and are never refused for it (D2, O8).
     """
+    from service_pipeline_runs.limits import started_by
+
+    with started_by("workflow"):
+        return _execute_workflow_run(db, run=run, storage_backend=storage_backend, settings=settings)
+
+
+def _execute_workflow_run(
+    db: Session,
+    *,
+    run: WorkflowRun,
+    storage_backend: Any,
+    settings: Any,
+) -> WorkflowRun:
     workflow = db.get(Workflow, run.workflow_id)
     if workflow is None:
         return _finish(db, run, status="failed", error="The workflow no longer exists.")

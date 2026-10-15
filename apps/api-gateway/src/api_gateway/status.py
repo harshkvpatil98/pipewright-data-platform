@@ -215,6 +215,8 @@ def ceilings(settings) -> list[Ceiling]:
     copy of it, so this list cannot drift from what actually happens.
     """
     from service_destinations.copy_database import MAX_ROWS_PER_TABLE
+    from service_pipeline_runs.limits import default_limit
+    from shared_python.memory import run_memory_limit_mb
     from service_destinations.deliver import IN_REQUEST_ROWS
     from service_ingestion.service import IN_REQUEST_BYTES
     from service_extraction.schemas import ExtractionJobBase
@@ -259,10 +261,19 @@ def ceilings(settings) -> list[Ceiling]:
         ),
         Ceiling(name="Rows a SQL query over a version returns", value=f"{SQL_ROWS:,}"),
         Ceiling(
-            name="Workflow runs of one project at the same time",
-            value=str(int(getattr(settings, "workflow_max_runs_per_project", 3))),
-            detail="The others wait their turn.",
-            setting="WORKFLOW_MAX_RUNS_PER_PROJECT",
+            name="Runs of one project at the same time",
+            value=str(default_limit(settings)),
+            detail=(
+                "Recipes, imports, deliveries and workflows. Queued work waits its turn; a run started beyond it "
+                "is refused with the reason. A project can set its own."
+            ),
+            setting="PROJECT_RUNS_AT_ONCE",
+        ),
+        Ceiling(
+            name="Memory one run's data may take",
+            value=f"{run_memory_limit_mb():,} MB",
+            detail="A recipe whose data grows past it stops, naming the step and the size.",
+            setting="RUN_MEMORY_LIMIT_MB",
         ),
         Ceiling(
             name="Tries for a failing workflow task",

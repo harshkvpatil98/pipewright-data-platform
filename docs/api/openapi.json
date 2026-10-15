@@ -17740,6 +17740,17 @@
       "title": "Id",
       "type": "string"
      },
+     "max_runs_at_once": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Runs At Once"
+     },
      "name": {
       "title": "Name",
       "type": "string"
@@ -17854,6 +17865,17 @@
       "title": "Id",
       "type": "string"
      },
+     "max_runs_at_once": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Runs At Once"
+     },
      "name": {
       "title": "Name",
       "type": "string"
@@ -17933,6 +17955,19 @@
        }
       ],
       "title": "Description"
+     },
+     "max_runs_at_once": {
+      "anyOf": [
+       {
+        "maximum": 100.0,
+        "minimum": 1.0,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max Runs At Once"
      },
      "name": {
       "anyOf": [

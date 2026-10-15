@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, ForeignKey, Index, String, Text
+from sqlalchemy import Boolean, ForeignKey, Index, Integer, String, Text
 # `Uuid`, not the postgresql-specific `UUID`: the dialect type declares a bare
 # UUID column, which SQLite gives NUMERIC affinity, so an identifier that
 # happens to be all decimal digits is silently converted to a float and comes
@@ -54,6 +54,9 @@ class Project(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     # Which tenant owns this project. Null on a single-tenant deployment.
     organisation_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    # Runs this project may have going at once (D2, O8); null for the
+    # deployment's PROJECT_RUNS_AT_ONCE. See `service_pipeline_runs.limits`.
+    max_runs_at_once: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     owner: Mapped[User | None] = relationship(back_populates="projects")
     sources: Mapped[list[Source]] = relationship(back_populates="project", passive_deletes=True)

@@ -151,11 +151,19 @@ def main() -> int:
     signal.signal(signal.SIGINT, _request_stop)
     signal.signal(signal.SIGTERM, _request_stop)
 
+    # On Linux, an allocation past one run's memory ceiling (plus room for the
+    # worker itself) fails that run with MemoryError, which the queue records
+    # as the run's failure, instead of the kernel killing the worker (D2, O8).
+    from shared_python.memory import cap_address_space
+
+    cap = cap_address_space()
+
     logger.info(
-        "workflow_worker_started identity=%s interval=%s once=%s",
+        "workflow_worker_started identity=%s interval=%s once=%s address_space_cap_mb=%s",
         worker_identity(settings),
         args.interval,
         args.once,
+        cap // (1024 * 1024) if cap else None,
     )
 
     if args.once:

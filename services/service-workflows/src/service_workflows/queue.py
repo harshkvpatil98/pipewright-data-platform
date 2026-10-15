@@ -20,7 +20,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import func, select, update
+from sqlalchemy import case, select, update
 from sqlalchemy.orm import Session
 
 from service_workflows.cron import advance_after_fire, due_workflows
@@ -51,18 +51,20 @@ def lease_seconds(settings: Any | None = None) -> int:
         return DEFAULT_LEASE_SECONDS
 
 
-#: Runs of one project the workers start at once, unless settings say otherwise.
-DEFAULT_RUNS_PER_PROJECT = 3
+#: Triggers a person pulls; a backfill goes last, everything else (a schedule, an event) between.
+PERSON_TRIGGERS = ("manual", "resume")
 
 
-def runs_per_project(settings: Any | None = None) -> int:
-    """How many runs of one project may be running at the same time."""
-    configured = getattr(settings, "workflow_max_runs_per_project", None) if settings else None
-    configured = configured or os.getenv("WORKFLOW_MAX_RUNS_PER_PROJECT")
-    try:
-        return max(1, int(configured or DEFAULT_RUNS_PER_PROJECT))
-    except (TypeError, ValueError):
-        return DEFAULT_RUNS_PER_PROJECT
+def trigger_priority(trigger_column):
+    """An ORDER BY expression: what a person started, then scheduled runs, then backfills."""
+    return case((trigger_column.in_(PERSON_TRIGGERS), 0), (trigger_column == "backfill", 2), else_=1)
+
+
+def origin_of(trigger: str) -> str:
+    """The run origin a workflow run's trigger amounts to (`service_pipeline_runs.limits`)."""
+    if trigger in PERSON_TRIGGERS:
+        return "person"
+    return "backfill" if trigger == "backfill" else "schedule"
 
 
 def enqueue_workflow_run(
@@ -147,25 +149,24 @@ def claim_next_run(db: Session, *, settings: Any | None = None) -> WorkflowRun |
     `FOR UPDATE SKIP LOCKED` lets several workers poll the same table without
     two of them taking the same run.
 
-    A project already running `runs_per_project` runs waits its turn, so one
-    project's backfill cannot take every worker from the others. Two workers
-    claiming at the same instant can each start one, so the cap can be passed
-    by one for a moment; it is a fairness limit, not a lock.
+    A project already running its limit of runs at once (its own, or the
+    deployment's; recipe runs and imports count too) waits its turn, so one
+    project's backfill cannot take every worker from the others (D2, O8). A
+    run a person started goes before a scheduled one, and both before a
+    backfill. Two workers claiming at the same instant can each start one, so
+    the cap can be passed by one for a moment; it is a fairness limit, not a
+    lock.
     """
+    from service_pipeline_runs.limits import busy_projects
+
     now = datetime.now(UTC)
     owner = worker_identity(settings)
     expires = now + timedelta(seconds=lease_seconds(settings))
 
-    busy_projects = (
-        select(WorkflowRun.project_id)
-        .where(WorkflowRun.status == "running")
-        .group_by(WorkflowRun.project_id)
-        .having(func.count() >= runs_per_project(settings))
-    )
     statement = (
         select(WorkflowRun)
-        .where(WorkflowRun.status == "queued", WorkflowRun.project_id.not_in(busy_projects))
-        .order_by(WorkflowRun.queued_at.asc())
+        .where(WorkflowRun.status == "queued", WorkflowRun.project_id.not_in(busy_projects(settings)))
+        .order_by(trigger_priority(WorkflowRun.trigger), WorkflowRun.queued_at.asc())
         .limit(1)
         .with_for_update(skip_locked=True)
     )
@@ -230,7 +231,9 @@ def _record_crash(db: Session, *, run_id: uuid.UUID, exc: Exception) -> Workflow
 
         # Finished like any failed run: the workflow shows it, and whoever
         # gets failure alerts hears of it.
-        return _finish(db, crashed, status="failed", error=CRASHED)
+        from shared_python.memory import OUT_OF_MEMORY
+
+        return _finish(db, crashed, status="failed", error=OUT_OF_MEMORY if isinstance(exc, MemoryError) else CRASHED)
     except Exception:  # noqa: BLE001
         logger.exception("workflow_run_crash_bookkeeping_failed run_id=%s", run_id)
         db.rollback()

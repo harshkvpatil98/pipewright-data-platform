@@ -104,8 +104,14 @@ def progress(db: Session, run: PipelineRun, stage: str, message: str, **details:
     db.commit()
 
 
-def claim_next(db: Session, *, owner: str) -> PipelineRun | None:
-    """Take the oldest queued run of a registered type, or None."""
+def claim_next(db: Session, *, owner: str, settings: Any | None = None) -> PipelineRun | None:
+    """Take the next queued run of a registered type, or None.
+
+    A person's runs before scheduled ones before backfills, oldest first
+    within each; a project already running its limit waits its turn (D2, O8).
+    """
+    from service_pipeline_runs.limits import busy_projects, priority_of
+
     types = handled_types()
     if not types:
         return None
@@ -115,8 +121,9 @@ def claim_next(db: Session, *, owner: str) -> PipelineRun | None:
             PipelineRun.status == "queued",
             PipelineRun.request_json.is_not(None),
             PipelineRun.run_type.in_(types),
+            PipelineRun.project_id.not_in(busy_projects(settings)),
         )
-        .order_by(PipelineRun.created_at.asc())
+        .order_by(priority_of(PipelineRun.origin), PipelineRun.created_at.asc())
         .limit(1)
         .with_for_update(skip_locked=True)
     )
@@ -135,7 +142,7 @@ def claim_next(db: Session, *, owner: str) -> PipelineRun | None:
 
 def run_next(db: Session, *, storage_backend: Any, settings: Any, owner: str) -> PipelineRun | None:
     """Claim one queued run and do it. Returns the run, or None when none waits."""
-    run = claim_next(db, owner=owner)
+    run = claim_next(db, owner=owner, settings=settings)
     if run is None:
         return None
     handler = _HANDLERS[run.run_type]
@@ -149,6 +156,13 @@ def run_next(db: Session, *, storage_backend: Any, settings: Any, owner: str) ->
     except ApplicationError as exc:
         db.rollback()
         _fail(db, run.id, str(exc.detail))
+    except MemoryError:
+        # The worker's address-space cap (D2, O8): this run, not the worker.
+        from shared_python.memory import OUT_OF_MEMORY
+
+        logger.warning("background_run_out_of_memory run_id=%s run_type=%s", run.id, run.run_type)
+        db.rollback()
+        _fail(db, run.id, OUT_OF_MEMORY)
     except Exception:  # noqa: BLE001 - a worker must outlive any one run
         logger.exception("background_run_crashed run_id=%s run_type=%s", run.id, run.run_type)
         db.rollback()

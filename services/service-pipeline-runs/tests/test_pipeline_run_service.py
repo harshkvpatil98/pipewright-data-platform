@@ -43,6 +43,10 @@ class FakeDb:
         obj.updated_at = now
         obj.triggered_by_username = "platform-admin"
 
+    def scalar(self, _statement):
+        # The project's runs at once (D2): no limit of its own, nothing else going.
+        return None
+
     def scalars(self, _statement):
         run = SimpleNamespace(
             id=uuid.uuid4(),

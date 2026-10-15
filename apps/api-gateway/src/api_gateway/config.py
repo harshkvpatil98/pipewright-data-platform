@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Annotated, Literal
 
 from dotenv import load_dotenv
-from pydantic import Field, field_validator
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 from shared_python.config import parse_cors_origins
@@ -135,8 +135,17 @@ class Settings(BaseSettings):
     scheduler_runtime_id: str | None = None
     # Lease duration for automatic schedule claims (seconds). After expiry another worker may reclaim a stalled run.
     scheduler_claim_ttl_seconds: int = Field(default=300, ge=30, le=86400)
-    # Runs of one project the workflow workers start at once; the rest wait (A7).
-    workflow_max_runs_per_project: int = Field(default=3, ge=1, le=100)
+    # Runs one project may have going at once, unless the project sets its own
+    # (D2, O8): recipe runs, imports, deliveries and workflow runs. Queued work
+    # waits; a run a person starts beyond it is refused with the reason.
+    # WORKFLOW_MAX_RUNS_PER_PROJECT is its name from when it counted only
+    # workflow runs, and is still read.
+    project_runs_at_once: int = Field(
+        default=4, ge=1, le=100,
+        validation_alias=AliasChoices("PROJECT_RUNS_AT_ONCE", "WORKFLOW_MAX_RUNS_PER_PROJECT"),
+    )
+    # RUN_MEMORY_LIMIT_MB (default 2048), the most memory one run's data may
+    # take, is read where it is enforced: `shared_python.memory` (D2, O8).
     # How long a workflow run whose worker stopped stays "running" before it is
     # failed and can be picked up. A live worker renews it as it goes (A7).
     workflow_lease_seconds: int = Field(default=180, ge=60, le=86400)

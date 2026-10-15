@@ -10,7 +10,7 @@ client = TestClient(app)
 
 
 def test_answers_carry_the_security_headers() -> None:
-    for path in ("/api/v1/health/live", "/docs", "/api/v1/no-such-page"):
+    for path in ("/api/v1/health/live", "/api/docs", "/api/v1/no-such-page"):
         response = client.get(path)
         assert response.headers["x-content-type-options"] == "nosniff", path
         assert response.headers["x-frame-options"] == "DENY", path

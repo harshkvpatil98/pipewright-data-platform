@@ -1,226 +1,146 @@
-# Deployment Guide
+# Deployment guide
 
-This guide explains how to package and run the platform outside day-to-day local development. It is intentionally practical and honest: the repo includes a strong single-host or demo deployment story, but it is not pretending to ship a full multi-cloud platform stack.
+How to run Pipewright on your own servers: on one host with Docker Compose,
+or on Kubernetes with the Helm chart. Upgrading, backups, scaling and sizing
+are in [operations.md](operations.md); what it is built for, and the sizes it
+is tested at, are in [positioning.md](positioning.md).
 
-## Deployment models supported by the repo
+## What runs
 
-### Local or demo deployment
+| Part | What it does |
+| --- | --- |
+| Web | The pages people use (Next.js, port 3000) |
+| Gateway | The API (FastAPI, port 8000), under `/api` |
+| Worker | Workflows and long work: uploads over 25MB, large deliveries, database copies |
+| Ticker | Starts schedules when they are due; one only, unless each has its own `SCHEDULER_RUNTIME_ID` |
+| PostgreSQL 14 or newer | Everything Pipewright records |
+| Stored files | A volume every gateway, worker and ticker shares, or an S3-compatible bucket |
 
-Best for:
+People reach one address. A proxy in front sends `/api` to the gateway and
+everything else to the web, so the sign-in cookie is shared by both: Caddy
+does it in the Compose setup, the chart's ingress on Kubernetes. The web
+image calls the API at `/api/v1` on its own host, so it works behind either
+without rebuilding. Build it with `--build-arg NEXT_PUBLIC_API_BASE_URL=...`
+only if the API has a host of its own.
 
-- local evaluation
-- recruiter demos
-- reviewer walkthroughs
-- single-machine testing
+## Settings
 
-Main files:
+The settings that must be set before anyone uses it:
 
-- `docker-compose.yml`
-- `apps/api-gateway/.env.example`
-- `apps/web/.env.example`
+| Setting | Why |
+| --- | --- |
+| `DATABASE_URL` | `postgresql+psycopg://user:password@host:5432/database` |
+| `AUTH_JWT_SECRET` | Signs sessions: `openssl rand -hex 32` |
+| `APP_SECRET_ENCRYPTION_KEY` | Encrypts saved passwords, keys and signing secrets; without it none can be saved: `python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
+| `AUTH_BOOTSTRAP_USERNAME`, `AUTH_BOOTSTRAP_PASSWORD` | The first administrator, made on first start |
+| `WEB_BASE_URL` | Where people open Pipewright, for links in emails and embedded dashboards |
+| `TRUSTED_PROXY_HOPS` | How many proxies are in front (1 behind Caddy or an ingress), for the gateway and the web |
 
-### Production-oriented single-host reference deployment
+Optional ones (single sign-on, storage encryption, mail, limits) are listed
+in the [admin guide](user/admin.md#settings-reference). Keep the keys with
+your other secrets: losing `APP_SECRET_ENCRYPTION_KEY` loses every saved
+password, and losing `STORAGE_ENCRYPTION_KEY` loses every stored file.
 
-Best for:
-
-- polished portfolio packaging
-- single-host server deployment
-- demonstration of production-minded repo readiness
-
-Main files:
-
-- `docker-compose.prod.yml`
-- `apps/api-gateway/.env.production.example`
-- `apps/web/.env.production.example`
-- `apps/web/Dockerfile.prod`
-
-## Runtime architecture
-
-The deployed flow is:
-
-1. browser requests hit the Next.js app
-2. the Next.js app calls the FastAPI gateway
-3. the gateway uses PostgreSQL and local filesystem storage
-4. domain logic is executed by the imported service packages inside the gateway process
-
-This keeps the runtime simple while preserving modular code boundaries.
-
-## Environment files
-
-### Web
-
-For production-style web deployment, copy:
-
-```bash
-cp apps/web/.env.production.example apps/web/.env
-```
-
-Important values:
-
-- `NEXT_PUBLIC_API_BASE_URL`
-- `API_INTERNAL_BASE_URL`
-- `TRUSTED_PROXY_HOPS`, the same as the gateway's, so each viewer of a shared
-  or embedded dashboard is rate limited on their own
-- optional `EMBED_ALLOWED_ORIGINS`: the sites that may frame an embedded
-  dashboard, read at start-up rather than build time
-- optional `NEXT_PUBLIC_APP_VERSION`
-- optional `NEXT_PUBLIC_GIT_SHA`
-- optional `NEXT_PUBLIC_BUILD_DATE`
-
-### API gateway
-
-Copy:
-
-```bash
-cp apps/api-gateway/.env.production.example apps/api-gateway/.env
-```
-
-Important values:
-
-- `DATABASE_URL`
-- `AUTH_JWT_SECRET`
-- `AUTH_JWT_ISSUER`
-- `AUTH_JWT_AUDIENCE`
-- `BACKEND_CORS_ORIGINS`
-- `APP_SECRET_ENCRYPTION_KEY`
-- `STORAGE_BACKEND`
-- `UPLOAD_ROOT_PATH`
-- optional `SCHEDULER_INTERNAL_TOKEN`
-- optional `SCHEDULER_RUNTIME_ID`
-- optional `SCHEDULER_CLAIM_TTL_SECONDS`
-
-### Root `.env`
-
-If you are using Docker Compose with port and Postgres defaults, copy:
-
-```bash
-cp .env.example .env
-```
-
-## Required secrets and sensitive config
-
-Do not deploy with the example secrets unchanged.
-
-Set strong values for:
-
-- `AUTH_JWT_SECRET`
-- database credentials
-- `APP_SECRET_ENCRYPTION_KEY`
-- optional `SCHEDULER_INTERNAL_TOKEN`
-
-`APP_SECRET_ENCRYPTION_KEY` is required for encrypted storage of sensitive destination, BI, and Slack webhook fields. Rotating it without re-saving stored configs will invalidate previously encrypted values.
-
-## Database and migrations
-
-PostgreSQL is required.
-
-Run migrations before serving traffic:
-
-```bash
-source .venv/bin/activate
-alembic -c apps/api-gateway/alembic.ini upgrade head
-```
-
-The documented Compose flows already run `upgrade head` before starting Uvicorn.
-
-## Production-oriented Docker Compose flow
-
-Prepare env files:
+## On one host with Docker Compose
 
 ```bash
 cp .env.example .env
 cp apps/api-gateway/.env.production.example apps/api-gateway/.env
 cp apps/web/.env.production.example apps/web/.env
+# set the settings above in .env and apps/api-gateway/.env
+PIPEWRIGHT_TAG=v1.0.0 SITE_ADDRESS=pipewright.example.com \
+  docker compose -f docker-compose.prod.yml up -d
 ```
 
-Set real values, then run:
+This runs PostgreSQL, the four parts and Caddy, which fetches a certificate
+for `SITE_ADDRESS`. The database is migrated before the gateway starts. For a
+managed database, remove the `postgres` service and point `DATABASE_URL` at
+it.
+
+## On Kubernetes with Helm
+
+You need Kubernetes 1.27 or newer, `kubectl`, Helm 3, an ingress controller,
+PostgreSQL the cluster can reach, and either an S3-compatible bucket or a
+storage class that offers `ReadWriteMany`. To try the chart on a cluster with
+no database or bucket, `deploy/helm/trial-dependencies.yaml` makes a
+throwaway PostgreSQL and MinIO; skip it in production.
+
+**1. A namespace, and (to try it) the trial database and bucket.**
 
 ```bash
-docker compose -f docker-compose.prod.yml up --build
+kubectl create namespace pipewright
+kubectl -n pipewright apply -f deploy/helm/trial-dependencies.yaml
+kubectl -n pipewright wait --for=condition=complete job/make-bucket --timeout=300s
 ```
 
-## Startup order
-
-The healthy order is:
-
-1. PostgreSQL
-2. API gateway migrations
-3. API gateway process
-4. web app process
-
-This matches the repo’s Compose setup.
-
-## What to verify after deployment
-
-### API checks
-
-Open:
-
-- `/api/v1/health/live`
-- `/api/v1/health/ready`
-- `/api/v1/status`
-
-### Web checks
-
-Open:
-
-- `/login`
-- `/projects`
-- `/system-status`
-
-### Workflow checks
-
-Confirm:
-
-- login works
-- project pages load
-- sample upload works if demo data is available
-- system status loads
-
-### Release checks
-
-From a checked-out repo, run:
+**2. The secrets**, in a Secret you own, so nothing sensitive is in Helm's
+values. With the trial dependencies, the database and bucket are as below;
+otherwise use your own.
 
 ```bash
-make smoke
-make verify
+kubectl -n pipewright create secret generic pipewright-secrets \
+  --from-literal=DATABASE_URL='postgresql+psycopg://pipewright:trial-only@postgres:5432/pipewright' \
+  --from-literal=AUTH_JWT_SECRET="$(openssl rand -hex 32)" \
+  --from-literal=APP_SECRET_ENCRYPTION_KEY="$(python3 -c 'import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())')" \
+  --from-literal=AUTH_BOOTSTRAP_USERNAME=admin \
+  --from-literal=AUTH_BOOTSTRAP_PASSWORD='choose-a-long-password' \
+  --from-literal=STORAGE_S3_ACCESS_KEY_ID=trial-access \
+  --from-literal=STORAGE_S3_SECRET_ACCESS_KEY=trial-secret
 ```
 
-Use `SMOKE_API_ROOT` if the API is not exposed on `http://localhost:8000`.
+**3. Install the chart.** The migration job runs first; a failed migration
+stops the install rather than start code on a schema it does not match.
 
-## Scheduler deployment notes
+```bash
+helm install pipewright deploy/helm/pipewright -n pipewright \
+  --set image.tag=1.0.0 \
+  --set secrets.existingSecret=pipewright-secrets \
+  --set storage.backend=s3 \
+  --set storage.s3.bucket=pipewright \
+  --set storage.s3.endpointUrl=http://minio:9000 \
+  --set ingress.enabled=true \
+  --set ingress.host=pipewright.example.com \
+  --set config.TRUSTED_PROXY_HOPS=1 \
+  --wait --timeout 10m
+```
 
-The platform supports automatic due schedule execution, but the implementation is intentionally modest.
+For a real address, keep `ingress.tls.enabled` (the default) and give the
+certificate's Secret as `ingress.tls.secretName`; to try it on a laptop, add
+`--set ingress.tls.enabled=false`. With a bucket on AWS, leave out
+`storage.s3.endpointUrl` and set `storage.s3.region`.
 
-If you use automatic schedule execution:
+**4. Check it.** `https://pipewright.example.com/login` shows the sign-in
+page; sign in with the bootstrap account, and **System status** says
+whether the worker and the ticker are running. From a terminal:
 
-- set `SCHEDULER_INTERNAL_TOKEN`
-- give each poller a stable `SCHEDULER_RUNTIME_ID`
-- tune `SCHEDULER_CLAIM_TTL_SECONDS` to fit your longest expected schedule run
+```bash
+curl -s https://pipewright.example.com/api/v1/health/ready
+```
 
-Important limitation:
+**Upgrading** is `helm upgrade` with the new `image.tag`; the migration job
+runs before the new pods. **Removing it** is `helm uninstall pipewright -n
+pipewright`; the namespace, your Secret and the trial dependencies stay until
+you delete them.
 
-- schedule coordination is lease-based in Postgres, not a full distributed job system with leader election or Redis locks
+CI installs the chart this way on a new kind cluster on every change (the
+`helm` job in `.github/workflows/ci.yml`), so these steps are tested, not
+only written.
 
-## CI summary
+## After deploying
 
-GitHub Actions runs:
+- `/api/v1/health/live` and `/api/v1/health/ready` answer `200`.
+- `/login` loads, and the bootstrap account signs in.
+- **System status** shows the worker and the ticker, and lists the limits
+  this server enforces.
+- **Help** opens without signing in, and **Help → API reference** opens the
+  interactive API reference (`/api/docs`).
+- Upload a small file, or open the example from Home, and see its rows.
 
-1. `npm ci`
-2. `scripts/ci-bootstrap-python-venv.sh`
-3. `scripts/verify-release.sh`
+## Limits
 
-That means local `make verify` is the main CI-parity command.
-
-## Honest limitations
-
-- The deployment docs support single-host and repo-contained packaging well.
-- The repo does not include cloud IaC, secret-manager integration, bundled APM, or distributed scheduler infrastructure.
-- Ingestion is synchronous.
-- Default storage is local filesystem storage unless you extend the storage backend story.
-
-## Recommended docs to keep nearby
-
-- `docs/release-checklist.md`
-- `docs/troubleshooting.md`
-- `docs/local-setup-guide.md`
+- Stored files are one volume or one bucket shared by every part; there is
+  no file storage per region.
+- The ticker runs once per deployment (or once per `SCHEDULER_RUNTIME_ID`).
+- Single sign-on is OIDC; SAML is not supported.
+- There is no cloud-specific infrastructure code (Terraform and the like):
+  the chart and Compose files are the deployment.

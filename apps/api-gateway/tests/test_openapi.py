@@ -27,6 +27,10 @@ def test_openapi_document_builds_for_every_route() -> None:
 
 def test_interactive_reference_pages_load() -> None:
     client = TestClient(app)
-    for page in ("/docs", "/redoc"):
+    for page in ("/api/docs", "/api/redoc"):
         response = client.get(page)
         assert response.status_code == 200, page
+    # The old addresses still lead there, for anyone with a bookmark.
+    for old, new in (("/docs", "/api/docs"), ("/redoc", "/api/redoc")):
+        moved = client.get(old, follow_redirects=False)
+        assert (moved.status_code, moved.headers["location"]) == (308, new)

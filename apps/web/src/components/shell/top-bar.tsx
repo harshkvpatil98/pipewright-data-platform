@@ -32,7 +32,7 @@ type TopBarProps = {
 
 /** The interactive API reference lives on the gateway, beside the API. */
 function apiReferenceUrl(): string {
-  return `${appConfig.apiBaseUrl.replace(/\/api\/v\d+\/?$/, "")}/docs`;
+  return `${appConfig.apiBaseUrl.replace(/\/v\d+\/?$/, "")}/docs`;
 }
 
 export function TopBar({

@@ -21,6 +21,7 @@ import { serviceLabel } from "@/lib/service-labels";
 import { ReleaseBuildMeta } from "@/components/release/release-build-meta";
 import { OperationalError, OperationalLoading } from "@/components/operational/operational-messages";
 import { appConfig } from "@/lib/config";
+import { useApiAddress } from "@/lib/use-api-address";
 import { parseApiResponse } from "@/lib/api/errors";
 import { serviceHealthTone, toneClasses } from "@/features/system-status/system-status-helpers";
 import { countOf, formatDateTime } from "@/lib/format";
@@ -337,6 +338,7 @@ function SecurityPanel({ security }: { security: NonNullable<PlatformStatusRespo
 }
 
 export function SystemStatusPage({ currentUser }: { currentUser?: AuthUser | null }) {
+  const apiAddress = useApiAddress();
   const [platform, setPlatform] = useState<PlatformStatusResponse | null>(null);
   const [live, setLive] = useState<HealthLiveResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -382,7 +384,7 @@ export function SystemStatusPage({ currentUser }: { currentUser?: AuthUser | nul
           hint={
             <>
               Confirm the gateway is running and <code className="rounded bg-sunken px-1">NEXT_PUBLIC_API_BASE_URL</code> points at{" "}
-              <code className="rounded bg-sunken px-1">{appConfig.apiBaseUrl}</code>.
+              <code className="rounded bg-sunken px-1">{apiAddress}</code>.
             </>
           }
         />
@@ -477,7 +479,7 @@ export function SystemStatusPage({ currentUser }: { currentUser?: AuthUser | nul
             </Link>
           </li>
           <li>
-            <a href={`${appConfig.apiBaseUrl.replace(/\/api\/v1$/, "")}/docs`} className="underline" target="_blank" rel="noreferrer">
+            <a href={`${appConfig.apiBaseUrl.replace(/\/v\d+\/?$/, "")}/docs`} className="underline" target="_blank" rel="noreferrer">
               API reference
             </a>
           </li>

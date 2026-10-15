@@ -16,7 +16,7 @@ import { Badge, Button, FormField, Input, Modal, SectionPanel, Select } from "@p
 import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
-import { appConfig } from "@/lib/config";
+import { useApiAddress } from "@/lib/use-api-address";
 import { countOf, formatDateTime } from "@/lib/format";
 import { cx } from "@/lib/utils";
 
@@ -35,6 +35,7 @@ type LiveSourcesPanelProps = {
  * diff and AS OF apply to a stream exactly as to an upload.
  */
 export function LiveSourcesPanel({ projectId, connections, initial }: LiveSourcesPanelProps) {
+  const apiAddress = useApiAddress();
   const [sources, setSources] = useState(initial);
   const [kind, setKind] = useState<"webhook" | "postgres_cdc">("webhook");
   const [name, setName] = useState("");
@@ -51,7 +52,8 @@ export function LiveSourcesPanel({ projectId, connections, initial }: LiveSource
   const [formOpen, setFormOpen] = useState(false);
 
   const postgresConnections = connections.filter((connection) => connection.connector_type === "postgresql");
-  const apiOrigin = appConfig.apiBaseUrl.replace(/\/api\/v1\/?$/, "");
+  // The full address a partner sends events to, even when the app calls the API by a relative one.
+  const apiOrigin = apiAddress.replace(/\/api\/v1\/?$/, "");
 
   const reload = useCallback(async () => {
     setSources((await apiFetch<{ items: StreamSource[] }>(`/projects/${projectId}/streams`)).items);

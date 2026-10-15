@@ -90,3 +90,37 @@ volumes:
       claimName: {{ include "pipewright.filesClaim" . }}
 {{- end }}
 {{- end -}}
+
+{{/*
+The same settings as an env list, for the migration job (A9, Z4). The job is
+a pre-install hook, so it runs before the release's ConfigMap and Secret
+exist; reading them would fail every first install. It takes its settings
+from the values instead, and an existing Secret (made before the install)
+by reference.
+*/}}
+{{- define "pipewright.hookEnv" -}}
+{{- range $key, $value := .Values.config }}
+- name: {{ $key }}
+  value: {{ $value | quote }}
+{{- end }}
+- name: STORAGE_BACKEND
+  value: {{ .Values.storage.backend | quote }}
+{{- if eq .Values.storage.backend "s3" }}
+- name: STORAGE_S3_BUCKET
+  value: {{ .Values.storage.s3.bucket | quote }}
+- name: STORAGE_S3_PREFIX
+  value: {{ .Values.storage.s3.prefix | quote }}
+- name: STORAGE_S3_ENDPOINT_URL
+  value: {{ .Values.storage.s3.endpointUrl | quote }}
+- name: STORAGE_S3_REGION
+  value: {{ .Values.storage.s3.region | quote }}
+{{- end }}
+{{- if not .Values.secrets.existingSecret }}
+{{- range $key := list "DATABASE_URL" "AUTH_JWT_SECRET" "AUTH_BOOTSTRAP_USERNAME" "AUTH_BOOTSTRAP_PASSWORD" "STORAGE_ENCRYPTION_KEY" "STORAGE_S3_ACCESS_KEY_ID" "STORAGE_S3_SECRET_ACCESS_KEY" "APP_SECRET_ENCRYPTION_KEY" }}
+{{- with index $.Values.secrets $key }}
+- name: {{ $key }}
+  value: {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end -}}

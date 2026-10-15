@@ -1,0 +1,91 @@
+# PostgreSQL and an S3-compatible bucket (MinIO) for TRYING the Helm chart on
+# a cluster that has neither (adoption-readiness A9, Z4). Not for production:
+# the database and the bucket live on the pods' own disks and go when they go.
+# In production use a managed PostgreSQL and a real bucket, and skip this file.
+#
+#   kubectl create namespace pipewright
+#   kubectl -n pipewright apply -f deploy/helm/trial-dependencies.yaml
+#   kubectl -n pipewright wait --for=condition=complete job/make-bucket --timeout=180s
+#
+# The database is postgresql+psycopg://pipewright:trial-only@postgres:5432/pipewright;
+# the bucket is "pipewright" at http://minio:9000, keys trial-access / trial-secret.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: postgres }
+  template:
+    metadata:
+      labels: { app: postgres }
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          env:
+            - { name: POSTGRES_USER, value: pipewright }
+            - { name: POSTGRES_PASSWORD, value: trial-only }
+            - { name: POSTGRES_DB, value: pipewright }
+          ports: [{ containerPort: 5432 }]
+          readinessProbe:
+            exec: { command: ["pg_isready", "-U", "pipewright"] }
+            periodSeconds: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+spec:
+  selector: { app: postgres }
+  ports: [{ port: 5432, targetPort: 5432 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: minio }
+  template:
+    metadata:
+      labels: { app: minio }
+    spec:
+      containers:
+        - name: minio
+          image: minio/minio:latest
+          args: ["server", "/data"]
+          env:
+            - { name: MINIO_ROOT_USER, value: trial-access }
+            - { name: MINIO_ROOT_PASSWORD, value: trial-secret }
+          ports: [{ containerPort: 9000 }]
+          readinessProbe:
+            httpGet: { path: /minio/health/live, port: 9000 }
+            periodSeconds: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio
+spec:
+  selector: { app: minio }
+  ports: [{ port: 9000, targetPort: 9000 }]
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: make-bucket
+spec:
+  backoffLimit: 20
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: make-bucket
+          image: minio/mc:latest
+          command:
+            - sh
+            - -c
+            - mc alias set trial http://minio:9000 trial-access trial-secret && mc mb --ignore-existing trial/pipewright

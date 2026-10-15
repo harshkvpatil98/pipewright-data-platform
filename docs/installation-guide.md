@@ -181,7 +181,7 @@ After startup, open:
 - Demo page: `http://localhost:3000/demo`
 - Case study page: `http://localhost:3000/case-study`
 - System status page: `http://localhost:3000/system-status`
-- API docs: `http://localhost:8000/docs`
+- API docs: `http://localhost:8000/api/docs`
 - API live health: `http://localhost:8000/api/v1/health/live`
 - API status: `http://localhost:8000/api/v1/status`
 

@@ -83,7 +83,7 @@ This keeps the gateway lean and makes future extraction into separate deployable
 - health endpoints
 - status endpoints
 - internal schedule execution endpoints when configured
-- OpenAPI docs at `/docs`
+- OpenAPI docs at `/api/docs`
 
 ### Shared contracts
 

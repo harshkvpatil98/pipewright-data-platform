@@ -280,3 +280,39 @@ jobs:
           path: apps/web/playwright-report
           if-no-files-found: ignore
 
+
+  # The Helm chart installed on a new cluster by the deployment guide's own
+  # steps (A9, Z4): scripts/helm-install-check.sh reads them from
+  # docs/deployment-guide.md, so the guide and this job cannot drift apart.
+  # A chart that passes a lint can still fail its first install; this one did
+  # (a migration hook that read resources Helm makes after hooks).
+  helm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Create a kind cluster with a port for the ingress
+        uses: helm/kind-action@v1
+        with:
+          config: deploy/helm/ci-kind.yaml
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+      - name: Install an ingress controller
+        run: |
+          kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.11.3/deploy/static/provider/kind/deploy.yaml
+          kubectl -n ingress-nginx wait --for=condition=ready pod -l app.kubernetes.io/component=controller --timeout=300s
+      - name: Build both images, tagged as the release, and load them into the cluster
+        run: |
+          VERSION=$(sed -n 's/^appVersion: "\(.*\)"/\1/p' deploy/helm/pipewright/Chart.yaml)
+          docker build -t "ghcr.io/harshkvpatil98/pipewright-gateway:$VERSION" -f apps/api-gateway/Dockerfile .
+          docker build -t "ghcr.io/harshkvpatil98/pipewright-web:$VERSION" -f apps/web/Dockerfile.prod .
+          kind load docker-image "ghcr.io/harshkvpatil98/pipewright-gateway:$VERSION" "ghcr.io/harshkvpatil98/pipewright-web:$VERSION" --name chart-testing
+      - name: Install by the deployment guide, and check it works
+        run: bash scripts/helm-install-check.sh
+      - name: What the cluster says, on failure
+        if: failure()
+        run: |
+          kubectl -n pipewright get all || true
+          kubectl -n pipewright describe pods || true
+          for pod in $(kubectl -n pipewright get pods -o name); do echo "== $pod"; kubectl -n pipewright logs "$pod" --all-containers --tail=60 || true; done

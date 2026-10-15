@@ -15,6 +15,7 @@ import { SessionPolicyNote } from "@/features/settings/components/session-policy
 import { ApiTokensPanel } from "@/features/settings/components/api-tokens-panel";
 import { MfaPanel } from "@/features/settings/components/mfa-panel";
 import { appConfig } from "@/lib/config";
+import { useApiAddress } from "@/lib/use-api-address";
 import { platformRoleLabel } from "@/lib/labels";
 import { cx } from "@/lib/utils";
 import { Icon, useToast } from "@platform/shared-ui";
@@ -29,6 +30,7 @@ const TOUR_KEYS = ALL_TOUR_IDS.map((id) => `${STORAGE_PREFIX}${id}`);
 const LAYOUT_KEYS = ["pipewright.rail.expanded", "pipewright.inspector.open"];
 
 export function SettingsPageView({ currentUser }: SettingsPageProps) {
+  const apiAddress = useApiAddress();
   const toast = useToast();
   const { start } = useTour();
   const [toursSeen, setToursSeen] = useState(0);
@@ -182,7 +184,7 @@ export function SettingsPageView({ currentUser }: SettingsPageProps) {
         </Section>
 
         <Section title="Connection" description="Where this interface sends its requests.">
-          <Row label="API base URL" value={appConfig.apiBaseUrl} mono />
+          <Row label="API base URL" value={apiAddress} mono />
           <Row label="Application" value={appConfig.appName} />
           <div className="flex items-center justify-between px-4 py-3">
             <span className="text-[12px] text-muted">

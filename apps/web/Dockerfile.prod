@@ -6,7 +6,10 @@ FROM node:22-alpine
 WORKDIR /repo
 
 ARG NEXT_PUBLIC_APP_NAME=Pipewright
-ARG NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
+# Relative by default: the Compose proxy and the Helm ingress both send /api
+# to the gateway on the same host, so one image works behind either. Set an
+# absolute address only when the API is on another host.
+ARG NEXT_PUBLIC_API_BASE_URL=/api/v1
 ARG NEXT_PUBLIC_MAX_UPLOAD_SIZE_BYTES=209715200
 
 ENV NEXT_PUBLIC_APP_NAME=$NEXT_PUBLIC_APP_NAME

@@ -3,6 +3,7 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
@@ -25,6 +26,9 @@ logger = get_logger(__name__)
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     logger.info("gateway_startup environment=%s version=%s", settings.app_env, settings.app_version)
+    from api_gateway.first_run import make_first_administrator
+
+    make_first_administrator(SessionLocal)
     yield
     # Release pooled sockets -- both our own and any opened to customer databases
     # by the extraction connectors -- so shutdown does not leak connections.
@@ -85,11 +89,23 @@ def create_application() -> FastAPI:
         title=settings.app_name,
         version=settings.app_version,
         description="Gateway for the Pipewright modular services.",
-        docs_url="/docs",
-        redoc_url="/redoc",
+        # Under /api, like everything the gateway serves: behind the Compose
+        # proxy and the Helm ingress only /api reaches the gateway, so a
+        # reference at /docs was the web app's 404 (A9). /docs and /redoc
+        # still answer, by redirect, for anyone talking to the gateway directly.
+        docs_url="/api/docs",
+        redoc_url="/api/redoc",
         openapi_url=f"{settings.api_v1_prefix}/openapi.json",
         lifespan=lifespan,
     )
+
+    @application.get("/docs", include_in_schema=False)
+    def _docs_moved() -> RedirectResponse:
+        return RedirectResponse("/api/docs", status_code=308)
+
+    @application.get("/redoc", include_in_schema=False)
+    def _redoc_moved() -> RedirectResponse:
+        return RedirectResponse("/api/redoc", status_code=308)
     application.add_middleware(CORSMiddleware, allow_origins=settings.backend_cors_origins, allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
     application.add_middleware(GZipMiddleware, minimum_size=settings.gzip_minimum_size_bytes)
     application.add_middleware(CorrelationIdMiddleware, logger=logger)

@@ -28,6 +28,11 @@ spec:
           image: {{ include "pipewright.gatewayImage" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command: ["alembic", "-c", "alembic.ini", "upgrade", "head"]
+          env:
+            {{- include "pipewright.hookEnv" . | nindent 12 }}
+          {{- if .Values.secrets.existingSecret }}
           envFrom:
-            {{- include "pipewright.envFrom" . | nindent 12 }}
+            - secretRef:
+                name: {{ .Values.secrets.existingSecret }}
+          {{- end }}
 {{- end }}

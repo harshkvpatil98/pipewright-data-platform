@@ -111,7 +111,7 @@ Expected result:
 - `http://localhost:3000/demo`
 - `http://localhost:3000/projects`
 - `http://localhost:3000/system-status`
-- `http://localhost:8000/docs`
+- `http://localhost:8000/api/docs`
 - `http://localhost:8000/api/v1/health/live`
 - `http://localhost:8000/api/v1/status`
 

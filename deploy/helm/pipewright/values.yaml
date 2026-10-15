@@ -21,9 +21,11 @@ config:
   BACKEND_PORT: "8000"
   # Comma- or JSON-list of allowed browser origins for the gateway.
   BACKEND_CORS_ORIGINS: "[]"
-  # Where the browser reaches the API and where the web reaches it internally.
-  NEXT_PUBLIC_API_BASE_URL: ""
-  API_INTERNAL_BASE_URL: ""
+  # Where the web's server reaches the API. Left out, it is this release's
+  # gateway service inside the cluster. (The browser's address is built into
+  # the web image: /api/v1 on the same host, which the ingress sends to the
+  # gateway.)
+  # API_INTERNAL_BASE_URL: "http://pipewright-gateway:8000/api/v1"
   # Where people open Pipewright (https://pipewright.example.com), for links in
   # emails and embedded dashboards.
   WEB_BASE_URL: ""
@@ -54,6 +56,10 @@ secrets:
   STORAGE_ENCRYPTION_KEY: ""
   STORAGE_S3_ACCESS_KEY_ID: ""
   STORAGE_S3_SECRET_ACCESS_KEY: ""
+  # Encrypts saved passwords, keys and signing secrets (connections,
+  # destinations, alert channels, embeds). Required to save any of them:
+  # python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+  APP_SECRET_ENCRYPTION_KEY: ""
 
 # Where stored files (uploads, datasets, versions) live. Every gateway, worker
 # and ticker pod has to reach the same files, or a dataset uploaded through one
@@ -142,7 +148,13 @@ ingress:
   # The web serves "/" and the gateway serves "/api" on the same host, so the
   # SSO session cookie carries across (see docs/enterprise-identity.md).
   host: pipewright.example.com
-  annotations: {}
+  # ingress-nginx refuses bodies over 1MB and gives up on a request after 60s
+  # by default, which stops uploads (up to MAX_UPLOAD_SIZE_BYTES, 200MB) and
+  # long answers. Another controller needs its own equivalents.
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "210m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
   tls:
     enabled: true
     secretName: pipewright-tls

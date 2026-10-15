@@ -116,7 +116,7 @@ def api(tmp_path, monkeypatch):
 
 
 def test_the_reference_loads(api) -> None:
-    assert api.get("/docs").status_code == 200
+    assert api.get("/api/docs").status_code == 200
     reference = api.get("/api/v1/openapi.json")
     assert reference.status_code == 200
     assert len(reference.json()["paths"]) > 100

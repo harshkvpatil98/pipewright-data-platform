@@ -48,12 +48,27 @@ def _to_detail(dataset: Dataset) -> DatasetDetailRead:
     return DatasetDetailRead.model_validate(dataset)
 
 
-def _statistics(profile_json: dict[str, Any] | None) -> dict[str, Any] | None:
+def statistics_of(profile_json: dict[str, Any] | None) -> dict[str, Any] | None:
     """A version's statistics, from the profile written with it (D2)."""
     from shared_python.statistics import from_profile
 
     stats = from_profile(profile_json, collected_at=datetime.now(UTC))
     return stats.to_json() if stats is not None else None
+
+
+def stored_file_identity(db: Session, dataset_id: uuid.UUID, file_path: str | None) -> str | None:
+    """What a stored file holds, for addressing what was made from it (D2): the
+    content hash recorded with its version, which an erasure rewrites with the
+    file. None when there is none to go by."""
+    if not file_path:
+        return None
+    found = db.scalar(
+        select(DatasetVersion.content_hash)
+        .where(DatasetVersion.dataset_id == dataset_id, DatasetVersion.file_path == file_path)
+        .order_by(DatasetVersion.version_number.desc())
+        .limit(1)
+    )
+    return f"{dataset_id}:{file_path}:{found}" if found else None
 
 
 def version_statistics(db: Session, dataset: Dataset, version: DatasetVersion | None = None):
@@ -749,7 +764,7 @@ def apply_dataset_materialization_success(
         schema_json=schema_json,
         preview_json=preview_json,
         ingest_spec_json=ingest_spec_json,
-        statistics_json=_statistics(profile_json),
+        statistics_json=statistics_of(profile_json),
         pipeline_run_id=pipeline_run_id,
         created_by_user_id=created_by_user_id,
     )

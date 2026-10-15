@@ -21,11 +21,16 @@ from datetime import UTC, datetime
 from typing import Iterator
 
 _INSTANT: ContextVar[datetime | None] = ContextVar("pipewright_evaluation_instant", default=None)
+#: Set while someone wants to know whether the clock was read (`watching_reads`).
+_READS: ContextVar[list[bool] | None] = ContextVar("pipewright_clock_reads", default=None)
 
 
 def evaluation_instant() -> datetime:
     """The frozen instant when one is installed, else the real clock. Always
     timezone-aware UTC."""
+    reads = _READS.get()
+    if reads is not None:
+        reads.append(True)
     frozen = _INSTANT.get()
     if frozen is not None:
         return frozen
@@ -52,3 +57,15 @@ def frozen_clock(instant: datetime) -> Iterator[datetime]:
         yield instant
     finally:
         _INSTANT.reset(token)
+
+
+@contextmanager
+def watching_reads() -> Iterator[list[bool]]:
+    """A list that is not empty once anything inside the block read the clock:
+    a result that depends on when it was made cannot be kept and reused (D2)."""
+    reads: list[bool] = []
+    token = _READS.set(reads)
+    try:
+        yield reads
+    finally:
+        _READS.reset(token)

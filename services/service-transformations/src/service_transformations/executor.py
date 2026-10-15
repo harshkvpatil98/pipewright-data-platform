@@ -25,6 +25,8 @@ gained empty values on the way through a step that kept every row.
 from __future__ import annotations
 
 import re
+import threading
+import weakref
 from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import Any
@@ -130,10 +132,37 @@ class StepOutcome:
 
 def scan_of(frame: pd.DataFrame, source: str = WORKING) -> Scan:
     """A `Scan` describing the frame, typed from its contents."""
+    nulls = null_counts(frame)
     return Scan(
         source=source,
-        columns=tuple((str(name), infer_pw_type(frame[name])) for name in frame.columns),
+        columns=tuple((str(name), infer_pw_type(frame[name], nulls=nulls[name])) for name in frame.columns),
     )
+
+
+_NULL_COUNTS: dict[int, tuple[weakref.ReferenceType, dict[Any, int]]] = {}
+_NULL_COUNTS_LOCK = threading.Lock()
+
+
+def null_counts(frame: pd.DataFrame) -> dict[Any, int]:
+    """Each column's empty values, counted once per frame (D2).
+
+    Typing a step's input and checking what it emptied both need them, and a
+    step's output is the next step's input, so the count made for one is
+    reused by the other. Kept by the frame's identity while the frame lives;
+    frames are not changed in place once made (`tests/test_prefix_cache.py`).
+    """
+    key = id(frame)
+    with _NULL_COUNTS_LOCK:
+        known = _NULL_COUNTS.get(key)
+        if known is not None and known[0]() is frame:
+            return known[1]
+    counts = {name: int(count) for name, count in frame.isna().sum().items()}
+    with _NULL_COUNTS_LOCK:
+        if len(_NULL_COUNTS) > 256:
+            for stale in [k for k, (ref, _) in _NULL_COUNTS.items() if ref() is None]:
+                del _NULL_COUNTS[stale]
+        _NULL_COUNTS[key] = (weakref.ref(frame), counts)
+    return counts
 
 
 def apply_transformation_steps(
@@ -308,14 +337,15 @@ def _introduced_nulls(before: pd.DataFrame, after: pd.DataFrame) -> list[str]:
     from the outside, and it is reported the same way whichever step did it."""
     if len(before) != len(after) or len(after) == 0:
         return []
+    now, earlier = null_counts(after), null_counts(before)
     messages: list[str] = []
     for column in after.columns:
         if column not in before.columns:
             continue
-        gained = int(after[column].isna().sum()) - int(before[column].isna().sum())
+        gained = now[column] - earlier[column]
         if gained > 0:
             messages.append(
                 f"Column '{column}' has {count_of(gained, 'more empty value')} after this step "
-                f"({int(after[column].isna().sum())} of {len(after)} rows are empty now)."
+                f"({now[column]} of {len(after)} rows are empty now)."
             )
     return messages

@@ -1115,6 +1115,7 @@ def _erase_destructively(
     the data. A version whose artifact cannot be read is reported blocked by
     name — never silently skipped.
     """
+    from service_datasets.service import statistics_of
     from service_ingestion.profiling import build_preview, build_profile
     from service_ingestion.read_copy import frame_of
     from service_quality.data_contracts import check_new_data, record_landing
@@ -1155,6 +1156,8 @@ def _erase_destructively(
             version.file_type = "csv"
             version.ingest_spec_json = None
             version.preview_json = dict(head_preview)
+            # Its commonest values could be the subject's own (D2).
+            version.statistics_json = statistics_of(dataset.profile_json)
             continue
         try:
             stored = storage.read_bytes(version.file_path)
@@ -1183,6 +1186,10 @@ def _erase_destructively(
         version.file_type = "csv"
         version.ingest_spec_json = None
         version.preview_json = build_preview(dataframe=v_redacted, limit=50)
+        if version.statistics_json is not None:
+            version.statistics_json = statistics_of(
+                build_profile(dataframe=v_redacted, sample_limit=5, file_size_bytes=len(v_bytes))
+            )
 
     report.erased.append(dataset.name)
 

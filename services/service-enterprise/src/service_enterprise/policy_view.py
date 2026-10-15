@@ -57,6 +57,15 @@ class PolicyView:
     def filters_rows(self) -> bool:
         return any(policy.row_rules for policy in self.policies)
 
+    def fingerprint(self) -> str:
+        """What this reader sees of the dataset, as text: equal for any two readers who see the same."""
+        if not self.restricted:
+            return "everything"
+        import json
+        from dataclasses import asdict
+
+        return json.dumps([asdict(policy) for policy in self.policies], sort_keys=True, default=str)
+
     def column_action(self, column: str) -> str:
         return security.effective_column_action(self.policies, column)
 

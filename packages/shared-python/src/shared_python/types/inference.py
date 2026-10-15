@@ -66,12 +66,19 @@ _NUMPY_INTS = {
 }
 
 
-def infer_pw_type(series: pd.Series, *, sample: int = DEFAULT_SAMPLE) -> PWType:
-    """The canonical type of a column, or UNKNOWN when it cannot be determined."""
-    non_null = series.dropna()
-    nullable = bool(series.isna().any()) or len(non_null) < len(series)
+def infer_pw_type(series: pd.Series, *, sample: int = DEFAULT_SAMPLE, nulls: int | None = None) -> PWType:
+    """The canonical type of a column, or UNKNOWN when it cannot be determined.
 
-    if non_null.empty:
+    `nulls`, when the caller has counted the column's empty values already,
+    saves counting them again; a column of text is then typed from its first
+    `sample` values without reading the rest (D2: this ran over every row of
+    every column before each recipe step).
+    """
+    if nulls is None:
+        nulls = int(series.isna().sum())
+    nullable = nulls > 0
+
+    if nulls >= len(series):
         # An empty column is genuinely untyped. Calling it a string is a guess
         # that the next load will contradict.
         return UNKNOWN
@@ -98,9 +105,21 @@ def infer_pw_type(series: pd.Series, *, sample: int = DEFAULT_SAMPLE) -> PWType:
         return STRING.with_nullable(nullable)
 
     if is_object_dtype(series):
-        return _infer_object(non_null, sample=sample).with_nullable(nullable)
+        return _infer_object(_first_values(series, sample, nulls), sample=sample).with_nullable(nullable)
 
     return UNKNOWN
+
+
+def _first_values(series: pd.Series, sample: int, nulls: int) -> pd.Series:
+    """The first `sample` values that are not empty, reading no further than it must."""
+    if nulls == 0:
+        return series.head(sample)
+    window = sample * 2
+    while True:
+        found = series.iloc[:window].dropna()
+        if len(found) >= sample or window >= len(series):
+            return found.head(sample)
+        window *= 4
 
 
 def _infer_object(non_null: pd.Series, *, sample: int) -> PWType:

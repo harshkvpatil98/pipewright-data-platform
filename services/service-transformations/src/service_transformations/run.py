@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import json
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -13,6 +14,7 @@ from sqlalchemy.orm import Session
 from service_auth.schemas import UserRead
 from service_datasets.models import DatasetVersion
 from service_datasets.service import (
+    stored_file_identity,
     create_derived_dataset_placeholder,
     finalize_dataset_materialization_success,
     get_dataset_model_for_project,
@@ -33,11 +35,13 @@ from service_transformations.contracts import get_transformation_pipeline_for_pr
 from service_transformations.dataset_access import build_step_context
 from service_transformations.execution_context import ExecutionContext, VersionPin, head_pin
 from service_transformations.executor import apply_single_step
+from service_transformations.prefix_cache import run_steps
 from service_transformations.ir.clock import evaluation_instant, frozen_clock
 from service_transformations.schemas import TransformationRunResponse
 from service_transformations.validators import validate_steps_json
 from shared_python.errors import ApplicationError, BadRequestError, InternalServerError
 from shared_python.logging import get_logger
+from shared_python.words import count_of
 from shared_python.storage import content_digest
 
 logger = get_logger(__name__)
@@ -177,27 +181,30 @@ def run_saved_transformation_pipeline(
         current_stage = "load_artifact"
         log_events.append(_log_event("load_artifact", "Reading the input dataset."))
         mark_pipeline_run_running(db, run=run, logs_json=_build_log_events(log_events))
-        try:
-            file_bytes = storage_backend.read_bytes(base_file_path)
-        except FileNotFoundError as exc:
-            raise BadRequestError("Stored base dataset file was not found.") from exc
-        except OSError as exc:
-            raise BadRequestError(f"Unable to read base dataset file: {exc}") from exc
+        read: dict[str, int] = {}
 
-        if len(file_bytes) > settings.max_upload_size_bytes:
-            raise BadRequestError("Base dataset file exceeds the configured maximum size.")
+        def load() -> pd.DataFrame:
+            nonlocal current_stage
+            try:
+                file_bytes = storage_backend.read_bytes(base_file_path)
+            except FileNotFoundError as exc:
+                raise BadRequestError("Stored base dataset file was not found.") from exc
+            except OSError as exc:
+                raise BadRequestError(f"Unable to read base dataset file: {exc}") from exc
+            read["bytes"] = len(file_bytes)
+            current_stage = "parse"
+            log_events.append(_log_event("parse", "Reading its rows."))
+            mark_pipeline_run_running(db, run=run, logs_json=_build_log_events(log_events))
+            return frame_of(
+                storage_backend, base_file_path, file_bytes, file_type=base_file_type, spec=base_spec
+            ).copy()
 
-        current_stage = "parse"
-        log_events.append(_log_event("parse", "Reading its rows."))
-        mark_pipeline_run_running(db, run=run, logs_json=_build_log_events(log_events))
-        source_frame = frame_of(
-            storage_backend, base_file_path, file_bytes, file_type=base_file_type, spec=base_spec
-        ).copy()
-        row_count_before = int(len(source_frame))
-        column_count_before = int(len(source_frame.columns))
+        def accept(source: dict[str, int]) -> None:
+            # Checked whether the file was read now or its rows kept from before.
+            if source["file_size"] > settings.max_upload_size_bytes:
+                raise BadRequestError("Base dataset file exceeds the configured maximum size.")
 
         steps = validate_steps_json(steps_json)
-        working = source_frame.copy()
         warnings: list[str] = []
         step_context = build_step_context(
             db,
@@ -208,22 +215,49 @@ def run_saved_transformation_pipeline(
             version_overrides=step_overrides,
         )
 
+        def before_step(index: int, step) -> None:
+            nonlocal current_stage
+            current_stage = f"apply_step_{index + 1}"
+            log_events.append(
+                _log_event(current_stage, f"Applying step {index + 1}.", details={"step_type": step.step_type})
+            )
+            mark_pipeline_run_running(db, run=run, logs_json=_build_log_events(log_events))
+
+        # What a recent preview or run of the same steps over the same version
+        # made is reused (D2, O6). A run keeps nothing past a join or union:
+        # reading the other dataset is also what records which version it read.
+        identity = stored_file_identity(db, base_dataset.id, base_file_path)
+        base = None
+        if identity is not None:
+            base = "|".join([identity, str(base_file_type), json.dumps(base_spec, sort_keys=True, default=str), "everything"])
+
         # Every clock-dependent function reads the frozen instant for the whole
         # of the recipe, so `today()` in step 1 and step 5 agree, and a replay
-        # of this run can install the same instant and get the same answer.
+        # of this run can install the same instant and get the same answer;
+        # a step that reads it is never kept.
         with frozen_clock(evaluated_at):
-            for index, step in enumerate(steps, start=1):
-                current_stage = f"apply_step_{index}"
-                log_events.append(
-                    _log_event(
-                        current_stage,
-                        f"Applying step {index}.",
-                        details={"step_type": step.step_type},
-                    )
-                )
-                mark_pipeline_run_running(db, run=run, logs_json=_build_log_events(log_events))
-                working, step_warnings = apply_single_step(working, step, step_context)
-                warnings.extend(step_warnings)
+            ran = run_steps(
+                base=base,
+                load=load,
+                steps=steps,
+                apply=lambda frame, step: apply_single_step(frame, step, step_context),
+                before_step=before_step,
+                describe=lambda frame: {"rows": int(len(frame)), "columns": int(len(frame.columns)),
+                                        "file_size": read.get("bytes", 0)},
+                accept=accept,
+            )
+        working = ran.frame
+        warnings.extend(ran.warnings)
+        row_count_before = ran.source["rows"]
+        column_count_before = ran.source["columns"]
+        if ran.reused_input:
+            log_events.append(_log_event(
+                "reused",
+                "Reused the input's rows" + (
+                    f" and what its first {count_of(ran.reused_steps, 'step')} made" if ran.reused_steps else ""
+                ) + " from a recent preview or run of the same version, and ran the rest.",
+                details={"reused_steps": ran.reused_steps},
+            ))
 
         row_count_after = int(len(working))
         column_count_after = int(len(working.columns))

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import uuid
 from typing import Any
 
@@ -10,7 +11,6 @@ from service_datasets.service import get_dataset_model_for_project
 from service_ingestion.read_copy import frame_of
 from service_projects.contracts import ensure_owned_project
 from service_transformations.dataset_access import build_step_context
-from service_transformations.executor import apply_transformation_steps_with_outcomes
 from service_transformations.schemas import (
     ExecutionPlanRead,
     StepEstimate,
@@ -39,21 +39,26 @@ def preview_dataset_transformations(
     if not dataset.file_path or not dataset.file_type:
         raise BadRequestError("This dataset has no saved data to preview.")
 
-    try:
-        file_bytes = storage_backend.read_bytes(dataset.file_path)
-    except FileNotFoundError as exc:
-        raise NotFoundError(
-            "This dataset's stored file is missing. The dataset record still exists, so re-uploading the file restores it."
-        ) from exc
-    except OSError as exc:
-        raise BadRequestError(f"Unable to read dataset file: {exc}") from exc
-
-    from service_enterprise.policy_view import Reader, narrow_frame
+    from service_datasets.service import stored_file_identity
+    from service_enterprise.policy_view import Reader, narrow_frame, view_for
+    from service_transformations.executor import apply_single_step, validate_steps_json
+    from service_transformations.prefix_cache import run_steps
 
     # A preview hands rows to a person, so it starts from what they may see.
     reader = Reader.for_user(db, project_id, current_user)
-    frame = frame_of(storage_backend, dataset.file_path, file_bytes, file_type=dataset.file_type, spec=dataset.ingest_spec_json)
-    source_frame = narrow_frame(db, project_id, dataset.id, reader, frame.copy())
+
+    def load():
+        try:
+            file_bytes = storage_backend.read_bytes(dataset.file_path)
+        except FileNotFoundError as exc:
+            raise NotFoundError(
+                "This dataset's stored file is missing. The dataset record still exists, so re-uploading the file restores it."
+            ) from exc
+        except OSError as exc:
+            raise BadRequestError(f"Unable to read dataset file: {exc}") from exc
+        frame = frame_of(storage_backend, dataset.file_path, file_bytes, file_type=dataset.file_type,
+                         spec=dataset.ingest_spec_json)
+        return narrow_frame(db, project_id, dataset.id, reader, frame.copy())
 
     limit = getattr(settings, "preview_row_limit", 50) if settings is not None else 50
     if not isinstance(limit, int) or limit < 1:
@@ -67,11 +72,37 @@ def preview_dataset_transformations(
         max_bytes=getattr(settings, "max_upload_size_bytes", None) if settings is not None else None,
         reader=reader,
     )
-    transformed, warnings, outcomes = apply_transformation_steps_with_outcomes(
-        source_frame, payload.steps, context
-    )
+    # What earlier previews and runs of the same steps made is reused (D2): editing
+    # step 14 of 15 runs steps 14 and 15, not all of them over a fresh read.
+    identity = stored_file_identity(db, dataset.id, dataset.file_path)
+    base = None
+    if identity is not None:
+        base = "|".join([identity, str(dataset.file_type), json.dumps(dataset.ingest_spec_json, sort_keys=True, default=str),
+                         view_for(db, project_id, dataset.id, reader).fingerprint()])
 
-    schema_before = build_schema_summary(source_frame)
+    def other_of(step_type: str, config: dict) -> str | None:
+        raw = config.get("right_dataset_id") or config.get("other_dataset_id")
+        try:
+            other = get_dataset_model_for_project(db, project_id, uuid.UUID(str(raw)))
+        except Exception:  # noqa: BLE001 - the step itself reports a missing dataset
+            return None
+        found = stored_file_identity(db, other.id, other.file_path)
+        if found is None:
+            return None
+        return "|".join([found, json.dumps(other.ingest_spec_json, sort_keys=True, default=str),
+                         view_for(db, project_id, other.id, reader).fingerprint()])
+
+    ran = run_steps(
+        base=base,
+        load=load,
+        steps=validate_steps_json(payload.steps),
+        apply=lambda frame, step: apply_single_step(frame, step, context),
+        other_of=other_of,
+        describe=lambda frame: {"rows": int(len(frame)), "schema": build_schema_summary(frame)},
+    )
+    transformed, warnings, outcomes = ran.frame, ran.warnings, ran.outcomes
+
+    schema_before = ran.source["schema"]
     schema_after = build_schema_summary(transformed)
 
     preview_columns = [str(column) for column in transformed.columns]
@@ -80,11 +111,11 @@ def preview_dataset_transformations(
     return TransformationPreviewResponse(
         preview_rows=preview_rows,
         preview_columns=preview_columns,
-        row_count_before=int(len(source_frame)),
+        row_count_before=ran.source["rows"],
         row_count_after=int(len(transformed)),
         execution_plan=_describe_plan(dataset, payload.steps, _statistics_for(db, project_id, dataset, reader),
                                       _other_datasets(db, project_id, reader),
-                                      visible=[str(column) for column in source_frame.columns]),
+                                      visible=list(ran.source["schema"].ordered_columns)),
         step_outcomes=[
             TransformationStepOutcome(
                 index=outcome.index,
@@ -96,7 +127,7 @@ def preview_dataset_transformations(
             )
             for outcome in outcomes
         ],
-        column_count_before=int(len(source_frame.columns)),
+        column_count_before=len(ran.source["schema"].ordered_columns),
         column_count_after=int(len(transformed.columns)),
         schema_before=schema_before,
         schema_after=schema_after,

@@ -178,16 +178,20 @@ def test_destructive_scrubs_every_historical_version(db: Session, world: dict) -
     storage = world["storage"]
     ds = _dataset(db, world["project"], storage, "customers", path="d/v2.csv")
     storage.files["d/v1.csv"] = CSV  # the older snapshot holds the subject too
+    # Each version's statistics name its commonest values: the subject's address is one (D2).
+    statistics = {"rows": 3, "columns": {"email": {"name": "email", "common": [["alice@acme.com", 2]]}}}
     db.add_all([
         DatasetVersion(
             dataset_id=ds.id, version_number=1, file_path="d/v1.csv", file_type="csv",
             content_hash=content_digest(CSV),
             preview_json={"columns": ["email"], "rows": [{"email": "alice@acme.com"}]},
+            statistics_json=statistics,
         ),
         DatasetVersion(
             dataset_id=ds.id, version_number=2, file_path="d/v2.csv", file_type="csv",
             content_hash=content_digest(CSV),
             preview_json={"columns": ["email"], "rows": [{"email": "alice@acme.com"}]},
+            statistics_json=statistics,
         ),
     ])
     db.commit()
@@ -213,6 +217,10 @@ def test_destructive_scrubs_every_historical_version(db: Session, world: dict) -
     # Previews scrubbed too — they carried the subject as raw rows.
     assert "alice@acme.com" not in str(versions[1].preview_json)
     assert "alice@acme.com" not in str(versions[2].preview_json)
+    # And their statistics, which held it among their commonest values.
+    assert "alice@acme.com" not in str(versions[1].statistics_json)
+    assert "alice@acme.com" not in str(versions[2].statistics_json)
+    assert versions[1].statistics_json["rows"] == 2
     db.refresh(ds)
     assert "alice@acme.com" not in str(ds.preview_json)
 

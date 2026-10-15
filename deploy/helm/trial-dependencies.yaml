@@ -55,7 +55,9 @@ spec:
     spec:
       containers:
         - name: minio
-          image: minio/minio:latest
+          # MinIO no longer publishes its images on Docker Hub; this one is
+          # the community build CI also uses.
+          image: cgr.dev/chainguard/minio:latest
           args: ["server", "/data"]
           env:
             - { name: MINIO_ROOT_USER, value: trial-access }
@@ -84,8 +86,13 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: make-bucket
-          image: minio/mc:latest
+          # Any S3 client makes the bucket; it retries until MinIO is up.
+          image: amazon/aws-cli:2.15.0
+          env:
+            - { name: AWS_ACCESS_KEY_ID, value: trial-access }
+            - { name: AWS_SECRET_ACCESS_KEY, value: trial-secret }
+            - { name: AWS_DEFAULT_REGION, value: us-east-1 }
           command:
             - sh
             - -c
-            - mc alias set trial http://minio:9000 trial-access trial-secret && mc mb --ignore-existing trial/pipewright
+            - aws --endpoint-url http://minio:9000 s3 ls s3://pipewright || aws --endpoint-url http://minio:9000 s3 mb s3://pipewright

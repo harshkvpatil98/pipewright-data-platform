@@ -475,7 +475,7 @@ def prune(node: Node, needed: set[str] | None, applied: list[Rewrite]) -> Node:
             return node
         applied.append(Rewrite("read only the columns used",
                                f"{node} reads {len(kept)} of its {len(node.columns)} columns"))
-        return Scan(node.source, kept)
+        return replace(node, columns=kept)
     if isinstance(node, Project):
         projections = node.projections if needed is None else (
             tuple((n, e) for n, e in node.projections if n in needed) or node.projections[:1])

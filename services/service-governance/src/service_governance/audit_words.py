@@ -43,6 +43,7 @@ _RULES: list[tuple[str, str, str]] = [
     ("POST", r"/schedules/{id}/toggle", "paused or resumed a schedule"),
     ("POST", r"/schedules/{id}/trigger-now", "ran a schedule straight away"),
     ("POST", r"/workbench/run", "ran SQL in the workbench"),
+    ("POST", r"/workbench/across/run", "ran a query across sources"),
     ("POST", r"/workbench/notebooks/{id}/run", "ran a notebook"),
     ("POST", r"/tests/saved/{id}/run", "ran a saved comparison"),
     ("POST", r"/datasets/{id}/tests/{id}", "compared two datasets"),

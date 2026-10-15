@@ -1,6 +1,182 @@
 {
  "components": {
   "schemas": {
+   "AcrossJoinRead": {
+    "properties": {
+     "estimated": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Estimated"
+     },
+     "joined": {
+      "title": "Joined",
+      "type": "string"
+     },
+     "method": {
+      "title": "Method",
+      "type": "string"
+     },
+     "note": {
+      "default": "",
+      "title": "Note",
+      "type": "string"
+     },
+     "rows": {
+      "title": "Rows",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "joined",
+     "method",
+     "rows"
+    ],
+    "title": "AcrossJoinRead",
+    "type": "object"
+   },
+   "AcrossRequest": {
+    "description": "One SELECT over tables in several connections and datasets (D2).",
+    "properties": {
+     "sql": {
+      "maxLength": 200000,
+      "minLength": 1,
+      "title": "Sql",
+      "type": "string"
+     }
+    },
+    "required": [
+     "sql"
+    ],
+    "title": "AcrossRequest",
+    "type": "object"
+   },
+   "AcrossResponse": {
+    "properties": {
+     "columns": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Columns",
+      "type": "array"
+     },
+     "duration_ms": {
+      "title": "Duration Ms",
+      "type": "number"
+     },
+     "joins": {
+      "items": {
+       "$ref": "#/components/schemas/AcrossJoinRead"
+      },
+      "title": "Joins",
+      "type": "array"
+     },
+     "notes": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Notes",
+      "type": "array"
+     },
+     "rewrites": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Rewrites",
+      "type": "array"
+     },
+     "row_count": {
+      "title": "Row Count",
+      "type": "integer"
+     },
+     "rows": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Rows",
+      "type": "array"
+     },
+     "sources": {
+      "items": {
+       "$ref": "#/components/schemas/AcrossSourceRead"
+      },
+      "title": "Sources",
+      "type": "array"
+     },
+     "truncated": {
+      "title": "Truncated",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "columns",
+     "rows",
+     "row_count",
+     "truncated",
+     "sources",
+     "joins",
+     "rewrites",
+     "notes",
+     "duration_ms"
+    ],
+    "title": "AcrossResponse",
+    "type": "object"
+   },
+   "AcrossSourceRead": {
+    "properties": {
+     "duration_ms": {
+      "title": "Duration Ms",
+      "type": "number"
+     },
+     "estimate_how": {
+      "default": "",
+      "title": "Estimate How",
+      "type": "string"
+     },
+     "estimated": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Estimated"
+     },
+     "method": {
+      "title": "Method",
+      "type": "string"
+     },
+     "ran": {
+      "title": "Ran",
+      "type": "string"
+     },
+     "rows": {
+      "title": "Rows",
+      "type": "integer"
+     },
+     "source": {
+      "title": "Source",
+      "type": "string"
+     }
+    },
+    "required": [
+     "source",
+     "ran",
+     "rows",
+     "method",
+     "duration_ms"
+    ],
+    "title": "AcrossSourceRead",
+    "type": "object"
+   },
    "ActivityItem": {
     "properties": {
      "at": {
@@ -18309,6 +18485,18 @@
    },
    "QueryRunRead": {
     "properties": {
+     "connection_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Connection Id"
+     },
      "created_at": {
       "format": "date-time",
       "title": "Created At",
@@ -53171,6 +53359,81 @@
     "summary": "Read Usage",
     "tags": [
      "enterprise"
+    ]
+   }
+  },
+  "/api/v1/projects/{project_id}/workbench/across/run": {
+   "post": {
+    "description": "One SELECT over tables in several connections and datasets: each source runs the\nlargest part it can, joins between them run here, and the plan says what moved.",
+    "operationId": "run_across_sources_api_v1_projects__project_id__workbench_across_run_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/AcrossRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AcrossResponse"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Run Across Sources",
+    "tags": [
+     "workbench"
     ]
    }
   },

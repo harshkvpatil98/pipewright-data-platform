@@ -91,6 +91,14 @@ class Estimate:
         return self.rows * self.width
 
 
+def scan_key(scan: Scan) -> str:
+    """How a scan's statistics are looked up: by its name alone, or, for a tree
+    that reads from several sources, by where it lives too."""
+    if scan.origin is None and scan.schema_name is None:
+        return scan.source
+    return f"{scan.origin or ''}|{scan.schema_name or ''}|{scan.source}"
+
+
 def estimate(node: Node, stats: Mapping[str, TableStats | None]) -> Estimate:
     """Rows and width of `node`'s output, with every node's estimate and why."""
     steps: list[NodeEstimate] = []
@@ -104,7 +112,7 @@ def width_of(node: Node) -> int:
 
 def _walk(node: Node, stats: Mapping[str, TableStats | None], steps: list[NodeEstimate]) -> _Shape:
     if isinstance(node, Scan):
-        table = stats.get(node.source)
+        table = stats.get(scan_key(node))
         if table is None:
             shape = _Shape(UNKNOWN_ROWS, {}, guessed=True)
             steps.append(NodeEstimate(str(node), UNKNOWN_ROWS, "a guess: there are no statistics for it", True))

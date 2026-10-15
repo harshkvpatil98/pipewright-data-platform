@@ -6,7 +6,7 @@ import type { AuthUser,
   Metric,
   MetricSqlResponse,
 } from "@platform/shared-types";
-import { Button, EmptyState, Icon, Input, Modal, Select, Tabs, useToast } from "@platform/shared-ui";
+import { Button, Icon, Input, Modal, Select, Tabs, useToast } from "@platform/shared-ui";
 
 import { AppFrame } from "@/components/shell/app-frame";
 import type { RibbonGroup } from "@/components/shell/ribbon";
@@ -17,11 +17,13 @@ import { extractErrorMessage } from "@/lib/api/errors";
 import { engineLabel } from "@/lib/labels";
 import { cx } from "@/lib/utils";
 
+import { ACROSS, AcrossHelp, AcrossResult } from "./across-panel";
 import { describeRun, formatDuration, sqlToRun } from "./editor-state";
 import { exportName, toCsv } from "./result-export";
 import { SchemaTree } from "./schema-tree";
 import { SqlEditor } from "./sql-editor";
 import type {
+  AcrossResponse,
   Completion,
   Connection,
   ExplainResponse,
@@ -53,7 +55,10 @@ export function WorkbenchPage({
   const toast = useToast();
   const base = `/projects/${projectId}/workbench`;
 
-  const [connectionId, setConnectionId] = useState(connections[0]?.id ?? "");
+  // "Across sources" is a choice in the same list: one SELECT over every connection and dataset (D2).
+  const [connectionId, setConnectionId] = useState(connections[0]?.id ?? ACROSS);
+  const across = connectionId === ACROSS;
+  const [acrossResult, setAcrossResult] = useState<AcrossResponse | null>(null);
   const [sql, setSql] = useState("");
   const [selection, setSelection] = useState({ start: 0, end: 0 });
   const [plan, setPlan] = useState<PlanResponse | null>(null);
@@ -79,7 +84,7 @@ export function WorkbenchPage({
 
   const loadSchema = useCallback(
     async (refresh = false) => {
-      if (!connectionId) return;
+      if (!connectionId || connectionId === ACROSS) return;
       setSchemaLoading(true);
       try {
         setSchema(
@@ -103,7 +108,7 @@ export function WorkbenchPage({
 
   const expandTable = useCallback(
     async (table: TableInfo) => {
-      if (!connectionId) return;
+      if (!connectionId || connectionId === ACROSS) return;
       try {
         const query = new URLSearchParams({ table: table.qualified });
         setSchema(await apiFetch<SchemaResponse>(`${base}/schema/${connectionId}?${query}`));
@@ -138,7 +143,8 @@ export function WorkbenchPage({
   // -------------------------------------------------------------- analysing
 
   useEffect(() => {
-    if (!sql.trim()) {
+    if (!sql.trim() || across) {
+      // A query across sources is one SELECT; there is no script to check statement by statement.
       setPlan(null);
       return;
     }
@@ -164,7 +170,7 @@ export function WorkbenchPage({
 
   const completionsFor = useCallback(
     async (text: string, offset: number): Promise<Completion[]> => {
-      if (!connectionId) return [];
+      if (!connectionId || connectionId === ACROSS) return [];
       const response = await apiFetch<{ items: Completion[] }>(
         `${base}/completions/${connectionId}`,
         { method: "POST", body: JSON.stringify({ sql: text, offset, limit: 40 }) },
@@ -181,6 +187,13 @@ export function WorkbenchPage({
       setRunning(true);
       setExplain(null);
       try {
+        if (connectionId === ACROSS) {
+          setAcrossResult(
+            await apiFetch<AcrossResponse>(`${base}/across/run`, { method: "POST", body: JSON.stringify({ sql: text }) }),
+          );
+          void loadHistory();
+          return;
+        }
         const response = await apiFetch<RunResponse>(`${base}/run`, {
           method: "POST",
           body: JSON.stringify({
@@ -215,6 +228,10 @@ export function WorkbenchPage({
       }
       const text = sqlToRun(sql, selection, plan?.statements ?? [], statementOnly ? "statement" : "script");
       if (!text.trim()) return;
+      if (connectionId === ACROSS) {
+        void send(text);
+        return;
+      }
       // A write gets a confirmation step, always. The plan already knows
       // whether one is needed, so the prompt is never in the way of a SELECT.
       if (plan?.verdict.needs_confirmation && writeMode) {
@@ -227,7 +244,7 @@ export function WorkbenchPage({
   );
 
   const askExplain = useCallback(async () => {
-    if (!connectionId) return;
+    if (!connectionId || connectionId === ACROSS) return;
     const text = sqlToRun(sql, selection, plan?.statements ?? [], "statement");
     try {
       setExplain(await apiFetch<ExplainResponse>(`${base}/explain`, {
@@ -241,6 +258,18 @@ export function WorkbenchPage({
   }, [base, connectionId, sql, selection, plan, parameters, toast]);
 
   const downloadCsv = useCallback(() => {
+    if (connectionId === ACROSS) {
+      if (!acrossResult) return;
+      const url = URL.createObjectURL(
+        new Blob([toCsv(acrossResult.columns, acrossResult.rows)], { type: "text/csv" }),
+      );
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = exportName("across sources", "csv");
+      anchor.click();
+      URL.revokeObjectURL(url);
+      return;
+    }
     if (!shownRef.current) return;
     const statement = shownRef.current;
     const url = URL.createObjectURL(
@@ -251,7 +280,7 @@ export function WorkbenchPage({
     anchor.download = exportName(statement.summary, "csv");
     anchor.click();
     URL.revokeObjectURL(url);
-  }, []);
+  }, [connectionId, acrossResult]);
 
   const sendToNotebook = useCallback(async () => {
     const text = sqlToRun(sql, selection, plan?.statements ?? [], "statement");
@@ -281,7 +310,7 @@ export function WorkbenchPage({
     try {
       await apiFetch(`${base}/queries`, {
         method: "POST",
-        body: JSON.stringify({ name, sql, connection_id: connectionId || null }),
+        body: JSON.stringify({ name, sql, connection_id: connectionId === ACROSS ? null : connectionId || null }),
       });
       toast.success("Saved", `“${name}” is in this project's saved queries.`);
       setSaveName("");
@@ -300,6 +329,15 @@ export function WorkbenchPage({
   const shownRef = useRef<StatementResult | undefined>(undefined);
   shownRef.current = shown;
 
+  /** A saved or past query opens where it ran: its connection, or across sources. */
+  const openIn = useCallback(
+    (target: string | null) => {
+      const where = target ?? ACROSS;
+      if (where === ACROSS || connections.some((connection) => connection.id === where)) setConnectionId(where);
+    },
+    [connections],
+  );
+
   const insertAtCaret = useCallback(
     (text: string) => {
       setSql((current) => current.slice(0, selection.start) + text + current.slice(selection.end));
@@ -317,7 +355,7 @@ export function WorkbenchPage({
           label: running ? "Running…" : "Run",
           icon: "play",
           prominent: true,
-          hint: "⌘↵ — or the selection, if there is one",
+          hint: "⌘↵, or the selection if there is one",
           disabled: running || !connectionId || !sql.trim(),
           onClick: () => run(false),
         },
@@ -325,16 +363,16 @@ export function WorkbenchPage({
           id: "run-statement",
           label: "Run statement",
           icon: "play",
-          hint: "⌘⇧↵ — just the one under the cursor",
-          disabled: running || !connectionId || !sql.trim(),
+          hint: "⌘⇧↵, just the one under the cursor",
+          disabled: running || !connectionId || across || !sql.trim(),
           onClick: () => run(true),
         },
         {
           id: "explain",
           label: "Explain",
           icon: "sigma",
-          hint: "How the database would run it. Nothing is executed.",
-          disabled: running || !connectionId || !sql.trim(),
+          hint: across ? "Running a query across sources shows how each part ran." : "How the database would run it. Nothing is executed.",
+          disabled: running || !connectionId || across || !sql.trim(),
           onClick: () => void askExplain(),
         },
       ],
@@ -348,15 +386,15 @@ export function WorkbenchPage({
           label: "Download CSV",
           icon: "download",
           hint: "The rows on screen, as a file",
-          disabled: !shown || shown.columns.length === 0,
+          disabled: across ? !acrossResult : !shown || shown.columns.length === 0,
           onClick: downloadCsv,
         },
         {
           id: "notebook",
           label: "Open as notebook",
           icon: "book",
-          hint: "Carry this query on into Python and recipe cells",
-          disabled: !sql.trim(),
+          hint: across ? "A notebook runs SQL against one connection." : "Carry this query on into Python and recipe cells",
+          disabled: across || !sql.trim(),
           onClick: () => void sendToNotebook(),
         },
       ],
@@ -373,7 +411,7 @@ export function WorkbenchPage({
             currentUser.role === "admin"
               ? "Writing to a source database bypasses every review the platform applies."
               : "Write mode needs the admin role.",
-          disabled: currentUser.role !== "admin",
+          disabled: across || currentUser.role !== "admin",
           onClick: () => {
             setWriteMode((current) => !current);
             setDdlMode(false);
@@ -383,34 +421,12 @@ export function WorkbenchPage({
           id: "ddl",
           label: ddlMode ? "Structure changes on" : "Structure changes off",
           icon: "warning",
-          disabled: !writeMode || currentUser.role !== "admin",
+          disabled: across || !writeMode || currentUser.role !== "admin",
           onClick: () => setDdlMode((current) => !current),
         },
       ],
     },
   ];
-
-  if (connections.length === 0) {
-    return (
-      <AppFrame
-        currentUser={currentUser}
-        heading="SQL"
-      >
-        <EmptyState
-          title="No database connections in this project"
-          description="The workbench runs SQL against a live database, so it needs one to run against."
-          action={
-            <a
-              href={`/projects/${projectId}/sources`}
-              className="inline-flex items-center rounded-full border border-[color:var(--accent-soft)] bg-[color:var(--accent-faint)] px-4 py-2 text-xs font-medium text-ink hover:brightness-110"
-            >
-              Add a connection
-            </a>
-          }
-        />
-      </AppFrame>
-    );
-  }
 
   return (
     <AppFrame
@@ -418,12 +434,22 @@ export function WorkbenchPage({
       heading="SQL"
       ribbon={ribbon}
       statusItems={[
-        { id: "mode", label: "Mode", value: plan?.policy.description ?? "read-only" },
-        { id: "statements", label: "Statements", value: String(plan?.statements.length ?? 0) },
+        { id: "mode", label: "Mode", value: across ? "across sources, read-only" : plan?.policy.description ?? "read-only" },
+        {
+          id: "statements",
+          label: "Statements",
+          value: across ? (sql.trim() ? "1" : "0") : String(plan?.statements.length ?? 0),
+        },
         {
           id: "last",
           label: "Last run",
-          value: result ? formatDuration(result.duration_ms) : "—",
+          value: across
+            ? acrossResult
+              ? formatDuration(acrossResult.duration_ms)
+              : "Not yet"
+            : result
+              ? formatDuration(result.duration_ms)
+              : "Not yet",
         },
         { id: "env", label: "Environment", value: projectEnvironment },
       ]}
@@ -444,7 +470,8 @@ export function WorkbenchPage({
             ]}
           />
 
-          {side === "schema" ? (
+          {side === "schema" && across ? <AcrossHelp connections={connections} onInsert={insertAtCaret} /> : null}
+          {side === "schema" && !across ? (
             <SchemaTree
               schema={schema}
               loading={schemaLoading}
@@ -471,7 +498,10 @@ export function WorkbenchPage({
                   <li key={entry.id} className="flex items-center gap-1">
                     <button
                       type="button"
-                      onClick={() => setSql(entry.sql)}
+                      onClick={() => {
+                        setSql(entry.sql);
+                        openIn(entry.connection_id);
+                      }}
                       className="min-w-0 flex-1 rounded-lg px-2 py-1.5 text-left text-xs text-ink transition hover:bg-sunken"
                     >
                       <span className="block truncate">{entry.name}</span>
@@ -516,7 +546,10 @@ export function WorkbenchPage({
                   <li key={entry.id}>
                     <button
                       type="button"
-                      onClick={() => setSql(entry.sql)}
+                      onClick={() => {
+                        setSql(entry.sql);
+                        openIn(entry.connection_id);
+                      }}
                       className="w-full rounded-lg px-2 py-1.5 text-left transition hover:bg-sunken"
                     >
                       <span className="block truncate font-mono text-[12px] text-ink-2">
@@ -555,6 +588,7 @@ export function WorkbenchPage({
                   {connection.name} ({engineLabel(connection.connector_type)})
                 </option>
               ))}
+              <option value={ACROSS}>Across sources (connections and datasets)</option>
             </Select>
             {isProduction ? (
               <span className="flex items-center gap-1.5 rounded-full border border-[color:var(--danger-line)] bg-[color:var(--danger-soft)] px-2.5 py-1 text-[12px] text-ink">
@@ -617,7 +651,15 @@ export function WorkbenchPage({
 
           {/* -------------------------------------------------------- results */}
           <div className="flex min-h-0 flex-[4] flex-col border-t border-line">
-            {explain ? (
+            {across ? (
+              acrossResult ? (
+                <AcrossResult result={acrossResult} />
+              ) : (
+                <p className="p-4 text-xs text-muted">
+                  Results appear here, with what each source ran. ⌘↵ runs the query.
+                </p>
+              )
+            ) : explain ? (
               <div className="min-h-0 flex-1 overflow-auto p-3">
                 <div className="mb-2 flex items-baseline gap-3">
                   <h2 className="text-xs text-muted">

@@ -94,7 +94,10 @@ def _next_alias(seed: list[int]) -> str:
 def _compile(node: Node, d: Dialect, alias_seed: list[int]) -> str:
     if isinstance(node, Scan):
         columns = ", ".join(d.quote(name) for name, _ in node.columns)
-        return f"SELECT {columns} FROM {d.quote(node.source)}"
+        relation = d.quote(node.source)
+        if node.schema_name:
+            relation = f"{d.quote(node.schema_name)}.{relation}"
+        return f"SELECT {columns} FROM {relation}"
 
     if isinstance(node, Extension):
         raise Unsupported(

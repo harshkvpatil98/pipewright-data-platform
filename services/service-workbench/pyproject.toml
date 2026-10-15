@@ -20,6 +20,10 @@ dependencies = [
   "service-auth>=0.1.0",
   "service-projects>=0.1.0",
   "service-transformations>=0.1.0",
+  # Queries across sources (D2): the project's connections, and their statistics.
+  "service-extraction>=0.1.0",
+  # Reads a SELECT naming tables in several sources, for queries across them (D2).
+  "sqlglot>=30,<31",
 ]
 
 [tool.setuptools.packages.find]

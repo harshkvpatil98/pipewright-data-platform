@@ -59,6 +59,50 @@ class RunRequest(BaseModel):
     saved_query_id: uuid.UUID | None = None
 
 
+class AcrossRequest(BaseModel):
+    """One SELECT over tables in several connections and datasets (D2)."""
+
+    sql: str = Field(min_length=1, max_length=MAX_SCRIPT_LENGTH)
+
+
+class AcrossSourceRead(BaseModel):
+    #: The table as the query named it.
+    source: str
+    #: The SQL it ran there, or how a dataset was read.
+    ran: str
+    rows: int
+    estimated: float | None = None
+    #: How the estimate was worked out, in words.
+    estimate_how: str = ""
+    #: All of it, or only rows whose keys were found on the other side of a join.
+    method: str
+    duration_ms: float
+
+
+class AcrossJoinRead(BaseModel):
+    joined: str
+    method: str
+    rows: int
+    estimated: float | None = None
+    #: Set when the rows that came back changed the plan.
+    note: str = ""
+
+
+class AcrossResponse(BaseModel):
+    columns: list[str]
+    rows: list[dict[str, Any]]
+    row_count: int
+    #: True when more rows came back than are shown.
+    truncated: bool
+    sources: list[AcrossSourceRead]
+    joins: list[AcrossJoinRead]
+    #: How the query was rewritten before it ran, in words.
+    rewrites: list[str]
+    #: Where the plan changed as it ran, and why.
+    notes: list[str]
+    duration_ms: float
+
+
 class StatementResultRead(BaseModel):
     index: int
     sql: str
@@ -211,6 +255,8 @@ class SavedQueryListResponse(BaseModel):
 
 class QueryRunRead(BaseModel):
     id: uuid.UUID
+    #: The connection it ran against; null for a query across sources.
+    connection_id: uuid.UUID | None = None
     sql: str
     statement_count: int
     wrote: bool

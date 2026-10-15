@@ -2311,6 +2311,13 @@ class Operations:
         """
         return self._call("GET", f"/api/v1/projects/{project_id}/usage", query={"period_days": period_days})
 
+    def run_across_sources(self, project_id: str, *, body: Any) -> Any:
+        """One SELECT over tables in several connections and datasets: each source runs the largest part it can, joins between them run here, and the plan says what moved.
+
+        POST /api/v1/projects/{project_id}/workbench/across/run
+        """
+        return self._call("POST", f"/api/v1/projects/{project_id}/workbench/across/run", body=body)
+
     def post_completions(self, project_id: str, connection_id: str, *, body: Any) -> Any:
         """Suggestions for a cursor position. A POST because the script is the input.
 

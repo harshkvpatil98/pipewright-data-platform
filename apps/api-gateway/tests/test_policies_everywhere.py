@@ -203,6 +203,25 @@ def test_the_studio_plan_for_a_database_never_names_a_denied_column(db: Session,
     _clean(result.model_dump_json())
 
 
+def test_a_query_across_sources(db: Session, world: dict) -> None:
+    """A dataset read in a query across sources is read as the person may see it."""
+    from service_workbench import across_project
+    from shared_python.errors import BadRequestError
+
+    def run(sql: str):
+        return across_project.run(db, world["project"].id, sql=sql, user=world["user"], storage_backend=world["storage"])
+
+    everything = run('SELECT * FROM datasets."Customers"')
+    _clean(str(everything.rows) + str(everything.columns) + str([vars(s) for s in everything.sources]))
+    assert sorted(row["customer"] for row in everything.rows) == ["ann", "cy"]
+    joined = run('SELECT a.customer, b.amount FROM datasets."Customers" a '
+                 'JOIN datasets."Customers again" b ON a.customer = b.customer')
+    _clean(str(joined.rows))
+    assert sorted(row["customer"] for row in joined.rows) == ["ann", "cy"]
+    with pytest.raises(BadRequestError, match="has no column"):
+        run('SELECT c.email FROM datasets."Customers" c')
+
+
 def test_the_assistant_and_comparisons(db: Session, world: dict) -> None:
     from service_comparisons.schemas import DatasetStatisticalTestRequest
     from service_comparisons.service import get_dataset_comparison_summary

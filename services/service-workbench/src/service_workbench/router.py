@@ -19,6 +19,10 @@ from service_auth.schemas import UserRead
 from service_workbench import service
 from service_workbench.temporal import temporal_query
 from service_workbench.schemas import (
+    AcrossJoinRead,
+    AcrossRequest,
+    AcrossResponse,
+    AcrossSourceRead,
     TemporalQueryRequest,
     TemporalQueryResponse,
     CellRead,
@@ -166,6 +170,27 @@ def build_router(
             """SQL over a dataset as of a version or an instant. A read (viewer):
             `query` is a read-only segment in the central matrix."""
             return temporal_query(db, project_id, dataset_id, payload, user, storage)
+
+        @router.post(f"{base}/across/run", response_model=AcrossResponse)
+        def run_across_sources(
+            project_id: uuid.UUID,
+            payload: AcrossRequest,
+            db: Session = Depends(get_db),
+            user: UserRead = Depends(get_current_user),
+            storage=Depends(get_storage_backend),
+        ) -> AcrossResponse:
+            """One SELECT over tables in several connections and datasets: each source runs the
+            largest part it can, joins between them run here, and the plan says what moved."""
+            from service_workbench import across_project
+
+            outcome = across_project.run(db, project_id, sql=payload.sql, user=user, storage_backend=storage)
+            return AcrossResponse(
+                columns=outcome.columns, rows=outcome.rows, row_count=outcome.row_count,
+                truncated=outcome.truncated,
+                sources=[AcrossSourceRead(**vars(source)) for source in outcome.sources],
+                joins=[AcrossJoinRead(**vars(join)) for join in outcome.joins],
+                rewrites=outcome.rewrites, notes=outcome.notes, duration_ms=outcome.duration_ms,
+            )
 
     # ------------------------------------------------------------- analysing
 
@@ -383,6 +408,7 @@ def build_router(
             items=[
                 QueryRunRead(
                     id=entry.id,
+                    connection_id=entry.connection_id,
                     sql=entry.sql,
                     statement_count=entry.statement_count,
                     wrote=entry.wrote,

@@ -74,6 +74,8 @@ export type Completion = { label: string; kind: string; detail: string; insert: 
 
 export type SavedQuery = {
   id: string;
+  /** Null for a query across sources. */
+  connection_id: string | null;
   name: string;
   description: string | null;
   sql: string;
@@ -84,6 +86,8 @@ export type SavedQuery = {
 
 export type QueryRun = {
   id: string;
+  /** Null for a query across sources. */
+  connection_id: string | null;
   sql: string;
   statement_count: number;
   wrote: boolean;
@@ -102,4 +106,25 @@ export type ExplainResponse = {
   estimated_cost: number | null;
   estimated_rows: number | null;
   notes: string[];
+};
+
+/** One SELECT over several connections and datasets (D2). */
+export type AcrossResponse = {
+  columns: string[];
+  rows: Record<string, unknown>[];
+  row_count: number;
+  truncated: boolean;
+  sources: {
+    source: string;
+    ran: string;
+    rows: number;
+    estimated: number | null;
+    estimate_how: string;
+    method: string;
+    duration_ms: number;
+  }[];
+  joins: { joined: string; method: string; rows: number; estimated: number | null; note: string }[];
+  rewrites: string[];
+  notes: string[];
+  duration_ms: number;
 };

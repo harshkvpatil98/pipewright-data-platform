@@ -53,16 +53,25 @@ class Node:
 
 @dataclass(frozen=True)
 class Scan(Node):
-    """A leaf: read a named relation with a known schema."""
+    """A leaf: read a named relation with a known schema.
+
+    `schema` qualifies the relation where it lives (`sales.orders`), and
+    `origin` says which source it lives in (a connection, a dataset) when a
+    tree reads from several (D2, O4): two tables named alike in two databases
+    are two different scans.
+    """
 
     source: str
     columns: tuple[tuple[str, PWType], ...]
+    schema_name: str | None = None
+    origin: str | None = None
 
     def schema(self) -> Schema:
         return dict(self.columns)
 
     def __str__(self) -> str:
-        return f"Scan({self.source})"
+        qualified = f"{self.schema_name}.{self.source}" if self.schema_name else self.source
+        return f"Scan({qualified})"
 
 
 @dataclass(frozen=True)

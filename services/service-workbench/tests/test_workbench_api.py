@@ -288,9 +288,10 @@ class TestHistory:
         # Retaining a customer's rows is not something anybody asked for.
         assert "eu" not in str(entry)
         assert set(entry) == {
-            "id", "sql", "statement_count", "wrote", "succeeded", "duration_ms",
+            "id", "connection_id", "sql", "statement_count", "wrote", "succeeded", "duration_ms",
             "rows_returned", "rows_affected", "error", "created_at",
         }
+        assert entry["connection_id"] == env["connection"]  # where it ran, so it opens there again
 
 
 class TestSavedQueries:

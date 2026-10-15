@@ -299,7 +299,7 @@ def build_table_query(connector_type: str, *, table: str, schema: str | None) ->
     return f"SELECT * FROM {relation}"
 
 
-def _abandon_unread_result(conn) -> None:
+def abandon_unread_result(conn) -> None:
     """End a MySQL query whose remaining rows are not wanted.
 
     MySQL sends every row of a result before its connection can be used again
@@ -366,7 +366,7 @@ def read_dataframe(
                 frames.append(chunk)
                 collected += len(chunk)
             if truncated and connector_type == "mysql":
-                _abandon_unread_result(conn)
+                abandon_unread_result(conn)
     except BadRequestError:
         raise
     except SQLAlchemyError as exc:

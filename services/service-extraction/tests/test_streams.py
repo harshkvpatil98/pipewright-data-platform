@@ -2,15 +2,14 @@
 PostgreSQL change data capture, stored as events and materialised as
 versioned datasets.
 
-Everything but the last test runs against SQLite with no network. The CDC
-test needs a real PostgreSQL with `wal_level = logical` (the dev compose file
-sets it); it skips with the reason otherwise -- a skip is not a pass and the
-handoff says so.
+Everything but the change-capture tests runs against SQLite with no network.
+Those need a PostgreSQL with `wal_level = logical`: the live test servers
+(`docker-compose.live.yml`, `LIVE_TEST_SERVERS=1`), which the `live` CI job
+starts and checks. Without them they skip and say why.
 """
 
 from __future__ import annotations
 
-import os
 import uuid
 from collections.abc import Iterator
 from datetime import UTC, datetime
@@ -42,6 +41,8 @@ from service_projects.models import Project
 from shared_python.db import Base
 from shared_python.errors import BadRequestError, NotFoundError
 from shared_python.storage.local import LocalStorageBackend
+
+import live_servers
 
 OWNER_ID = uuid.UUID("0d0d0d0d-0d0d-0d0d-0d0d-0d0d0d0d0d0d")
 SETTINGS = SimpleNamespace(max_upload_size_bytes=25 * 1024 * 1024, preview_row_limit=50, profile_sample_value_limit=5)
@@ -179,10 +180,12 @@ def test_test_decoding_lines_parse_into_row_changes(line, expected):
 
 # ---- live CDC against a logical-WAL PostgreSQL ----
 
-PG_URL = os.environ.get("CONNECTORS_TEST_POSTGRES_URL") or "postgresql+psycopg://platform:platform@127.0.0.1:5432/platform"
+PG_URL = live_servers.POSTGRES_URL
 
 
 def _logical_postgres():
+    if not live_servers.ENABLED:
+        return None, live_servers.REASON
     try:
         engine = sa.create_engine(PG_URL)
         with engine.connect() as conn:
@@ -245,3 +248,62 @@ def test_cdc_follows_a_tables_change_log_at_least_once(db, world, storage):
             left = conn.execute(sa.text("SELECT count(*) FROM pg_replication_slots WHERE slot_name = :s"), {"s": f"pw_test_{suffix}"}).scalar()
         admin.dispose()
         assert left == 0
+
+
+def test_a_change_committed_during_a_poll_is_stored_by_the_next_one(db, world, monkeypatch):
+    """The position consumed up to comes from the read that was stored. When it
+    came from a second read, a change committed in between was consumed
+    without ever being stored (the D1 baseline lost it every time)."""
+    url, reason = _logical_postgres()
+    if url is None:
+        pytest.skip(reason)
+    from sqlalchemy.engine import make_url
+
+    from service_extraction import cdc_postgres
+
+    parsed = make_url(url)
+    suffix = uuid.uuid4().hex[:8]
+    table = f"pw_race_{suffix}"
+    admin = sa.create_engine(url)
+    with admin.begin() as conn:
+        conn.execute(sa.text(f"CREATE TABLE {table} (id serial PRIMARY KEY, name text)"))
+    connection = ExtractionConnection(
+        project_id=world["project"].id, name="pg", connector_type="postgresql",
+        config_json={"host": parsed.host, "port": parsed.port, "database": parsed.database,
+                     "username": parsed.username, "password": parsed.password},
+    )
+    db.add(connection)
+    db.commit()
+    source = create_source(
+        db, world["project"].id,
+        StreamSourceCreate(name=f"race {suffix}", kind="postgres_cdc", connection_id=connection.id,
+                           tables=[f"public.{table}"], slot_name=f"pw_race_{suffix}"),
+        world["user"],
+    )
+    try:
+        poll_source(db, world["project"].id, source.id, world["user"])  # creates the slot
+        with admin.begin() as conn:
+            conn.execute(sa.text(f"INSERT INTO {table} (name) VALUES ('before')"))
+        original = cdc_postgres.peek_changes
+        raced = {"done": False}
+
+        def read_then_race(*args, **kwargs):
+            result = original(*args, **kwargs)
+            if not raced["done"]:
+                raced["done"] = True
+                with admin.begin() as conn:  # committed while the poll is still working
+                    conn.execute(sa.text(f"INSERT INTO {table} (name) VALUES ('raced')"))
+            return result
+
+        monkeypatch.setattr(cdc_postgres, "peek_changes", read_then_race)
+        poll_source(db, world["project"].id, source.id, world["user"])
+        monkeypatch.setattr(cdc_postgres, "peek_changes", original)
+        poll_source(db, world["project"].id, source.id, world["user"])
+        names = [e.payload_json["row"]["name"] for e in db.scalars(
+            select(StreamEvent).where(StreamEvent.source_id == source.id).order_by(StreamEvent.seq)).all()]
+        assert names == ["before", "raced"]
+    finally:
+        delete_source(db, world["project"].id, source.id, world["user"])
+        with admin.begin() as conn:
+            conn.execute(sa.text(f"DROP TABLE IF EXISTS {table}"))
+        admin.dispose()

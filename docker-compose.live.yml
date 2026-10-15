@@ -1,0 +1,134 @@
+# The servers the live-source tier claims rest on (D1, roadmap Phase 20).
+#
+# Every live-source kind round-trips against one of these in the `live` CI
+# job. This file is the same set for a laptop:
+#
+#   docker compose -f docker-compose.live.yml up -d
+#   .venv/bin/python scripts/check-live-servers.py --wait 180
+#   LIVE_TEST_SERVERS=compose .venv/bin/python -m pytest services/service-extraction/tests -q -k live
+#
+# `LIVE_TEST_SERVERS=compose` points the tests at the ports below; CI sets
+# `LIVE_TEST_SERVERS=ci` and the default ports. Without either, the
+# round-trip tests skip and say why (a skip is not a pass).
+#
+# Deliberately on non-default ports so nothing here collides with the
+# platform's own PostgreSQL or the connector servers. Nothing shares a
+# volume, so `down -v` is free. SQL Server has no arm64 build; on Apple
+# silicon Docker runs it under Rosetta.
+services:
+  live-postgres:
+    image: postgres:16-alpine
+    command: postgres -c wal_level=logical -c max_replication_slots=20 -c max_wal_senders=20
+    environment:
+      POSTGRES_DB: platform
+      POSTGRES_USER: platform
+      POSTGRES_PASSWORD: platform
+    ports: ["15433:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U platform -d platform"]
+      interval: 5s
+      retries: 20
+
+  live-mysql:
+    # MySQL 8 writes a row-based binary log with full row images by default.
+    image: mysql:8
+    environment:
+      MYSQL_ROOT_PASSWORD: platform
+      MYSQL_DATABASE: platform
+    ports: ["13316:3306"]
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -pplatform"]
+      interval: 5s
+      retries: 30
+
+  live-mongo:
+    # Change streams need a replica set; one member is enough.
+    image: mongo:7
+    command: ["--replSet", "rs0", "--bind_ip_all", "--port", "27017"]
+    ports: ["27018:27017"]
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval \"try { rs.status().ok } catch (e) { rs.initiate({_id: 'rs0', members: [{_id: 0, host: '127.0.0.1:27017'}]}).ok }\""]
+      interval: 5s
+      retries: 30
+
+  live-sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    platform: linux/amd64
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "Platform-pass-1"
+      MSSQL_AGENT_ENABLED: "true"
+      MSSQL_PID: Developer
+    ports: ["14333:1433"]
+
+  live-kafka:
+    image: apache/kafka:3.9.1
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:19092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://127.0.0.1:19092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_NUM_PARTITIONS: 3
+    ports: ["19092:19092"]
+
+  live-azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:latest
+
+  live-eventhubs:
+    # Microsoft's Event Hubs emulator. Its Kafka endpoint is the one
+    # Pipewright reads Event Hubs through; `UseDevelopmentEmulator=true` in the
+    # connection string is how the emulator asks for plain SASL.
+    image: mcr.microsoft.com/azure-messaging/eventhubs-emulator:latest
+    depends_on: [live-azurite]
+    volumes:
+      - ./scripts/live-servers/eventhubs-config.json:/Eventhubs_Emulator/ConfigFiles/Config.json:ro
+    environment:
+      BLOB_SERVER: live-azurite
+      METADATA_SERVER: live-azurite
+      ACCEPT_EULA: "Y"
+    ports: ["9092:9092", "15673:5672"]
+
+  live-kinesis:
+    # A test server for the Kinesis API (etspaceman/kinesis-mock).
+    image: ghcr.io/etspaceman/kinesis-mock:0.4.13
+    environment:
+      KINESIS_MOCK_PLAIN_PORT: "4568"
+      SHOULD_PERSIST_DATA: "false"
+    ports: ["14568:4568"]
+
+  live-pubsub:
+    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+    command: ["gcloud", "beta", "emulators", "pubsub", "start", "--host-port=0.0.0.0:8085", "--project=pipewright-test"]
+    ports: ["18085:8085"]
+
+  live-pulsar:
+    image: apachepulsar/pulsar:3.3.4
+    command: ["bin/pulsar", "standalone", "--no-functions-worker", "--no-stream-storage"]
+    environment:
+      PULSAR_MEM: "-Xms256m -Xmx512m -XX:MaxDirectMemorySize=256m"
+    ports: ["16650:6650", "18081:8080"]
+
+  live-rabbitmq:
+    image: rabbitmq:3.13-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: platform
+      RABBITMQ_DEFAULT_PASS: platform
+    ports: ["15674:5672"]
+
+  live-nats:
+    image: nats:2.10-alpine
+    command: ["-js"]
+    ports: ["14222:4222"]
+
+  live-mosquitto:
+    image: eclipse-mosquitto:2
+    volumes:
+      - ./scripts/live-servers/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    ports: ["11883:1883"]

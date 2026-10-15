@@ -286,8 +286,7 @@ def poll_source(db: Session, project_id: uuid.UUID, source_id: uuid.UUID, curren
         if not capability.ok:
             raise BadRequestError(capability.reason)
         created = cdc_postgres.ensure_slot(engine, slot)
-        changes = cdc_postgres.peek_changes(engine, slot, limit=batch, tables=tables)
-        upto = cdc_postgres.last_peeked_lsn(engine, slot, limit=batch)
+        changes, upto = cdc_postgres.peek_changes(engine, slot, limit=batch, tables=tables)
         known = {
             row for row in db.scalars(
                 select(StreamEvent.position).where(StreamEvent.source_id == source.id, StreamEvent.position.is_not(None))

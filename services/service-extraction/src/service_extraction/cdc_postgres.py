@@ -144,10 +144,15 @@ def drop_slot(engine: Engine, slot: str) -> None:
 
 
 def peek_changes(engine: Engine, slot: str, *, limit: int = DEFAULT_BATCH,
-                 tables: list[str] | None = None) -> list[Change]:
-    """Read up to `limit` decoded lines WITHOUT consuming them. Only row
-    changes come back; BEGIN/COMMIT are skipped. `tables` (schema.table or
-    table) narrows to the tables the source follows."""
+                 tables: list[str] | None = None) -> tuple[list[Change], str | None]:
+    """Read up to `limit` decoded lines WITHOUT consuming them.
+
+    Returns the row changes (BEGIN/COMMIT skipped; `tables`, schema.table or
+    table, narrows to the tables the source follows) and the LSN of the last
+    line read, which is where to consume up to once they are stored. Both come
+    from the same read: working the LSN out with a second peek let a change
+    committed in between be consumed without ever being stored (D1).
+    """
     wanted = {t.strip().lower() for t in (tables or []) if t.strip()}
     changes: list[Change] = []
     with engine.connect() as conn:
@@ -155,7 +160,9 @@ def peek_changes(engine: Engine, slot: str, *, limit: int = DEFAULT_BATCH,
             text("SELECT lsn::text, xid::text, data FROM pg_logical_slot_peek_changes(:slot, NULL, :limit)"),
             {"slot": slot, "limit": int(limit)},
         ).all()
+    upto: str | None = None
     for lsn, xid, data in rows:
+        upto = str(lsn)
         parsed = parse_test_decoding(str(data))
         if parsed is None:
             continue
@@ -164,20 +171,7 @@ def peek_changes(engine: Engine, slot: str, *, limit: int = DEFAULT_BATCH,
         if wanted and table.lower() not in wanted and bare not in wanted:
             continue
         changes.append(Change(lsn=str(lsn), xid=str(xid), op=op, table=table, row=row, old_key=old_key))
-    return changes
-
-
-def last_peeked_lsn(engine: Engine, slot: str, *, limit: int = DEFAULT_BATCH) -> str | None:
-    """The LSN of the last line a peek of `limit` would return -- the point to
-    consume up to, so filtered-out lines (other tables, BEGIN/COMMIT) do not
-    keep the slot from advancing."""
-    with engine.connect() as conn:
-        return conn.execute(
-            text(
-                "SELECT max(lsn)::text FROM pg_logical_slot_peek_changes(:slot, NULL, :limit)"
-            ),
-            {"slot": slot, "limit": int(limit)},
-        ).scalar()
+    return changes, upto
 
 
 def consume_upto(engine: Engine, slot: str, lsn: str) -> int:

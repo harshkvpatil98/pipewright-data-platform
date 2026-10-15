@@ -35,6 +35,16 @@ BASE = pd.DataFrame(
 
 @pytest.fixture(autouse=True, scope="module")
 def _extensions():
+    """The original step handlers as extensions, for this module only.
+
+    The registry is process-wide: left in place, these warning-less handlers
+    replaced the executor's for every test that ran after this module, and an
+    extension step's warnings silently stopped reaching the person (found when
+    the suite ran in another order, D1).
+    """
+    from service_transformations.ir import pandas_backend
+
+    saved = dict(pandas_backend._EXTENSIONS)
     for step_type, handler in STEP_APPLY_FUNCTIONS.items():
         def make(fn):
             def run(frame, config):
@@ -43,6 +53,8 @@ def _extensions():
             return run
         register_extension(step_type, make(handler))
     yield
+    pandas_backend._EXTENSIONS.clear()
+    pandas_backend._EXTENSIONS.update(saved)
 
 
 def _run(frame: pd.DataFrame, steps: list[dict]) -> pd.DataFrame:

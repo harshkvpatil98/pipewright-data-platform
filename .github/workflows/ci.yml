@@ -270,7 +270,11 @@ jobs:
         working-directory: apps/api-gateway
         run: |
           ../../.venv/bin/platform-bootstrap-user --username tf-admin --password tf-admin-password-0123 --role admin
-          ../../.venv/bin/platform-bootstrap-user --username tf-member --password tf-member-password-0123 --role user
+          ../../.venv/bin/platform-bootstrap-user --username tf-member --password tf-member-password-0123 --role viewer
+          # A connection's secrets are stored encrypted; a key made for this run only.
+          APP_SECRET_ENCRYPTION_KEY=$(../../.venv/bin/python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')
+          echo "::add-mask::$APP_SECRET_ENCRYPTION_KEY"
+          export APP_SECRET_ENCRYPTION_KEY
           nohup ../../.venv/bin/uvicorn api_gateway.main:app --host 127.0.0.1 --port 8000 > gateway.log 2>&1 &
           for attempt in $(seq 1 60); do
             curl -sf http://127.0.0.1:8000/api/v1/health/live && break

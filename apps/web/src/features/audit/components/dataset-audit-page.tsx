@@ -7,6 +7,7 @@ import type { AuthUser, DatasetAuditSummary } from "@platform/shared-types";
 import { Badge, Button, buttonClassName, SectionPanel, StatTile, StatusBadge } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
+import { DatasetFeedPanel } from "@/features/audit/components/dataset-feed-panel";
 import { downloadFromApi } from "@/lib/api/download";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { formatDate, formatNumber } from "@/lib/format";
@@ -50,7 +51,7 @@ export function DatasetAuditPageView({ currentUser, projectId, audit }: DatasetA
     <AppShell
       currentUser={currentUser}
       title={audit.name}
-      subtitle="This dataset's record: where it came from, who added it, how healthy it is."
+      subtitle="This dataset's record: where it came from, what happened to it, how healthy it is."
       actions={
         <>
           <Button variant="secondary" disabled={exporting} onClick={() => void onDownload()}>
@@ -81,6 +82,8 @@ export function DatasetAuditPageView({ currentUser, projectId, audit }: DatasetA
           ))}
         </ul>
       </SectionPanel>
+
+      <DatasetFeedPanel projectId={projectId} datasetId={audit.id} />
 
       <section className="grid gap-4 md:grid-cols-4">
         <StatTile label="Rows" value={formatNumber(audit.metrics.row_count)} />

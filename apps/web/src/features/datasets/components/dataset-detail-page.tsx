@@ -42,6 +42,7 @@ import { DatasetCatalogPanel } from "@/features/datasets/components/dataset-cata
 import { DatasetVersionHistoryPanel } from "@/features/datasets/components/dataset-version-history-panel";
 import { DiscussionPanel } from "@/features/team/components/discussion-panel";
 import { DatasetPipelinesRunSection } from "@/features/datasets/components/dataset-pipelines-run-section";
+import { DatasetRowsTable } from "@/features/datasets/components/dataset-rows-table";
 import { DatasetSuggestedTransformations } from "@/features/datasets/components/dataset-suggested-transformations";
 import { DeliverDatasetModal } from "@/features/datasets/components/deliver-dataset-modal";
 import { PublishPowerBiModal } from "@/features/datasets/components/publish-power-bi-modal";
@@ -71,6 +72,8 @@ type DatasetDetailPageViewProps = {
   transformationSuggestions: TransformationSuggestion[];
   /** The dataset's contract, if it has one (C1). */
   contract: DataContract | null;
+  /** The version its rows are from, to name a row by its number (C2). */
+  currentVersion: number | null;
 };
 
 const QUALITY_FLAG_LABELS: Record<string, string> = {
@@ -92,6 +95,7 @@ export function DatasetDetailPageView({
   lineagePipeline,
   transformationSuggestions,
   contract,
+  currentVersion,
 }: DatasetDetailPageViewProps) {
   const router = useRouter();
   const [isRenaming, setIsRenaming] = useState(false);
@@ -102,6 +106,8 @@ export function DatasetDetailPageView({
   const [isPublishPowerBiOpen, setIsPublishPowerBiOpen] = useState(false);
   const [isPublishTableauOpen, setIsPublishTableauOpen] = useState(false);
   const toast = useToast();
+  // Threads show in the rows and under Discussion; a change in one tells the other.
+  const [threadsChanged, setThreadsChanged] = useState(0);
   const download = async (format: "csv" | "parquet") => {
     try {
       await downloadFromApi(
@@ -120,6 +126,9 @@ export function DatasetDetailPageView({
     mixed_type_suspicions: [],
   };
   const schemaColumns = dataset.schema_json?.columns ?? [];
+  // A column whose values look like identifiers names a row across versions.
+  const identifierColumn =
+    profileColumns.find((column) => column.possible_identifier && preview.columns.includes(column.name))?.name ?? null;
   const runSummary = relatedRun?.summary_json;
 
   return (
@@ -330,47 +339,22 @@ export function DatasetDetailPageView({
       ) : null}
 
       {dataset.ingestion_status === "succeeded" ? (
-      <SectionPanel
-        title="Rows"
-        description={
-          profile?.restricted_by_policy
-            ? `The first ${formatNumber(preview.rows.length)} rows you can see.`
-            : `The first ${formatNumber(preview.rows.length)} of ${formatNumber(dataset.row_count)} rows.`
-        }
-      >
-        <div className="border-line bg-sunken overflow-hidden rounded-[24px] border">
-          <Table edge="panel">
-            <TableHead>
-              <TableRow>
-                {preview.columns.map((column) => (
-                  <TableHeaderCell key={column}>
-                    {column}
-                  </TableHeaderCell>
-                ))}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {preview.rows.map((row, index) => (
-                <TableRow key={index}>
-                  {preview.columns.map((column) => (
-                    <TableCell
-                      key={`${index}-${column}`} className="whitespace-nowrap text-ink"
-                    >
-                      {row[column] === null ||
-                      row[column] === undefined ||
-                      row[column] === "" ? (
-                        <span className="text-muted">—</span>
-                      ) : (
-                        String(row[column])
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </SectionPanel>
+        <DatasetRowsTable
+          projectId={projectId}
+          datasetId={dataset.id}
+          columns={preview.columns}
+          rows={preview.rows}
+          identifier={identifierColumn}
+          version={currentVersion}
+          description={
+            profile?.restricted_by_policy
+              ? `The first ${formatNumber(preview.rows.length)} rows you can see.`
+              : `The first ${formatNumber(preview.rows.length)} of ${formatNumber(dataset.row_count)} rows.`
+          }
+          currentUsername={currentUser.username}
+          refreshKey={threadsChanged}
+          onChanged={() => setThreadsChanged((count) => count + 1)}
+        />
       ) : null}
 
       {dataset.ingestion_status === "succeeded" ? (
@@ -520,6 +504,8 @@ export function DatasetDetailPageView({
         targetType="dataset"
         targetId={dataset.id}
         currentUsername={currentUser.username}
+        refreshKey={threadsChanged}
+        onChanged={() => setThreadsChanged((count) => count + 1)}
         description="Questions about this data, decisions about how to read it, caveats for the next person. Mention someone with @ and they are notified."
       />
 

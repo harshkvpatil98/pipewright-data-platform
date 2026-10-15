@@ -7,6 +7,7 @@ import { requireCurrentUser } from "@/lib/auth/server";
 import { serverApiFetch } from "@/lib/api/server";
 import type {
   DataContractListResponse,
+  DatasetVersionListResponse,
   DatasetPreview,
   DatasetProfile,
   DatasetRecord,
@@ -68,7 +69,7 @@ export default async function DatasetDetailPage({ params }: DatasetDetailPagePro
       }
     }
 
-    const [preview, profile, relatedRun, suggestionsPayload, contracts] = await Promise.all([
+    const [preview, profile, relatedRun, suggestionsPayload, contracts, versions] = await Promise.all([
       serverApiFetch<DatasetPreview>(`/projects/${projectId}/datasets/${datasetId}/preview`),
       serverApiFetch<DatasetProfile>(`/projects/${projectId}/datasets/${datasetId}/profile`),
       dataset.pipeline_run_id
@@ -81,6 +82,8 @@ export default async function DatasetDetailPage({ params }: DatasetDetailPagePro
         : Promise.resolve(null),
       // Its contract's state, for the chip; one list, so no request per dataset.
       serverApiFetch<DataContractListResponse>(`/projects/${projectId}/contracts`).catch(() => null),
+      // Which version its rows are from, to name a row by its number (C2).
+      serverApiFetch<DatasetVersionListResponse>(`/projects/${projectId}/datasets/${datasetId}/versions`).catch(() => null),
     ]);
 
     return (
@@ -96,6 +99,7 @@ export default async function DatasetDetailPage({ params }: DatasetDetailPagePro
         lineagePipeline={lineagePipeline}
         transformationSuggestions={suggestionsPayload?.suggestions ?? []}
         contract={contracts?.items.find((item) => item.dataset_id === datasetId) ?? null}
+        currentVersion={versions?.current_version ?? null}
       />
     );
   } catch (error) {

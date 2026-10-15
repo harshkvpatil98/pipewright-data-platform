@@ -70,7 +70,12 @@ def frame_bytes(frame: pd.DataFrame) -> int:
 
 
 def megabytes(size: float) -> str:
-    return f"{max(1, round(size / _MB)):,} MB"
+    """A size in words; below 10 MB to one decimal place, so "2.1 MB" is never written "2 MB"
+    beside a ceiling of 2 MB."""
+    value = size / _MB
+    if value < 10:
+        return f"{max(value, 0.1):.1f} MB"
+    return f"{round(value):,} MB"
 
 
 class RunMemoryExceeded(BadRequestError):

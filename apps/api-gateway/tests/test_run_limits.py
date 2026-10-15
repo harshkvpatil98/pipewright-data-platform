@@ -176,12 +176,15 @@ def test_a_step_that_grows_the_data_past_the_ceiling_stops_the_run_there(monkeyp
 
     monkeypatch.setattr(memory, "SMALLEST_LIMIT_MB", 1)
     monkeypatch.setenv("RUN_MEMORY_LIMIT_MB", "2")
-    frame = pd.DataFrame({"note": ["x" * 40] * 20_000, "n": range(20_000)})  # about 1.6 MB
+    # About 0.9 MB on macOS and Linux alike (object sizes differ a little between them), well
+    # under the ceiling; the derived column of 160-character text takes it well over.
+    frame = pd.DataFrame({"note": ["x" * 40] * 8_000, "n": range(8_000)})
     steps = [
         {"step_type": "filter_rows", "config": {"conditions": [{"column": "n", "operator": "greater_or_equal", "value": 0}]}},
-        {"step_type": "derive_column", "config": {"target_column": "again", "formula": "=CONCAT([note], [note])"}},
+        {"step_type": "derive_column", "config": {"target_column": "again",
+                                                  "formula": "=CONCAT([note], [note], [note], [note])"}},
     ]
-    with pytest.raises(BadRequestError, match=r"Step 2 \(derive column\) made the data \d+ MB, past this run's ceiling of 2 MB"):
+    with pytest.raises(BadRequestError, match=r"Step 2 \(derive column\) made the data 2\.[3-9] MB, past this run's ceiling of 2\.0 MB"):
         apply_transformation_steps_with_outcomes(frame, steps)
 
 

@@ -33,6 +33,11 @@ notes: [docs/release-notes/1.0.0.md](docs/release-notes/1.0.0.md).
   before, it called `localhost:8000` unless rebuilt. The API reference moved
   to `/api/docs`, inside what the proxies send to the gateway (`/docs`
   redirects).
+- **Compose as the guide says**: one root `.env.production.example` holds
+  every setting a production install needs, and the web finds the gateway
+  inside Compose; rehearsed with Caddy on HTTPS from the guide's steps.
+- **Release images** are tagged `v1.0.0` and `1.0.0`, so Compose and the
+  chart both find theirs.
 - **A truthful demo**: its recipe and check run as it is made, its chart
   reads the cleaned orders, and its words are the product's.
 - **Docs**: screenshots of the demo in the help, taken by a script; a static

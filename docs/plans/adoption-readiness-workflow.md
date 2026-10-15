@@ -1807,6 +1807,59 @@ rather than claiming it.
 green; tagging, publishing images and the docs site wait for the owner's
 word, because they are public.
 
+**What shipped.**
+
+- **Z1, a truthful demo.** The demo's recipe runs as it is made (12 orders
+  in, 10 out) and its check runs and catches the order with no email; the
+  chart reads the cleaned orders, an alert watches their row count, and its
+  words are the product's. `test_demo.py` holds the story to what is in it.
+- **Z2, pictures that match.** `e2e/screenshots.mjs` makes a fresh demo and
+  photographs eight pages into `docs/user/images/`; the help shows them
+  (`![…](images/…)`, served at `/help/images/`), and `help.test.ts` fails a
+  missing, undescribed or unused one. Taking them found five defects, fixed:
+  Title Case on Data health, "metric" in its summary, the Checks page opening
+  on a dataset with no checks, a project's own making missing from its
+  activity and audit log, the alert form not offering the row count first.
+- **Z3, docs, notes and reference.** A static docs site built from
+  `docs/user` with the help's own reader, tested link by link, published by
+  a workflow that only runs when started or for a release tag; release notes
+  for 1.0.0; `docs/api/openapi.json`, written with the client and held
+  current by its tests.
+- **Z4, Helm on a clean cluster.** Following the documents on a new machine
+  found five faults that would each have stopped a first install, all fixed:
+  nobody could sign in (the bootstrap settings were never read; the gateway
+  now makes the first administrator while there are no accounts); the
+  migration hook read resources Helm makes after hooks; the chart's Secret
+  had no encryption key; the web image called `localhost:8000` unless rebuilt
+  (it now calls `/api/v1` on its own host); the API reference at `/docs` was
+  outside what the proxies send to the gateway (now `/api/docs`). The
+  ingress now carries 200MB uploads. The deployment guide is rewritten, and
+  CI's `helm` job runs its own commands on a new kind cluster: all six pods
+  ready, the API, sign-in page, reference and help answering through the
+  ingress, the bootstrap administrator making the demo, and a 2.6MB upload
+  of 120,000 rows. Rehearsing the Compose path the same way found two more
+  faults, fixed: the web had no address for the gateway inside Compose,
+  and the guide pointed at a settings file Compose does not read (now one
+  root `.env.production.example`). Release images are now tagged both
+  `v1.0.0` (Compose) and `1.0.0` (the chart). On the way, MinIO's images
+  left Docker Hub; the trial dependencies use the build CI already uses.
+- **Z5, one version and what it is for.** 1.0.0 everywhere, held by
+  `test_one_version.py`; `docs/positioning.md` and the README say what it is
+  for, what it is not for, and the measured envelope.
+- **Z6, cold users.** `docs/cold-user-sessions.md`: the four tasks, who to
+  ask, what to say, the targets, what to record and what passes, with the
+  files the tasks use.
+- **Z7, the gate.** 76 pages walked at 1280 and 1024 with no problem;
+  `npm run verify` green with no `.env`; CI green (verify, images,
+  performance, browser and accessibility, Helm).
+
+**Not done here, and stated.** The cold-user sessions with five people
+outside the team have not been run: they need people only the owner can
+arrange. Tagging 1.0.0, publishing the images to GHCR and publishing the
+docs site are public acts that wait for the owner's word; everything they
+need is in place (`release-images.yml` on a `v*` tag, `docs-site.yml`
+started by hand once Pages is set to GitHub Actions).
+
 ---
 
 *Maintained by the phase sessions themselves. When scope moves between

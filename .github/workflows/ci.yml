@@ -313,6 +313,7 @@ jobs:
       - name: What the cluster says, on failure
         if: failure()
         run: |
-          kubectl -n pipewright get all || true
+          kubectl -n pipewright get all,endpoints,ingress || true
           kubectl -n pipewright describe pods || true
+          kubectl -n ingress-nginx logs deploy/ingress-nginx-controller --tail=60 || true
           for pod in $(kubectl -n pipewright get pods -o name); do echo "== $pod"; kubectl -n pipewright logs "$pod" --all-containers --tail=60 || true; done

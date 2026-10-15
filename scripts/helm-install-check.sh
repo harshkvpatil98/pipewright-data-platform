@@ -24,6 +24,9 @@ for block in blocks:
         continue  # the check below goes through the ingress without TLS
     block = block.replace("pipewright.example.com", host)
     block = block.replace("--wait --timeout 10m", "--set ingress.tls.enabled=false \\\n  --wait --timeout 15m")
+    if "create secret" in block:
+        # Run, but not echoed: the secrets would be in the log.
+        block = "set +x\necho '+ kubectl create secret generic pipewright-secrets (values not shown)'\n" + block + "set -x\n"
     out.append(block)
 print("\n".join(out))
 PY
@@ -33,15 +36,24 @@ bash /tmp/helm-guide.sh
 
 echo "--- checking through the ingress"
 curl_host() { curl -sf -H "Host: $HOST" "$@"; }
-for attempt in $(seq 1 60); do
-  curl_host "$INGRESS/api/v1/health/ready" >/dev/null && break
-  sleep 5
-done
-curl_host "$INGRESS/api/v1/health/ready"
-echo
-curl_host -o /dev/null -w "sign-in page %{http_code}\n" "$INGRESS/login"
-curl_host -o /dev/null -w "API reference %{http_code}\n" "$INGRESS/api/docs"
-curl_host -o /dev/null -w "help %{http_code}\n" "$INGRESS/help"
+# Each address is asked until it answers, for up to three minutes: the ingress
+# controller starts sending to a pod a moment after the pod is ready.
+until_ok() {
+  local what=$1 path=$2
+  for attempt in $(seq 1 60); do
+    if code=$(curl -s -o /dev/null -w "%{http_code}" -H "Host: $HOST" "$INGRESS$path") && [ "$code" = 200 ]; then
+      echo "$what 200"
+      return 0
+    fi
+    sleep 3
+  done
+  echo "$what never answered 200 (last: $code)"
+  return 1
+}
+until_ok "API ready" /api/v1/health/ready
+until_ok "sign-in page" /login
+until_ok "API reference" /api/docs
+until_ok "help" /help
 
 TOKEN=$(curl_host -X POST "$INGRESS/api/v1/auth/login" -H 'Content-Type: application/json' \
   -d '{"username":"admin","password":"choose-a-long-password"}' | python3 -c "import json,sys; print(json.load(sys.stdin)['access_token'])")

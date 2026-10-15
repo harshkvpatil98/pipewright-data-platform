@@ -44,10 +44,8 @@ password, and losing `STORAGE_ENCRYPTION_KEY` loses every stored file.
 ## On one host with Docker Compose
 
 ```bash
-cp .env.example .env
-cp apps/api-gateway/.env.production.example apps/api-gateway/.env
-cp apps/web/.env.production.example apps/web/.env
-# set the settings above in .env and apps/api-gateway/.env
+cp .env.production.example .env
+# replace each CHANGE value in .env: every service reads this one file
 PIPEWRIGHT_TAG=v1.0.0 SITE_ADDRESS=pipewright.example.com \
   docker compose -f docker-compose.prod.yml up -d
 ```

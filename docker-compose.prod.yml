@@ -80,6 +80,10 @@ services:
       gateway:
         condition: service_started
     env_file: [./.env]
+    environment:
+      # The web's own server reaches the gateway on the Compose network; the
+      # browser reaches it through Caddy at /api on the same host.
+      API_INTERNAL_BASE_URL: http://gateway:8000/api/v1
 
   # Terminates TLS (Caddy fetches a certificate for SITE_ADDRESS automatically)
   # and reverse-proxies to the gateway and web. For an internal/manual cert,

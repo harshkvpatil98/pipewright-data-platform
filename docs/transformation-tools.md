@@ -1,6 +1,6 @@
 # Transformation tools
 
-293 tools across 16 categories. Every one compiles to the
+363 tools across 20 categories. Every one compiles to the
 relational IR, so every one gets type inference, column lineage and
 pushdown without a second implementation.
 
@@ -16,12 +16,16 @@ test suite, so this file cannot describe behaviour the code does not have.
 - [Join & combine](#join--combine) (6)
 - [Type & conversion](#type--conversion) (14)
 - [Encoding & privacy](#encoding--privacy) (17)
+- [Geospatial](#geospatial) (15)
 - [Enrichment & lookup](#enrichment--lookup) (6)
 - [Deduplication & matching](#deduplication--matching) (8)
+- [Machine learning](#machine-learning) (18)
 - [Nested data](#nested-data) (6)
 - [Missing data](#missing-data) (11)
 - [Numeric](#numeric) (30)
 - [Rows](#rows) (16)
+- [Sampling & splitting](#sampling--splitting) (10)
+- [Statistics](#statistics) (27)
 - [Reshape](#reshape) (3)
 - [Text](#text) (45)
 - [Window & analytic](#window--analytic) (31)
@@ -2491,6 +2495,289 @@ Also known as: _uuid_, _guid_, _generate id_, _unique id_, _row id_
 | `a@x.com` | `f0a85006-e7b0-5ef7-82fc-c74a2f8ecb05` |
 
 
+## Geospatial
+
+### Distance between two places
+
+`geo.distance`
+
+The distance between two latitude and longitude pairs: haversine on a sphere (within about 0.5%, and it runs in the database) or on the WGS84 ellipsoid by Vincenty's method (to the millimetre).
+
+Also known as: _distance between_, _haversine_, _great circle_, _how far_, _vincenty_, _geodesic_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Latitude | column | yes | none |
+| Longitude | column | yes | none |
+| To latitude | column | yes | none |
+| To longitude | column | yes | none |
+| In | `metres` / `kilometres` / `miles` / `nautical miles` | no | `kilometres` |
+| Measured | `haversine` / `ellipsoid` | no | `haversine` |
+| New column | text | no | none |
+
+| `lat` | `distance` |
+|---|---|
+| `51.5074` | `343.556535` |
+| `40.7128` | `3935.751691` |
+
+### Direction to another place
+
+`geo.bearing`
+
+The initial compass bearing, in degrees from north (0 to 360), from one place towards another along the great circle.
+
+Also known as: _bearing_, _heading_, _direction_, _azimuth_, _compass_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Latitude | column | yes | none |
+| Longitude | column | yes | none |
+| To latitude | column | yes | none |
+| To longitude | column | yes | none |
+| New column | text | no | none |
+
+| `lat` | `bearing` |
+|---|---|
+| `51.5074` | `148.115617` |
+
+### Within a distance of a place
+
+`geo.within_radius`
+
+True for places within a distance (haversine) of a centre you give: customers within 10 km of a shop.
+
+Also known as: _within radius_, _nearby_, _geofence_, _within distance_, _radius search_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Latitude | column | yes | none |
+| Longitude | column | yes | none |
+| Centre latitude | number | yes | none |
+| Centre longitude | number | yes | none |
+| Distance | number | yes | none |
+| In | `metres` / `kilometres` / `miles` / `nautical miles` | no | `kilometres` |
+| New column | text | no | none |
+
+| `lat` | `within_radius` |
+|---|---|
+| `51.51` | `True` |
+| `53.48` | `False` |
+
+### Read coordinates
+
+`geo.parse_coordinates`
+
+Read a place written as text into latitude and longitude columns: "51.5, -0.12", degrees, minutes and seconds such as 51°30'26"N 0°7'39"W, or WKT POINT (lon lat). Anything out of range is empty.
+
+Also known as: _parse coordinates_, _lat long_, _dms_, _degrees minutes seconds_, _geocoordinates_
+
+Offered on **textual** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Start the new names with | text | no | none |
+
+| `where` | `latitude` |
+|---|---|
+| `51°30'26"N 0°7'39"W` | `51.5072222` |
+| `48.8566, 2.3522` | `48.8566` |
+| `nowhere` | _(empty)_ |
+
+### Make a point from coordinates
+
+`geo.make_point`
+
+Write a latitude and longitude as one WKT point (POINT (lon lat)) in a geography column.
+
+Also known as: _make point_, _to wkt_, _point from lat long_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Latitude | column | yes | none |
+| Longitude | column | yes | none |
+| New column | text | no | none |
+
+| `lat` | `place` |
+|---|---|
+| `51.5` | `POINT (-0.12 51.5)` |
+
+### Inside an area
+
+`geo.point_in_polygon`
+
+True for places inside an area you give as WKT or GeoJSON (a delivery zone, a region), by longitude and latitude on the map.
+
+Also known as: _point in polygon_, _inside area_, _geofence_, _within region_, _contains point_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Latitude | column | yes | none |
+| Longitude | column | yes | none |
+| Area | text | yes | none |
+| New column | text | no | none |
+
+| `lat` | `inside` |
+|---|---|
+| `51.5` | `True` |
+| `53` | `False` |
+
+### Which region a place is in
+
+`geo.region`
+
+Bring columns from the shape (in another dataset of named areas, as WKT or GeoJSON) that contains each place: its country, sales territory, or time zone from a time zone boundary file such as timezone-boundary-builder's.
+
+Also known as: _region lookup_, _timezone from coordinates_, _spatial join_, _which country_, _territory_, _reverse geocode offline_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Latitude | column | yes | none |
+| Longitude | column | yes | none |
+| Areas in | dataset | yes | none |
+| Their shape | dataset_column | yes | none |
+| Columns to bring | dataset_columns | yes | none |
+
+| `lat` | `name` |
+|---|---|
+| `51.5` | `South` |
+| `60` | _(empty)_ |
+
+The other dataset in this example:
+
+| `shape` | `name` |
+|---|---|
+| `POLYGON ((-1 51, 1 51, 1 52, -1 52, -1 51))` | `South` |
+
+### Nearest place in another dataset
+
+`geo.nearest`
+
+Bring columns from the nearest place in another dataset (each customer's nearest store), with the distance to it in kilometres.
+
+Also known as: _nearest neighbour_, _closest_, _nearest store_, _knn spatial_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Latitude | column | yes | none |
+| Longitude | column | yes | none |
+| Places in | dataset | yes | none |
+| Their latitude | dataset_column | yes | none |
+| Their longitude | dataset_column | yes | none |
+| Columns to bring | dataset_columns | yes | none |
+| Distance column | text | no | `distance_km` |
+
+| `lat` | `store` |
+|---|---|
+| `51.6` | `London` |
+| `53.5` | `Leeds` |
+
+The other dataset in this example:
+
+| `store` | `slat` | `slon` |
+|---|---|---|
+| `Leeds` | `53.8` | `-1.55` |
+| `London` | `51.5` | `-0.13` |
+
+### Bounding box of a shape
+
+`geo.bounding_box`
+
+The smallest box around a shape, as JSON with min_lon, min_lat, max_lon and max_lat.
+
+Also known as: _bounding box_, _bbox_, _extent_, _envelope_
+
+| `s` | `s` |
+|---|---|
+| `POLYGON ((-1 51, 1 51, 1 52, -1 52, -1 51))` | `{"min_lon": -1.0, "min_lat": 51.0, "max_lon": 1.0, "max_lat": 52.0}` |
+
+### Centre of a shape
+
+`geo.centroid`
+
+The centre of a shape as a WKT point (its centre of mass on the map, which for shapes the size of a country is close to, not exactly, the centre on the globe).
+
+Also known as: _centroid_, _centre_, _center_, _middle of shape_
+
+| `s` | `s` |
+|---|---|
+| `POLYGON ((-1 51, 1 51, 1 52, -1 52, -1 51))` | `POINT (0 51.5)` |
+
+### Area of a shape
+
+`geo.area`
+
+The area of a polygon on the earth, on a sphere of the earth's mean radius (holes taken away), in square metres, hectares or square kilometres.
+
+Also known as: _area_, _surface area_, _size of polygon_, _hectares_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| In | `square metres` / `hectares` / `square kilometres` | no | `square metres` |
+
+| `s` | `s` |
+|---|---|
+| `POLYGON ((0 0, 0.01 0, 0.01 0.01, 0 0.01, 0 0))` | `123.643458` |
+
+### Grow a shape by a distance
+
+`geo.buffer`
+
+A shape grown outwards by a distance in metres (a circle around a point), measured on a map centred on the shape so the distance holds in every direction.
+
+Also known as: _buffer_, _radius polygon_, _catchment_, _expand shape_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Metres | number | yes | `100` |
+
+_A 64-sided polygon whose edge is 100 m from the point._
+
+### Write a shape as GeoJSON
+
+`geo.to_geojson`
+
+Write a WKT shape as GeoJSON, for a map or an API.
+
+Also known as: _to geojson_, _geojson_, _wkt to json_
+
+| `s` | `s` |
+|---|---|
+| `POINT (1 2)` | `{"type": "Point", "coordinates": [1.0, 2.0]}` |
+
+### Geohash of a place
+
+`geo.geohash_encode`
+
+The geohash of a latitude and longitude: a short code for a cell on the map, longer for a smaller cell (7 characters is about 150 m), shared by places near each other.
+
+Also known as: _geohash encode_, _geohash_, _grid cell_, _spatial index_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Latitude | column | yes | none |
+| Longitude | column | yes | none |
+| Characters | integer | yes | `7` |
+| New column | text | no | none |
+
+| `lat` | `geohash` |
+|---|---|
+| `57.64911` | `u4pruydqqvj` |
+
+### Place of a geohash
+
+`geo.geohash_decode`
+
+The latitude and longitude of the centre of a geohash's cell.
+
+Also known as: _geohash decode_, _from geohash_, _decode geohash_
+
+Offered on **textual** columns.
+
+| `g` | `g_latitude` |
+|---|---|
+| `u4pruydqqvj` | `57.649111` |
+
+
 ## Enrichment & lookup
 
 ### Look up values
@@ -2843,6 +3130,423 @@ Also known as: _golden record_, _master record_, _single customer view_, _entity
 |---|---|
 | `Acme Ltd` | `Leeds` |
 | `ACME Limited` | `York` |
+
+
+## Machine learning
+
+### Group rows by k-means
+
+`ml.kmeans`
+
+Put rows into k clusters of rows alike in the number columns chosen; the run gives the silhouette (how well separated they are).
+
+Also known as: _k means_, _kmeans_, _clustering_, _segmentation_, _segment customers_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Columns | columns | no | none |
+| | Number columns to use; leave empty for every number column. | | |
+| Clusters | integer | yes | `3` |
+| Put columns on one scale first | boolean | no | `True` |
+| Seed | integer | no | `1` |
+| New column | text | no | none |
+
+| `x` | `cluster` |
+|---|---|
+| `1` | `1` |
+| `1.2` | `1` |
+| `0.8` | `1` |
+| `8` | `2` |
+| `8.2` | `2` |
+| `7.9` | `2` |
+
+### Group rows by merging nearest
+
+`ml.hierarchical`
+
+Build clusters by merging the nearest rows and groups step by step (agglomerative), cut at k clusters.
+
+Also known as: _hierarchical clustering_, _agglomerative_, _dendrogram_, _linkage_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Columns | columns | no | none |
+| | Number columns to use; leave empty for every number column. | | |
+| Clusters | integer | yes | `3` |
+| Linkage | `ward` / `average` / `complete` / `single` | no | `ward` |
+| Put columns on one scale first | boolean | no | `True` |
+| New column | text | no | none |
+
+| `x` | `cluster` |
+|---|---|
+| `1` | `1` |
+| `1.2` | `1` |
+| `0.8` | `1` |
+| `8` | `2` |
+| `8.2` | `2` |
+| `7.9` | `2` |
+
+### Group rows by density
+
+`ml.dbscan`
+
+Find clusters of any shape as crowded regions (DBSCAN); rows in no crowd are left without a cluster.
+
+Also known as: _dbscan_, _density clustering_, _noise detection_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Columns | columns | no | none |
+| | Number columns to use; leave empty for every number column. | | |
+| Neighbourhood size | number | yes | `0.5` |
+| Rows to make a crowd | integer | yes | `5` |
+| Put columns on one scale first | boolean | no | `True` |
+| New column | text | no | none |
+
+| `x` | `cluster` |
+|---|---|
+| `1` | `1` |
+| `1.2` | `1` |
+| `0.8` | `1` |
+| `8` | `2` |
+| `8.2` | `2` |
+| `7.9` | `2` |
+| `30` | _(empty)_ |
+
+### Reduce to principal components
+
+`ml.pca`
+
+Replace many correlated number columns with a few components that keep most of their variation (PCA); the run says how much each keeps.
+
+Also known as: _pca_, _principal component analysis_, _dimensionality reduction_, _reduce dimensions_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Columns | columns | no | none |
+| | Number columns to use; leave empty for every number column. | | |
+| Components | integer | yes | `2` |
+| Put columns on one scale first | boolean | no | `True` |
+
+| `a` | `component_1` |
+|---|---|
+| `1` | `-1.897367` |
+| `2` | `-0.632456` |
+| `3` | `0.632456` |
+| `4` | `1.897367` |
+
+### Score how unusual each row is
+
+`ml.anomaly_score`
+
+A score from 0 (the most ordinary row) to 1 (the most unusual) from an isolation forest over the number columns.
+
+Also known as: _anomaly score_, _anomaly detection_, _outlier score_, _novelty_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Columns | columns | no | none |
+| | Number columns to use; leave empty for every number column. | | |
+| Seed | integer | no | `1` |
+| New column | text | no | none |
+
+_The last row, far from the others, scores 1._
+
+### Forecast with ARIMA
+
+`ml.forecast_arima`
+
+Forecast the next periods of a series with an ARIMA model of the order given (p,d,q), with an interval from the model.
+
+Also known as: _arima_, _forecast arima_, _time series forecast_, _box jenkins_, _forecast_, _predict future_, _projection_
+
+Offered on **numeric** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Time column | column | yes | none |
+| Periods ahead | integer | yes | `6` |
+| Interval | number | no | `0.95` |
+| Step between periods | `` / `day` / `week` / `month` / `quarter` / `year` | no | none |
+| | Leave empty to take it from the data. | | |
+| Order p,d,q | text | no | `1,1,1` |
+
+| `sales` | `is_forecast` |
+|---|---|
+| `110` | `False` |
+| `120` | `False` |
+| `130` | `False` |
+| `140` | `False` |
+| `150` | `False` |
+| `160` | `False` |
+| `170` | `False` |
+| `180` | `False` |
+
+### Forecast with exponential smoothing
+
+`ml.forecast_smoothing`
+
+Forecast with Holt-Winters exponential smoothing: a level, a trend and (given its length) a season.
+
+Also known as: _exponential smoothing_, _holt winters_, _ets_, _forecast smoothing_, _forecast_, _predict future_, _projection_
+
+Offered on **numeric** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Time column | column | yes | none |
+| Periods ahead | integer | yes | `6` |
+| Interval | number | no | `0.95` |
+| Step between periods | `` / `day` / `week` / `month` / `quarter` / `year` | no | none |
+| | Leave empty to take it from the data. | | |
+| Trend | `add` / `none` | no | `add` |
+| Season | `add` / `mul` / `none` | no | `add` |
+| Season length in rows | integer | no | `0` |
+
+| `sales` | `is_forecast` |
+|---|---|
+| `110` | `False` |
+| `120` | `False` |
+| `130` | `False` |
+| `140` | `False` |
+| `150` | `False` |
+| `160` | `False` |
+| `170` | `False` |
+| `180` | `False` |
+
+### Forecast a trend and a season
+
+`ml.forecast_trend_season`
+
+Forecast with a straight-line trend plus a repeating season (sines and cosines of its length), fitted by least squares: the additive model Prophet popularised, without its changepoints.
+
+Also known as: _prophet_, _prophet style_, _trend and seasonality_, _forecast trend_, _forecast_, _predict future_, _projection_
+
+Offered on **numeric** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Time column | column | yes | none |
+| Periods ahead | integer | yes | `6` |
+| Interval | number | no | `0.95` |
+| Step between periods | `` / `day` / `week` / `month` / `quarter` / `year` | no | none |
+| | Leave empty to take it from the data. | | |
+| Season length in rows | integer | no | `0` |
+
+| `sales` | `is_forecast` |
+|---|---|
+| `110` | `False` |
+| `120` | `False` |
+| `130` | `False` |
+| `140` | `False` |
+| `150` | `False` |
+| `160` | `False` |
+| `170` | `False` |
+| `180` | `False` |
+
+### Fill gaps from alike rows
+
+`ml.impute_knn`
+
+Fill an empty number with the average of the rows most alike in the other columns (k nearest neighbours).
+
+Also known as: _knn impute_, _nearest neighbour imputation_, _fill missing knn_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Columns | columns | no | none |
+| | Number columns to use; leave empty for every number column. | | |
+| Rows to average | integer | yes | `5` |
+
+| `a` | `b` |
+|---|---|
+| `1.0` | `2.0` |
+| `2.0` | `4.0` |
+| `3.0` | `6.0` |
+| `4.0` | `8.0` |
+
+### Fill gaps by regression
+
+`ml.impute_iterative`
+
+Fill empty numbers by predicting each column from the others, round after round until the answers settle (iterative imputation).
+
+Also known as: _iterative impute_, _mice_, _regression imputation_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Columns | columns | no | none |
+| | Number columns to use; leave empty for every number column. | | |
+| Seed | integer | no | `1` |
+
+_The empty b is predicted from a, about 6._
+
+### Predict a label (naive Bayes)
+
+`ml.naive_bayes`
+
+Learn a label from the rows that have it, using number columns, and predict it for every row, with how sure (Gaussian naive Bayes); the run gives the cross-validated accuracy.
+
+Also known as: _naive bayes_, _classify_, _classification_, _predict category_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Predict | column | yes | none |
+| | Rows that have it teach the model; every row is predicted. | | |
+| Using | columns | no | none |
+| New column | text | no | none |
+
+| `size` | `kind_predicted` |
+|---|---|
+| `1` | `small` |
+| `1.2` | `small` |
+| `0.9` | `small` |
+| `5` | `big` |
+| `5.5` | `big` |
+| `4.9` | `big` |
+| `1.1` | `small` |
+| `5.1` | `big` |
+
+### Predict a label (decision tree)
+
+`ml.decision_tree`
+
+Learn a label from the rows that have it with a decision tree of limited depth, predict it for every row, and say which columns it relies on.
+
+Also known as: _decision tree_, _classification tree_, _cart_, _predict label_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Predict | column | yes | none |
+| | Rows that have it teach the model; every row is predicted. | | |
+| Using | columns | no | none |
+| Most levels | integer | no | `4` |
+| Seed | integer | no | `1` |
+| New column | text | no | none |
+
+| `size` | `kind_predicted` |
+|---|---|
+| `1` | `small` |
+| `1.2` | `small` |
+| `0.9` | `small` |
+| `5` | `big` |
+| `5.5` | `big` |
+| `4.9` | `big` |
+| `1.1` | `small` |
+| `5.1` | `big` |
+
+### Which columns matter most
+
+`ml.feature_importance`
+
+How much each column helps predict another: how much worse a random forest does when that column is shuffled (permutation importance).
+
+Also known as: _feature importance_, _drivers_, _what matters_, _variable importance_, _key drivers_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Predict | column | yes | none |
+| Using | columns | no | none |
+| Seed | integer | no | `1` |
+
+| `y` | `feature` |
+|---|---|
+| `0` | `a` |
+| `3` | `noise` |
+
+### One column per value (one-hot)
+
+`ml.one_hot`
+
+Turn a column of categories into one 0-or-1 column for each value, for a model that needs numbers.
+
+Also known as: _one hot encode_, _dummy variables_, _indicator columns_, _get dummies_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| At most this many columns | integer | no | `100` |
+| Drop the original | boolean | no | `False` |
+
+| `c` | `c_red` |
+|---|---|
+| `red` | `1` |
+| `blue` | `0` |
+| `red` | `1` |
+
+### Number the categories
+
+`ml.ordinal`
+
+Give each category a number: in the order you list, or alphabetical (for a model that needs numbers and an order that means something).
+
+Also known as: _ordinal encode_, _label encode_, _category codes_, _rank categories_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| In order | list | no | none |
+
+| `size` | `size` |
+|---|---|
+| `M` | `2` |
+| `S` | `1` |
+| `L` | `3` |
+
+### Replace categories with their average outcome
+
+`ml.target_encode`
+
+Replace each category with the average of a target column for it, pulled towards the overall average when it has few rows (smoothing), for a model that needs numbers.
+
+Also known as: _target encode_, _mean encoding_, _likelihood encoding_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Outcome | column | yes | none |
+| Smoothing | number | no | `10` |
+
+| `c` | `c` |
+|---|---|
+| `a` | `2.0` |
+| `a` | `2.0` |
+| `b` | `10.0` |
+
+### Key words of each text (TF-IDF)
+
+`ml.tfidf`
+
+For each text, the words that set it apart from the rest (term frequency times inverse document frequency), as a JSON object of word to weight.
+
+Also known as: _tfidf_, _tf idf_, _text vectorise_, _keywords_, _bag of words_
+
+Offered on **textual** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Words per text | integer | yes | `5` |
+
+| `t` | `t` |
+|---|---|
+| `red apple` | `{"red": 0.8148}` |
+| `green apple` | `{"green": 0.8148}` |
+
+### Most alike rows
+
+`ml.similarity_matrix`
+
+For each row, the rows most alike it by cosine similarity: of number columns, or of one text column's words (TF-IDF). Rows are counted from 1.
+
+Also known as: _similarity matrix_, _cosine similarity_, _similar items_, _nearest rows_, _recommend_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Columns | columns | yes | none |
+| Most alike per row | integer | yes | `3` |
+
+| `t` | `other_row` |
+|---|---|
+| `red apple` | `2` |
+| `red apples` | `1` |
+| `blue sky` | `1` |
 
 
 ## Nested data
@@ -3992,6 +4696,781 @@ Also known as: _remove errors_, _drop bad values_, _drop invalid rows_
 |---|---|
 | `12` | `12` |
 | `twelve` | _(empty)_ |
+
+
+## Sampling & splitting
+
+### Random sample
+
+`sample.random`
+
+Keep a random share (or number) of the rows, the same ones every run for the same seed.
+
+Also known as: _random sample_, _sample_, _subset_, _random rows_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Share of rows | number | no | none |
+| | From 0 to 1 (0.1 is a tenth). Give this or a number of rows. | | |
+| Or this many rows | integer | no | none |
+| Seed | integer | no | `1` |
+
+| `n` | `n` |
+|---|---|
+| `1` | `4` |
+| `2` | `5` |
+| `3` | `8` |
+
+### Sample each group alike
+
+`sample.stratified`
+
+Keep the same share (or number) of rows from every group, so small groups are not lost from the sample.
+
+Also known as: _stratified sample_, _stratify_, _proportional sample_, _sample by group_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Groups in | column | yes | none |
+| Share of rows | number | no | none |
+| | From 0 to 1 (0.1 is a tenth). Give this or a number of rows. | | |
+| Or this many rows | integer | no | none |
+| Seed | integer | no | `1` |
+
+| `n` | `n` |
+|---|---|
+| `1` | `2` |
+| `2` | `3` |
+| `3` | `5` |
+| `4` | `7` |
+| `5` | `10` |
+
+### Every nth row
+
+`sample.systematic`
+
+Keep every nth row, starting from a given row.
+
+Also known as: _systematic sample_, _every nth row_, _every other row_, _interval sample_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Every | integer | yes | `10` |
+| Starting at row | integer | no | `1` |
+
+| `n` | `n` |
+|---|---|
+| `1` | `2` |
+| `2` | `5` |
+| `3` | `8` |
+
+### Sample whole groups
+
+`sample.cluster`
+
+Choose some groups at random and keep all their rows (cluster sampling: a few shops, every sale in each).
+
+Also known as: _cluster sample_, _sample groups_, _random groups_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Groups in | column | yes | none |
+| Groups to keep | integer | yes | `1` |
+| Seed | integer | no | `1` |
+
+| `n` | `n` |
+|---|---|
+| `1` | `1` |
+| `2` | `2` |
+| `3` | `3` |
+| `4` | `4` |
+| `5` | `5` |
+| `6` | `6` |
+
+### Sample a fixed number in one pass
+
+`sample.reservoir`
+
+Keep exactly this many rows, each row as likely as any other, in one pass over the data (reservoir sampling, for when the total is not known first).
+
+Also known as: _reservoir sample_, _fixed size sample_, _streaming sample_, _algorithm r_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Rows | integer | yes | `100` |
+| Seed | integer | no | `1` |
+
+| `n` | `n` |
+|---|---|
+| `1` | `5` |
+| `2` | `8` |
+| `3` | `9` |
+
+### Balance the groups
+
+`sample.balanced`
+
+Keep the same number of rows of every value of a column, as many as the smallest group has (for a model that would otherwise learn the commonest answer).
+
+Also known as: _balanced sample_, _undersample_, _class balance_, _equal groups_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Balance | column | yes | none |
+| Seed | integer | no | `1` |
+
+| `n` | `n` |
+|---|---|
+| `1` | `2` |
+| `2` | `3` |
+| `3` | `4` |
+| `4` | `6` |
+| `5` | `7` |
+| `6` | `8` |
+| `7` | `9` |
+| `8` | `10` |
+
+### Split into training and test rows
+
+`sample.train_test`
+
+Label each row train or test at random, a share in test, optionally the same share within each value of a column (stratified).
+
+Also known as: _train test split_, _holdout_, _validation split_, _split data_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Share for testing | number | yes | `0.2` |
+| Keep the share in each | column | no | none |
+| Seed | integer | no | `1` |
+| New column | text | no | none |
+
+| `n` | `split` |
+|---|---|
+| `1` | `train` |
+| `2` | `test` |
+| `3` | `test` |
+| `4` | `train` |
+| `5` | `train` |
+
+### Split by time
+
+`sample.time_split`
+
+Label rows after a date (or the latest share of them) test and the rest train, so a model is judged on data from after what it learnt from.
+
+Also known as: _time based split_, _temporal split_, _out of time_, _backtest split_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Date column | column | yes | none |
+| After | text | no | none |
+| Or the latest share | number | no | `0.2` |
+| New column | text | no | none |
+
+| `d` | `split` |
+|---|---|
+| `2026-01-01` | `train` |
+| `2026-01-02` | `train` |
+| `2026-01-03` | `train` |
+| `2026-01-04` | `test` |
+| `2026-01-05` | `test` |
+
+### Label rows by a condition
+
+`sample.split_by_condition`
+
+Label each row by whether a formula holds for it, with words of your choosing (big and small orders), to filter or deliver each part separately.
+
+Also known as: _split by condition_, _partition by rule_, _label rows_, _segment by rule_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Condition | text | yes | none |
+| When it holds | text | no | `yes` |
+| Otherwise | text | no | `no` |
+| New column | text | no | none |
+
+| `amount` | `part` |
+|---|---|
+| `5` | `small` |
+| `50` | `big` |
+
+### Number the rows into parts
+
+`sample.split_into_parts`
+
+Number each row 1 to N to split the data into N parts: in order (the first rows are part 1) or in turn (1, 2, 3, 1, 2, 3).
+
+Also known as: _split into n parts_, _chunks_, _batches_, _partition rows_, _round robin_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Parts | integer | yes | `2` |
+| Rows go | `in order` / `in turn` | no | `in order` |
+| New column | text | no | none |
+
+| `n` | `part` |
+|---|---|
+| `1` | `1` |
+| `2` | `2` |
+| `3` | `3` |
+| `4` | `1` |
+| `5` | `2` |
+| `6` | `3` |
+
+
+## Statistics
+
+### Describe the columns
+
+`stats.describe`
+
+One row per column: how many values and empty ones, how many different, and for numbers the mean, spread, lowest, quartiles, median and highest; the commonest value for every column.
+
+Also known as: _describe_, _summary statistics_, _profile_, _mean median_, _statistics summary_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Columns | columns | no | none |
+
+| `v` | `median` |
+|---|---|
+| `1` | `2.0` |
+
+### Correlation matrix
+
+`stats.correlation_matrix`
+
+How closely every pair of number columns moves together, from -1 to 1, by Pearson (straight-line), Spearman (rank) or Kendall's tau.
+
+Also known as: _correlation matrix_, _correlations_, _pearson_, _spearman_, _corr_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Columns | columns | no | none |
+| Method | `pearson` / `spearman` / `kendall` | no | `pearson` |
+
+| `a` | `b` |
+|---|---|
+| `1` | `1.0` |
+| `2` | `1.0` |
+
+### Covariance matrix
+
+`stats.covariance_matrix`
+
+The covariance of every pair of number columns (sample, n - 1).
+
+Also known as: _covariance matrix_, _covariances_, _cov_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Columns | columns | no | none |
+
+| `a` | `a` |
+|---|---|
+| `1` | `1.0` |
+| `2` | `2.0` |
+
+### Histogram
+
+`stats.histogram`
+
+Count the values in equal-width bins between the lowest and highest (the last bin includes the highest).
+
+Also known as: _histogram_, _distribution_, _bins_, _frequency distribution_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Column | column | yes | none |
+| Bins | integer | yes | `10` |
+
+| `v` | `count` |
+|---|---|
+| `1` | `1` |
+| `2` | `2` |
+| `2` | `2` |
+
+### Frequency table
+
+`stats.frequency`
+
+How often each value appears, commonest first, with its share and the running share.
+
+Also known as: _frequency table_, _value counts_, _counts_, _tally_, _pareto_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Column | column | yes | none |
+
+| `v` | `count` |
+|---|---|
+| `a` | `2` |
+| `b` | `1` |
+| `a` | `1` |
+
+### Find outliers by the middle half
+
+`stats.outliers_iqr`
+
+True for values more than 1.5 times the interquartile range below the lower quartile or above the upper (Tukey's fences).
+
+Also known as: _outliers iqr_, _tukey_, _box plot outliers_, _anomalies_, _outlier detection_
+
+Offered on **numeric** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Factor | number | no | `1.5` |
+| New column | text | no | none |
+
+| `v` | `v_outlier` |
+|---|---|
+| `10` | `False` |
+| `11` | `False` |
+| `12` | `False` |
+| `11` | `False` |
+| `10` | `False` |
+| `12` | `False` |
+| `11` | `False` |
+| `95` | `True` |
+
+### Find outliers by standard deviations
+
+`stats.outliers_zscore`
+
+True for values more than 3 standard deviations from the mean (suits values that are roughly normal).
+
+Also known as: _outliers z score_, _z score outliers_, _3 sigma_, _anomalies_, _outlier detection_
+
+Offered on **numeric** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Factor | number | no | `3.0` |
+| New column | text | no | none |
+
+| `v` | `v_outlier` |
+|---|---|
+| `10` | `False` |
+| `11` | `False` |
+| `12` | `False` |
+| `11` | `False` |
+| `10` | `False` |
+| `12` | `False` |
+| `11` | `False` |
+| `95` | `False` |
+
+### Find outliers by median deviation
+
+`stats.outliers_mad`
+
+True for values whose modified z-score, from the median absolute deviation, is above 3.5 (robust to the outliers themselves).
+
+Also known as: _outliers mad_, _robust outliers_, _median absolute deviation_, _anomalies_, _outlier detection_
+
+Offered on **numeric** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Factor | number | no | `3.5` |
+| New column | text | no | none |
+
+| `v` | `v_outlier` |
+|---|---|
+| `10` | `False` |
+| `11` | `False` |
+| `12` | `False` |
+| `11` | `False` |
+| `10` | `False` |
+| `12` | `False` |
+| `11` | `False` |
+| `95` | `True` |
+
+### Find unusual rows
+
+`stats.outliers_isolation_forest`
+
+True for rows that an isolation forest separates from the rest quickly, looking at several number columns at once; a score says how unusual each is.
+
+Also known as: _isolation forest_, _anomaly detection_, _multivariate outliers_, _unusual rows_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Columns | columns | no | none |
+| Share expected to be unusual | number | no | none |
+| Seed | integer | no | `1` |
+| New column | text | no | none |
+
+| `a` | `outlier` |
+|---|---|
+| `1` | `False` |
+| `1.1` | `False` |
+| `0.9` | `False` |
+| `1` | `False` |
+| `9` | `True` |
+
+### Test for a normal distribution
+
+`stats.normality`
+
+Test whether the values could come from a normal distribution: Shapiro-Wilk, or D'Agostino-Pearson past 5,000 values.
+
+Also known as: _normality test_, _shapiro wilk_, _is it normal_, _gaussian test_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Column | column | yes | none |
+| Significance level | number | no | `0.05` |
+| | 0.05 means 5%: how unlikely a result must be by chance to count. | | |
+
+| `v` | `test` |
+|---|---|
+| `2.1` | `Shapiro-Wilk` |
+
+### Compare means (t-test)
+
+`stats.t_test`
+
+Test whether the mean differs from a value (one-sample), or between two groups (Welch's two-sample, not assuming equal spreads).
+
+Also known as: _t test_, _ttest_, _compare means_, _student t_, _welch_, _significance test_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Column | column | yes | none |
+| Groups in | column | no | none |
+| | A column with two groups to compare; leave empty to compare with a value. | | |
+| Or compare with | number | no | `0` |
+| Significance level | number | no | `0.05` |
+| | 0.05 means 5%: how unlikely a result must be by chance to count. | | |
+
+| `v` | `test` |
+|---|---|
+| `5` | `Welch's two-sample t-test` |
+
+### Compare before and after (paired t-test)
+
+`stats.paired_t_test`
+
+Test whether two columns measured on the same rows (before and after) differ on average.
+
+Also known as: _paired t test_, _before after_, _dependent t test_, _repeated measures_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Column | column | yes | none |
+| Paired with | column | yes | none |
+| Significance level | number | no | `0.05` |
+| | 0.05 means 5%: how unlikely a result must be by chance to count. | | |
+
+| `before` | `test` |
+|---|---|
+| `10` | `paired t-test` |
+
+### Compare means of several groups (ANOVA)
+
+`stats.anova`
+
+Test whether the mean is the same in every group (one-way analysis of variance).
+
+Also known as: _anova_, _f test_, _analysis of variance_, _compare groups_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Column | column | yes | none |
+| Groups in | column | yes | none |
+| Significance level | number | no | `0.05` |
+| | 0.05 means 5%: how unlikely a result must be by chance to count. | | |
+
+| `v` | `test` |
+|---|---|
+| `1` | `one-way ANOVA` |
+
+### Test whether two categories are related (chi-square)
+
+`stats.chi_square`
+
+Test whether two columns of categories are independent, or one tells you something about the other.
+
+Also known as: _chi square_, _chi2_, _independence test_, _contingency test_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Column | column | yes | none |
+| And | column | yes | none |
+| Significance level | number | no | `0.05` |
+| | 0.05 means 5%: how unlikely a result must be by chance to count. | | |
+
+| `a` | `test` |
+|---|---|
+| `x` | `chi-square test of independence` |
+
+### Compare two groups without assuming normal (Mann-Whitney)
+
+`stats.mann_whitney`
+
+Test whether values in one group tend to be larger than in the other, by ranks.
+
+Also known as: _mann whitney_, _wilcoxon rank sum_, _u test_, _non parametric_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Column | column | yes | none |
+| Groups in | column | yes | none |
+| Significance level | number | no | `0.05` |
+| | 0.05 means 5%: how unlikely a result must be by chance to count. | | |
+
+| `v` | `test` |
+|---|---|
+| `1` | `Mann-Whitney U` |
+
+### Compare distributions (Kolmogorov-Smirnov)
+
+`stats.ks_test`
+
+Test whether two groups are distributed alike, or one column like a normal distribution with its own mean and spread.
+
+Also known as: _kolmogorov smirnov_, _ks test_, _compare distributions_, _goodness of fit_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Column | column | yes | none |
+| Groups in | column | no | none |
+| | A column with two groups to compare; leave empty to compare with a value. | | |
+| Significance level | number | no | `0.05` |
+| | 0.05 means 5%: how unlikely a result must be by chance to count. | | |
+
+| `v` | `test` |
+|---|---|
+| `1` | `two-sample Kolmogorov-Smirnov` |
+
+### Fit a straight line
+
+`stats.linear_regression`
+
+How one number column moves with another: the intercept and slope by least squares, their standard errors and p-values, and R².
+
+Also known as: _linear regression_, _line of best fit_, _trend line_, _slope_, _ols_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Explain | column | yes | none |
+| By | column | yes | none |
+| Significance level | number | no | `0.05` |
+| | 0.05 means 5%: how unlikely a result must be by chance to count. | | |
+
+| `x` | `term` |
+|---|---|
+| `1` | `intercept` |
+| `2` | `x` |
+| `3` | `fit` |
+
+### Fit several columns at once
+
+`stats.multiple_regression`
+
+How one number column moves with several others together (ordinary least squares), with each one's estimate, standard error and p-value.
+
+Also known as: _multiple regression_, _multivariate regression_, _ols_, _drivers_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Explain | column | yes | none |
+| By | columns | yes | none |
+| Significance level | number | no | `0.05` |
+| | 0.05 means 5%: how unlikely a result must be by chance to count. | | |
+
+| `y` | `term` |
+|---|---|
+| `8` | `intercept` |
+| `7` | `a` |
+| `21` | `b` |
+| `17` | `fit` |
+
+### Fit a yes-or-no outcome
+
+`stats.logistic_regression`
+
+How several columns change the odds of a 0-or-1 outcome (logistic regression by maximum likelihood), with each one's estimate and p-value.
+
+Also known as: _logistic regression_, _logit_, _classification model_, _odds ratio_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Outcome (0 or 1) | column | yes | none |
+| By | columns | yes | none |
+| Significance level | number | no | `0.05` |
+| | 0.05 means 5%: how unlikely a result must be by chance to count. | | |
+
+| `x` | `term` |
+|---|---|
+| `1` | `intercept` |
+| `2` | `x` |
+| `3` | `fit` |
+
+### Add fitted values and residuals
+
+`stats.residuals`
+
+Fit the column by least squares on others and add, on every row, the fitted value and the residual (what the fit misses), to look for what it does not explain.
+
+Also known as: _residual analysis_, _residuals_, _fitted values_, _prediction error_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Explain | column | yes | none |
+| By | columns | yes | none |
+
+| `y` | `y_residual` |
+|---|---|
+| `2` | `0.166667` |
+| `4` | `-0.333333` |
+| `7` | `0.166667` |
+
+### Confidence interval for the mean
+
+`stats.confidence_interval`
+
+The range the true mean is likely in, by Student's t, overall or for each group.
+
+Also known as: _confidence interval_, _margin of error_, _error bars_, _ci_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Column | column | yes | none |
+| For each | column | no | none |
+| Confidence | number | no | `0.95` |
+
+| `v` | `mean` |
+|---|---|
+| `10` | `11.0` |
+
+### How many to sample
+
+`stats.sample_size`
+
+How many responses a survey needs for a margin of error at a confidence, for a share near the one expected (0.5 when unknown), optionally in a finite population. Uses no data.
+
+Also known as: _sample size calculator_, _survey size_, _how many respondents_, _power_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Confidence | number | yes | `0.95` |
+| Margin of error | number | yes | `0.05` |
+| Expected share | number | no | `0.5` |
+| Population | integer | no | none |
+
+| `x` | `sample_size` |
+|---|---|
+| `1` | `385` |
+
+### Split into trend and season
+
+`stats.seasonal_decompose`
+
+Separate a series, in time order, into its trend (a centred moving average), its repeating seasonal pattern of the period given, and what is left (classical decomposition, additive or multiplicative).
+
+Also known as: _seasonal decompose_, _seasonality_, _trend_, _stl_, _decomposition_
+
+Offered on **numeric** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| In the order of | column | no | none |
+| Season length in rows | integer | yes | `7` |
+| Season | `additive` / `multiplicative` | no | `additive` |
+
+| `v` | `v_seasonal` |
+|---|---|
+| `7` | `-3.0` |
+| `14` | `3.0` |
+| `9` | `-3.0` |
+| `16` | `3.0` |
+| `11` | `-3.0` |
+| `18` | `3.0` |
+| `13` | `-3.0` |
+| `20` | `3.0` |
+
+### Autocorrelation by lag
+
+`stats.autocorrelation`
+
+How much a series, in time order, resembles itself this many rows earlier, for each lag, with the 95% band chance alone stays inside.
+
+Also known as: _autocorrelation_, _acf_, _serial correlation_, _lag correlation_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Column | column | yes | none |
+| In the order of | column | no | none |
+| Lags | integer | yes | `10` |
+
+| `v` | `lag` |
+|---|---|
+| `1` | `1` |
+| `3` | `2` |
+
+### Test for a trend
+
+`stats.trend_test`
+
+Is a series, in time order, rising or falling beyond chance? The Mann-Kendall test, with Sen's slope for how fast.
+
+Also known as: _trend test_, _mann kendall_, _is it increasing_, _sen slope_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Column | column | yes | none |
+| In the order of | column | no | none |
+| Significance level | number | no | `0.05` |
+| | 0.05 means 5%: how unlikely a result must be by chance to count. | | |
+
+| `v` | `test` |
+|---|---|
+| `1` | `Mann-Kendall` |
+
+### Find where the level changes
+
+`stats.changepoints`
+
+Number the stretches of a series, in time order, between points where its average shifts (binary segmentation with a penalty so noise does not count), 1 for the first stretch.
+
+Also known as: _changepoint detection_, _change point_, _level shift_, _regime change_, _break detection_
+
+Offered on **numeric** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| In the order of | column | no | none |
+| Most change points | integer | no | `5` |
+| New column | text | no | none |
+
+| `v` | `v_segment` |
+|---|---|
+| `1` | `1` |
+| `1.1` | `1` |
+| `0.9` | `1` |
+| `1` | `1` |
+| `5` | `2` |
+| `5.1` | `2` |
+| `4.9` | `2` |
+| `5` | `2` |
+
+### Fit a distribution
+
+`stats.distribution_fit`
+
+Which of the normal, uniform, exponential and (for positive values) lognormal, gamma and Weibull distributions describes the values best, by maximum likelihood, ranked by AIC, each with a Kolmogorov-Smirnov check.
+
+Also known as: _distribution fit_, _fit distribution_, _which distribution_, _maximum likelihood_, _aic_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Column | column | yes | none |
+
+_One row per distribution that fits, best (lowest AIC) first._
 
 
 ## Reshape

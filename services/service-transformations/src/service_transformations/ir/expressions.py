@@ -496,6 +496,15 @@ FUNCTIONS: dict[str, Signature] = {
         is_aggregate=True,
     ),
     "product": _define("product", 1, 1, _const(FLOAT64), {"duckdb": "PRODUCT({0})"}, is_aggregate=True),
+    # E1: trigonometry in radians, for distances on the earth. A value outside
+    # asin's domain is empty here; SQLite gives NULL and PostgreSQL stops, so
+    # the haversine tool keeps its argument inside [0, 1].
+    "sin": _define("sin", 1, 1, _const(FLOAT64), _same("SIN({0})", ("postgres", "sqlite", "duckdb"))),
+    "cos": _define("cos", 1, 1, _const(FLOAT64), _same("COS({0})", ("postgres", "sqlite", "duckdb"))),
+    "asin": _define("asin", 1, 1, _const(FLOAT64), _same("ASIN({0})", ("postgres", "sqlite", "duckdb"))),
+    "atan2": _define("atan2", 2, 2, _const(FLOAT64), _same("ATAN2({0}, {1})", ("postgres", "sqlite", "duckdb"))),
+    "radians": _define("radians", 1, 1, _const(FLOAT64), _same("RADIANS({0})", ("postgres", "sqlite", "duckdb"))),
+    "degrees": _define("degrees", 1, 1, _const(FLOAT64), _same("DEGREES({0})", ("postgres", "sqlite", "duckdb"))),
     # E1: the rest of the aggregate step's functions.
     "count_null": _define("count_null", 1, 1, _const(INT64), _same("(COUNT(*) - COUNT({0}))"), is_aggregate=True),
     # The commonest value, the smallest when several tie: no database's MODE()

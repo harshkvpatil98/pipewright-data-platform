@@ -938,4 +938,18 @@ HANDLERS: dict[str, Callable[[list[pd.Series], Any], pd.Series]] = {
     "url_part": lambda args, expr: _map(
         _text(args[0]), lambda v, p=str(_literal(args, 1, "host") or "host"): _url_part(v, p)
     ),
+    # Trigonometry, in radians, for distances on the earth (E1). numpy and SQL
+    # compute these the same way, so they lower.
+    "sin": lambda args, expr: _trig(np.sin, args[0]),
+    "cos": lambda args, expr: _trig(np.cos, args[0]),
+    "asin": lambda args, expr: _trig(np.arcsin, args[0]),
+    "radians": lambda args, expr: _trig(np.radians, args[0]),
+    "degrees": lambda args, expr: _trig(np.degrees, args[0]),
+    "atan2": lambda args, expr: pd.Series(np.arctan2(_numeric(args[0]).astype(float), _numeric(args[1]).astype(float)),
+                                          index=args[0].index),
 }
+
+
+def _trig(fn, series: pd.Series) -> pd.Series:
+    with np.errstate(invalid="ignore"):
+        return pd.Series(fn(_numeric(series).astype(float)), index=series.index)

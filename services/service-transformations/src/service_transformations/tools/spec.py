@@ -230,6 +230,10 @@ class ToolSpec:
     #: Its job is to add rows (insert a row, a calendar of dates), so an empty
     #: input need not give an empty output.
     adds_rows: bool = False
+    #: Its answer is a table about the data (a description, a test's result,
+    #: a model's coefficients), not the data's rows, so it may describe even
+    #: nothing ("0 values; too few to test").
+    describes: bool = False
 
     def resolve(self, config: dict[str, Any]) -> dict[str, Any]:
         """Validate a supplied config into the parameters ``build`` expects."""

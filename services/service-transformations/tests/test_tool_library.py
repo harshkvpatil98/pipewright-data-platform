@@ -172,8 +172,9 @@ class TestEdgeCases:
         spec = tools.TOOLS[name]
         frame = frame_for(spec).iloc[0:0]
         result = run(spec, frame)
-        if spec.adds_rows:
-            # Inserting a row or making a calendar is the tool's job; it still
+        if spec.adds_rows or spec.describes:
+            # Inserting a row or making a calendar is the tool's job, and a
+            # description or a test result may describe nothing; either still
             # must not fail on nothing.
             assert isinstance(result, pd.DataFrame)
             return
@@ -369,6 +370,9 @@ class TestLineageMatchesTheEngine:
         config = config_for(spec, frame)
         step = predict(frame, config)
         target = config["column"]
+        if spec.dynamic_columns:
+            assert step.dynamic, f"{name} gives columns from its values; lineage must say it cannot know them"
+            return
         assert step.edges, f"{name} recorded no lineage edge for {target}"
         assert target in step.named_columns, f"{name} did not name the column it reads"
 

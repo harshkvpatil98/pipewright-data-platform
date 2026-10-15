@@ -147,6 +147,9 @@ def main() -> int:
     )
     parser.add_argument("--once", action="store_true", help="Drain the queue once and exit.")
     args = parser.parse_args()
+    from api_gateway.plugins import load_enabled
+
+    load_enabled()  # a run's recipe may use a plugin's tool or function (X1)
 
     signal.signal(signal.SIGINT, _request_stop)
     signal.signal(signal.SIGTERM, _request_stop)

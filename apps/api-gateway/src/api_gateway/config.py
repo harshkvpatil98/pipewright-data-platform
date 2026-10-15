@@ -67,6 +67,12 @@ class Settings(BaseSettings):
     #: address is read from X-Forwarded-For that many hops back; at zero it is
     #: the connecting address and the header is ignored (anyone can forge it).
     trusted_proxy_hops: int = 0
+    # Plugins (Phase 23, X1): the names to load, separated by commas. A plugin
+    # installed but not named here is listed and never loaded.
+    plugins_enabled: str = ""
+    # Folders holding folder plugins (each a folder with a plugin.py), separated
+    # by the system's path separator (":" here).
+    plugins_path: str = ""
     # OpenTelemetry traces of each request and its database statements, sent
     # over OTLP to OTEL_EXPORTER_OTLP_ENDPOINT (A7). Off by default.
     otel_enabled: bool = False

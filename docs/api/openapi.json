@@ -2872,17 +2872,9 @@
     "properties": {
      "chart_type": {
       "default": "bar",
-      "enum": [
-       "bar",
-       "column",
-       "line",
-       "area",
-       "scatter",
-       "pie",
-       "donut",
-       "kpi",
-       "table"
-      ],
+      "maxLength": 60,
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9_]*$",
       "title": "Chart Type",
       "type": "string"
      },
@@ -3023,17 +3015,9 @@
     "properties": {
      "chart_type": {
       "default": "bar",
-      "enum": [
-       "bar",
-       "column",
-       "line",
-       "area",
-       "scatter",
-       "pie",
-       "donut",
-       "kpi",
-       "table"
-      ],
+      "maxLength": 60,
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9_]*$",
       "title": "Chart Type",
       "type": "string"
      },
@@ -3190,6 +3174,18 @@
    },
    "ChartTypeRead": {
     "properties": {
+     "declared": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Declared"
+     },
      "description": {
       "title": "Description",
       "type": "string"
@@ -3228,6 +3224,17 @@
      "name": {
       "title": "Name",
       "type": "string"
+     },
+     "plugin": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Plugin"
      }
     },
     "required": [
@@ -3248,17 +3255,9 @@
      "chart_type": {
       "anyOf": [
        {
-        "enum": [
-         "bar",
-         "column",
-         "line",
-         "area",
-         "scatter",
-         "pie",
-         "donut",
-         "kpi",
-         "table"
-        ],
+        "maxLength": 60,
+        "minLength": 1,
+        "pattern": "^[a-z][a-z0-9_]*$",
         "type": "string"
        },
        {
@@ -33275,6 +33274,63 @@
     "summary": "Add Member",
     "tags": [
      "enterprise"
+    ]
+   }
+  },
+  "/api/v1/plugins": {
+   "get": {
+    "description": "Every plugin installed here, what it adds, its checks and whether it loaded.",
+    "operationId": "list_plugins_api_v1_plugins_get",
+    "parameters": [
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response List Plugins Api V1 Plugins Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "List Plugins",
+    "tags": [
+     "plugins"
     ]
    }
   },

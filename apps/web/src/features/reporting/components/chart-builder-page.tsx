@@ -540,8 +540,9 @@ export function ChartBuilderPageView({
                 <div className="flex items-start justify-between gap-2">
                   <span className="text-[13px] text-ink">{chart.name}</span>
                   <div className="flex shrink-0 items-center gap-1.5">
-                    <Badge className="capitalize">
-                      {chart.chart_type}
+                    <Badge>
+                      {types?.items.find((type) => type.name === chart.chart_type)?.label ??
+                        sentenceLabel(chart.chart_type)}
                       {chart.metric_name ? ` · ${chart.metric_name}` : ""}
                     </Badge>
                     <DeleteRowButton

@@ -30,6 +30,7 @@ dependencies = [
   "service-sources>=0.1.0",
   "service-transformations>=0.1.0",
   "shared-python>=0.1.0",
+  "pipewright-plugin-sdk>=1.0.0",
   "sqlalchemy>=2.0,<3.0",
   "uvicorn[standard]>=0.34,<1.0",
   # Traces, used only when OTEL_ENABLED is set (A7).

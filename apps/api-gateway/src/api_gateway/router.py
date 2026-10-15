@@ -10,6 +10,7 @@ from service_auth.dependencies import build_current_user_dependency
 from service_comparisons import build_router as build_comparisons_router
 from service_connectors import build_router as build_connectors_router
 from api_gateway.audit_center import build_audit_center_router
+from api_gateway.plugins import build_plugins_router
 from api_gateway.activity import build_activity_router
 from api_gateway.bundles import build_bundles_router
 from api_gateway.demo import build_demo_router
@@ -54,6 +55,7 @@ def build_api_router(settings) -> APIRouter:
     api_router.include_router(build_projects_router(get_db, current_user))
     api_router.include_router(build_operator_router(get_db, current_user))
     api_router.include_router(build_audit_center_router(get_db, current_user, settings))
+    api_router.include_router(build_plugins_router(current_user))
     api_router.include_router(build_demo_router(get_db, current_user, get_storage_backend, settings))
     api_router.include_router(build_samples_router(get_db, current_user, get_storage_backend, settings))
     api_router.include_router(build_bundles_router(get_db, current_user))

@@ -98,7 +98,6 @@ def test_a_feature_entry_has_its_test_where_it_says(family: str, done: Done) -> 
     assert _has_test(done.test), f"{family} / {done.entry}: no test at {done.test}"
 
 
-def test_only_the_plugin_waits_on_a_later_phase() -> None:
-    waiting = [done.entry for _, done in entries() if done.by == "later"]
-    assert waiting == ["custom-plugin (Phase 23)"]
-    assert all(done.by in ("tool", "step", "feature", "later") for _, done in entries())
+def test_nothing_waits_on_a_later_phase() -> None:
+    assert [done.entry for _, done in entries() if done.by == "later"] == []
+    assert all(done.by in ("tool", "step", "feature") for _, done in entries())

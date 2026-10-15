@@ -29,6 +29,8 @@ import {
 } from "@platform/shared-ui";
 import { formatNumber } from "@/lib/format";
 
+import { declaredGeometry } from "../declared-chart";
+
 /**
  * Series colours come from theme tokens, so they follow light/dark.
  *
@@ -59,12 +61,84 @@ export function ChartView({ data, className }: { data: ChartData; className?: st
     );
   }
 
+  if (data.meta?.declared) return <DeclaredView data={data} className={className} />;
   if (data.chart_type === "kpi") return <KpiView data={data} className={className} />;
   if (data.chart_type === "table") return <TableView data={data} className={className} />;
   if (data.chart_type === "pie") return <PieView data={data} values={numeric[0] ?? []} />;
   if (data.chart_type === "donut") return <PieView data={data} values={numeric[0] ?? []} donut />;
 
   return <AxisChart data={data} numeric={numeric} className={className} />;
+}
+
+/** A plugin's chart type, drawn from its declared marks (X1). */
+function DeclaredView({ data, className }: { data: ChartData; className?: string }) {
+  const geometry = useMemo(
+    () => (data.meta?.declared ? declaredGeometry(data, data.meta.declared) : null),
+    [data],
+  );
+  if (!geometry) return null;
+  const every = data.labels.length <= 14 ? 1 : Math.ceil(data.labels.length / 12);
+  return (
+    <div className={cx("rounded-xl border border-line bg-surface p-2", className)}>
+      <svg
+        viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
+        className="w-full"
+        role="img"
+        aria-label={`${data.chart_type.replace(/_/g, " ")} chart`}
+      >
+        {geometry.ticks.map((tick) => (
+          <g key={tick.label}>
+            <line x1={PADDING.left} x2={CHART_WIDTH - PADDING.right} y1={tick.y} y2={tick.y} className="stroke-line" strokeWidth={1} />
+            <text x={PADDING.left - 8} y={tick.y + 3.5} textAnchor="end" className="fill-muted text-[12px]">
+              {tick.label}
+            </text>
+          </g>
+        ))}
+        {geometry.shapes.map((shape, index) => {
+          const colour = PALETTE[shape.series % PALETTE.length];
+          if (shape.kind === "rect") {
+            return <rect key={index} x={shape.x} y={shape.y} width={shape.width} height={shape.height} rx={2} fill={colour} opacity={0.85} />;
+          }
+          if (shape.kind === "path") {
+            return shape.fill ? (
+              <path key={index} d={shape.d} fill={colour} opacity={0.15} />
+            ) : (
+              <path key={index} d={shape.d} fill="none" stroke={colour} strokeWidth={2} />
+            );
+          }
+          if (shape.kind === "circle") return <circle key={index} cx={shape.cx} cy={shape.cy} r={shape.r} fill={colour} />;
+          if (shape.kind === "line") {
+            return <line key={index} x1={shape.x1} y1={shape.y1} x2={shape.x2} y2={shape.y2} stroke={colour} strokeWidth={2} />;
+          }
+          return (
+            <text key={index} x={shape.x} y={shape.y} textAnchor="middle" className="fill-ink-2 text-[12px]">
+              {shape.text}
+            </text>
+          );
+        })}
+        {geometry.labels.map((label, index) =>
+          index % every === 0 ? (
+            <text key={index} x={label.x} y={CHART_HEIGHT - PADDING.bottom + 16} textAnchor="middle" className="fill-muted text-[12px]">
+              {truncate(label.text)}
+            </text>
+          ) : null,
+        )}
+      </svg>
+      {data.series.length > 1 ? (
+        <ul className="mt-1 flex flex-wrap gap-3 px-2 pb-1">
+          {data.series.map((series, index) => (
+            <li key={series.name} className="flex items-center gap-1.5 text-[12px] text-ink-3">
+              <span className="h-2 w-2 rounded-sm" style={{ background: PALETTE[index % PALETTE.length] }} />
+              {series.name.replace(/_/g, " ")}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {data.meta?.plugin ? (
+        <p className="px-2 pb-1 text-[12px] text-muted">A chart type from the {data.meta.plugin} plugin.</p>
+      ) : null}
+    </div>
+  );
 }
 
 function KpiView({ data, className }: { data: ChartData; className?: string }) {

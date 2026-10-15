@@ -12,8 +12,8 @@ in 23 families. Each is done here by one of three things:
 
 `test_tool_coverage` reads the roadmap's list and fails when an entry is
 missing here or is here twice, names a tool or step that does not exist, or
-names a feature whose test is not where it says. One entry waits on the next
-phase and says so: a custom plugin is Phase 23's.
+names a feature whose test is not where it says. A custom plugin came with
+Phase 23 (X1), the last entry to be done.
 """
 
 from __future__ import annotations
@@ -547,7 +547,10 @@ FAMILIES: dict[str, tuple[Done, ...]] = {
                 "in-process, with no shell command anywhere",
                 "apps/api-gateway/tests/test_api_guide.py::test_the_worked_examples_run_as_written"),
         tool("template-render", "code.template"),
-        later("custom-plugin (Phase 23)", "A tool from an installed plugin: Phase 23, extensibility"),
+        feature("custom-plugin (Phase 23)", "A tool, function, chart type or connector from a plugin, checked like "
+                "Pipewright's own before it loads",
+                "apps/api-gateway/tests/test_plugins.py::"
+                "test_a_plugin_from_outside_adds_a_tool_a_function_a_chart_type_and_connectors"),
     ),
     "Metadata & documentation": (
         tool("set-column-description", "meta.describe_column"),

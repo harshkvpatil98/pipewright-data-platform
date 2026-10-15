@@ -35,6 +35,18 @@ If Pipewright sits behind a proxy or load balancer, set `TRUSTED_PROXY_HOPS` to 
 
 A dashboard can be shown inside another site, such as a customer portal (see [embedding a dashboard](api.md#embedding-a-dashboard)). Only the sites listed in the web's `EMBED_ALLOWED_ORIGINS` may show it in a frame, separated by spaces: `https://portal.example.com https://*.partner.io`. With none listed, an embed link opens on its own but no other site can frame it. An address written wrongly is named on the dashboard's **Embed** panel.
 
+## Plugins
+
+A plugin adds tools to the Studio, functions to formulas, chart types to the chart builder and connectors to the catalogue, from outside Pipewright. **Admin → Plugins** lists every plugin installed on the server, what each adds and the checks it passed.
+
+- **Installing.** Install the plugin's package where the gateway and the worker run (`pip install pipewright-plugin-acme`), or put its folder in one of the folders listed in `PLUGINS_PATH`.
+- **Turning it on.** Name it in `PLUGINS_ENABLED` (`PLUGINS_ENABLED=acme,maps`) and restart the gateway and the worker. A plugin that is installed and not named is listed and never run.
+- **Checked first.** Before anything of it is used, each thing a plugin adds passes the checks Pipewright's own pass: a tool its example, empty data and lineage; a function its examples, and an empty answer for an empty argument; a chart type a query it allows; a connector the conformance suite. One failure refuses the whole plugin, and the page says which check and why.
+- **What it may not do.** A plugin's chart types are drawn by the web from what they declare, so no plugin code runs in anyone's browser. Its connectors say they are not yet tested, as any connector Pipewright has not run against the system it reaches does. Its functions run on the server, never in a database.
+- **Trust.** A plugin is code that runs on the server with the server's permissions. Install only plugins from people you trust, as you would any package.
+
+Writing one is in [Using the API](api.md#writing-a-plugin).
+
 ## Connectors
 
 **Admin → Connectors** lists every kind of source Pipewright can connect to, and how each is tested.
@@ -111,6 +123,8 @@ Set these in the gateway's environment unless they say the web. Changes take eff
 | `ENRICHMENT_ALLOWED_HOSTS` | The web services a recipe's **Look up each value in a web service** step may call, by host, separated by commas: `api.example.com,maps.example.org`. Unset, no recipe calls out. |
 | `ENRICHMENT_SECRETS` | Keys those services need, as JSON of a name to a value: `{"maps": "…"}`. A recipe names the secret; its value never leaves the server's settings. |
 | `GEOCODER_URL` | A Nominatim-style geocoding service for **Find places from addresses** and **Find addresses from places**, such as `https://nominatim.openstreetmap.org`; allow its host in `ENRICHMENT_ALLOWED_HOSTS` too. OpenStreetMap's own server is called at most once a second, as it asks. |
+| `PLUGINS_ENABLED` | The plugins to load, by name, separated by commas. Unset, none load. Restart the gateway and the worker after changing it. |
+| `PLUGINS_PATH` | Folders that hold folder plugins (each a folder with a `plugin.py`), separated by `:`. |
 | `RECIPE_CACHE_MB`, `RECIPE_CACHE_MINUTES` | How much of what recent previews and runs made each server keeps (512MB) and for how long (30 minutes), so changing a recipe's later step does not run the earlier ones again. 0 keeps nothing. |
 | `WORKFLOW_LEASE_SECONDS` | How long a run whose background worker stopped waits before it is marked failed and can be picked up (180, three minutes). A working worker renews it, however long the run. |
 | `RATE_LIMITS_ENABLED` | Set to `false` only for a load test; sign-in and public addresses are limited otherwise. |

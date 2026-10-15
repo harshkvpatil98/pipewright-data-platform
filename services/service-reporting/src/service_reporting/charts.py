@@ -31,6 +31,10 @@ class ChartType:
     max_measures: int
     # Above this many categories the chart stops communicating anything.
     max_categories: int | None = None
+    #: A chart type a plugin added (X1): its marks and scales, which the web
+    #: draws with its own SVG, and the plugin's name.
+    declared: dict[str, Any] | None = None
+    plugin: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -42,6 +46,8 @@ class ChartType:
             "min_measures": self.min_measures,
             "max_measures": self.max_measures,
             "max_categories": self.max_categories,
+            "declared": self.declared,
+            "plugin": self.plugin,
         }
 
 
@@ -59,13 +65,80 @@ CHART_TYPES: tuple[ChartType, ...] = (
 
 CHART_TYPES_BY_NAME = {chart.name: chart for chart in CHART_TYPES}
 
+#: What a declared chart's marks can be, and how many series a chart can draw.
+MARK_KINDS = ("bar", "line", "point", "area", "rule", "text")
+
+
+def chart_types() -> list[ChartType]:
+    """Every chart type: the built-in ones, then those plugins added."""
+    return list(CHART_TYPES_BY_NAME.values())
+
+
+def register_chart_type(chart: ChartType) -> None:
+    if chart.name in CHART_TYPES_BY_NAME:
+        raise BadRequestError(f"There is a chart type called {chart.name} already.")
+    CHART_TYPES_BY_NAME[chart.name] = chart
+
+
+def unregister_chart_type(name: str) -> None:
+    if name in {chart.name for chart in CHART_TYPES}:
+        return
+    CHART_TYPES_BY_NAME.pop(name, None)
+
+
+def check_chart_type(chart: ChartType) -> list[str]:
+    """What is wrong with a declared chart type: [] when nothing.
+
+    Its limits are a chart's, its marks are ones the web draws, and a query it
+    allows makes chart data the web can read, with as many series as its marks
+    expect.
+    """
+    import pandas as pd
+
+    from service_reporting.aggregation import Measure, QueryResult
+
+    problems: list[str] = []
+    declared = chart.declared or {}
+    if not 0 <= chart.min_dimensions <= chart.max_dimensions <= 2:
+        problems.append("a chart takes 0 to 2 grouping columns")
+    if not 1 <= chart.min_measures <= chart.max_measures <= 6:
+        problems.append("a chart takes 1 to 6 measures")
+    marks = declared.get("marks") or []
+    if not marks:
+        problems.append("it declares no marks")
+    for mark in marks:
+        if mark.get("kind") not in MARK_KINDS:
+            problems.append(f"{mark.get('kind')!r} is not a mark the web draws")
+        series = mark.get("series", "all")
+        if series != "all" and not (isinstance(series, int) and 0 <= series < max(chart.max_measures, 1)
+                                    or chart.max_dimensions == 2):
+            problems.append(f"a mark draws series {series!r}, which the chart cannot have")
+    if declared.get("x_scale", "band") not in ("band", "linear") or declared.get("y_scale", "linear") not in (
+            "linear", "log"):
+        problems.append("its scales are not band or linear across, linear or log up")
+    if problems:
+        return problems
+    dimensions = [f"d{i}" for i in range(max(chart.min_dimensions, 1 if chart.max_dimensions else 0))]
+    measures = [Measure(column=f"v{i}", aggregation="sum", label=f"m{i}") for i in range(chart.min_measures)]
+    query = Query(dimensions=dimensions, measures=measures)
+    frame = pd.DataFrame({**{d: ["a", "b"] for d in dimensions}, **{m.output_name: [1.0, 2.0] for m in measures}})
+    try:
+        validate_chart(chart.name, query)
+        data = to_chart_data(chart.name, query, QueryResult(frame=frame, row_count=len(frame)))
+    except Exception as exc:  # noqa: BLE001 - reported as the finding
+        return [f"a query it allows could not be drawn: {exc}"]
+    if not data.series or not data.labels and dimensions:
+        problems.append("a query it allows gave no series to draw")
+    return problems
+
 
 def validate_chart(chart_type: str, query: Query) -> list[str]:
     """Check a query can draw this chart. Returns advisory warnings."""
     spec = CHART_TYPES_BY_NAME.get(chart_type)
     if spec is None:
         raise BadRequestError(
-            f"Unknown chart type '{chart_type}'. Try: {', '.join(CHART_TYPES_BY_NAME)}."
+            f"Unknown chart type '{chart_type}'. Try: {', '.join(CHART_TYPES_BY_NAME)}. A chart type a plugin "
+            "added is there only while the plugin is enabled."
         )
 
     dimensions, measures = len(query.dimensions), len(query.measures)
@@ -293,6 +366,8 @@ def to_chart_data(chart_type: str, query: Query, result: QueryResult) -> ChartDa
         row_count=len(frame),
         truncated=result.truncated,
         warnings=warnings,
+        # A plugin's chart type is drawn by the web from its marks (X1).
+        meta={"declared": spec.declared, "plugin": spec.plugin} if spec.declared else None,
     )
 
 

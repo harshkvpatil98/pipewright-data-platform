@@ -115,12 +115,25 @@ def main(argv: list[str] | None = None, *, client: Client | None = None) -> int:
     bring.add_argument("file")
     bring.add_argument("--preview", action="store_true", help="say what would happen, change nothing")
 
+    plugin = commands.add_parser("plugin", help="write or check a plugin (pipewright-plugin-sdk)")
+    plugin_commands = plugin.add_subparsers(dest="plugin_command", required=True)
+    new = plugin_commands.add_parser("new", help="write a working plugin to start from")
+    new.add_argument("name", help="lowercase letters, digits and _, such as acme")
+    new.add_argument("--into", default=".", help="the folder to write it in (default: here)")
+    new.add_argument("--publisher", default="Your name")
+    checked = plugin_commands.add_parser("check", help="run the checks a server runs before it loads a plugin")
+    checked.add_argument("target", help="a plugin's folder, or module:attribute")
+
     raw = commands.add_parser("api", help="call any API operation")
     raw.add_argument("method", choices=("GET", "POST", "PUT", "PATCH", "DELETE"))
     raw.add_argument("path", help="for example /api/v1/projects")
     raw.add_argument("--data", help="a JSON body")
 
     args = parser.parse_args(argv)
+
+    if args.command == "plugin":
+        # Needs no server: the SDK's own checks, the ones a server runs first.
+        return _plugin(args)
 
     if args.command == "login":
         CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -140,6 +153,42 @@ def main(argv: list[str] | None = None, *, client: Client | None = None) -> int:
     except PipewrightError as exc:
         print(f"Refused: {exc.detail}", file=sys.stderr)
         return 1
+
+
+def _plugin(args: argparse.Namespace) -> int:
+    try:
+        from pipewright_plugin_sdk.checks import check, load
+        from pipewright_plugin_sdk.skeleton import write_skeleton
+    except ImportError:
+        print("Writing and checking plugins needs the SDK: pip install pipewright-plugin-sdk", file=sys.stderr)
+        return 1
+    if args.plugin_command == "new":
+        try:
+            root = write_skeleton(args.into, args.name, publisher=args.publisher)
+        except ValueError as exc:
+            print(f"Refused: {exc}", file=sys.stderr)
+            return 1
+        print(f"Wrote {root}. Check it with: pipewright plugin check {root}")
+        return 0
+    try:
+        plugin = load(args.target)
+    except Exception as exc:  # noqa: BLE001 - a plugin that does not load is the answer
+        print(f"It does not load: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return 1
+    report = check(plugin)
+    if args.json:
+        print(json.dumps(report.to_dict(), indent=2, default=str))
+    else:
+        for item in report.checks:
+            mark = "ok  " if item.passed else "FAIL"
+            print(f"{mark} {item.subject}: {item.name}" + (f" ({item.detail})" if item.detail else ""))
+        failed = len(report.failures)
+        added = ", ".join(f"{kind} {name}" for kind, name, _ in plugin.contributions())
+        print(f"{plugin.name} {plugin.version}: " + ("passes" if not failed else
+              f"{failed} {'check fails' if failed == 1 else 'checks fail'}") + f". It adds: {added}.")
+        if not failed:
+            print("A server also runs its own suites on what it adds when it loads it.")
+    return 0 if report.ok else 2
 
 
 def _run(api: Client, args: argparse.Namespace) -> int:

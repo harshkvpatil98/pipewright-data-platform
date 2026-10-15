@@ -318,6 +318,25 @@ pipewright run workflow "Regional sales" Nightly --wait
 
 Its README lists every command; in Python, `from pipewright import Client`. The methods are generated from this API's own reference, so they cannot fall behind it.
 
+## Writing a plugin
+
+A plugin is a Python package, or a folder, that hands Pipewright one `Plugin` from `pipewright-plugin-sdk` (SDK 1). Start from a working one:
+
+```bash
+pip install pipewright-plugin-sdk pipewright-client
+pipewright plugin new acme
+pipewright plugin check acme
+```
+
+`plugin new` writes a plugin with a tool, a formula function, a chart type and a REST connector, each with an example; `plugin check` runs the checks a server runs first, and exits non-zero naming any that fail. What a plugin can add:
+
+- **A tool**: `Tool(name, title, summary, transform, example, ...)`. `transform(value, settings)` is given one value that is there and the tool's settings; an empty value stays empty without it being asked. It appears in the Studio as `acme.<name>`.
+- **A formula function**: `Function(name, summary, implementation, returns, ...)`, used as `NAME(...)` in any formula. It runs on the server, never in a database.
+- **A chart type**: `ChartType(name, label, description, marks, ...)`, marks being bars, lines, points, areas, stems from zero or value labels over the chart's series. The web draws it with its own SVG.
+- **A connector**: a REST manifest in the format of Pipewright's own (`RestManifest({...})`, named `acme_<name>`), or a class that subclasses `Connector` and fills in `test`, `streams` and `read`.
+
+A package names its plugin under the `pipewright.plugins` entry point (the skeleton's `pyproject.toml` does), and a folder holds a `plugin.py` that defines `plugin`. An administrator then [enables it](admin.md#plugins).
+
 ## Good to know
 
 - **Finding ids.** `GET /api/v1/projects` lists projects, and `GET /api/v1/projects/$PROJECT/datasets` lists a project's datasets, each with its `id`. In the app, a page's **Technical details** shows the ids it is about.

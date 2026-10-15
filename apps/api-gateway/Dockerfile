@@ -19,6 +19,7 @@ COPY .env.example /app/.env.example
 RUN pip install --upgrade pip \
     && for workspace in \
         packages/shared-python \
+        packages/plugin-sdk \
         services/service-auth \
         services/service-projects \
         services/service-access \

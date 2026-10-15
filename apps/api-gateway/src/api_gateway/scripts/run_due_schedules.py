@@ -172,6 +172,9 @@ def main() -> None:
         "--interval", type=float, default=30.0, help="Seconds between passes in --loop (default: 30)."
     )
     args = parser.parse_args()
+    from api_gateway.plugins import load_enabled
+
+    load_enabled()  # a schedule's recipe may use a plugin's tool (X1)
 
     if not args.loop:
         summary = _drain_once()

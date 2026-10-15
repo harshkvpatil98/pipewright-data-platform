@@ -53,6 +53,7 @@ export const config = {
     "/people/:path*",
     "/organisations/:path*",
     "/audits/:path*",
+    "/plugins/:path*",
     "/connectors/:path*",
     "/settings/:path*",
   ],

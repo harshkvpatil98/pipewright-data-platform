@@ -435,6 +435,13 @@ class Operations:
         """
         return self._call("DELETE", f"/api/v1/organisations/{organisation_id}/users/{user_id}")
 
+    def list_plugins(self) -> Any:
+        """Every plugin installed here, what it adds, its checks and whether it loaded.
+
+        GET /api/v1/plugins
+        """
+        return self._call("GET", "/api/v1/plugins")
+
     def get_projects(self) -> Any:
         """Get Projects
 

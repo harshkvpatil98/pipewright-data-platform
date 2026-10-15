@@ -31,7 +31,7 @@ from service_reporting.aggregation import (
 )
 from service_reporting.catalog import SearchableDataset, search, slugify
 from service_reporting.charts import (
-    CHART_TYPES,
+    chart_types,
     ChartData,
     kpi_with_period_delta,
     to_chart_data,
@@ -174,7 +174,7 @@ def _from_query(stored: dict[str, Any]) -> QueryInput:
 
 def chart_catalog() -> ChartCatalogResponse:
     return ChartCatalogResponse(
-        items=[ChartTypeRead(**chart.to_dict()) for chart in CHART_TYPES],
+        items=[ChartTypeRead(**chart.to_dict()) for chart in chart_types()],
         aggregations=sorted(AGGREGATIONS),
         filter_operators=list(FILTER_OPERATORS),
     )

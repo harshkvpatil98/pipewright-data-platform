@@ -19,6 +19,7 @@ dependencies = [
   "statsmodels>=0.14,<1.0",
   "sqlalchemy>=2.0,<3.0",
   "shared-python>=0.1.0",
+  "pipewright-plugin-sdk>=1.0.0",
   "service-auth>=0.1.0",
   "service-datasets>=0.1.0",
   "service-ingestion>=0.1.0",

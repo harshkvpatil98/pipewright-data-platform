@@ -195,3 +195,23 @@ export type PromoteResponse = {
   unresolved: UnresolvedReference[];
   summary: string;
 };
+
+/** A plugin installed on the server, and how it did (Phase 23, X1). */
+export type PluginStatus = {
+  name: string;
+  source: string;
+  state: "loaded" | "refused" | "not enabled" | "not found";
+  reason: string;
+  version: string;
+  publisher: string;
+  description: string;
+  sdk: number | null;
+  contributions: { kind: string; name: string; title: string; tier?: string }[];
+  checks: { subject: string; name: string; passed: boolean; detail: string; suite: string }[];
+};
+
+export type PluginListResponse = {
+  /** The plugin SDK version this server speaks. */
+  sdk: number;
+  items: PluginStatus[];
+};

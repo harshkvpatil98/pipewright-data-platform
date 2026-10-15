@@ -467,6 +467,15 @@
             "Filter it, and export it for an auditor."
           ]
         },
+        "plugins": {
+          "label": "Plugins",
+          "description": "What plugins add, and whether each passed its checks.",
+          "keywords": "plugins extensions add-ons sdk installed enabled",
+          "help": [
+            "Tools, functions, charts and connectors from plugins.",
+            "Each is checked like Pipewright's own before it loads."
+          ]
+        },
         "connectors": {
           "label": "Connectors",
           "description": "Every kind of source the platform can connect to.",

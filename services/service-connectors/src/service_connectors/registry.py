@@ -27,6 +27,11 @@ def register(connector: Connector) -> Connector:
     return connector
 
 
+def unregister(connector_type: str) -> None:
+    """Take a connector out: a plugin's, when the plugin is refused after its connector was checked."""
+    _registry.pop(connector_type, None)
+
+
 def get(connector_type: str) -> Connector:
     connector = _registry.get(connector_type)
     if connector is None:

@@ -1,6 +1,6 @@
 /** Contracts for charts, dashboards, reports, the catalog, and the glossary. */
 
-export type ChartTypeName =
+export type BuiltInChartTypeName =
   | "bar"
   | "column"
   | "line"
@@ -10,6 +10,17 @@ export type ChartTypeName =
   | "donut"
   | "kpi"
   | "table";
+
+/** A built-in chart type, or one a plugin added (X1), named `<plugin>_<name>`. */
+export type ChartTypeName = BuiltInChartTypeName | (string & {});
+
+/** A plugin's chart type: marks over the chart's series, drawn by the web (X1). */
+export type DeclaredChart = {
+  marks: { kind: "bar" | "line" | "point" | "area" | "rule" | "text"; series: "all" | number; size: number }[];
+  x_scale: "band" | "linear";
+  y_scale: "linear" | "log";
+  stacked: boolean;
+};
 
 export type AggregationName =
   | "sum"
@@ -55,6 +66,9 @@ export type ChartTypeSpec = {
   max_measures: number;
   /** Above this many categories the chart stops communicating anything. */
   max_categories: number | null;
+  /** A plugin's chart type: its marks, and the plugin. */
+  declared?: DeclaredChart | null;
+  plugin?: string | null;
 };
 
 export type ChartCatalogResponse = {
@@ -88,7 +102,7 @@ export type ChartData = {
   row_count: number;
   truncated: boolean;
   warnings: string[];
-  meta?: { delta?: KpiDelta } | null;
+  meta?: { delta?: KpiDelta; declared?: DeclaredChart; plugin?: string } | null;
 };
 
 /** Options a chart can carry beyond its query. */

@@ -34,6 +34,7 @@ pip install --upgrade pip
 # Order matters: these packages depend on each other by name and are not published
 # to PyPI, so each one must already be installed before a dependent is built.
 pip install -e packages/shared-python
+pip install -e packages/plugin-sdk
 pip install -e services/service-auth
 pip install -e services/service-projects
 pip install -e services/service-access

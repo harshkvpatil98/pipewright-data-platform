@@ -493,6 +493,17 @@ export const AREAS: NavArea[] = [
         keywords: t("nav.tabs.admin.audit.keywords"),
       },
       {
+        id: "plugins",
+        label: t("nav.tabs.admin.plugins.label"),
+        icon: "zap",
+        path: "/plugins",
+        adminOnly: true,
+        persona: "administrator",
+        description: t("nav.tabs.admin.plugins.description"),
+        help: tList("nav.tabs.admin.plugins.help"),
+        keywords: t("nav.tabs.admin.plugins.keywords"),
+      },
+      {
         id: "connectors",
         label: t("nav.tabs.admin.connectors.label"),
         icon: "link",

@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import uuid
 from datetime import date, datetime
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-ChartTypeName = Literal["bar", "column", "line", "area", "scatter", "pie", "donut", "kpi", "table"]
+#: A chart type's name: a built-in one, or one a plugin added (X1), which
+#: `charts.validate_chart` checks against what is loaded.
+ChartTypeName = Annotated[str, Field(min_length=1, max_length=60, pattern=r"^[a-z][a-z0-9_]*$")]
 AggregationName = Literal[
     "sum", "avg", "mean", "min", "max", "count", "count_distinct", "median"
 ]
@@ -46,6 +48,9 @@ class ChartTypeRead(BaseModel):
     min_measures: int
     max_measures: int
     max_categories: int | None
+    #: A plugin's chart type: its marks and scales, and the plugin (X1).
+    declared: dict[str, Any] | None = None
+    plugin: str | None = None
 
 
 class ChartCatalogResponse(BaseModel):

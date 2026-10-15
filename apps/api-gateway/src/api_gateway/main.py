@@ -85,6 +85,10 @@ def _audit_session(application: FastAPI):
 
 
 def create_application() -> FastAPI:
+    # Plugins first (X1): what they add is in the catalogues before any route reads them.
+    from api_gateway.plugins import load_enabled
+
+    load_enabled(settings)
     application = FastAPI(
         title=settings.app_name,
         version=settings.app_version,

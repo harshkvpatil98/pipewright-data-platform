@@ -79,6 +79,9 @@ def main() -> int:
                         help="Seconds between looks for a due source when none is (default: 1).")
     parser.add_argument("--once", action="store_true", help="Read what is due once and exit.")
     args = parser.parse_args()
+    from api_gateway.plugins import load_enabled
+
+    load_enabled(settings)  # a live recipe or a feed may use what a plugin adds (X1)
 
     signal.signal(signal.SIGINT, _request_stop)
     signal.signal(signal.SIGTERM, _request_stop)

@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pipewright-plugin-sdk"
+version = "1.0.0"
+description = "What a Pipewright plugin is made of: tools, formula functions, chart types and connectors (SDK 1)"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+# Nothing outside the standard library: a plugin is written and checked
+# without a Pipewright server. A REST manifest given as a YAML file is read
+# with PyYAML, which a server has.
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=9.0.3,<10.0", "pyyaml>=6"]
+
+[tool.setuptools.packages.find]
+where = ["src"]

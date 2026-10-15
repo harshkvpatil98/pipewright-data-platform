@@ -11,7 +11,7 @@ fi
 
 echo "== Python: ruff (gateway + services + shared-python) =="
 source .venv/bin/activate
-ruff check apps/api-gateway/src services packages/shared-python/src clients/python
+ruff check apps/api-gateway/src services packages/shared-python/src packages/plugin-sdk clients/python
 
 echo "== Python: pytest (repo test bundle) =="
 bash ./scripts/test.sh

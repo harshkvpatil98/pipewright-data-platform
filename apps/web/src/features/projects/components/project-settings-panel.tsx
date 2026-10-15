@@ -36,6 +36,7 @@ export function ProjectSettingsPanel({ project }: ProjectSettingsPanelProps) {
   const [name, setName] = useState(project.name);
   const [description, setDescription] = useState(project.description ?? "");
   const [status, setStatus] = useState(project.status);
+  const [requiresApproval, setRequiresApproval] = useState(project.requires_approval);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -44,7 +45,8 @@ export function ProjectSettingsPanel({ project }: ProjectSettingsPanelProps) {
   const dirty =
     name.trim() !== project.name ||
     description.trim() !== (project.description ?? "") ||
-    status !== project.status;
+    status !== project.status ||
+    requiresApproval !== project.requires_approval;
 
   const save = async () => {
     setSaving(true);
@@ -59,6 +61,7 @@ export function ProjectSettingsPanel({ project }: ProjectSettingsPanelProps) {
           // explicit null -- a different request from not mentioning it.
           description: description.trim() ? description.trim() : null,
           status,
+          requires_approval: requiresApproval,
         }),
       });
       setFeedback("Project updated.");
@@ -115,6 +118,22 @@ export function ProjectSettingsPanel({ project }: ProjectSettingsPanelProps) {
               aria-label="Project description"
               className="w-full rounded-lg border border-line bg-sunken px-3 py-2 text-sm leading-6 text-ink outline-none focus:border-accent"
             />
+          </label>
+
+          <label className="flex items-start gap-3 rounded-xl border border-line bg-surface px-4 py-3">
+            <input
+              type="checkbox"
+              className="mt-1 h-4 w-4"
+              checked={requiresApproval}
+              onChange={(event) => setRequiresApproval(event.target.checked)}
+            />
+            <span>
+              <span className="block text-sm font-medium text-ink">Changes need approval</span>
+              <span className="block text-[13px] leading-5 text-ink-3">
+                Recipes and workflows are changed by suggesting, and someone else accepts or declines under
+                Approvals. Running them is never blocked.
+              </span>
+            </span>
           </label>
 
           {feedback ? <p className="text-sm text-accent">{feedback}</p> : null}

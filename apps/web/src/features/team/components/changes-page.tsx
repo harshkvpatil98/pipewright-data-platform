@@ -12,6 +12,7 @@ import type {
 import { Badge, type BadgeTone, Button, Icon, SectionPanel } from "@platform/shared-ui";
 
 import { AppShell } from "@/components/layout/app-shell";
+import { compareRecipes, type PlainStep } from "@/features/studio/recipe-diff";
 import { DiscussionPanel } from "@/features/team/components/discussion-panel";
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
@@ -30,6 +31,19 @@ const STATUS_TONE: Record<ChangeStatus, BadgeTone> = {
   approved: "success",
   rejected: "danger",
   withdrawn: "neutral",
+};
+
+const recipeOf = (snapshot: Record<string, unknown> | null) => ({
+  name: typeof snapshot?.name === "string" ? snapshot.name : "",
+  steps: Array.isArray(snapshot?.steps_json) ? (snapshot.steps_json as PlainStep[]) : [],
+});
+
+/** The same words the Studio and the notifications use (C2). */
+const STATUS_WORDS: Record<ChangeStatus, string> = {
+  open: "Waiting",
+  approved: "Accepted",
+  rejected: "Declined",
+  withdrawn: "Withdrawn",
 };
 
 const KIND_TONE: Record<string, string> = {
@@ -120,7 +134,7 @@ export function ChangesPageView({ currentUser, projectId, initial }: ChangesPage
                     <div className="flex items-start justify-between gap-2">
                       <span className="text-[13px] text-ink">{change.title}</span>
                       <Badge tone={STATUS_TONE[change.status]} className="shrink-0">
-                        {sentenceLabel(change.status)}
+                        {STATUS_WORDS[change.status]}
                       </Badge>
                     </div>
                     {change.change_summary ? (
@@ -159,10 +173,10 @@ export function ChangesPageView({ currentUser, projectId, initial }: ChangesPage
                       disabled={busy}
                       onClick={() => void review(open, "reject")}
                     >
-                      Reject
+                      Decline
                     </Button>
                     <Button disabled={busy} onClick={() => void review(open, "approve")}>
-                      Approve
+                      Accept
                     </Button>
                   </>
                 )}
@@ -184,11 +198,22 @@ export function ChangesPageView({ currentUser, projectId, initial }: ChangesPage
                 </p>
               ) : null}
 
-              <p className="rounded-lg border border-line bg-surface px-3 py-2.5 text-[12.5px] text-ink">
-                {open.diff.summary}
-              </p>
+              {open.resource_type !== "pipeline" ? (
+                <p className="rounded-lg border border-line bg-surface px-3 py-2.5 text-[12.5px] text-ink">
+                  {open.diff.summary}
+                </p>
+              ) : null}
 
-              <ul className="mt-3 space-y-1.5">
+              {open.resource_type === "pipeline" ? (
+                // A recipe's change, step by step, as the Studio shows it (C2).
+                <ul className="mt-3 list-disc space-y-1 pl-5 text-[13px] text-ink-2">
+                  {compareRecipes(recipeOf(open.before_json), recipeOf(open.after_json)).map((change) => (
+                    <li key={change.text}>{change.text}</li>
+                  ))}
+                </ul>
+              ) : null}
+
+              <ul className={cx("mt-3 space-y-1.5", open.resource_type === "pipeline" && "hidden")}>
                 {open.diff.changes.map((change, index) => (
                   <li
                     key={`${change.path}-${index}`}

@@ -10,3 +10,4 @@ export * from "./team";
 export * from "./workflows";
 export * from "./activity";
 export * from "./contracts";
+export * from "./collaboration";

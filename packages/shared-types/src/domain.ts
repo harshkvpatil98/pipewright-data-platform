@@ -924,6 +924,11 @@ export type TransformationPipelineRecord = {
   step_count: number;
   /** The dataset this recipe's runs write to; null until its first run. */
   output_dataset_id?: string | null;
+  /** Which save this is; a save naming an older one is refused (C2). */
+  revision?: number;
+  /** A stable id per step, in order. */
+  step_ids?: string[];
+  revised_at?: string | null;
   created_at: string;
   updated_at: string;
 };

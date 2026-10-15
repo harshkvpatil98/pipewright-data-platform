@@ -143,6 +143,17 @@ export type AuditListResponse = {
   items: AuditEntry[];
 };
 
+/** The cell a thread on a dataset is about (C2). */
+export type CellAnchor = {
+  column: string;
+  /** The row by its identifier's value, which survives new versions... */
+  row_key_column: string | null;
+  row_key_value: string | null;
+  /** ...or by its number in one version. */
+  row_number: number | null;
+  version: number | null;
+};
+
 export type Comment = {
   id: string;
   project_id: string;
@@ -153,10 +164,16 @@ export type Comment = {
   author_username: string | null;
   mentions: string[];
   resolved_at: string | null;
+  resolved_by_username: string | null;
   created_at: string;
+  parent_id: string | null;
+  anchor: CellAnchor | null;
+  /** On a thread's first comment, the replies to it, oldest first. */
+  replies: Comment[];
 };
 
 export type CommentListResponse = {
+  /** Threads: each first comment with its replies. */
   items: Comment[];
   open_count: number;
 };

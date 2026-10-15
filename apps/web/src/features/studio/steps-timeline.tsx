@@ -11,6 +11,8 @@ import { friendlyStepMessage } from "@/lib/labels";
 import { cx } from "@/lib/utils";
 import { Icon } from "@platform/shared-ui";
 import { countOf, formatCount, formatSignedCount } from "@/lib/format";
+import { PresenceDots } from "@/features/studio/presence-dots";
+import type { PresencePerson } from "@/features/studio/use-presence";
 
 export type TimelineStep = { uid: string; step_type: string; config: Record<string, unknown> };
 
@@ -28,6 +30,8 @@ type StepsTimelineProps = {
   steps: TimelineStep[];
   outcomes: StepOutcome[] | undefined;
   openUid: string | null;
+  /** Other people with a step open, by step (C2). */
+  others?: Record<string, PresencePerson[]>;
   onOpen: (uid: string | null) => void;
   onChange: (uid: string, config: Record<string, unknown>) => void;
   onMove: (uid: string, direction: -1 | 1) => void;
@@ -53,6 +57,7 @@ export function StepsTimeline({
   steps,
   outcomes,
   openUid,
+  others = {},
   onOpen,
   onChange,
   onMove,
@@ -125,6 +130,11 @@ export function StepsTimeline({
                       {detail || "Not set up yet"}
                     </span>
                   </span>
+                  <PresenceDots
+                    people={others[step.uid] ?? []}
+                    size="sm"
+                    label={(person) => `${person.name} has this step open`}
+                  />
                   <Delta outcome={outcomes?.[index]} />
                 </button>
 

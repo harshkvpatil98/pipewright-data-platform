@@ -9,10 +9,11 @@ import type {
   DataContract,
   DataContractListResponse,
   DatasetRecord,
+  RecipeSharedCopy,
   TransformationPipelineRecord,
   TransformationRunResponse,
 } from "@platform/shared-types";
-import { Badge, Button, Icon, useToast } from "@platform/shared-ui";
+import { Badge, Button, Icon, Modal, useToast } from "@platform/shared-ui";
 
 import { AppFrame } from "@/components/shell/app-frame";
 import type { Command } from "@/components/shell/command-palette";
@@ -26,7 +27,12 @@ import { DetailsDrawer, type ExecutionPlan } from "@/features/studio/details-dra
 import { DataGrid, type GridColumn } from "@/features/studio/grid/data-grid";
 import { RecipeTemplatesDialog } from "@/features/studio/recipe-templates-dialog";
 import { clearDraft, draftKey, readDraft, writeDraft, type RecipeDraft } from "@/features/studio/recipe-draft";
-import { record, redo, startHistory, undo, type History } from "@/features/studio/recipe-history";
+import { stableJson, type Doc } from "@/features/studio/coedit";
+import { PresenceDots } from "@/features/studio/presence-dots";
+import { SuggestDialog } from "@/features/studio/suggest-dialog";
+import { SuggestionsDrawer } from "@/features/studio/suggestions-drawer";
+import { newStepId, useRecipeEditing } from "@/features/studio/use-recipe-editing";
+import { usePresence } from "@/features/studio/use-presence";
 import { prefillConfig, type StepDefinition } from "@/features/studio/step-catalog";
 import { StepPalette } from "@/features/studio/step-palette";
 import { StepsTimeline, type StepOutcome, type TimelineStep } from "@/features/studio/steps-timeline";
@@ -34,7 +40,7 @@ import type { ToolCatalogue } from "@/features/studio/tools/tool-catalogue";
 import { planPhrase, previewScope } from "@/features/studio/studio-words";
 import { sortForView, type ViewSort } from "@/features/studio/view-sort";
 import { apiFetch } from "@/lib/api/client";
-import { extractErrorMessage } from "@/lib/api/errors";
+import { ApiError, extractErrorMessage } from "@/lib/api/errors";
 import { friendlyStepMessage } from "@/lib/labels";
 import { cx } from "@/lib/utils";
 import { countOf, formatCount, formatShortDate, formatTime } from "@/lib/format";
@@ -63,24 +69,44 @@ type StudioPageProps = {
   initialDatasetId?: string;
   /** An existing recipe to open, from `?recipe=`. */
   recipe?: TransformationPipelineRecord | null;
+  /** Its shared working copy, and what the person may do with it (C2). */
+  shared?: RecipeSharedCopy | null;
 };
 
-let uidCounter = 0;
-const nextUid = () => `step-${++uidCounter}`;
+/** A step id unique across everyone's browsers, so people editing together never collide. */
+const nextUid = newStepId;
 
 const withUids = (steps: StoredStep[]): TimelineStep[] =>
   steps.map((step) => ({ uid: nextUid(), step_type: step.step_type, config: step.config }));
 
+/** A saved recipe's steps with their stable ids. */
+const savedSteps = (recipe: TransformationPipelineRecord | null): TimelineStep[] => {
+  const stored = (recipe?.steps_json as StoredStep[] | undefined) ?? [];
+  const ids = recipe?.step_ids ?? [];
+  return stored.map((step, index) => ({
+    uid: ids.length === stored.length ? ids[index] : nextUid(),
+    step_type: step.step_type,
+    config: step.config,
+  }));
+};
+
 const stored = (steps: TimelineStep[]): StoredStep[] =>
   steps.map((step) => ({ step_type: step.step_type, config: step.config }));
 
-/** What "unsaved" is measured against: the name and steps as last saved. */
-const signature = (name: string, steps: TimelineStep[]) => JSON.stringify([name.trim(), stored(steps)]);
+/** A recipe's name and steps, to tell whether two are the same. */
+const signature = (name: string, steps: TimelineStep[]) => stableJson([name.trim(), stored(steps)]);
 
 /** Messages that mean "this step is not set up yet": guidance, not failure. */
 const INCOMPLETE = /cannot be empty|missing required field|must be a non-empty|is required/i;
 
-export function StudioPage({ currentUser, projectId, datasets, initialDatasetId, recipe = null }: StudioPageProps) {
+export function StudioPage({
+  currentUser,
+  projectId,
+  datasets,
+  initialDatasetId,
+  recipe = null,
+  shared = null,
+}: StudioPageProps) {
   const router = useRouter();
   const toast = useToast();
   const { start, startIfUnseen } = useTour();
@@ -94,20 +120,33 @@ export function StudioPage({ currentUser, projectId, datasets, initialDatasetId,
   const [saved, setSaved] = useState<{ id: string; name: string } | null>(
     recipe ? { id: recipe.id, name: recipe.name } : null,
   );
-  const [history, setHistory] = useState<History<TimelineStep[]>>(() =>
-    startHistory(withUids((recipe?.steps_json as StoredStep[] | undefined) ?? [])),
-  );
-  const steps = history.present;
-  const [name, setName] = useState(recipe?.name ?? (dataset ? `${dataset.name} recipe` : ""));
+  // Who may do what with a saved recipe (C2). Someone who may edit works in
+  // its shared copy with everyone else editing it; anyone else, or anyone in
+  // a project whose changes need approval, suggests instead of saving.
+  const role = shared?.your_role ?? null;
+  const canEdit = shared ? role === "editor" || role === "admin" : true;
+  const live = Boolean(recipe && shared && canEdit);
+  const suggesting = Boolean(recipe && shared && (!canEdit || shared.needs_approval));
+  const openingSteps = useMemo(() => savedSteps(recipe), [recipe]);
+  const editing = useRecipeEditing({
+    projectId,
+    recipeId: recipe?.id ?? null,
+    initialName: recipe?.name ?? "",
+    initialSteps: openingSteps,
+    live,
+    initialRevision: recipe ? (recipe.revision ?? 1) : null,
+    initialDoc: live ? ((shared?.doc as Doc | null) ?? null) : null,
+  });
+  const steps = editing.steps;
+  const [newName, setNewName] = useState(dataset ? `${dataset.name} recipe` : "");
   const [nameTouched, setNameTouched] = useState(Boolean(recipe));
-  const [baseline, setBaseline] = useState(() => (recipe ? signature(recipe.name, history.present) : null));
-  const dirty = baseline === null ? steps.length > 0 : signature(name, steps) !== baseline;
-
-  const change = useCallback(
-    (next: (current: TimelineStep[]) => TimelineStep[], group?: string) =>
-      setHistory((current) => record(current, next(current.present), { group })),
-    [],
-  );
+  const name = recipe ? editing.name : newName;
+  const setName = (value: string) => (recipe ? editing.rename(value) : setNewName(value));
+  // A new recipe just saved for the first time is not dirty while the page
+  // reopens it as the saved recipe (below).
+  const [firstSaved, setFirstSaved] = useState(false);
+  const dirty = recipe ? editing.dirty : !firstSaved && steps.length > 0;
+  const change = editing.change;
 
   // ------------------------------------------------------- local draft
   // Unsaved work is kept in this browser, so an ended session, a closed tab
@@ -120,12 +159,15 @@ export function StudioPage({ currentUser, projectId, datasets, initialDatasetId,
   useEffect(() => {
     if (offerChecked.current) return;
     offerChecked.current = true;
+    // A shared copy keeps its own unsaved changes, for everyone editing it.
+    if (live) return;
     const draft = readDraft(key);
-    if (draft && JSON.stringify([draft.name.trim(), draft.steps]) !== signature(name, steps)) setOffer(draft);
+    if (draft && stableJson([draft.name.trim(), draft.steps]) !== signature(name, steps)) setOffer(draft);
     // Checked once, against what the page opened with.
   }, []);
 
   useEffect(() => {
+    if (live) return;
     if (!dirty) {
       // An offered draft stays until it is restored or discarded.
       if (!offer) clearDraft(key);
@@ -135,7 +177,7 @@ export function StudioPage({ currentUser, projectId, datasets, initialDatasetId,
     if (offer) setOffer(null);
     const timer = setTimeout(() => writeDraft(key, { name, steps: stored(steps), at: Date.now() }), 500);
     return () => clearTimeout(timer);
-  }, [key, dirty, name, steps, offer]);
+  }, [key, dirty, name, steps, offer, live]);
 
   const restoreDraft = () => {
     if (!offer) return;
@@ -148,7 +190,7 @@ export function StudioPage({ currentUser, projectId, datasets, initialDatasetId,
 
   // A new recipe's name follows the dataset until somebody types one.
   useEffect(() => {
-    if (!nameTouched && !saved && dataset) setName(`${dataset.name} recipe`);
+    if (!nameTouched && !saved && dataset) setNewName(`${dataset.name} recipe`);
   }, [dataset, nameTouched, saved]);
 
   const [openUid, setOpenUid] = useState<string | null>(null);
@@ -162,7 +204,8 @@ export function StudioPage({ currentUser, projectId, datasets, initialDatasetId,
   const [viewSort, setViewSort] = useState<ViewSort | null>(null);
 
   useUnsavedChangesGuard({
-    when: dirty,
+    // A shared copy keeps unsaved changes on the server, so leaving loses nothing.
+    when: dirty && !live,
     title: "Leave without saving?",
     message: saved
       ? "Your changes to this recipe are not saved. They stay in this browser and are offered back the next time you open the recipe here."
@@ -173,16 +216,20 @@ export function StudioPage({ currentUser, projectId, datasets, initialDatasetId,
   // it again. Deferred a moment: the leave guard steps back out of the history
   // entry it added while there were unsaved changes, and replacing the address
   // before that would replace the wrong entry.
+  //
+  // A recipe saved for the first time is opened again as itself, so that
+  // from now on its editing is shared with anyone else editing it (C2).
   useEffect(() => {
     if (dirty || !saved) return;
     const target = `/projects/${projectId}/studio?recipe=${saved.id}`;
     const timer = setTimeout(() => {
-      if (`${window.location.pathname}${window.location.search}` !== target) {
+      if (!recipe) router.replace(target);
+      else if (`${window.location.pathname}${window.location.search}` !== target) {
         window.history.replaceState(null, "", target);
       }
     }, 400);
     return () => clearTimeout(timer);
-  }, [dirty, saved, projectId]);
+  }, [dirty, saved, projectId, recipe, router]);
 
   useEffect(() => {
     const timer = setTimeout(() => startIfUnseen(studioTour, STUDIO_TOUR_ID), 1200);
@@ -360,8 +407,8 @@ export function StudioPage({ currentUser, projectId, datasets, initialDatasetId,
     setViewSort(null);
   };
 
-  const doUndo = useCallback(() => setHistory((current) => undo(current)), []);
-  const doRedo = useCallback(() => setHistory((current) => redo(current)), []);
+  const doUndo = editing.undo;
+  const doRedo = editing.redo;
 
   // "/" adds a step; ⌘Z and ⇧⌘Z undo and redo. All ignored while typing.
   useEffect(() => {
@@ -390,40 +437,109 @@ export function StudioPage({ currentUser, projectId, datasets, initialDatasetId,
   }, [paletteOpen, datasetId, openPalette, doUndo, doRedo]);
 
   // -------------------------------------------------------- save and run
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const [discarding, setDiscarding] = useState(false);
+
   const save = useCallback(
     async (asNew = false) => {
       if (!dataset || steps.length === 0) return;
+      if (suggesting && !asNew) {
+        setSuggestOpen(true);
+        return;
+      }
       const chosenName = name.trim() || `${dataset.name} recipe`;
       const finalName = asNew && saved ? `${chosenName} (copy)` : chosenName;
       setSaving(true);
       try {
-        const body = JSON.stringify({ name: finalName, steps_json: stored(steps) });
-        const result =
-          saved && !asNew
-            ? await apiFetch<TransformationPipelineRecord>(`/projects/${projectId}/pipelines/${saved.id}`, {
-                method: "PATCH",
-                body,
-              })
-            : await apiFetch<TransformationPipelineRecord>(`/projects/${projectId}/datasets/${dataset.id}/pipelines`, {
-                method: "POST",
-                body,
-              });
+        if (saved && !asNew) {
+          // Name the revision this copy started from, so a save never writes
+          // over someone else's; in a shared copy, also its epoch (C2).
+          const send = () => {
+            const current = editing.forSaving();
+            return apiFetch<TransformationPipelineRecord>(`/projects/${projectId}/pipelines/${saved.id}`, {
+              method: "PATCH",
+              body: JSON.stringify({
+                name: finalName,
+                steps_json: stored(current.steps),
+                step_ids: current.steps.map((step) => step.uid),
+                expected_revision: current.revision ?? undefined,
+                shared_epoch: live ? (current.epoch ?? undefined) : undefined,
+              }),
+            });
+          };
+          let result: TransformationPipelineRecord;
+          try {
+            result = await send();
+          } catch (caught) {
+            // In a shared copy, someone else's save is already merged in:
+            // catch up on it, then save again.
+            if (!(live && caught instanceof ApiError && caught.status === 409)) throw caught;
+            await editing.refresh();
+            result = await send();
+          }
+          await editing.markSaved(result.revision ?? 1, result.name, editing.forSaving().steps);
+          setSaved({ id: result.id, name: result.name });
+          toast.success("Recipe saved", "Run it to save the result as a dataset, or put it on a schedule.");
+          return;
+        }
+        const result = await apiFetch<TransformationPipelineRecord>(
+          `/projects/${projectId}/datasets/${dataset.id}/pipelines`,
+          { method: "POST", body: JSON.stringify({ name: finalName, steps_json: stored(steps) }) },
+        );
         // The draft was kept under this recipe's key before it was saved; a
         // first save changes the key, so the old one is cleared here.
         clearDraft(draftKey(projectId, saved?.id ?? null, dataset.id));
-        setSaved({ id: result.id, name: result.name });
-        setName(result.name);
-        setNameTouched(true);
-        setBaseline(signature(result.name, steps));
         toast.success("Recipe saved", "Run it to save the result as a dataset, or put it on a schedule.");
+        if (asNew && recipe) {
+          // A copy is its own recipe, with its own shared copy: open it.
+          router.push(`/projects/${projectId}/studio?recipe=${result.id}`);
+          return;
+        }
+        // Saved: the leave guard lets go, then the page reopens it as itself.
+        setFirstSaved(true);
+        setSaved({ id: result.id, name: result.name });
       } catch (caught) {
         toast.error("Could not save the recipe", extractErrorMessage(caught));
       } finally {
         setSaving(false);
       }
     },
-    [dataset, steps, name, saved, projectId, toast],
+    [dataset, steps, name, saved, projectId, toast, suggesting, live, editing, router, recipe],
   );
+
+  const discardUnsaved = useCallback(async () => {
+    if (!saved) return;
+    try {
+      await apiFetch(`/projects/${projectId}/pipelines/${saved.id}/shared/discard`, { method: "POST" });
+      await editing.refresh();
+      editing.clearResetReason();
+      editing.clearSetAside();
+      toast.success("Unsaved changes discarded", "The recipe shows its saved version, for everyone editing it.");
+    } catch (caught) {
+      toast.error("Could not discard the changes", extractErrorMessage(caught));
+    } finally {
+      setDiscarding(false);
+    }
+  }, [saved, projectId, editing, toast]);
+
+  // Someone else saved: say so once, by name.
+  useEffect(() => {
+    const other = editing.savedBySomeoneElse;
+    if (!other) return;
+    if (other.revisedBy && other.revisedBy !== currentUser.username && other.revisedBy !== currentUser.display_name) {
+      toast.notify({ tone: "info", title: `${other.revisedBy} saved this recipe`, description: "What you see is what is saved, with any changes still unsaved." });
+    }
+    editing.clearSavedBySomeoneElse();
+  }, [editing, editing.savedBySomeoneElse, currentUser, toast]);
+
+  // Who else has this recipe open, and which step each has open.
+  const others = usePresence({
+    projectId,
+    recipeId: recipe?.id ?? null,
+    clientId: editing.clientId,
+    focus: openUid ? { step: openUid } : null,
+  });
 
   const run = useCallback(async () => {
     if (!saved || dirty) return;
@@ -467,7 +583,28 @@ export function StudioPage({ currentUser, projectId, datasets, initialDatasetId,
     [catalogue.items, openPalette],
   );
 
-  const status = saved ? (dirty ? "Unsaved changes" : "Saved") : steps.length > 0 ? "Not saved yet" : "New recipe";
+  const status = suggesting
+    ? dirty
+      ? "Not suggested yet"
+      : "Saved"
+    : saved
+      ? dirty
+        ? "Unsaved changes"
+        : "Saved"
+      : steps.length > 0
+        ? "Not saved yet"
+        : "New recipe";
+  const stepOthers = useMemo(() => {
+    const byStep: Record<string, typeof others> = {};
+    for (const person of others) {
+      const step = person.focus?.step;
+      if (step) byStep[step] = [...(byStep[step] ?? []), person];
+    }
+    return byStep;
+  }, [others]);
+  const suggestReason = !canEdit
+    ? "You can see this recipe but not change it, so your changes go to someone who can, to accept or decline."
+    : "Changes in this project need someone else's approval, so this goes to them to accept or decline.";
 
   return (
     <AppFrame currentUser={currentUser} commands={toolCommands} heading="Studio" disableWelcomeTour>
@@ -492,6 +629,10 @@ export function StudioPage({ currentUser, projectId, datasets, initialDatasetId,
               <Badge tone={dirty ? "warning" : saved ? "success" : "neutral"} className="shrink-0">
                 {status}
               </Badge>
+              <PresenceDots
+                people={others}
+                label={(person) => `${person.name} has this recipe open`}
+              />
             </div>
             <div data-tour="studio-source" className="mt-0.5 flex min-w-0 items-center gap-1.5 px-1.5 text-[13px] text-ink-3">
               <span className="shrink-0">From</span>
@@ -527,8 +668,8 @@ export function StudioPage({ currentUser, projectId, datasets, initialDatasetId,
           </div>
 
           <div className="flex shrink-0 items-center gap-1.5">
-            <IconButton icon="undo" label="Undo" shortcut="⌘Z" disabled={history.past.length === 0} onClick={doUndo} />
-            <IconButton icon="redo" label="Redo" shortcut="⇧⌘Z" disabled={history.future.length === 0} onClick={doRedo} />
+            <IconButton icon="undo" label="Undo" shortcut="⌘Z" disabled={!editing.canUndo} onClick={doUndo} />
+            <IconButton icon="redo" label="Redo" shortcut="⇧⌘Z" disabled={!editing.canRedo} onClick={doRedo} />
             <button
               type="button"
               onClick={() => setDetailsOpen((current) => !current)}
@@ -548,8 +689,32 @@ export function StudioPage({ currentUser, projectId, datasets, initialDatasetId,
                 ...(steps.length === 0 && datasetId
                   ? [{ id: "template", label: "Start from a template", icon: "sparkles" as const, onSelect: () => setTemplatesOpen(true) }]
                   : []),
-                ...(saved && steps.length > 0
+                ...(saved && steps.length > 0 && canEdit
                   ? [{ id: "copy", label: "Save as a new recipe", icon: "plus" as const, onSelect: () => void save(true) }]
+                  : []),
+                ...(saved && canEdit
+                  ? [
+                      {
+                        id: "suggestions",
+                        label: editing.shared?.openSuggestions
+                          ? `Suggestions waiting (${editing.shared.openSuggestions})`
+                          : "Suggestions",
+                        icon: "mail" as const,
+                        description: "Changes people suggested for this recipe.",
+                        onSelect: () => setSuggestionsOpen(true),
+                      },
+                    ]
+                  : []),
+                ...(live && dirty
+                  ? [
+                      {
+                        id: "discard",
+                        label: "Discard unsaved changes",
+                        icon: "undo" as const,
+                        description: "For everyone editing it: back to the saved recipe.",
+                        onSelect: () => setDiscarding(true),
+                      },
+                    ]
                   : []),
                 ...(steps.length > 0
                   ? [
@@ -571,20 +736,25 @@ export function StudioPage({ currentUser, projectId, datasets, initialDatasetId,
               size="sm"
               onClick={() => void save()}
               disabled={saving || !dataset || steps.length === 0 || (saved !== null && !dirty)}
+              title={suggesting ? suggestReason : undefined}
             >
-              {saving ? "Saving…" : "Save"}
+              {saving ? "Saving…" : suggesting ? "Suggest" : "Save"}
             </Button>
             <Button
               variant={saved && !dirty ? "primary" : "secondary"}
               size="sm"
               onClick={() => void run()}
-              disabled={running || !saved || dirty}
+              disabled={running || !saved || dirty || role === "viewer"}
               title={
                 !saved
                   ? "Save the recipe first"
-                  : dirty
-                    ? "Save your changes first; a run uses the saved recipe"
-                    : "Run the saved recipe on the whole dataset and save the result"
+                  : role === "viewer"
+                    ? "Running a recipe needs the operator role or above"
+                    : dirty
+                      ? suggesting
+                        ? "A run uses the saved recipe; your changes are not in it"
+                        : "Save your changes first; a run uses the saved recipe"
+                      : "Run the saved recipe on the whole dataset and save the result"
               }
             >
               <Icon name="play" size={13} />
@@ -603,6 +773,7 @@ export function StudioPage({ currentUser, projectId, datasets, initialDatasetId,
               steps={steps}
               outcomes={error ? undefined : preview?.step_outcomes}
               openUid={openUid}
+              others={stepOthers}
               onOpen={setOpenUid}
               onChange={updateStep}
               onMove={moveStep}
@@ -617,6 +788,69 @@ export function StudioPage({ currentUser, projectId, datasets, initialDatasetId,
           </div>
 
           <section data-tour="studio-preview" aria-label="Preview" className="flex min-w-0 flex-1 flex-col p-3">
+            {editing.resetReason ? (
+              <div
+                role="status"
+                className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-info-line bg-info-soft px-3 py-2 text-[13px] text-info"
+              >
+                <Icon name="info" size={15} className="shrink-0" />
+                <span className="min-w-0 flex-1">
+                  <span className="font-medium">{editing.resetReason}</span> It now shows the saved recipe.
+                </span>
+                <span className="flex shrink-0 gap-1.5">
+                  {editing.setAside ? (
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        const kept = editing.setAside;
+                        if (kept) editing.replaceWith(kept.name || name, kept.steps);
+                        editing.clearSetAside();
+                        editing.clearResetReason();
+                      }}
+                    >
+                      Bring back my steps
+                    </Button>
+                  ) : null}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      editing.clearSetAside();
+                      editing.clearResetReason();
+                    }}
+                  >
+                    Dismiss
+                  </Button>
+                </span>
+              </div>
+            ) : null}
+            {live && !editing.connected ? (
+              <div role="status" className="mb-2 flex items-start gap-2 rounded-xl border border-warning-line bg-warning-soft px-3 py-2 text-[13px] text-warning">
+                <Icon name="warning" size={15} className="mt-0.5 shrink-0" />
+                The server is not answering. Your changes are kept here and sent when it does.
+              </div>
+            ) : null}
+            {suggesting && !dirty ? (
+              <div className="mb-2 flex items-start gap-2 rounded-xl border border-line bg-surface px-3 py-2 text-[13px] text-ink-2">
+                <Icon name="info" size={15} className="mt-0.5 shrink-0" />
+                <span>
+                  {!canEdit
+                    ? "Try changes here; Suggest sends them to someone who may edit this recipe."
+                    : "Changes in this project need approval: Suggest sends yours to be accepted or declined."}
+                </span>
+              </div>
+            ) : null}
+            {canEdit && saved && editing.shared?.openSuggestions ? (
+              <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-info-line bg-info-soft px-3 py-2 text-[13px] text-info">
+                <Icon name="mail" size={15} className="shrink-0" />
+                <span className="min-w-0 flex-1 font-medium">
+                  {countOf(editing.shared.openSuggestions, "suggestion")} waiting for this recipe.
+                </span>
+                <Button size="sm" onClick={() => setSuggestionsOpen(true)}>
+                  Review
+                </Button>
+              </div>
+            ) : null}
             {offer ? (
               <div
                 role="status"
@@ -840,6 +1074,54 @@ export function StudioPage({ currentUser, projectId, datasets, initialDatasetId,
         }}
       />
       <AddDataDialog open={addDataOpen} onClose={() => setAddDataOpen(false)} projectId={projectId} />
+      {saved && suggesting ? (
+        <SuggestDialog
+          open={suggestOpen}
+          onClose={() => setSuggestOpen(false)}
+          onSent={() => {
+            setSuggestOpen(false);
+            toast.success("Suggestion sent", "Someone who may edit this recipe will accept or decline it; you will hear which.");
+            if (!live && editing.saved) {
+              // The suggestion holds the changes now; this copy goes back to the saved recipe.
+              editing.replaceWith(editing.saved.name, editing.saved.steps);
+              clearDraft(key);
+            }
+          }}
+          projectId={projectId}
+          recipeId={saved.id}
+          saved={{ name: editing.saved?.name ?? name, steps: stored(editing.saved?.steps ?? []) }}
+          proposed={{ name, steps: stored(steps) }}
+          reason={suggestReason}
+        />
+      ) : null}
+      {saved && canEdit ? (
+        <SuggestionsDrawer
+          open={suggestionsOpen}
+          onClose={() => setSuggestionsOpen(false)}
+          onDecided={() => void editing.refresh()}
+          projectId={projectId}
+          recipeId={saved.id}
+          currentUsername={currentUser.username}
+        />
+      ) : null}
+      <Modal
+        open={discarding}
+        onClose={() => setDiscarding(false)}
+        title="Discard the unsaved changes?"
+        description="The recipe goes back to how it was last saved, for everyone editing it. This cannot be undone."
+        footer={
+          <div className="flex items-center justify-end gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setDiscarding(false)}>
+              Keep them
+            </Button>
+            <Button variant="danger" size="sm" onClick={() => void discardUnsaved()}>
+              Discard them
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-sm text-ink-2">Anyone with the recipe open sees the saved version straight away.</p>
+      </Modal>
 
     </AppFrame>
   );

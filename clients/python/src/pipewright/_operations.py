@@ -687,6 +687,13 @@ class Operations:
         """
         return self._call("POST", f"/api/v1/projects/{project_id}/connectors/watch", body=body)
 
+    def list_project_contracts(self, project_id: str) -> Any:
+        """Every contract in the project, with whether each is kept.
+
+        GET /api/v1/projects/{project_id}/contracts
+        """
+        return self._call("GET", f"/api/v1/projects/{project_id}/contracts")
+
     def read_dashboards(self, project_id: str) -> Any:
         """Read Dashboards
 
@@ -917,6 +924,62 @@ class Operations:
         GET /api/v1/projects/{project_id}/datasets/{dataset_id}/audit/export
         """
         return self._call("GET", f"/api/v1/projects/{project_id}/datasets/{dataset_id}/audit/export", query={"format": format})
+
+    def read_dataset_contract(self, project_id: str, dataset_id: str) -> Any:
+        """A dataset's contract (or none), and promises drafted from its current data.
+
+        GET /api/v1/projects/{project_id}/datasets/{dataset_id}/contract
+        """
+        return self._call("GET", f"/api/v1/projects/{project_id}/datasets/{dataset_id}/contract")
+
+    def save_dataset_contract(self, project_id: str, dataset_id: str, *, body: Any) -> Any:
+        """Write or change a dataset's contract; says whether the current data keeps it.
+
+        PUT /api/v1/projects/{project_id}/datasets/{dataset_id}/contract
+        """
+        return self._call("PUT", f"/api/v1/projects/{project_id}/datasets/{dataset_id}/contract", body=body)
+
+    def remove_dataset_contract(self, project_id: str, dataset_id: str) -> Any:
+        """Remove a dataset's contract.
+
+        DELETE /api/v1/projects/{project_id}/datasets/{dataset_id}/contract
+        """
+        return self._call("DELETE", f"/api/v1/projects/{project_id}/datasets/{dataset_id}/contract")
+
+    def preview_dataset_contract_check(self, project_id: str, dataset_id: str, *, version: int | None = None) -> Any:
+        """Whether the current data, or one version, keeps the contract. Records nothing.
+
+        GET /api/v1/projects/{project_id}/datasets/{dataset_id}/contract/check
+        """
+        return self._call("GET", f"/api/v1/projects/{project_id}/datasets/{dataset_id}/contract/check", query={"version": version})
+
+    def check_dataset_contract(self, project_id: str, dataset_id: str) -> Any:
+        """Check the current data against the contract now, and record the outcome.
+
+        POST /api/v1/projects/{project_id}/datasets/{dataset_id}/contract/check
+        """
+        return self._call("POST", f"/api/v1/projects/{project_id}/datasets/{dataset_id}/contract/check")
+
+    def follow_dataset_contract(self, project_id: str, dataset_id: str) -> Any:
+        """Be told when the contract breaks, is kept again or changes.
+
+        POST /api/v1/projects/{project_id}/datasets/{dataset_id}/contract/follow
+        """
+        return self._call("POST", f"/api/v1/projects/{project_id}/datasets/{dataset_id}/contract/follow")
+
+    def unfollow_dataset_contract(self, project_id: str, dataset_id: str) -> Any:
+        """Stop being told about the contract.
+
+        DELETE /api/v1/projects/{project_id}/datasets/{dataset_id}/contract/follow
+        """
+        return self._call("DELETE", f"/api/v1/projects/{project_id}/datasets/{dataset_id}/contract/follow")
+
+    def read_contract_history(self, project_id: str, dataset_id: str) -> Any:
+        """Every version of the contract, newest first, with what changed.
+
+        GET /api/v1/projects/{project_id}/datasets/{dataset_id}/contract/history
+        """
+        return self._call("GET", f"/api/v1/projects/{project_id}/datasets/{dataset_id}/contract/history")
 
     def post_ad_hoc_check(self, project_id: str, dataset_id: str, *, body: Any) -> Any:
         """Post Ad Hoc Check

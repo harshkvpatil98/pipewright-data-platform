@@ -115,7 +115,7 @@ def evaluate_ruleset(
                 message=f"This check could not be worked out: {exc.detail}",
                 details={"configuration_error": True},
             )
-            warnings.append(f"Rule '{name}' is misconfigured: {exc.detail}")
+            warnings.append(f"The check '{name}' is not set up correctly: {exc.detail}")
 
         results.append(
             EvaluatedRule(
@@ -142,7 +142,7 @@ def evaluate_ruleset(
             and result.rule_type in DATASET_LEVEL_RULES
         ):
             warnings.append(
-                f"'{result.name}' is a dataset-level rule, so its failure cannot be quarantined by row."
+                f"'{result.name}' checks the whole dataset, so no single row can be set aside for it."
             )
 
     if quarantine and bool(quarantine_mask.any()):

@@ -20,6 +20,16 @@ from service_quality.schemas import (
     RuleCatalogResponse,
     RuleResultRead,
 )
+from service_quality import data_contracts
+from service_quality.schemas_contracts import (
+    ContractCheckResponse,
+    ContractHistoryResponse,
+    ContractSaveResponse,
+    DataContractListResponse,
+    DataContractRead,
+    DataContractWrite,
+    DatasetContractResponse,
+)
 from service_quality.drift_service import (
     acknowledge_drift_event,
     compare_dataset_schemas,
@@ -191,5 +201,115 @@ def build_router(
         current_user: UserRead = Depends(get_current_user),
     ) -> SchemaDriftEventRead:
         return acknowledge_drift_event(db, project_id, event_id, current_user)
+
+    # ------------------------------------------------------------ contracts (C1)
+
+    @router.get("/projects/{project_id}/contracts", response_model=DataContractListResponse)
+    def list_project_contracts(
+        project_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> DataContractListResponse:
+        """Every contract in the project, with whether each is kept."""
+        return data_contracts.list_contracts(db, project_id, current_user)
+
+    @router.get("/projects/{project_id}/datasets/{dataset_id}/contract", response_model=DatasetContractResponse)
+    def read_dataset_contract(
+        project_id: uuid.UUID,
+        dataset_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> DatasetContractResponse:
+        """A dataset's contract (or none), and promises drafted from its current data."""
+        return data_contracts.get_dataset_contract(db, project_id, dataset_id, current_user)
+
+    @router.put("/projects/{project_id}/datasets/{dataset_id}/contract", response_model=ContractSaveResponse)
+    def save_dataset_contract(
+        project_id: uuid.UUID,
+        dataset_id: uuid.UUID,
+        payload: DataContractWrite,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+        storage_backend: object = Depends(get_storage_backend),
+    ) -> ContractSaveResponse:
+        """Write or change a dataset's contract; says whether the current data keeps it."""
+        return data_contracts.save_contract(db, project_id, dataset_id, payload, current_user, storage_backend)
+
+    @router.delete(
+        "/projects/{project_id}/datasets/{dataset_id}/contract", status_code=status.HTTP_204_NO_CONTENT
+    )
+    def remove_dataset_contract(
+        project_id: uuid.UUID,
+        dataset_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> None:
+        """Remove a dataset's contract."""
+        data_contracts.delete_contract(db, project_id, dataset_id, current_user)
+
+    @router.get(
+        "/projects/{project_id}/datasets/{dataset_id}/contract/check", response_model=ContractCheckResponse
+    )
+    def preview_dataset_contract_check(
+        project_id: uuid.UUID,
+        dataset_id: uuid.UUID,
+        version: int | None = Query(default=None, ge=1, description="A version to check instead of the current data."),
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+        storage_backend: object = Depends(get_storage_backend),
+    ) -> ContractCheckResponse:
+        """Whether the current data, or one version, keeps the contract. Records nothing."""
+        return data_contracts.would_keep(
+            db, project_id, dataset_id, current_user, storage_backend, version_number=version
+        )
+
+    @router.post(
+        "/projects/{project_id}/datasets/{dataset_id}/contract/check", response_model=ContractCheckResponse
+    )
+    def check_dataset_contract(
+        project_id: uuid.UUID,
+        dataset_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+        storage_backend: object = Depends(get_storage_backend),
+    ) -> ContractCheckResponse:
+        """Check the current data against the contract now, and record the outcome."""
+        return data_contracts.check_contract_now(db, project_id, dataset_id, current_user, storage_backend)
+
+    @router.post(
+        "/projects/{project_id}/datasets/{dataset_id}/contract/follow", response_model=DataContractRead
+    )
+    def follow_dataset_contract(
+        project_id: uuid.UUID,
+        dataset_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> DataContractRead:
+        """Be told when the contract breaks, is kept again or changes."""
+        return data_contracts.follow_contract(db, project_id, dataset_id, current_user, follow=True)
+
+    @router.delete(
+        "/projects/{project_id}/datasets/{dataset_id}/contract/follow", response_model=DataContractRead
+    )
+    def unfollow_dataset_contract(
+        project_id: uuid.UUID,
+        dataset_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> DataContractRead:
+        """Stop being told about the contract."""
+        return data_contracts.follow_contract(db, project_id, dataset_id, current_user, follow=False)
+
+    @router.get(
+        "/projects/{project_id}/datasets/{dataset_id}/contract/history", response_model=ContractHistoryResponse
+    )
+    def read_contract_history(
+        project_id: uuid.UUID,
+        dataset_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> ContractHistoryResponse:
+        """Every version of the contract, newest first, with what changed."""
+        return data_contracts.contract_history(db, project_id, dataset_id, current_user)
 
     return router

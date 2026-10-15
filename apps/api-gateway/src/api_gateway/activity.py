@@ -11,9 +11,11 @@ to the thing each is about:
   failed, and workflow runs;
 - incidents: opened, reopened and resolved;
 - comments, on anything that takes them;
-- alerts: a measure crossing its line or coming back (Y5).
+- alerts: a measure crossing its line or coming back (Y5);
+- contracts: a dataset's contract broken, overdue or kept again (C1); its
+  changes are among the changes already.
 
-Each source is read newest first, as far as the page needs, and the five
+Each source is read newest first, as far as the page needs, and the six
 are merged, so a page costs a few indexed queries. Pages go back by
 position (`offset`) rather than by time: items made in one moment, such as
 two alerts from one capture, can never fall between two pages, and the
@@ -36,12 +38,13 @@ from service_governance.audit_words import object_names, summarise, target_of
 from service_governance.models import AuditEntry, Comment
 from service_observability.models import Incident, IncidentEvent, MetricAlertEvent
 from service_pipeline_runs.models import PipelineRun
+from service_quality.models import DataContractEvent
 from service_projects.contracts import ensure_owned_project
 from service_workflows.models import Workflow, WorkflowRun
 from shared_python.errors import BadRequestError
 
-Kind = Literal["changes", "runs", "incidents", "comments", "alerts"]
-KINDS: tuple[str, ...] = ("changes", "runs", "incidents", "comments", "alerts")
+Kind = Literal["changes", "runs", "incidents", "comments", "alerts", "contracts"]
+KINDS: tuple[str, ...] = ("changes", "runs", "incidents", "comments", "alerts", "contracts")
 Level = Literal["info", "success", "warning", "error"]
 DEFAULT_LIMIT = 50
 MAX_LIMIT = 100
@@ -355,7 +358,36 @@ def _alerts(db: Session, project_id: uuid.UUID, limit: int) -> list[ActivityItem
     ]
 
 
-SOURCES = {"changes": _changes, "runs": _runs, "incidents": _incidents, "comments": _comments, "alerts": _alerts}
+def _contracts(db: Session, project_id: uuid.UUID, limit: int) -> list[ActivityItem]:
+    rows = db.scalars(
+        select(DataContractEvent)
+        .where(DataContractEvent.project_id == project_id, DataContractEvent.kind != "changed")
+        .order_by(DataContractEvent.created_at.desc(), DataContractEvent.id.desc())
+        .limit(limit)
+    ).all()
+    return [
+        ActivityItem(
+            id=f"contract:{row.id}",
+            kind="contracts",
+            at=_utc(row.created_at),
+            who=None,
+            sentence=row.title,
+            detail=row.message,
+            level="success" if row.kind == "kept" else "warning",
+            href=_href(project_id, "datasets/{id}/contract", row.dataset_id),
+        )
+        for row in rows
+    ]
+
+
+SOURCES = {
+    "changes": _changes,
+    "runs": _runs,
+    "incidents": _incidents,
+    "comments": _comments,
+    "alerts": _alerts,
+    "contracts": _contracts,
+}
 
 
 def project_activity(

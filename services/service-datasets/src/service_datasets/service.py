@@ -226,6 +226,12 @@ def _read_version_frame(storage_backend, version: DatasetVersion, fallback_type:
     )
 
 
+def read_version_frame(db: Session, dataset: Dataset, version_number: int, storage_backend):
+    """One recorded version's rows, read the way that version was read."""
+    version = _get_dataset_version(db, dataset.id, version_number)
+    return _read_version_frame(storage_backend, version, dataset.file_type)
+
+
 def diff_dataset_versions(
     db: Session,
     project_id: uuid.UUID,
@@ -330,6 +336,24 @@ def rollback_dataset_version(
         ) from exc
     frame = frame_of(storage_backend, target.file_path, payload_bytes, file_type=file_type, spec=target.ingest_spec_json)
 
+    # A version that breaks an enforced contract is refused in front of the
+    # person, with the reasons, before anything is copied (C1).
+    from service_quality.data_contracts import ContractBroken, check_new_data
+
+    try:
+        verdict = check_new_data(
+            db,
+            dataset=dataset,
+            frame=frame,
+            source_type="rollback",
+            actor_user_id=current_user.id,
+            record_stop=False,
+        )
+    except ContractBroken:
+        release_pins(db, holder_kind="rollback", holder_id=holder_id)
+        db.commit()
+        raise
+
     # The original bytes are copied verbatim -- no parse-and-reserialize round
     # trip -- so the restored head's digest equals the target's recorded digest,
     # an integrity property a reader can check.
@@ -362,6 +386,7 @@ def rollback_dataset_version(
         ingest_spec_json=target.ingest_spec_json,
         content_hash=content_digest(payload_bytes),
         created_by_user_id=current_user.id,
+        contract_verdict=verdict,
     )
     # The pin is released in the same commit that publishes the restored head,
     # so there is no window where the copy exists but its source is unprotected
@@ -648,6 +673,7 @@ def apply_dataset_materialization_success(
     content_hash: str | None = None,
     pipeline_run_id: uuid.UUID | None = None,
     created_by_user_id: uuid.UUID | None = None,
+    contract_verdict: object | None = None,
 ) -> DatasetVersion:
     """Advance a dataset's head and append its immutable version, then FLUSH --
     without committing.
@@ -662,6 +688,11 @@ def apply_dataset_materialization_success(
     Returns the newly published `DatasetVersion` (already flushed, so it has an
     id) rather than a detail read, because the detail read is only meaningful
     after the commit the caller controls.
+
+    `contract_verdict` is what the dataset's contract made of this data
+    (`service_quality.data_contracts.check_new_data`, called by the producer
+    before it stored anything); recording it here puts the outcome in the
+    version's own transaction.
     """
     dataset.file_path = file_path
     dataset.file_name = file_name
@@ -699,6 +730,10 @@ def apply_dataset_materialization_success(
     )
     db.add(version)
     db.flush()
+    if contract_verdict is not None:
+        from service_quality.data_contracts import record_landing
+
+        record_landing(db, dataset=dataset, verdict=contract_verdict)
     _record_measures(db, dataset=dataset, profile_json=profile_json, pipeline_run_id=pipeline_run_id)
     return version
 
@@ -745,6 +780,7 @@ def finalize_dataset_materialization_success(
     content_hash: str | None = None,
     pipeline_run_id: uuid.UUID | None = None,
     created_by_user_id: uuid.UUID | None = None,
+    contract_verdict: object | None = None,
 ) -> DatasetDetailRead:
     apply_dataset_materialization_success(
         db,
@@ -761,6 +797,7 @@ def finalize_dataset_materialization_success(
         content_hash=content_hash,
         pipeline_run_id=pipeline_run_id,
         created_by_user_id=created_by_user_id,
+        contract_verdict=contract_verdict,
     )
     db.commit()
     db.refresh(dataset)
@@ -783,6 +820,7 @@ def finalize_dataset_ingestion_success(
     content_hash: str | None = None,
     pipeline_run_id: uuid.UUID | None = None,
     created_by_user_id: uuid.UUID | None = None,
+    contract_verdict: object | None = None,
 ) -> DatasetDetailRead:
     return finalize_dataset_materialization_success(
         db,
@@ -799,6 +837,7 @@ def finalize_dataset_ingestion_success(
         content_hash=content_hash,
         pipeline_run_id=pipeline_run_id,
         created_by_user_id=created_by_user_id,
+        contract_verdict=contract_verdict,
     )
 
 

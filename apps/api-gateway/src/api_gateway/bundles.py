@@ -1,7 +1,7 @@
 """Project bundles: a project's work in one file, and back (adoption-readiness A8, Y2).
 
-A bundle holds a project's recipes, checks, metrics, charts, dashboards,
-workflows and schedules, never its data or credentials. References between
+A bundle holds a project's recipes, checks, contracts, metrics, charts,
+dashboards, workflows and schedules, never its data or credentials. References between
 things travel by name, as `{"$ref": "dataset", "name": "Orders"}`, so a
 bundle moves between projects and between deployments:
 
@@ -9,8 +9,10 @@ bundle moves between projects and between deployments:
   already has; an import matches each by name in the target project, or the
   person chooses one (`mapping`, keyed `"dataset:Orders"`);
 - recipes, checks, metrics and charts are made by the import itself and
-  wired up in order (metrics, recipes, checks, charts, dashboards,
-  workflows, schedules).
+  wired up in order (metrics, recipes, checks, contracts, charts,
+  dashboards, workflows, schedules);
+- a contract belongs to a dataset, so it is named after it and skipped when
+  that dataset already has one (C1).
 
 An item whose name the target project already uses is skipped and said so;
 one whose required reference is missing is skipped with the reason. A
@@ -62,14 +64,14 @@ KIND_WORDS = {
     "dataset": "dataset", "import": "import", "destination": "destination", "connection": "connection",
     "recipe": "recipe", "check": "check", "metric": "metric", "chart": "chart",
 }
-SECTIONS = ("metrics", "recipes", "checks", "charts", "dashboards", "workflows", "schedules")
+SECTIONS = ("metrics", "recipes", "checks", "contracts", "charts", "dashboards", "workflows", "schedules")
 #: The `_models()` key for each section's own kind.
 SECTION_MODEL = {
-    "metrics": "metric", "recipes": "recipe", "checks": "check", "charts": "chart",
+    "metrics": "metric", "recipes": "recipe", "checks": "check", "contracts": "contracts", "charts": "chart",
     "dashboards": "dashboards", "workflows": "workflows", "schedules": "schedules",
 }
 SECTION_WORDS = {
-    "metrics": "metric", "recipes": "recipe", "checks": "check", "charts": "chart",
+    "metrics": "metric", "recipes": "recipe", "checks": "check", "contracts": "contract", "charts": "chart",
     "dashboards": "dashboard", "workflows": "workflow", "schedules": "schedule",
 }
 
@@ -78,7 +80,7 @@ def _models() -> dict[str, Any]:
     from service_datasets.models import Dataset
     from service_destinations.models import DestinationConfig
     from service_extraction.models import ExtractionConnection, ExtractionJob
-    from service_quality.models import DataQualityRule
+    from service_quality.models import DataContract, DataQualityRule
     from service_reporting.models import Dashboard, Metric, SavedChart
     from service_schedules.models import ScheduledOperation
     from service_transformations.models import TransformationPipeline
@@ -88,12 +90,23 @@ def _models() -> dict[str, Any]:
         "dataset": Dataset, "import": ExtractionJob, "destination": DestinationConfig,
         "connection": ExtractionConnection, "recipe": TransformationPipeline, "check": DataQualityRule,
         "metric": Metric, "chart": SavedChart, "dashboards": Dashboard, "workflows": Workflow,
-        "schedules": ScheduledOperation,
+        "schedules": ScheduledOperation, "contracts": DataContract,
     }
 
 
 def _names(db: Session, model: Any, project_id: uuid.UUID) -> dict[uuid.UUID, str]:
-    rows = db.execute(select(model.id, model.name).where(model.project_id == project_id)).all()
+    from service_datasets.models import Dataset
+    from service_quality.models import DataContract
+
+    if model is DataContract:
+        # A contract has no name of its own: it is its dataset's.
+        rows = db.execute(
+            select(DataContract.id, Dataset.name.label("name"))
+            .join(Dataset, Dataset.id == DataContract.dataset_id)
+            .where(DataContract.project_id == project_id)
+        ).all()
+    else:
+        rows = db.execute(select(model.id, model.name).where(model.project_id == project_id)).all()
     return {row.id: row.name for row in rows}
 
 
@@ -163,6 +176,14 @@ def export_bundle(db: Session, project_id: uuid.UUID, current_user: UserRead) ->
          "dataset": ref("dataset", c.dataset_id) if c.dataset_id else None,
          "config": to_refs(c.config_json or {}), "enabled": c.enabled}
         for c in rows(models["check"])
+    ]
+    from service_quality.data_contracts import _terms_with_freshness
+
+    bundle["contracts"] = [
+        {"name": names["dataset"].get(c.dataset_id), "dataset": ref("dataset", c.dataset_id),
+         "description": c.description, "enforcement": c.enforcement, "terms": _terms_with_freshness(db, c)}
+        for c in rows(models["contracts"])
+        if names["dataset"].get(c.dataset_id)
     ]
     bundle["charts"] = [
         {"name": c.name, "description": c.description, "chart_type": c.chart_type,
@@ -310,7 +331,12 @@ def plan_import(
                 items.append(Planned(section, "(no name)", "skip", "It has no name."))
                 continue
             if name.casefold() in taken[section]:
-                items.append(Planned(section, name, "skip", f"This project already has a {SECTION_WORDS[section]} called “{name}”."))
+                reason = (
+                    f"“{name}” already has a contract in this project."
+                    if section == "contracts"
+                    else f"This project already has a {SECTION_WORDS[section]} called “{name}”."
+                )
+                items.append(Planned(section, name, "skip", reason))
                 continue
             refs = [reference(kind, ref_name) for kind, ref_name in _refs_in(raw)]
             for ref_ in refs:
@@ -464,6 +490,17 @@ def _make(db: Session, project_id: uuid.UUID, section: str, item: dict[str, Any]
             name=item["name"], description=item.get("description"), rule_type=item["rule_type"],
             severity=item.get("severity") or "error", dataset_id=item.get("dataset"), config=item.get("config") or {},
         ), user).id
+    if section == "contracts":
+        from service_quality.data_contracts import save_contract
+        from service_quality.schemas_contracts import ContractTerms, DataContractWrite
+
+        # Made by the person importing, who owns it until they say otherwise;
+        # it is checked the next time new data arrives, or by hand.
+        saved = save_contract(db, project_id, uuid.UUID(item["dataset"]), DataContractWrite(
+            description=item.get("description"), enforcement=item.get("enforcement") or "stop",
+            terms=ContractTerms.model_validate(item.get("terms") or {}),
+        ), user, None)
+        return saved.contract.id
     if section == "charts":
         from service_reporting.schemas import ChartCreate, QueryInput
         from service_reporting.service import create_chart

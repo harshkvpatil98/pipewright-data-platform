@@ -74,6 +74,17 @@ def _send_metric_alerts(db) -> None:
         logger.exception("metric_alert_send_failed")
 
 
+def _tend_contracts(db) -> None:
+    """Open and close overdue-data problems and send contract messages (C1). Best effort."""
+    from service_quality.data_contracts import tick as contracts_tick
+
+    try:
+        contracts_tick(db)
+    except Exception:  # noqa: BLE001 - a contract problem must not stop the worker
+        db.rollback()
+        logger.exception("data_contract_tick_failed")
+
+
 def tick_background(max_runs: int) -> int:
     """Do queued background runs (large uploads, deliveries, database copies; A7, X3).
 
@@ -90,6 +101,7 @@ def tick_background(max_runs: int) -> int:
         background.release_stalled(db)
         _retry_webhooks(db)
         _send_metric_alerts(db)
+        _tend_contracts(db)
         done = 0
         while done < max_runs and not _stopping:
             run = background.run_next(

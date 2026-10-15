@@ -116,6 +116,12 @@ EDITOR_SEGMENTS = frozenset(
     }
 )
 
+# A person's own choices about what they are told. Following a contract
+# changes nothing in the project, so a viewer may do it; without this entry
+# the fail-closed default would make "tell me when it breaks" an editing
+# permission (C1).
+PERSONAL_SEGMENTS = frozenset({"follow"})
+
 # Anything touching who has access, or the project's own existence.
 ADMIN_SEGMENTS = frozenset({"members", "memberships", "transfer"})
 
@@ -158,7 +164,7 @@ def review_refusal(method: str, path: str) -> str | None:
         if specific is not None:
             return specific
     segments = set(parts)
-    if segments & (ADMIN_SEGMENTS | READ_ONLY_SEGMENTS | OPERATOR_SEGMENTS):
+    if segments & (ADMIN_SEGMENTS | READ_ONLY_SEGMENTS | OPERATOR_SEGMENTS | PERSONAL_SEGMENTS):
         return None
     return _REVIEW_DEFAULT if segments & REVIEWABLE_SEGMENTS else None
 
@@ -230,7 +236,7 @@ def required_role(method: str, path: str) -> str:
     if verb in {"DELETE", "PATCH", "PUT"} and len(parts) >= 2 and parts[-2] == "projects":
         return "admin"
 
-    if segments & READ_ONLY_SEGMENTS:
+    if segments & (READ_ONLY_SEGMENTS | PERSONAL_SEGMENTS):
         return "viewer"
 
     if segments & EDITOR_SEGMENTS:

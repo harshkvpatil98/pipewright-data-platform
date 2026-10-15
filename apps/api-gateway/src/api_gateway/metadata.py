@@ -25,6 +25,11 @@ from service_governance.models import (  # noqa: F401
 from service_pipeline_runs.models import PipelineRun  # noqa: F401
 from service_projects.models import Project  # noqa: F401
 from service_quality.models import (  # noqa: F401
+    DataContract,
+    DataContractEvent,
+    DataContractFollower,
+    DataContractProblem,
+    DataContractVersion,
     DataQualityRule,
     DataQualityRunResult,
     SchemaDriftEvent,

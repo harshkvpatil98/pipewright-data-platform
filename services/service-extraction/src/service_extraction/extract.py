@@ -70,6 +70,7 @@ def _stage_words(stage: str) -> str:
         "merge": "combining with earlier rows",
         "profile": "working out the columns",
         "schema_drift": "checking for schema changes",
+        "contract": "checking the rows against the contract",
         "persist": "saving the rows",
     }.get(stage, "running")
 
@@ -312,21 +313,52 @@ def run_extraction_job(
             log_events.append(
                 _log_event(
                     "schema_drift",
-                    f"Schema drift detected ({drift_report.severity}): {drift_report.summary}",
+                    f"A schema change was found ({drift_report.severity}): {drift_report.summary}",
                     details=drift_report.to_dict(),
                 )
             )
-            warnings.append(f"Schema drift ({drift_report.severity}): {drift_report.summary}")
-
-        current_stage = "persist"
-        log_events.append(_log_event("persist", "Saving the rows."))
-        mark_pipeline_run_running(db, run=run, logs_json={"events": log_events})
+            warnings.append(f"Schema change ({drift_report.severity}): {drift_report.summary}")
 
         # One dataset per import: the first run creates it and every later run
         # adds a version to it, so a nightly import is one dataset with a
         # history rather than 365 look-alikes. Only when that dataset has been
         # deleted does a run start a new one.
         dataset = reusable_dataset(db, project_id, job.target_dataset_id)
+
+        # The dataset's contract judges the new rows before anything is
+        # stored, so a source that changed shape cannot replace what people
+        # use (C1). A schema change above is a warning; a broken promise stops.
+        from service_quality.data_contracts import check_new_data
+
+        current_stage = "contract"
+        contract_verdict = check_new_data(
+            db,
+            dataset=dataset,
+            frame=working,
+            source_type="import",
+            source_id=job.id,
+            source_name=job.name,
+            run_id=run.id,
+            actor_user_id=current_user.id,
+        )
+        if contract_verdict is not None:
+            log_events.append(
+                _log_event(
+                    "contract",
+                    f"Checked the contract on {dataset.name}: the rows keep it."
+                    if contract_verdict.kept
+                    else f"Checked the contract on {dataset.name}: the rows break it, and are saved anyway "
+                    "because the contract is set to warn.",
+                    details={"reasons": contract_verdict.sentences()} if not contract_verdict.kept else None,
+                )
+            )
+            if not contract_verdict.kept:
+                warnings.extend(contract_verdict.sentences())
+
+        current_stage = "persist"
+        log_events.append(_log_event("persist", "Saving the rows."))
+        mark_pipeline_run_running(db, run=run, logs_json={"events": log_events})
+
         if dataset is not None:
             dataset.file_type = "csv"
             dataset.file_size_bytes = len(csv_bytes)
@@ -370,6 +402,7 @@ def run_extraction_job(
             content_hash=content_digest(csv_bytes),
             pipeline_run_id=run.id,
             created_by_user_id=current_user.id,
+            contract_verdict=contract_verdict,
         )
 
         # Advance incremental state only after the artifact is safely persisted,

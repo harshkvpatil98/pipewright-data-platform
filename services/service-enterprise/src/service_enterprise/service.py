@@ -1067,6 +1067,13 @@ def _erase_by_correction(
     from service_ingestion.profiling import build_preview, build_profile, infer_schema
     from shared_python.storage import content_digest
 
+    from service_quality.data_contracts import check_new_data
+
+    # Erasing a person's data is a legal duty, so a contract never stops it;
+    # a promise it breaks is recorded with the corrected version (C1).
+    contract_verdict = check_new_data(
+        db, dataset=dataset, frame=redacted, source_type="erasure", actor_user_id=current_user.id, may_stop=False
+    )
     new_path = f"corrected/{dataset.project_id}/{dataset.id}/{uuid.uuid4().hex}.csv"
     payload = _store_frame(storage, new_path, redacted)
     schema = infer_schema(dataframe=redacted)
@@ -1086,6 +1093,7 @@ def _erase_by_correction(
         column_count=int(len(redacted.columns)),
         content_hash=content_digest(payload),
         created_by_user_id=current_user.id,
+        contract_verdict=contract_verdict,
     )
 
 
@@ -1109,8 +1117,16 @@ def _erase_destructively(
     """
     from service_ingestion.profiling import build_preview, build_profile
     from service_ingestion.read_copy import frame_of
+    from service_quality.data_contracts import check_new_data, record_landing
     from shared_python.storage import content_digest
 
+    # The head is rewritten in place, not versioned, so the contract's view of
+    # it is recorded here; as with a correction, it never stops an erasure (C1).
+    record_landing(
+        db,
+        dataset=dataset,
+        verdict=check_new_data(db, dataset=dataset, frame=redacted, source_type="erasure", may_stop=False),
+    )
     head_bytes = _store_frame(storage, dataset.file_path, redacted)
     head_digest = content_digest(head_bytes)
     head_preview = build_preview(dataframe=redacted, limit=50)

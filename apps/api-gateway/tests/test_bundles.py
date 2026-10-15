@@ -93,6 +93,10 @@ def _one_of_everything(api, project: str, dataset: str) -> None:
         "name": "Every morning", "schedule_type": "transformation_pipeline_run", "cron_expression": "0 7 * * *",
         "target_config": {"pipeline_id": recipe},
     }), 201)
+    _ok(api.put(f"/api/v1/projects/{project}/datasets/{dataset}/contract", json={
+        "enforcement": "warn", "description": "Orders as they arrive.",
+        "terms": {"columns": [{"name": "order_id", "kind": "whole_number", "always_filled": True}], "rows_at_least": 1},
+    }))
 
 
 def test_a_project_moves_to_another_by_bundle(api) -> None:
@@ -108,14 +112,17 @@ def test_a_project_moves_to_another_by_bundle(api) -> None:
 
     target, target_dataset = _project_with_orders(api, "Target")
     preview = _ok(api.post(f"/api/v1/projects/{target}/bundle/preview", json={"bundle": bundle}))
-    assert preview["creates"] == 7 and preview["skips"] == 0
+    assert preview["creates"] == 8 and preview["skips"] == 0
     [orders] = [ref for ref in preview["references"] if ref["kind"] == "dataset"]
     assert orders["status"] == "matched" and orders["id"] == target_dataset
 
     result = _ok(api.post(f"/api/v1/projects/{target}/bundle/import", json={"bundle": bundle}))
     assert {made["section"] for made in result["made"]} == {
-        "metrics", "recipes", "checks", "charts", "dashboards", "workflows", "schedules",
+        "metrics", "recipes", "checks", "contracts", "charts", "dashboards", "workflows", "schedules",
     }
+    contract = _ok(api.get(f"/api/v1/projects/{target}/datasets/{target_dataset}/contract"))["contract"]
+    assert (contract["enforcement"], contract["description"]) == ("warn", "Orders as they arrive.")
+    assert [column["name"] for column in contract["terms"]["columns"]] == ["order_id"]
     recipes = _ok(api.get(f"/api/v1/projects/{target}/datasets/{target_dataset}/pipelines"))["items"]
     assert [recipe["name"] for recipe in recipes] == ["Clean orders"]
     [workflow] = _ok(api.get(f"/api/v1/projects/{target}/workflows"))["items"]
@@ -126,7 +133,7 @@ def test_a_project_moves_to_another_by_bundle(api) -> None:
     assert tasks["check"]["rule_ids"] == [check["id"]]
 
     again = _ok(api.post(f"/api/v1/projects/{target}/bundle/import", json={"bundle": bundle}))
-    assert again["made"] == [] and again["skips"] == 7
+    assert again["made"] == [] and again["skips"] == 8
     assert all("already has" in item["reason"] for item in again["items"])
 
 

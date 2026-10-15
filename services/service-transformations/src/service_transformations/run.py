@@ -52,6 +52,7 @@ def _stage_words(stage: str) -> str:
         "load_artifact": "reading the input dataset",
         "parse": "reading its rows",
         "materialize_profile": "working out the columns",
+        "check_contract": "checking the result against its contract",
         "persist_artifact": "saving the result",
         "finalize": "recording the new version",
     }.get(stage, "running")
@@ -69,7 +70,7 @@ def _log_event(stage: str, message: str, *, details: dict[str, object] | None = 
 
 
 def _build_log_events(events: list[dict[str, object]]) -> dict[str, object]:
-    return {"events": events}
+    return {"events": list(events)}
 
 
 def _dataframe_to_csv_bytes(dataframe: pd.DataFrame) -> bytes:
@@ -252,10 +253,6 @@ def run_saved_transformation_pipeline(
         )
         original_filename = "transformed.csv"
 
-        current_stage = "persist_artifact"
-        log_events.append(_log_event("persist_artifact", "Saving the result."))
-        mark_pipeline_run_running(db, run=run, logs_json=_build_log_events(log_events))
-
         # One dataset per recipe: a run adds a version to the dataset the
         # recipe's earlier runs wrote, instead of a new look-alike each time.
         # A replay is the exception by design: it publishes beside the
@@ -263,6 +260,41 @@ def run_saved_transformation_pipeline(
         derived_dataset = (
             None if replay is not None else reusable_dataset(db, project_id, pipeline.output_dataset_id)
         )
+
+        # The result's contract judges it before anything is stored, so data
+        # that breaks an enforced promise never replaces what people use (C1).
+        # Imported here: the checks service imports this one's expressions.
+        from service_quality.data_contracts import check_new_data
+
+        current_stage = "check_contract"
+        contract_verdict = check_new_data(
+            db,
+            dataset=derived_dataset,
+            frame=working,
+            source_type="recipe",
+            source_id=pipeline.id,
+            source_name=pipeline.name,
+            run_id=run.id,
+            actor_user_id=current_user.id,
+        )
+        if contract_verdict is not None:
+            log_events.append(
+                _log_event(
+                    "check_contract",
+                    f"Checked the contract on {derived_dataset.name}: the result keeps it."
+                    if contract_verdict.kept
+                    else f"Checked the contract on {derived_dataset.name}: the result breaks it, and is saved "
+                    "anyway because the contract is set to warn.",
+                    details={"reasons": contract_verdict.sentences()} if not contract_verdict.kept else None,
+                )
+            )
+            if not contract_verdict.kept:
+                warnings.extend(contract_verdict.sentences())
+
+        current_stage = "persist_artifact"
+        log_events.append(_log_event("persist_artifact", "Saving the result."))
+        mark_pipeline_run_running(db, run=run, logs_json=_build_log_events(log_events))
+
         created_here = derived_dataset is None
         if derived_dataset is not None:
             derived_dataset.file_type = "csv"
@@ -319,6 +351,7 @@ def run_saved_transformation_pipeline(
             content_hash=content_digest(csv_bytes),
             pipeline_run_id=run.id,
             created_by_user_id=current_user.id,
+            contract_verdict=contract_verdict,
         )
 
         # The output pin: the version this run published, so a link to this run

@@ -76,7 +76,7 @@ def category_for(event_type: str, level: str) -> str:
     """The category an event belongs to, from its type and level."""
     if event_type == "mention":
         return "mentions"
-    if event_type in ("incident", "metric_alert"):
+    if event_type in ("incident", "metric_alert", "data_contract"):
         return "incidents"
     if event_type == "report":
         return "reports"

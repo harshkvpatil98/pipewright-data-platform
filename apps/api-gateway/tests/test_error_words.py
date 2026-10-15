@@ -108,3 +108,29 @@ def test_run_task_and_incident_text_uses_the_products_words() -> None:
                     if text and RETIRED_IN_MESSAGES.search(text):
                         offenders.append(f"{path.relative_to(ROOT)}:{node.value.lineno}: {text}")
     assert offenders == []
+
+
+def test_run_logs_and_warnings_use_the_products_words() -> None:
+    """A run's log lines and warnings are read on the run page (C1).
+
+    They are passed by position (`_log_event(stage, message)`,
+    `warnings.append(...)`), so the keyword test above never saw them; six
+    said drift, rule or artifact.
+    """
+    retired = re.compile(RETIRED_IN_MESSAGES.pattern[:-3] + r"|drift)\b", re.IGNORECASE)
+    offenders = []
+    for source in SOURCES:
+        for path in source.rglob("*.py"):
+            for node in ast.walk(ast.parse(path.read_text(), filename=str(path))):
+                if not isinstance(node, ast.Call):
+                    continue
+                name = getattr(node.func, "id", getattr(node.func, "attr", ""))
+                texts = []
+                if name in ("_log_event", "event") and len(node.args) >= 2:
+                    texts.append(_message(node.args[1]))
+                if name == "append" and getattr(getattr(node.func, "value", None), "id", "") == "warnings" and node.args:
+                    texts.append(_message(node.args[0]))
+                offenders.extend(
+                    f"{path.relative_to(ROOT)}:{node.lineno}: {text}" for text in texts if text and retired.search(text)
+                )
+    assert offenders == []

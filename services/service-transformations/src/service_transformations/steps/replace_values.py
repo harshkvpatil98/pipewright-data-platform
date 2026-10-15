@@ -79,7 +79,7 @@ def apply_replace_values(dataframe: pd.DataFrame, config: dict[str, Any]) -> tup
         total_changed += int((before.fillna("") != series.fillna("")).sum())
 
     if total_changed == 0 and len(working) > 0:
-        warnings.append(f"No values in '{column}' matched any replacement rule.")
+        warnings.append(f"No values in '{column}' matched any replacement.")
 
     working[column] = series
     return working, warnings

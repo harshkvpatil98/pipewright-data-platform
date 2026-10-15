@@ -40,7 +40,8 @@
        "runs",
        "incidents",
        "comments",
-       "alerts"
+       "alerts",
+       "contracts"
       ],
       "title": "Kind",
       "type": "string"
@@ -4267,6 +4268,492 @@
     "title": "ConnectorUsageResponse",
     "type": "object"
    },
+   "ContractCheckResponse": {
+    "properties": {
+     "kept": {
+      "title": "Kept",
+      "type": "boolean"
+     },
+     "reasons": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Reasons",
+      "type": "array"
+     },
+     "rows_checked": {
+      "title": "Rows Checked",
+      "type": "integer"
+     },
+     "version_number": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Version Number"
+     }
+    },
+    "required": [
+     "kept",
+     "reasons",
+     "rows_checked"
+    ],
+    "title": "ContractCheckResponse",
+    "type": "object"
+   },
+   "ContractColumn": {
+    "properties": {
+     "allowed_values": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "maxItems": 200,
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Allowed Values"
+     },
+     "always_filled": {
+      "default": false,
+      "title": "Always Filled",
+      "type": "boolean"
+     },
+     "highest": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Highest"
+     },
+     "kind": {
+      "default": "any",
+      "enum": [
+       "text",
+       "whole_number",
+       "decimal_number",
+       "date",
+       "date_time",
+       "true_false",
+       "any"
+      ],
+      "title": "Kind",
+      "type": "string"
+     },
+     "lowest": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Lowest"
+     },
+     "name": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+     },
+     "no_repeats": {
+      "default": false,
+      "title": "No Repeats",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "title": "ContractColumn",
+    "type": "object"
+   },
+   "ContractConsumer": {
+    "properties": {
+     "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+     },
+     "kind": {
+      "title": "Kind",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "kind",
+     "id",
+     "name"
+    ],
+    "title": "ContractConsumer",
+    "type": "object"
+   },
+   "ContractHistoryResponse": {
+    "properties": {
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/ContractVersionRead"
+      },
+      "title": "Items",
+      "type": "array"
+     }
+    },
+    "required": [
+     "items"
+    ],
+    "title": "ContractHistoryResponse",
+    "type": "object"
+   },
+   "ContractPerson": {
+    "properties": {
+     "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+     },
+     "username": {
+      "title": "Username",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "username"
+    ],
+    "title": "ContractPerson",
+    "type": "object"
+   },
+   "ContractProblemRead": {
+    "properties": {
+     "contract_version": {
+      "title": "Contract Version",
+      "type": "integer"
+     },
+     "first_seen_at": {
+      "format": "date-time",
+      "title": "First Seen At",
+      "type": "string"
+     },
+     "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+     },
+     "kind": {
+      "title": "Kind",
+      "type": "string"
+     },
+     "last_seen_at": {
+      "format": "date-time",
+      "title": "Last Seen At",
+      "type": "string"
+     },
+     "outcome": {
+      "title": "Outcome",
+      "type": "string"
+     },
+     "pipeline_run_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Pipeline Run Id"
+     },
+     "reasons": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Reasons",
+      "type": "array"
+     },
+     "resolved_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Resolved At"
+     },
+     "source_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source Id"
+     },
+     "source_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source Name"
+     },
+     "source_type": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source Type"
+     },
+     "times_seen": {
+      "title": "Times Seen",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "id",
+     "kind",
+     "outcome",
+     "source_type",
+     "source_id",
+     "source_name",
+     "reasons",
+     "times_seen",
+     "first_seen_at",
+     "last_seen_at",
+     "resolved_at",
+     "pipeline_run_id",
+     "contract_version"
+    ],
+    "title": "ContractProblemRead",
+    "type": "object"
+   },
+   "ContractSaveResponse": {
+    "properties": {
+     "contract": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/DataContractDetail"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "current": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/ContractCheckResponse"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "draft": {
+      "$ref": "#/components/schemas/ContractTerms"
+     },
+     "people": {
+      "items": {
+       "$ref": "#/components/schemas/ContractPerson"
+      },
+      "title": "People",
+      "type": "array"
+     },
+     "your_role": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Your Role"
+     }
+    },
+    "required": [
+     "contract",
+     "draft",
+     "current"
+    ],
+    "title": "ContractSaveResponse",
+    "type": "object"
+   },
+   "ContractTerms": {
+    "properties": {
+     "columns": {
+      "items": {
+       "$ref": "#/components/schemas/ContractColumn"
+      },
+      "maxItems": 500,
+      "title": "Columns",
+      "type": "array"
+     },
+     "largest_drop_percent": {
+      "anyOf": [
+       {
+        "maximum": 100.0,
+        "minimum": 0.0,
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Largest Drop Percent"
+     },
+     "new_data_every_hours": {
+      "anyOf": [
+       {
+        "exclusiveMinimum": 0.0,
+        "maximum": 8784.0,
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "New Data Every Hours"
+     },
+     "other_columns": {
+      "default": "allowed",
+      "enum": [
+       "allowed",
+       "not_allowed"
+      ],
+      "title": "Other Columns",
+      "type": "string"
+     },
+     "rows_at_least": {
+      "anyOf": [
+       {
+        "minimum": 0.0,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rows At Least"
+     },
+     "rows_at_most": {
+      "anyOf": [
+       {
+        "minimum": 0.0,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rows At Most"
+     }
+    },
+    "title": "ContractTerms",
+    "type": "object"
+   },
+   "ContractVersionRead": {
+    "properties": {
+     "changes": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Changes",
+      "type": "array"
+     },
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "created_by_username": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Created By Username"
+     },
+     "description": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Description"
+     },
+     "enforcement": {
+      "title": "Enforcement",
+      "type": "string"
+     },
+     "owner_username": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Owner Username"
+     },
+     "terms": {
+      "$ref": "#/components/schemas/ContractTerms"
+     },
+     "version": {
+      "title": "Version",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "version",
+     "description",
+     "enforcement",
+     "owner_username",
+     "terms",
+     "changes",
+     "created_by_username",
+     "created_at"
+    ],
+    "title": "ContractVersionRead",
+    "type": "object"
+   },
    "CopyColumnPlan": {
     "properties": {
      "lossy": {
@@ -5118,6 +5605,337 @@
      }
     },
     "title": "DashboardUpdate",
+    "type": "object"
+   },
+   "DataContractDetail": {
+    "properties": {
+     "consumers": {
+      "items": {
+       "$ref": "#/components/schemas/ContractConsumer"
+      },
+      "title": "Consumers",
+      "type": "array"
+     },
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "dataset_id": {
+      "format": "uuid",
+      "title": "Dataset Id",
+      "type": "string"
+     },
+     "dataset_name": {
+      "title": "Dataset Name",
+      "type": "string"
+     },
+     "description": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Description"
+     },
+     "enforcement": {
+      "title": "Enforcement",
+      "type": "string"
+     },
+     "followers": {
+      "title": "Followers",
+      "type": "integer"
+     },
+     "following": {
+      "title": "Following",
+      "type": "boolean"
+     },
+     "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+     },
+     "last_checked_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Checked At"
+     },
+     "open_problems": {
+      "title": "Open Problems",
+      "type": "integer"
+     },
+     "owner_user_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Owner User Id"
+     },
+     "owner_username": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Owner Username"
+     },
+     "problems": {
+      "items": {
+       "$ref": "#/components/schemas/ContractProblemRead"
+      },
+      "title": "Problems",
+      "type": "array"
+     },
+     "project_id": {
+      "format": "uuid",
+      "title": "Project Id",
+      "type": "string"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     },
+     "terms": {
+      "$ref": "#/components/schemas/ContractTerms"
+     },
+     "updated_at": {
+      "format": "date-time",
+      "title": "Updated At",
+      "type": "string"
+     },
+     "version": {
+      "title": "Version",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "id",
+     "project_id",
+     "dataset_id",
+     "dataset_name",
+     "owner_user_id",
+     "owner_username",
+     "description",
+     "enforcement",
+     "terms",
+     "version",
+     "status",
+     "open_problems",
+     "followers",
+     "following",
+     "last_checked_at",
+     "created_at",
+     "updated_at",
+     "problems",
+     "consumers"
+    ],
+    "title": "DataContractDetail",
+    "type": "object"
+   },
+   "DataContractListResponse": {
+    "properties": {
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/DataContractRead"
+      },
+      "title": "Items",
+      "type": "array"
+     }
+    },
+    "required": [
+     "items"
+    ],
+    "title": "DataContractListResponse",
+    "type": "object"
+   },
+   "DataContractRead": {
+    "properties": {
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "dataset_id": {
+      "format": "uuid",
+      "title": "Dataset Id",
+      "type": "string"
+     },
+     "dataset_name": {
+      "title": "Dataset Name",
+      "type": "string"
+     },
+     "description": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Description"
+     },
+     "enforcement": {
+      "title": "Enforcement",
+      "type": "string"
+     },
+     "followers": {
+      "title": "Followers",
+      "type": "integer"
+     },
+     "following": {
+      "title": "Following",
+      "type": "boolean"
+     },
+     "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+     },
+     "last_checked_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Checked At"
+     },
+     "open_problems": {
+      "title": "Open Problems",
+      "type": "integer"
+     },
+     "owner_user_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Owner User Id"
+     },
+     "owner_username": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Owner Username"
+     },
+     "project_id": {
+      "format": "uuid",
+      "title": "Project Id",
+      "type": "string"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     },
+     "terms": {
+      "$ref": "#/components/schemas/ContractTerms"
+     },
+     "updated_at": {
+      "format": "date-time",
+      "title": "Updated At",
+      "type": "string"
+     },
+     "version": {
+      "title": "Version",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "id",
+     "project_id",
+     "dataset_id",
+     "dataset_name",
+     "owner_user_id",
+     "owner_username",
+     "description",
+     "enforcement",
+     "terms",
+     "version",
+     "status",
+     "open_problems",
+     "followers",
+     "following",
+     "last_checked_at",
+     "created_at",
+     "updated_at"
+    ],
+    "title": "DataContractRead",
+    "type": "object"
+   },
+   "DataContractWrite": {
+    "properties": {
+     "description": {
+      "anyOf": [
+       {
+        "maxLength": 2000,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Description"
+     },
+     "enforcement": {
+      "default": "stop",
+      "enum": [
+       "stop",
+       "warn"
+      ],
+      "title": "Enforcement",
+      "type": "string"
+     },
+     "owner_user_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Owner User Id"
+     },
+     "terms": {
+      "$ref": "#/components/schemas/ContractTerms"
+     }
+    },
+    "required": [
+     "terms"
+    ],
+    "title": "DataContractWrite",
     "type": "object"
    },
    "DataQualityEvaluationRequest": {
@@ -6087,6 +6905,48 @@
      "comparison_notes"
     ],
     "title": "DatasetComparisonSummary",
+    "type": "object"
+   },
+   "DatasetContractResponse": {
+    "description": "A dataset's contract, or none, with promises drafted from its data.",
+    "properties": {
+     "contract": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/DataContractDetail"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "draft": {
+      "$ref": "#/components/schemas/ContractTerms"
+     },
+     "people": {
+      "items": {
+       "$ref": "#/components/schemas/ContractPerson"
+      },
+      "title": "People",
+      "type": "array"
+     },
+     "your_role": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Your Role"
+     }
+    },
+    "required": [
+     "contract",
+     "draft"
+    ],
+    "title": "DatasetContractResponse",
     "type": "object"
    },
    "DatasetCreate": {
@@ -31799,6 +32659,71 @@
     ]
    }
   },
+  "/api/v1/projects/{project_id}/contracts": {
+   "get": {
+    "description": "Every contract in the project, with whether each is kept.",
+    "operationId": "list_project_contracts_api_v1_projects__project_id__contracts_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DataContractListResponse"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "List Project Contracts",
+    "tags": [
+     "data-quality"
+    ]
+   }
+  },
   "/api/v1/projects/{project_id}/dashboards": {
    "get": {
     "operationId": "read_dashboards_api_v1_projects__project_id__dashboards_get",
@@ -34397,6 +35322,620 @@
     "summary": "Export Project Dataset Audit",
     "tags": [
      "datasets"
+    ]
+   }
+  },
+  "/api/v1/projects/{project_id}/datasets/{dataset_id}/contract": {
+   "delete": {
+    "description": "Remove a dataset's contract.",
+    "operationId": "remove_dataset_contract_api_v1_projects__project_id__datasets__dataset_id__contract_delete",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "dataset_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Dataset Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Remove Dataset Contract",
+    "tags": [
+     "data-quality"
+    ]
+   },
+   "get": {
+    "description": "A dataset's contract (or none), and promises drafted from its current data.",
+    "operationId": "read_dataset_contract_api_v1_projects__project_id__datasets__dataset_id__contract_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "dataset_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Dataset Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DatasetContractResponse"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Read Dataset Contract",
+    "tags": [
+     "data-quality"
+    ]
+   },
+   "put": {
+    "description": "Write or change a dataset's contract; says whether the current data keeps it.",
+    "operationId": "save_dataset_contract_api_v1_projects__project_id__datasets__dataset_id__contract_put",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "dataset_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Dataset Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/DataContractWrite"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ContractSaveResponse"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Save Dataset Contract",
+    "tags": [
+     "data-quality"
+    ]
+   }
+  },
+  "/api/v1/projects/{project_id}/datasets/{dataset_id}/contract/check": {
+   "get": {
+    "description": "Whether the current data, or one version, keeps the contract. Records nothing.",
+    "operationId": "preview_dataset_contract_check_api_v1_projects__project_id__datasets__dataset_id__contract_check_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "dataset_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Dataset Id",
+       "type": "string"
+      }
+     },
+     {
+      "description": "A version to check instead of the current data.",
+      "in": "query",
+      "name": "version",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "minimum": 1,
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "A version to check instead of the current data.",
+       "title": "Version"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ContractCheckResponse"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Preview Dataset Contract Check",
+    "tags": [
+     "data-quality"
+    ]
+   },
+   "post": {
+    "description": "Check the current data against the contract now, and record the outcome.",
+    "operationId": "check_dataset_contract_api_v1_projects__project_id__datasets__dataset_id__contract_check_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "dataset_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Dataset Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ContractCheckResponse"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Check Dataset Contract",
+    "tags": [
+     "data-quality"
+    ]
+   }
+  },
+  "/api/v1/projects/{project_id}/datasets/{dataset_id}/contract/follow": {
+   "delete": {
+    "description": "Stop being told about the contract.",
+    "operationId": "unfollow_dataset_contract_api_v1_projects__project_id__datasets__dataset_id__contract_follow_delete",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "dataset_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Dataset Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DataContractRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Unfollow Dataset Contract",
+    "tags": [
+     "data-quality"
+    ]
+   },
+   "post": {
+    "description": "Be told when the contract breaks, is kept again or changes.",
+    "operationId": "follow_dataset_contract_api_v1_projects__project_id__datasets__dataset_id__contract_follow_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "dataset_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Dataset Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DataContractRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Follow Dataset Contract",
+    "tags": [
+     "data-quality"
+    ]
+   }
+  },
+  "/api/v1/projects/{project_id}/datasets/{dataset_id}/contract/history": {
+   "get": {
+    "description": "Every version of the contract, newest first, with what changed.",
+    "operationId": "read_contract_history_api_v1_projects__project_id__datasets__dataset_id__contract_history_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "dataset_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Dataset Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ContractHistoryResponse"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Read Contract History",
+    "tags": [
+     "data-quality"
     ]
    }
   },

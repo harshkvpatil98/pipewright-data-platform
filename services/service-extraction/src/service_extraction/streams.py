@@ -368,7 +368,16 @@ def materialise_source(db: Session, project_id: uuid.UUID, source_id: uuid.UUID,
 
     if source.dataset_id is not None:
         dataset = get_dataset_model_for_project(db, project_id, source.dataset_id)
+        # The stream's dataset may have a contract; it judges the events
+        # before they are stored, as for any other new data (C1).
+        from service_quality.data_contracts import check_new_data
+
+        contract_verdict = check_new_data(
+            db, dataset=dataset, frame=frame, source_type="stream", source_id=source.id,
+            source_name=source.name, actor_user_id=current_user.id,
+        )
     else:
+        contract_verdict = None
         dataset = create_uploaded_dataset_placeholder(
             db, project_id=project_id, name=f"{source.name} (stream)"[:160],
             original_filename=f"{source.name[:80] or 'stream'}.csv", file_type="csv",
@@ -387,6 +396,7 @@ def materialise_source(db: Session, project_id: uuid.UUID, source_id: uuid.UUID,
         profile_json=build_profile(dataframe=frame, sample_limit=settings.profile_sample_value_limit, file_size_bytes=len(csv_bytes)),
         row_count=int(len(frame)), column_count=int(len(frame.columns)),
         content_hash=content_digest(csv_bytes), created_by_user_id=current_user.id,
+        contract_verdict=contract_verdict,
     )
     source.last_materialised_at = datetime.now(UTC)
     db.commit()

@@ -158,9 +158,32 @@ curl -s "$PIPEWRIGHT/api/v1/projects/$PROJECT/datasets/$DATASET/download?format=
 
 The project's row and column policies apply to the API exactly as they do in the app: a token sees what its owner may see.
 
+## Example 4: promise what a dataset holds
+
+A [contract](trust.md#contracts) is a promise about a dataset that new data must keep. Ask for the dataset's contract; with none yet, `draft` holds promises written from its current data:
+
+```bash
+curl -s "$PIPEWRIGHT/api/v1/projects/$PROJECT/datasets/$DATASET/contract" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Save one. With `"enforcement": "stop"`, an import or recipe run whose data breaks it fails with `409` and the reasons, and the current data stays. The answer says whether the current data keeps it:
+
+```bash
+curl -s -X PUT "$PIPEWRIGHT/api/v1/projects/$PROJECT/datasets/$DATASET/contract" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d @- <<EOF
+{"enforcement": "stop",
+ "terms": {"columns": [{"name": "id", "kind": "whole_number", "always_filled": true, "no_repeats": true},
+                       {"name": "amount", "kind": "decimal_number", "lowest": 0}],
+           "rows_at_least": 1}}
+EOF
+```
+
 ## Moving a project's work
 
-A bundle is a project's recipes, checks, metrics, charts, dashboards, workflows and schedules in one JSON file, with no data or passwords. Download one:
+A bundle is a project's recipes, checks, contracts, metrics, charts, dashboards, workflows and schedules in one JSON file, with no data or passwords. Download one:
 
 ```bash
 curl -s "$PIPEWRIGHT/api/v1/projects/$PROJECT/bundle" \
@@ -239,5 +262,5 @@ Its README lists every command; in Python, `from pipewright import Client`. The 
 ## Good to know
 
 - **Finding ids.** `GET /api/v1/projects` lists projects, and `GET /api/v1/projects/$PROJECT/datasets` lists a project's datasets, each with its `id`. In the app, a page's **Technical details** shows the ids it is about.
-- **Errors.** `401` means the token is missing, wrong or withdrawn; `403` that its owner may not do this, or it is a read token; `404` that the thing does not exist or is not visible to you; `400` and `422` that the request needs changing, with the reason in `detail`.
+- **Errors.** `401` means the token is missing, wrong or withdrawn; `403` that its owner may not do this, or it is a read token; `404` that the thing does not exist or is not visible to you; `409` that new data breaks a dataset's contract, so it was not saved; `400` and `422` that the request needs changing, with the reason in `detail`.
 - **Long jobs.** Imports and recipes answer when they finish. For work that runs on its own, such as a workflow, start it and then ask for the run until its `status` is `succeeded` or `failed`.

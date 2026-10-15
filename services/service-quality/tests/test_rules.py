@@ -243,7 +243,7 @@ def test_dataset_level_failure_warns_that_it_cannot_quarantine(customers: pd.Dat
     result = evaluate_ruleset(customers, [_rule("row_count", {"min": 100})], quarantine=True)
     assert result.status == "failed"
     assert result.quarantined_frame.empty
-    assert any("cannot be quarantined" in warning for warning in result.warnings)
+    assert any("no single row can be set aside" in warning for warning in result.warnings)
 
 
 def test_misconfigured_rule_is_recorded_not_raised(customers: pd.DataFrame) -> None:
@@ -258,4 +258,4 @@ def test_misconfigured_rule_is_recorded_not_raised(customers: pd.DataFrame) -> N
     assert len(result.results) == 2
     broken = next(r for r in result.results if r.name == "broken")
     assert broken.evaluation.details.get("configuration_error") is True
-    assert any("misconfigured" in warning for warning in result.warnings)
+    assert any("is not set up correctly" in warning for warning in result.warnings)

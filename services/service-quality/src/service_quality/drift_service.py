@@ -126,7 +126,7 @@ def acknowledge_drift_event(
         )
     )
     if event is None:
-        raise NotFoundError("Schema drift event not found.")
+        raise NotFoundError("That schema change was not found.")
 
     event.acknowledged = True
     event.acknowledged_at = datetime.now(UTC)

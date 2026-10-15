@@ -445,6 +445,22 @@ def _cannot_compare(expr: Call) -> str:
     )
 
 
+def _round_half_up(value: Any, digits: int) -> Any:
+    """Half away from zero, from the value as written: 2.5 is 3 and 2.675 is 2.68.
+
+    pandas rounds half to even (2.5 is 2), which no spreadsheet or database
+    does, so a pushed-down ROUND gave other numbers (found by E1's agreement
+    test). Read through the shortest text that gives the float back, as
+    PostgreSQL does when it casts a float to NUMERIC.
+    """
+    from decimal import ROUND_HALF_UP, Decimal
+
+    if value is None or pd.isna(value):
+        return None
+    rounded = Decimal(repr(float(value))).quantize(Decimal(1).scaleb(-digits), rounding=ROUND_HALF_UP)
+    return float(rounded)
+
+
 def _call(expr: Call, frame: pd.DataFrame) -> pd.Series:
     name = expr.name
     args = [evaluate(arg, frame) for arg in expr.args]
@@ -479,7 +495,7 @@ def _call(expr: Call, frame: pd.DataFrame) -> pd.Series:
         return _numeric(args[0]).abs()
     if name == "round":
         digits = int(expr.args[1].value) if len(expr.args) > 1 else 0  # type: ignore[union-attr]
-        return _numeric(args[0]).round(digits)
+        return _numeric(args[0]).map(lambda value: _round_half_up(value, digits))
     if name == "floor":
         return _numeric(args[0]).apply(lambda v: None if pd.isna(v) else int(v // 1))
     if name == "ceil":

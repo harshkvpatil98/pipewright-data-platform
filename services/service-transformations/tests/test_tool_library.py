@@ -75,7 +75,14 @@ def predict(frame: pd.DataFrame, config: dict):
 
 
 def run(spec: tools.ToolSpec, frame: pd.DataFrame) -> pd.DataFrame:
-    result, _ = apply_tool(frame, config_for(spec, frame))
+    from service_transformations.tools.catalogue.checks import CheckFailed
+
+    try:
+        result, _ = apply_tool(frame, config_for(spec, frame))
+    except CheckFailed:
+        # A check stopping the run on empty or all-empty data is what it is
+        # for ("the total is 0, not 100"); it still must not crash.
+        return frame
     return result
 
 

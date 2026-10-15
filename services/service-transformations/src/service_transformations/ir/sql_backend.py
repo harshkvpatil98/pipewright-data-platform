@@ -108,6 +108,8 @@ def _compile(node: Node, d: Dialect, alias_seed: list[int]) -> str:
             f"{node.name!r} is an extension step with no SQL form; it must run locally."
         )
 
+    _require_exact(node, d)
+
     if isinstance(node, Project):
         inner = _compile(node.input, d, alias_seed)
         alias = _next_alias(alias_seed)
@@ -210,6 +212,33 @@ def _compile(node: Node, d: Dialect, alias_seed: list[int]) -> str:
         return f"{left_sql} {keyword} {right_sql}"
 
     raise Unsupported(f"No SQL form for {type(node).__name__}.")
+
+
+def _require_exact(node: Node, d: Dialect) -> None:
+    """Refuse what the types make differ (text read as a number or a date): `exact_in` says why."""
+    from service_transformations.ir.expressions import exact_in
+
+    if isinstance(node, Project):
+        expressions = [expr for _, expr in node.projections]
+    elif isinstance(node, Filter):
+        expressions = [node.predicate]
+    elif isinstance(node, Aggregate):
+        expressions = [expr for _, expr in (*node.group_by, *node.aggregates)]
+    elif isinstance(node, Sort):
+        expressions = [key.expr for key in node.keys]
+    else:
+        return
+    from service_transformations.ir.expressions import supported_in
+
+    schema = node.input.schema()
+    for expression in expressions:
+        if not supported_in(d.name, expression):
+            raise Unsupported(f"{d.name} has no lowering for part of {expression}; it must run locally.")
+        if not exact_in(d.name, expression, schema):
+            raise Unsupported(
+                f"{d.name} reads text as a number or a date differently from here, so {expression} must run "
+                "locally."
+            )
 
 
 def _order_by(keys, d: Dialect, schema: dict | None = None) -> str:
@@ -417,6 +446,9 @@ def _call_sql(expr: Call, d: Dialect, recurse) -> str:
 
     if expr.name == "count" and not rendered:
         return "COUNT(*)"
+
+    if expr.name == "round" and len(rendered) == 1:
+        return template.replace(", {1}", "").format(rendered[0])
 
     if expr.name == "substring" and len(rendered) == 2:
         # To the end of the text. Padding the template's third placeholder

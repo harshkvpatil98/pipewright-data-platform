@@ -143,12 +143,15 @@ def _load() -> None:
     # something somebody chose.
     from service_transformations.tools.catalogue import (  # noqa: F401
         calendar,
+        checks,
         cleansing,
         columns,
         combine,
         conversions,
         datetimes,
         encoding,
+        lookups,
+        matching,
         nested,
         nulls,
         numeric,

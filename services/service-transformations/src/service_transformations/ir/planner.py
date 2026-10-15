@@ -177,8 +177,12 @@ def _can_push(node: Node, surface: SourceSurface) -> tuple[bool, str]:
             "pushing it could change the result"
         )
     if dialect is not None:
+        from service_transformations.ir.expressions import exact_in
+
+        schema = node.children()[0].schema() if len(node.children()) == 1 else {}
         for expression in _expressions_of(node):
-            if not supported_in(dialect, expression):
+            exact = exact_in(dialect, expression, schema) if schema else supported_in(dialect, expression)
+            if not exact:
                 return False, (
                     f"{dialect} has no equivalent for part of this step, so "
                     "pushing it could change the result"

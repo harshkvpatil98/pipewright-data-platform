@@ -305,7 +305,13 @@ FUNCTIONS: dict[str, Signature] = {
     "mod": _define("mod", 2, 2, _numeric_result, _same("MOD({0}, {1})", ("postgres", "mysql", "duckdb"))),
     "neg": _define("neg", 1, 1, _first, _same("(-{0})")),
     "abs": _define("abs", 1, 1, _first, _same("ABS({0})")),
-    "round": _define("round", 1, 2, _first, _same("ROUND({0}, {1})")),
+    # Half away from zero (2.5 is 3, -2.5 is -3), as spreadsheets and SQL
+    # round, from the value as written. PostgreSQL rounds floats only as
+    # NUMERIC, which is exactly that; MySQL rounds a DOUBLE however its C
+    # library does, so it is not told it can.
+    "round": _define("round", 1, 2, _first, {
+        "postgres": "ROUND(CAST({0} AS NUMERIC), {1})", "sqlite": "ROUND({0}, {1})",
+    }),
     "floor": _define("floor", 1, 1, _first, _same("FLOOR({0})")),
     "ceil": _define("ceil", 1, 1, _first, _same("CEIL({0})", ("postgres", "mysql", "duckdb"))),
     # -- text -------------------------------------------------------------
@@ -677,6 +683,46 @@ def is_aggregate(expr: Expr) -> bool:
     if isinstance(expr, Cast):
         return is_aggregate(expr.value)
     return False
+
+
+#: Functions whose local implementation first reads text as a date, which a
+#: database does not do: they push down only over a column that holds dates.
+#: The value is the position of the date argument.
+TEMPORAL_ARGUMENT: dict[str, int] = {
+    "date_trunc": 1, "year": 0, "quarter": 0, "month": 0, "day": 0, "hour": 0, "minute": 0, "second": 0,
+    "day_of_year": 0,
+}
+
+
+def exact_in(dialect: str, expr: Expr, schema: dict[str, PWType]) -> bool:
+    """Whether ``dialect`` gives exactly the local answer for ``expr`` over ``schema``.
+
+    Every function needs a lowering (`supported_in`), and what the types make
+    differ must stay local: text cast to a number, a date or true or false is
+    empty here when it does not read, where SQLite gives 0 and PostgreSQL
+    stops the query; a date function over text reads the text as a date here
+    and fails in PostgreSQL.
+    """
+    return supported_in(dialect, expr) and _typed_exactly(expr, schema)
+
+
+def _typed_exactly(expr: Expr, schema: dict[str, PWType]) -> bool:
+    if isinstance(expr, Cast):
+        source = expr.value.type_of(schema)
+        if expr.to.kind is not Kind.STRING and source.kind in (Kind.STRING, Kind.UNKNOWN):
+            return False
+        return _typed_exactly(expr.value, schema)
+    if isinstance(expr, Call):
+        position = TEMPORAL_ARGUMENT.get(expr.name)
+        if position is not None and position < len(expr.args) and not expr.args[position].type_of(schema).is_temporal:
+            return False
+        return all(_typed_exactly(arg, schema) for arg in expr.args)
+    if isinstance(expr, Case):
+        parts = [part for pair in expr.branches for part in pair]
+        if expr.default is not None:
+            parts.append(expr.default)
+        return all(_typed_exactly(part, schema) for part in parts)
+    return True
 
 
 def supported_in(dialect: str, expr: Expr) -> bool:

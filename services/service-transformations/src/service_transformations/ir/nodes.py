@@ -566,21 +566,23 @@ def pushable_to(dialect: str, node: Node) -> bool:
     An Extension never can, by construction. Everything else depends on whether
     its expressions have lowerings.
     """
+    from service_transformations.ir.expressions import exact_in
+
     if isinstance(node, Extension):
         return False
     if isinstance(node, Project):
-        return all(supported_in(dialect, e) for _, e in node.projections)
+        schema = node.input.schema()
+        return all(exact_in(dialect, e, schema) for _, e in node.projections)
     if isinstance(node, Filter):
-        return supported_in(dialect, node.predicate)
+        return exact_in(dialect, node.predicate, node.input.schema())
     if isinstance(node, Aggregate):
-        return all(
-            supported_in(dialect, e)
-            for _, e in list(node.group_by) + list(node.aggregates)
-        )
+        schema = node.input.schema()
+        return all(exact_in(dialect, e, schema) for _, e in list(node.group_by) + list(node.aggregates))
     if isinstance(node, Join):
         return node.on is None or supported_in(dialect, node.on)
     if isinstance(node, Sort):
-        return all(supported_in(dialect, key.expr) for key in node.keys)
+        schema = node.input.schema()
+        return all(exact_in(dialect, key.expr, schema) for key in node.keys)
     if isinstance(node, Window):
         return window_pushable(dialect, node)
     return True
@@ -590,13 +592,16 @@ def window_pushable(dialect: str, node: "Window") -> bool:
     """Whether every function of this window means exactly the same in ``dialect``."""
     from service_transformations.ir.window_functions import WINDOW_DIALECTS, WINDOW_FUNCTIONS
 
+    from service_transformations.ir.expressions import exact_in
+
     if dialect not in WINDOW_DIALECTS:
         return False
-    if not all(supported_in(dialect, key.expr) for key in node.order_by):
+    schema = node.input.schema()
+    if not all(exact_in(dialect, key.expr, schema) for key in node.order_by):
         return False
     for _, call in node.functions:
         spec = WINDOW_FUNCTIONS[call.function]
-        if dialect not in spec.sql or not all(supported_in(dialect, arg) for arg in call.args):
+        if dialect not in spec.sql or not all(exact_in(dialect, arg, schema) for arg in call.args):
             return False
         if spec.tie_safe is False:
             return False

@@ -1,6 +1,6 @@
 # Transformation tools
 
-264 tools across 14 categories. Every one compiles to the
+293 tools across 16 categories. Every one compiles to the
 relational IR, so every one gets type inference, column lineage and
 pushdown without a second implementation.
 
@@ -10,18 +10,20 @@ test suite, so this file cannot describe behaviour the code does not have.
 ## Contents
 
 - [Date & time](#date--time) (42)
+- [Validation](#validation) (24)
 - [Cleansing](#cleansing) (21)
 - [Columns](#columns) (13)
 - [Join & combine](#join--combine) (6)
 - [Type & conversion](#type--conversion) (14)
 - [Encoding & privacy](#encoding--privacy) (17)
+- [Enrichment & lookup](#enrichment--lookup) (6)
+- [Deduplication & matching](#deduplication--matching) (8)
 - [Nested data](#nested-data) (6)
 - [Missing data](#missing-data) (11)
 - [Numeric](#numeric) (30)
 - [Rows](#rows) (16)
 - [Reshape](#reshape) (3)
 - [Text](#text) (45)
-- [Validation](#validation) (9)
 - [Window & analytic](#window--analytic) (31)
 
 
@@ -717,6 +719,514 @@ Offered on **numeric** columns.
 | `when` | `when` |
 |---|---|
 | `1787443200` | `2026-08-23 00:00:00` |
+
+
+## Validation
+
+### Check nothing is empty
+
+`assert.not_empty`
+
+Every row has a value in these columns.
+
+Also known as: _assert not null_, _required_, _not empty_, _mandatory_, _no blanks_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Columns | columns | yes | none |
+| When it does not hold | `stop the run` / `warn` / `mark the rows` | no | `stop the run` |
+| | Mark adds a true or false column saying which rows fail, for checks about single rows. | | |
+| Marking column | text | no | none |
+
+| `email` | `bad` |
+|---|---|
+| `a@x.com` | `False` |
+| ` ` | `True` |
+
+_With on_failure set to mark the rows; the second has no email._
+
+### Check values are from a list
+
+`assert.in_set`
+
+Every value of the column is one of these (empty values pass; check them with Check nothing is empty).
+
+Also known as: _assert in set_, _allowed values_, _accepted values_, _enum check_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Column | column | yes | none |
+| Allowed values | list | yes | none |
+| When it does not hold | `stop the run` / `warn` / `mark the rows` | no | `stop the run` |
+| | Mark adds a true or false column saying which rows fail, for checks about single rows. | | |
+| Marking column | text | no | none |
+
+| `colour` | `bad` |
+|---|---|
+| `red` | `False` |
+| `purple` | `True` |
+| _(empty)_ | `False` |
+
+_With on_failure set to mark the rows; purple is not allowed._
+
+### Check numbers are in a range
+
+`assert.in_range`
+
+Every value is a number at least the lowest and at most the highest given.
+
+Also known as: _assert range_, _between_, _bounds_, _min max check_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Column | column | yes | none |
+| Lowest | number | no | none |
+| Highest | number | no | none |
+| When it does not hold | `stop the run` / `warn` / `mark the rows` | no | `stop the run` |
+| | Mark adds a true or false column saying which rows fail, for checks about single rows. | | |
+| Marking column | text | no | none |
+
+| `price` | `bad` |
+|---|---|
+| `3` | `False` |
+| `-1` | `True` |
+
+_With on_failure set to mark the rows; a negative price._
+
+### Check values match a pattern
+
+`assert.matches`
+
+Every value matches a regular expression in full.
+
+Also known as: _assert regex_, _pattern check_, _format check_, _matches_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Column | column | yes | none |
+| Pattern | text | yes | none |
+| When it does not hold | `stop the run` / `warn` / `mark the rows` | no | `stop the run` |
+| | Mark adds a true or false column saying which rows fail, for checks about single rows. | | |
+| Marking column | text | no | none |
+
+| `code` | `bad` |
+|---|---|
+| `AB12` | `False` |
+| `A1` | `True` |
+
+_With on_failure set to mark the rows; a code too short._
+
+### Check values are of a type
+
+`assert.type`
+
+Every value reads as a number, a whole number, a date or true or false.
+
+Also known as: _assert type_, _type check_, _is numeric_, _data type check_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Column | column | yes | none |
+| Should be | `a number` / `a whole number` / `a date` / `true or false` | yes | `a number` |
+| When it does not hold | `stop the run` / `warn` / `mark the rows` | no | `stop the run` |
+| | Mark adds a true or false column saying which rows fail, for checks about single rows. | | |
+| Marking column | text | no | none |
+
+| `qty` | `bad` |
+|---|---|
+| `3` | `False` |
+| `seven` | `True` |
+
+_With on_failure set to mark the rows; seven is a word._
+
+### Check a formula holds
+
+`assert.formula`
+
+Every row satisfies a formula that is true or false, such as [shipped] >= [ordered]; a row where it is empty fails.
+
+Also known as: _custom assertion_, _assert formula_, _rule_, _business rule_, _invariant_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Formula | text | yes | none |
+| When it does not hold | `stop the run` / `warn` / `mark the rows` | no | `stop the run` |
+| | Mark adds a true or false column saying which rows fail, for checks about single rows. | | |
+| Marking column | text | no | none |
+
+| `ordered` | `bad` |
+|---|---|
+| `3` | `False` |
+| `5` | `True` |
+
+_With on_failure set to mark the rows; shipped before it was ordered._
+
+### Check every key exists elsewhere
+
+`assert.found_in`
+
+Every value of the column appears in another dataset's column (each order's customer is a known customer): referential integrity.
+
+Also known as: _referential integrity_, _foreign key check_, _assert exists_, _orphan rows_, _lookup check_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Column | column | yes | none |
+| Other dataset | dataset | yes | none |
+| Its column | dataset_column | yes | none |
+| When it does not hold | `stop the run` / `warn` / `mark the rows` | no | `stop the run` |
+| | Mark adds a true or false column saying which rows fail, for checks about single rows. | | |
+| Marking column | text | no | none |
+
+| `customer` | `bad` |
+|---|---|
+| `1` | `False` |
+| `9` | `True` |
+
+The other dataset in this example:
+
+| `id` |
+|---|
+| `1` |
+| `2` |
+
+_With on_failure set to mark the rows; customer 9 is unknown._
+
+### Check values are unique
+
+`assert.unique`
+
+No two rows have the same values in these columns (a key).
+
+Also known as: _assert unique_, _primary key_, _unique key_, _no duplicate keys_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Columns | columns | yes | none |
+| When it does not hold | `stop the run` / `warn` / `mark the rows` | no | `stop the run` |
+| | Mark adds a true or false column saying which rows fail, for checks about single rows. | | |
+| Marking column | text | no | none |
+
+| `id` | `bad` |
+|---|---|
+| `1` | `False` |
+| `2` | `True` |
+| `2` | `True` |
+
+_With on_failure set to mark the rows; two rows share id 2._
+
+### Check no row is repeated
+
+`assert.no_duplicates`
+
+No two rows are the same in every column.
+
+Also known as: _assert no duplicates_, _duplicate rows_, _distinct rows check_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| When it does not hold | `stop the run` / `warn` / `mark the rows` | no | `stop the run` |
+| | Mark adds a true or false column saying which rows fail, for checks about single rows. | | |
+| Marking column | text | no | none |
+
+| `a` | `bad` |
+|---|---|
+| `1` | `True` |
+| `2` | `False` |
+| `1` | `True` |
+
+_With on_failure set to mark the rows; the last row repeats the first._
+
+### Check the number of rows
+
+`assert.row_count`
+
+There are at least, or at most, this many rows (an import that brought nothing; a join that multiplied).
+
+Also known as: _assert row count_, _row count_, _volume check_, _not empty dataset_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| At least | integer | no | none |
+| At most | integer | no | none |
+| When it does not hold | `stop the run` / `warn` | no | `stop the run` |
+
+| `a` | `a` |
+|---|---|
+| `1` | `1` |
+| `2` | `2` |
+
+_Passes: 2 rows is between 1 and 10._
+
+### Check values only go up
+
+`assert.increasing`
+
+Each value of the column is at least the one before it (or, strictly, more): a sequence, a running total, timestamps in order.
+
+Also known as: _assert monotonic_, _increasing_, _in order_, _sorted check_, _sequence check_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Column | column | yes | none |
+| Strictly | boolean | no | `False` |
+| When it does not hold | `stop the run` / `warn` / `mark the rows` | no | `stop the run` |
+| | Mark adds a true or false column saying which rows fail, for checks about single rows. | | |
+| Marking column | text | no | none |
+
+| `t` | `bad` |
+|---|---|
+| `1` | `False` |
+| `2` | `False` |
+| `1` | `True` |
+
+_With on_failure set to mark the rows; the third goes back._
+
+### Check a total
+
+`assert.sum_equals`
+
+The column adds up to this, within a tolerance (shares add to 100, debits equal credits).
+
+Also known as: _assert sum_, _total check_, _reconcile_, _balance check_, _control total_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Column | column | yes | none |
+| Should add up to | number | yes | none |
+| Within | number | no | `0` |
+| When it does not hold | `stop the run` / `warn` | no | `stop the run` |
+
+| `share` | `share` |
+|---|---|
+| `60` | `60` |
+| `40` | `40` |
+
+_Passes: 60 and 40 add to 100._
+
+### Check the data is recent
+
+`assert.fresh`
+
+The newest date or time in the column is no older than this many hours when the recipe runs (a replay checks against the moment of the run it repeats).
+
+Also known as: _assert freshness_, _freshness_, _stale data_, _latest date check_, _sla_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Column | column | yes | none |
+| At most this many hours old | number | yes | `24` |
+| When it does not hold | `stop the run` / `warn` | no | `stop the run` |
+
+| `at` | `at` |
+|---|---|
+| `2200-01-01` | `2200-01-01` |
+
+_Passes: the newest value is not old._
+
+### Check the columns
+
+`assert.schema`
+
+The data has these columns (each optionally with a type, as name:number, name:date, name:text, name:true or false), and, if asked, no others.
+
+Also known as: _assert schema_, _schema check_, _expected columns_, _column check_, _schema snapshot_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Expected columns | list | yes | none |
+| Other columns are fine | boolean | no | `True` |
+| When it does not hold | `stop the run` / `warn` | no | `stop the run` |
+
+| `id` | `id` |
+|---|---|
+| `1` | `1` |
+
+_Passes: id is a number and name is there._
+
+### Check values look as they did
+
+`assert.distribution_stable`
+
+The column's values are distributed as in another dataset, such as this recipe's own output from the run before: by the Kolmogorov-Smirnov distance for numbers and the population stability index for categories, below a threshold.
+
+Also known as: _assert distribution_, _drift check_, _distribution stable_, _psi_, _ks test_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Column | column | yes | none |
+| Compared with | dataset | yes | none |
+| Its column | dataset_column | no | none |
+| Largest change allowed | number | no | `0.2` |
+| When it does not hold | `stop the run` / `warn` | no | `stop the run` |
+
+| `v` | `v` |
+|---|---|
+| `1` | `1` |
+| `2` | `2` |
+| `3` | `3` |
+
+The other dataset in this example:
+
+| `v` |
+|---|
+| `1` |
+| `2` |
+| `3` |
+
+_Passes: the same values as the dataset compared with._
+
+### Looks like an email
+
+`check.is_email`
+
+True for text shaped like an email address.
+
+Also known as: _validate email_, _email check_
+
+Offered on **textual** columns.
+
+| `value` | `value` |
+|---|---|
+| `a@b.com` | `True` |
+| `nope` | `False` |
+
+### Looks like a URL
+
+`check.is_url`
+
+True for text shaped like an http or https URL.
+
+Also known as: _validate url_
+
+Offered on **textual** columns.
+
+| `value` | `value` |
+|---|---|
+| `https://a.co` | `True` |
+| `a.co` | `False` |
+
+### Reads as a date
+
+`check.is_date`
+
+True where the value can be read as a date.
+
+Also known as: _validate date_, _parseable date_
+
+| `value` | `value` |
+|---|---|
+| `2026-01-01` | `True` |
+| `nope` | `False` |
+
+### Reads as a number
+
+`check.is_number`
+
+True where the value can be read as a number.
+
+Also known as: _validate number_, _numeric check_
+
+| `value` | `value` |
+|---|---|
+| `12` | `True` |
+| `abc` | `False` |
+
+### Within a range
+
+`check.in_range`
+
+True where a number falls between two bounds, inclusive.
+
+Also known as: _between_, _bounds_, _range check_
+
+Offered on **numeric** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| At least | number | yes | `0` |
+| At most | number | yes | `100` |
+
+| `value` | `value` |
+|---|---|
+| `5` | `True` |
+| `500` | `False` |
+
+### Matches a pattern
+
+`check.matches_pattern`
+
+True where a regular expression matches.
+
+Also known as: _regex check_, _format check_
+
+Offered on **textual** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Pattern | text | yes | none |
+
+| `value` | `value` |
+|---|---|
+| `AB-1` | `True` |
+| `x` | `False` |
+
+### Length within bounds
+
+`check.length_between`
+
+True where the text's length falls between two bounds.
+
+Also known as: _length check_, _too long_, _too short_
+
+Offered on **textual** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| At least | integer | yes | `0` |
+| At most | integer | yes | `255` |
+
+| `value` | `value` |
+|---|---|
+| `abc` | `True` |
+| `abcdefgh` | `False` |
+
+### One of a list
+
+`check.in_set`
+
+True where the value is one of an allowed list.
+
+Also known as: _allowed values_, _enum_, _whitelist_, _domain_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Allowed values | list | yes | none |
+| | One per line. | | |
+
+| `value` | `value` |
+|---|---|
+| `eu` | `True` |
+| `mars` | `False` |
+
+### Split on a check column
+
+`check.quarantine`
+
+Keep only the rows that passed a check, or only the ones that failed.
+
+Also known as: _quarantine_, _split failures_, _bad rows_, _reject_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Check column | column | yes | none |
+| | A true/false column produced by one of the checks above. | | |
+| Keep | `passes` / `failures` | yes | `passes` |
+
+| `ok` | `id` |
+|---|---|
+| `True` | `2` |
+| `False` | `3` |
 
 
 ## Cleansing
@@ -1979,6 +2489,360 @@ Also known as: _uuid_, _guid_, _generate id_, _unique id_, _row id_
 | `email` | `id` |
 |---|---|
 | `a@x.com` | `f0a85006-e7b0-5ef7-82fc-c74a2f8ecb05` |
+
+
+## Enrichment & lookup
+
+### Look up values
+
+`lookup.from_dataset`
+
+Bring columns from the first row of another dataset whose key columns match this row's, or a default; never more rows than before (a VLOOKUP). Look up a key by a value just as well: match on any column.
+
+Also known as: _lookup_, _vlookup_, _xlookup_, _lookup from dataset_, _lookup with default_, _reverse lookup_, _lookup multiple columns_, _map values_, _calendar join_, _lookup from file_, _enrich_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Look up in | dataset | yes | none |
+| Match on | columns | yes | none |
+| Their columns | dataset_columns | yes | none |
+| Columns to bring | dataset_columns | yes | none |
+| When nothing matches | text | no | none |
+| | Leave empty to leave the brought columns empty; or give a value such as Unknown. | | |
+| Ending for a name already taken | text | no | `_right` |
+
+| `area` | `region` |
+|---|---|
+| `N` | `North` |
+| `W` | `Unknown` |
+| _(empty)_ | `Unknown` |
+
+The other dataset in this example:
+
+| `code` | `region` |
+|---|---|
+| `N` | `North` |
+| `S` | `South` |
+| `N` | `Other` |
+
+### Look up in a hierarchy
+
+`lookup.hierarchy`
+
+From a table of items and their parents (a category tree, an org chart), give each row its path from the top, its level, its top ancestor or its parent.
+
+Also known as: _hierarchy lookup_, _parent child_, _tree path_, _ancestors_, _org chart_, _category path_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Look up in | dataset | yes | none |
+| Their item | dataset_column | yes | none |
+| Their item's parent | dataset_column | yes | none |
+| Their item's name | dataset_column | no | none |
+| Give | `path` / `level` / `top` / `parent` | yes | `path` |
+| Path separator | text | no | ` > ` |
+| New column | text | no | none |
+
+| `category` | `category_path` |
+|---|---|
+| `3` | `All > Food > Fruit` |
+| `1` | `All` |
+| `9` | _(empty)_ |
+
+The other dataset in this example:
+
+| `id` | `parent` | `name` |
+|---|---|---|
+| `1` | _(empty)_ | `All` |
+| `2` | `1` | `Food` |
+| `3` | `2` | `Fruit` |
+
+### Add calendar columns
+
+`lookup.date_dimension`
+
+Add the year, quarter, month and its name, ISO week, day of the week and its name, day of the year, weekend, fiscal year and quarter (and, given a country, public holidays) for a date: a date dimension without a table to join.
+
+Also known as: _date dimension_, _calendar columns_, _date parts_, _date dimension join_, _time dimension_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Columns | list | no | none |
+| | One per line, from: year, quarter, month, month name, week, day of week, day name, day of year, is weekend, fiscal year, fiscal quarter, is holiday. Empty gives all but holidays. | | |
+| Start each new name with | text | no | none |
+| Fiscal year starts in month | integer | no | `4` |
+| Holidays of country | text | no | none |
+| Holidays of region | text | no | none |
+
+| `day` | `day_month_name` |
+|---|---|
+| `2026-08-23` | `August` |
+
+### Convert at historical rates
+
+`lookup.currency_rate`
+
+Convert an amount using the rate for its currency that was in force on its date, from a table of rates (currency, from date, rate): each row takes the latest rate on or before its date.
+
+Also known as: _currency rate join_, _historical exchange rate_, _fx conversion_, _convert currency by date_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Look up in | dataset | yes | none |
+| Its currency | column | yes | none |
+| Its date | column | yes | none |
+| Their currency | dataset_column | yes | none |
+| Their rate's start date | dataset_column | yes | none |
+| Their rate | dataset_column | yes | none |
+| Use the rate to | `multiply` / `divide` | no | `multiply` |
+| New column | text | no | none |
+
+| `amount` | `amount_converted` |
+|---|---|
+| `100` | `85.0` |
+| `100` | `87.0` |
+| `10` | _(empty)_ |
+
+The other dataset in this example:
+
+| `currency` | `from` | `rate` |
+|---|---|---|
+| `EUR` | `2026-01-01` | `0.85` |
+| `EUR` | `2026-02-01` | `0.87` |
+| `USD` | `2026-01-01` | `0.79` |
+
+### Company from a web domain
+
+`lookup.company_from_domain`
+
+Bring the company for an email address, a web address or a domain, from a dataset of domains and companies you provide (subdomains find their parent: mail.acme.com is acme.com's).
+
+Also known as: _company from domain_, _firmographics_, _email to company_, _domain lookup_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Look up in | dataset | yes | none |
+| Their domain | dataset_column | yes | none |
+| Columns to bring | dataset_columns | yes | none |
+| When nothing matches | text | no | none |
+| | Leave empty to leave the brought columns empty; or give a value such as Unknown. | | |
+| Ending for a name already taken | text | no | `_right` |
+
+| `email` | `company` |
+|---|---|
+| `ana@sales.acme.com` | `Acme` |
+| `ben@gmail.com` | _(empty)_ |
+
+The other dataset in this example:
+
+| `domain` | `company` |
+|---|---|
+| `https://www.acme.com` | `Acme` |
+
+### Country from an IP address
+
+`lookup.country_from_ip`
+
+Bring the country (or any column) for an IPv4 or IPv6 address from a dataset of address ranges you provide, such as DB-IP's free country file (start, end, country), whose ranges do not overlap.
+
+Also known as: _country from ip_, _ip geolocation_, _geoip_, _ip lookup_, _ip to country_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Look up in | dataset | yes | none |
+| Their range starts at | dataset_column | yes | none |
+| Their range ends at | dataset_column | yes | none |
+| Columns to bring | dataset_columns | yes | none |
+| When nothing matches | text | no | none |
+| | Leave empty to leave the brought columns empty; or give a value such as Unknown. | | |
+| Ending for a name already taken | text | no | `_right` |
+
+| `ip` | `country` |
+|---|---|
+| `81.2.69.160` | `GB` |
+| `8.8.8.8` | `US` |
+| `nope` | _(empty)_ |
+
+The other dataset in this example:
+
+| `start` | `end` | `country` |
+|---|---|---|
+| `81.2.69.0` | `81.2.69.255` | `GB` |
+| `8.8.8.0` | `8.8.8.255` | `US` |
+
+
+## Deduplication & matching
+
+### Keep the most complete of repeats
+
+`dedupe.keep_most_complete`
+
+Of rows that share these columns, keep the one with the fewest empty values (the first of those that tie).
+
+Also known as: _keep most complete_, _best record_, _dedupe keep fullest_, _most filled_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Repeats share | columns | no | none |
+| | The columns that make two rows the same thing; leave empty for every column. | | |
+
+| `id` | `phone` |
+|---|---|
+| `1` | `0123` |
+| `1` | _(empty)_ |
+
+### Mark repeats
+
+`dedupe.mark`
+
+Add a true or false column that is true on each row repeating an earlier one in these columns, to look at before removing.
+
+Also known as: _mark duplicates_, _flag duplicates_, _is duplicate_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Repeats share | columns | no | none |
+| | The columns that make two rows the same thing; leave empty for every column. | | |
+| New column | text | no | none |
+
+| `id` | `is_repeat` |
+|---|---|
+| `1` | `False` |
+| `2` | `False` |
+| `1` | `True` |
+
+### Count repeats
+
+`dedupe.count`
+
+Add how many rows share each row's values in these columns (1 for a row seen once).
+
+Also known as: _count duplicates_, _duplicate count_, _how many times_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Repeats share | columns | no | none |
+| | The columns that make two rows the same thing; leave empty for every column. | | |
+| New column | text | no | none |
+
+| `id` | `repeats` |
+|---|---|
+| `1` | `2` |
+| `2` | `1` |
+| `1` | `2` |
+
+### Remove near repeats
+
+`dedupe.fuzzy`
+
+Remove rows whose value is alike an earlier row's (spelling mistakes, capitals, Ltd and Limited), keeping the first; the run says how many went.
+
+Also known as: _fuzzy dedupe_, _fuzzy deduplicate_, _near duplicates_, _edit distance dedupe_, _phonetic dedupe_, _token dedupe_, _soundex dedupe_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Column | column | yes | none |
+| Alike by | `letters` / `edits` / `tokens` / `jaro_winkler` / `sound` | no | `letters` |
+| | letters: shared letters in order; edits: few typing changes apart; tokens: the same words in any order; jaro_winkler: alike from the start; sound: sounds alike (English names). | | |
+| How alike, from 0 to 1 | number | no | `0.86` |
+| Ignore company endings (Ltd, Inc) | boolean | no | `True` |
+
+| `name` | `name` |
+|---|---|
+| `Acme Ltd` | `Acme Ltd` |
+| `ACME Limited` | `Globex` |
+
+### Group alike values
+
+`match.cluster`
+
+Number groups of values that are alike, so rows written differently share a number (empty values have none).
+
+Also known as: _cluster similar values_, _group similar_, _fuzzy group_, _clustering_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Alike by | `letters` / `edits` / `tokens` / `jaro_winkler` / `sound` | no | `letters` |
+| | letters: shared letters in order; edits: few typing changes apart; tokens: the same words in any order; jaro_winkler: alike from the start; sound: sounds alike (English names). | | |
+| How alike, from 0 to 1 | number | no | `0.86` |
+| Ignore company endings (Ltd, Inc) | boolean | no | `True` |
+| New column | text | no | none |
+
+| `name` | `name_group` |
+|---|---|
+| `Acme Ltd` | `1` |
+| `ACME Limited` | `1` |
+| `Globex` | `2` |
+| `Acme Ltd` | `1` |
+
+### Replace alike values with one spelling
+
+`match.canonical`
+
+Write every value of a group of alike values the way most rows write it (the first in order when they tie).
+
+Also known as: _merge cluster to canonical_, _canonicalise_, _standard spelling_, _normalise variants_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Alike by | `letters` / `edits` / `tokens` / `jaro_winkler` / `sound` | no | `letters` |
+| | letters: shared letters in order; edits: few typing changes apart; tokens: the same words in any order; jaro_winkler: alike from the start; sound: sounds alike (English names). | | |
+| How alike, from 0 to 1 | number | no | `0.86` |
+| Ignore company endings (Ltd, Inc) | boolean | no | `True` |
+| New column | text | no | none |
+
+| `name` | `name` |
+|---|---|
+| `Acme Ltd` | `Acme Ltd` |
+| `ACME Limited` | `Acme Ltd` |
+| `Globex` | `Globex` |
+| `Acme Ltd` | `Acme Ltd` |
+
+### Merge repeats into one row
+
+`match.survivorship`
+
+Make one row from each group of rows that share these columns, taking every column's value by a rule: from the most complete row, the most recent, the most common value, the longest, the first or the last (empty values are passed over).
+
+Also known as: _survivorship rules_, _merge records_, _consolidate_, _coalesce duplicates_, _collapse rows_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| One row for each | columns | yes | none |
+| Keep each column's value from | `most complete` / `most recent` / `most common` / `longest` / `first` / `last` | no | `most complete` |
+| | most complete: the row with fewest empty values; most recent: the latest by the date column; most common: the value most rows have; longest: the longest text. | | |
+| Most recent by | column | no | none |
+| | The date column that decides the most recent, for that rule. | | |
+
+| `id` | `email` |
+|---|---|
+| `1` | `a@x.com` |
+| `1` | `b@x.com` |
+
+### Make one record per real thing
+
+`match.golden_record`
+
+Group rows whose column is alike (the same matching as Remove near repeats), then make one row per group by a survivorship rule, numbered so each golden record can be traced.
+
+Also known as: _golden record_, _master record_, _single customer view_, _entity resolution_, _mdm_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Alike by | `letters` / `edits` / `tokens` / `jaro_winkler` / `sound` | no | `letters` |
+| | letters: shared letters in order; edits: few typing changes apart; tokens: the same words in any order; jaro_winkler: alike from the start; sound: sounds alike (English names). | | |
+| How alike, from 0 to 1 | number | no | `0.86` |
+| Ignore company endings (Ltd, Inc) | boolean | no | `True` |
+| Keep each column's value from | `most complete` / `most recent` / `most common` / `longest` / `first` / `last` | no | `most complete` |
+| | most complete: the row with fewest empty values; most recent: the latest by the date column; most common: the value most rows have; longest: the longest text. | | |
+| Most recent by | column | no | none |
+| | The date column that decides the most recent, for that rule. | | |
+| New column | text | no | none |
+
+| `name` | `city` |
+|---|---|
+| `Acme Ltd` | `Leeds` |
+| `ACME Limited` | `York` |
 
 
 ## Nested data
@@ -3935,161 +4799,6 @@ Offered on **textual** columns.
 | `le chat est sur le tapis` | `fr` |
 | `Привет, мир` | `ru` |
 | `ok` | _(empty)_ |
-
-
-## Validation
-
-### Looks like an email
-
-`check.is_email`
-
-True for text shaped like an email address.
-
-Also known as: _validate email_, _email check_
-
-Offered on **textual** columns.
-
-| `value` | `value` |
-|---|---|
-| `a@b.com` | `True` |
-| `nope` | `False` |
-
-### Looks like a URL
-
-`check.is_url`
-
-True for text shaped like an http or https URL.
-
-Also known as: _validate url_
-
-Offered on **textual** columns.
-
-| `value` | `value` |
-|---|---|
-| `https://a.co` | `True` |
-| `a.co` | `False` |
-
-### Reads as a date
-
-`check.is_date`
-
-True where the value can be read as a date.
-
-Also known as: _validate date_, _parseable date_
-
-| `value` | `value` |
-|---|---|
-| `2026-01-01` | `True` |
-| `nope` | `False` |
-
-### Reads as a number
-
-`check.is_number`
-
-True where the value can be read as a number.
-
-Also known as: _validate number_, _numeric check_
-
-| `value` | `value` |
-|---|---|
-| `12` | `True` |
-| `abc` | `False` |
-
-### Within a range
-
-`check.in_range`
-
-True where a number falls between two bounds, inclusive.
-
-Also known as: _between_, _bounds_, _range check_
-
-Offered on **numeric** columns.
-
-| Setting | Type | Required | Default |
-|---|---|---|---|
-| At least | number | yes | `0` |
-| At most | number | yes | `100` |
-
-| `value` | `value` |
-|---|---|
-| `5` | `True` |
-| `500` | `False` |
-
-### Matches a pattern
-
-`check.matches_pattern`
-
-True where a regular expression matches.
-
-Also known as: _regex check_, _format check_
-
-Offered on **textual** columns.
-
-| Setting | Type | Required | Default |
-|---|---|---|---|
-| Pattern | text | yes | none |
-
-| `value` | `value` |
-|---|---|
-| `AB-1` | `True` |
-| `x` | `False` |
-
-### Length within bounds
-
-`check.length_between`
-
-True where the text's length falls between two bounds.
-
-Also known as: _length check_, _too long_, _too short_
-
-Offered on **textual** columns.
-
-| Setting | Type | Required | Default |
-|---|---|---|---|
-| At least | integer | yes | `0` |
-| At most | integer | yes | `255` |
-
-| `value` | `value` |
-|---|---|
-| `abc` | `True` |
-| `abcdefgh` | `False` |
-
-### One of a list
-
-`check.in_set`
-
-True where the value is one of an allowed list.
-
-Also known as: _allowed values_, _enum_, _whitelist_, _domain_
-
-| Setting | Type | Required | Default |
-|---|---|---|---|
-| Allowed values | list | yes | none |
-| | One per line. | | |
-
-| `value` | `value` |
-|---|---|
-| `eu` | `True` |
-| `mars` | `False` |
-
-### Split on a check column
-
-`check.quarantine`
-
-Keep only the rows that passed a check, or only the ones that failed.
-
-Also known as: _quarantine_, _split failures_, _bad rows_, _reject_
-
-| Setting | Type | Required | Default |
-|---|---|---|---|
-| Check column | column | yes | none |
-| | A true/false column produced by one of the checks above. | | |
-| Keep | `passes` / `failures` | yes | `passes` |
-
-| `ok` | `id` |
-|---|---|
-| `True` | `2` |
-| `False` | `3` |
 
 
 ## Window & analytic

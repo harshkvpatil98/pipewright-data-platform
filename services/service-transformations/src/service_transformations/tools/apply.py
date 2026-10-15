@@ -50,7 +50,10 @@ def apply_tool(
         raise BadRequestError(str(exc)) from exc
 
     try:
-        result = pandas_backend.execute(node, {SOURCE: frame})
+        # A tool that runs here says what it did ("swapped 3 rows") through
+        # the backend's warnings; without a scope they were dropped.
+        with pandas_backend.warnings_scope() as said:
+            result = pandas_backend.execute(node, {SOURCE: frame})
     except IRError as exc:
         raise BadRequestError(f"{get(str(name)).title}: {exc}") from exc
     except re.error as exc:
@@ -61,7 +64,7 @@ def apply_tool(
             f"{get(str(name)).title}: that pattern will not compile -- {exc}."
         ) from exc
 
-    return result, _warnings(frame, result, config)
+    return result, [*said, *_warnings(frame, result, config)]
 
 
 def _warnings(

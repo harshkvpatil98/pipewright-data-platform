@@ -43,7 +43,10 @@ class TestMaths:
             (Call("trunc", (NUM,)), 2, 2),
             (Call("floor", (NUM,)), 2, 2),
             (Call("ceil", (NUM,)), 2, 3),
-            (Call("round", (NUM, Literal(0, INT64))), 2, 2.0),
+            # Half away from zero since E1, as SQL and spreadsheets round:
+            # pandas' half-to-even gave 2.0, and a pushed-down ROUND gave 3.
+            (Call("round", (NUM, Literal(0, INT64))), 2, 3.0),
+            (Call("round", (Call("neg", (NUM,)), Literal(0, INT64))), 2, -3.0),
             (Call("mod", (WHOLE, Literal(3, INT64))), 0, 1),
             (Call("greatest", (NUM, Literal(3.0, FLOAT64))), 1, 3.0),
             (Call("least", (NUM, Literal(3.0, FLOAT64))), 0, 3.0),

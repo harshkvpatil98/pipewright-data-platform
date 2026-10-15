@@ -83,7 +83,7 @@ export function ContractsPageView({ currentUser, projectId, contracts, datasets 
       ) : (
         <SectionPanel
           title="Contracts in this project"
-          description="Each is checked whenever a recipe, an import or a stream makes new data for its dataset."
+          description="Each is checked whenever a recipe, an import or a live feed makes new data for its dataset."
           contentClassName="px-0 py-0"
         >
           <Table edge="panel">

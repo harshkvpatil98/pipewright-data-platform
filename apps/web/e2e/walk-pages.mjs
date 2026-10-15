@@ -81,6 +81,7 @@ const ids = {
   pipelineId: await first("/pipelines"),
   runId: await first("/runs"),
   incidentId: await first("/incidents"),
+  sourceId: await first("/streams"),
 };
 
 const pages = [];

@@ -333,6 +333,8 @@ class StreamSourceRead(BaseModel):
     last_error: str | None
     live_tables: list[LiveTableRead] = Field(default_factory=list)
     live_recipe_count: int = 0
+    #: Every dataset this feed keeps: its log, each table kept current, each live recipe's output.
+    dataset_ids: list[uuid.UUID] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
 

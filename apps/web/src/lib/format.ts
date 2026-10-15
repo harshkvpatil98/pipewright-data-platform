@@ -18,6 +18,8 @@ const dayFormatter = new Intl.DateTimeFormat(LOCALE, { weekday: "long", day: "nu
 const timeFormatter = new Intl.DateTimeFormat(LOCALE, { hour: "2-digit", minute: "2-digit" });
 const localDateTimeFormatter = new Intl.DateTimeFormat(LOCALE, { dateStyle: "medium", timeStyle: "short" });
 const utcDateTimeFormatter = new Intl.DateTimeFormat(LOCALE, { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" });
+const utcTimeFormatter = new Intl.DateTimeFormat(LOCALE, { hour: "2-digit", minute: "2-digit", timeZone: "UTC" });
+const utcDateFormatter = new Intl.DateTimeFormat(LOCALE, { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 
 const collator = new Intl.Collator(LOCALE, { numeric: true, sensitivity: "base" });
 
@@ -54,6 +56,16 @@ export function formatLocalDateTime(value: When) {
  * in. A date alone cannot tell two versions published the same day apart. */
 export function formatDateTime(value: When) {
   return `${utcDateTimeFormatter.format(asDate(value))} UTC`;
+}
+
+/** The time of a technical instant, "13:37 UTC", beside others written in UTC. */
+export function formatTimeUtc(value: When) {
+  return `${utcTimeFormatter.format(asDate(value))} UTC`;
+}
+
+/** The UTC date of a technical instant, "15 Oct 2026", to go with `formatTimeUtc`. */
+export function formatDateUtc(value: When) {
+  return utcDateFormatter.format(asDate(value));
 }
 
 /** The viewer's own time zone ("Europe/London"), for schedules they set. */

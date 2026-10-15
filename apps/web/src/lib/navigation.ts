@@ -149,6 +149,17 @@ export const AREAS: NavArea[] = [
         keywords: t("nav.tabs.data.sources.keywords"),
       },
       {
+        id: "live",
+        label: t("nav.tabs.data.live.label"),
+        icon: "zap",
+        path: "/live",
+        also: ["/live/*"],
+        persona: "data owner",
+        description: t("nav.tabs.data.live.description"),
+        help: tList("nav.tabs.data.live.help"),
+        keywords: t("nav.tabs.data.live.keywords"),
+      },
+      {
         id: "datasets",
         label: t("nav.tabs.data.datasets.label"),
         icon: "table",

@@ -343,7 +343,7 @@ class PostgresChangeCapture(ChangeCaptureKind):
             )
             for change in changes
         ]
-        notes = ["Made the replication slot this source reads from."] if created else []
+        notes = ["Made the replication slot this feed reads from."] if created else []
         return Batch(
             messages=messages,
             cursor={"lsn": upto} if upto else None,

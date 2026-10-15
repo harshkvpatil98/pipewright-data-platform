@@ -36,6 +36,7 @@ const NOTIFICATION_EVENT_LABELS: Record<string, string> = {
   incident: "Incident",
   metric_alert: "Alert",
   data_contract: "Contract",
+  live_source_failed: "Live feed",
   mention: "Mention",
   report: "Report",
 };

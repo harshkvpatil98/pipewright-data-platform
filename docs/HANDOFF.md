@@ -4,8 +4,8 @@
 last one stopped. Keep it current. If you change project state, update the **Progress ledger**
 and **Session log** at the bottom before you finish.
 
-**Last updated:** 2026-10-14 (adoption-readiness A0–A6 complete)
-**Updated by:** session `75332b59` (A0 product definition and quick wins, A1 navigation and shell, A2 golden path, A3 Studio, A4 sources and destinations, A5 copy and design system, A6 trust, help and support)
+**Last updated:** 2026-10-15 (roadmap Phase 20 complete as D1, live data)
+**Updated by:** session `75332b59` (adoption-readiness A0–A9, then C1 contracts, C2 working together and D1 live data)
 
 ---
 
@@ -66,8 +66,8 @@ session log).
 npm run verify     # ruff + pytest + ESLint + tsc + production build
 ```
 
-Everything must be green before moving on. Current baseline (2026-10-14, after A5): **6,416 Python tests
-passed (591 skipped), 783 web tests, all passing, zero warnings.** The
+Everything must be green before moving on. Current baseline (2026-10-15, after D1): **6,684 Python tests
+passed (667 skipped), 854 web tests, all passing, zero warnings.** The
 skips include the real-server delivery and copy tests; see §6 for running
 them.
 
@@ -113,15 +113,15 @@ was for that push, not a standing one.
 | 06 | Intelligence | `service-intelligence` | PII, join keys, entity resolution — **no model calls** |
 | 07 | Enterprise | `service-enterprise` | Tenancy, row/column security, retention, SSO, `/metrics` |
 
-**Migrations:** `apps/api-gateway/alembic/versions/`, 61 files, head is `0061_working_together`.
+**Migrations:** `apps/api-gateway/alembic/versions/`, 62 files, head is `0062_live_data`.
 
 ### Roadmap v2: in progress
 
 See [`roadmap-v2.md`](./roadmap-v2.md) — 16 phases across 4 tracks, ≈58 sessions.
 Phases **08, 09, 10, 11, 12, 13, 14, 15, 17, 18** and, since 2026-10-15,
-**19 and 21** are done (as C1 and C2 in
-`docs/plans/contracts-and-collaboration.md`), **16** shipped its machinery
-plus 173 tools, and **20, 22** each shipped a first slice as
+**19 and 21** (as C1 and C2 in `docs/plans/contracts-and-collaboration.md`)
+and **20** (as D1 in `docs/plans/live-data-and-performance.md`) are done,
+**16** shipped its machinery plus 173 tools, **22** shipped a first slice as
 production-readiness P9; **23** has not started. The progress ledger in §8
 tracks the rest.
 
@@ -169,6 +169,12 @@ tracks the rest.
 - **pytest uses `--import-mode=importlib` with no `__init__.py` files.** Two `conftest.py`
   files with the same basename collide and one silently supplies the other's fixtures. Fixtures
   are inlined per module. Do not add a shared `conftest.py` without checking for collisions.
+- **Live feeds' round trips need their servers** (D1): `docker compose -f docker-compose.live.yml up -d`,
+  `scripts/check-live-servers.py --wait 180`, then run with `LIVE_TEST_SERVERS=1` (and
+  `OUTBOUND_ALLOW_LOOPBACK=true` for the queue tests). Without it they skip; the `live` CI job
+  sets it. `services/service-extraction/tests/conftest.py` puts the tests folder on the path so
+  `live_servers.py` imports under `--import-mode=importlib`. SQL Server runs under Rosetta on Apple
+  silicon; its capture job copies changes every few seconds, so its test waits.
 - **`curl -F "file=@x.csv"` sends `application/octet-stream`** and the upload endpoint rejects
   it. Use `-F "file=@x.csv;type=text/csv"`.
 - **`created_at` defaults to `now()`, which in Postgres is the *transaction* time.** Every row
@@ -246,8 +252,12 @@ honesty; if you verify one, update its status here.
 | PDF table extraction absent | Needs camelot or pdfplumber, neither installed. The format detector refuses `.pdf` by name with that sentence rather than failing inside a parser |
 | SPSS `.sav`, `.ods` and 7-Zip unreadable | Need `pyreadstat`, `odfpy` and `py7zr`. Each is declared and refused with the package to install. SAS and Stata, which pandas reads natively, work |
 | Duplicate-row detection is skipped when streaming | It needs every row held at once. The streaming profile reports `null` rather than `0`, which would be a claim |
-| Streaming is PostgreSQL CDC and inbound webhooks only | P9 shipped `service_extraction/streams.py`: a token-keyed webhook receiver and Postgres logical replication through a `test_decoding` slot, read in micro-batches by the ticker, materialised as versions of one append-only dataset, **at-least-once** (a crash between store and advance re-reads; the position hash makes it a no-op). MySQL binlog, MongoDB change streams, SQL Server CDC, Kafka/Kinesis/Pub/Sub and the other queues, streaming transforms (windows, watermarks, stateful aggregation) and exactly-once are absent by name in `roadmap-v2.md` Phase 20 |
-| CDC's live test skips on CI | `test_streams.py` runs the slot round-trip only against a Postgres with `wal_level=logical` (the dev compose sets it; the CI service container runs the default `replica`). It ran green here against the local server; on CI that one test is skipped and says why, not passed |
+| Live feeds are micro-batch | D1: every feed is read every few seconds (1 at least) by `platform-live-runner`, never held open. The roadmap's "continuous execution only where the latency requirement justifies it" was not built: no requirement here asked for less than a second |
+| Some live feeds save an event at least once | MQTT gives no message an id, and RabbitMQ messages and webhook posts carry one only if the sender adds it, so a redelivery after a crash between saving and acknowledging can be saved twice. Each such kind says so where it is chosen and on its page (`guarantee: at_least_once`) |
+| Cloud queues are tested against the vendors' test servers | Kinesis against a Kinesis test server (kinesis-mock), Pub/Sub against Google's emulator, Event Hubs against Microsoft's emulator, every change in the `live` CI job: tier 2, which says "a real server or a test server that answers the way the vendor documents". No AWS, Google or Azure account is used |
+| Live feeds stay out of bundles | A bundle carries no credentials; a live feed holds the credentials of what it reads, as a connection does, so feeds and their live recipes are not moved with a project's work |
+| A live recipe's output keeps 30 days of windows | `live_recipes.KEEP_WINDOWS`: older final windows leave the output dataset at its next save and stay in its earlier versions, so a save never grows with every window there ever was |
+| SQL Server change capture is switched on by the database's owner | Pipewright never changes a database's settings; `sqlserver_cdc`'s test names the `sys.sp_cdc_enable_db` / `sp_cdc_enable_table` statements to run. MySQL's binlog settings and PostgreSQL's `wal_level` are reported the same way |
 | gRPC absent | Needs `grpcio` and a reflection-based dynamic client |
 | Lineage is still derived from `columns.py`, not the IR | P9 made the IR the only *executor*; `service_lineage/from_ir.py` derives schemas, not edges, so cutting lineage over means writing edge derivation first. `test_matches_ir.py` still proves the two agree |
 | Contracts are per dataset, here | C1: a contract is about one dataset in this deployment. Nothing publishes it to another deployment or holds it at the source, and a downstream recipe is listed as relying on a dataset rather than notified itself (its owner can follow). Erasing a person's data is never stopped by a contract, by design; a promise it breaks is recorded |
@@ -289,7 +299,7 @@ honesty; if you verify one, update its status here.
 | 17 | SQL IDE & notebook | **done** | 3/3 | Workbench, notebook, sandbox, recipe-as-code. Python cells disabled on macOS by design |
 | 18 | Time travel | **done** | 3/3 | Immutable versions (0038–0040), temporal reads, `AS OF` SQL, diff, rollback, deterministic replay with recorded execution context, erasure reconciled, pin + two-step prune protocol, viewer/editor matrix, scripted live acceptance. Delivered as production-readiness P7 — see `docs/plans/phase-18-decisions.md` |
 | 19 | Semantic layer & contracts | **done** | 3/3 | Metrics defined once on the IR (`service_reporting/metrics.py`, migration 0044), resolved everywhere. **Data contracts (C1, 2026-10-15)**: `service_quality/data_contracts.py`, migration 0060; promises per column and per dataset, enforced before storing by recipe runs, imports and stream saves, refused on rollback, recorded on erasure; problems once per source, overdue from the freshness promise, followers, what relies on it |
-| 20 | Streaming & CDC | **partial** | 1/4 | Inbound webhooks + PostgreSQL logical-replication CDC (`service_extraction/streams.py`, migration 0045), micro-batch via the ticker, materialised into one append-only versioned dataset, at-least-once stated. MySQL/Mongo/SQL Server CDC, queues, streaming transforms absent |
+| 20 | Streaming & CDC | **done** | 4/4 | P9's webhooks and PostgreSQL CDC, then **D1 (2026-10-15)**: `service_extraction/live/` (PostgreSQL, MySQL binlog, MongoDB change streams, SQL Server CDC; Kafka, Event Hubs, Kinesis, Pub/Sub, Pulsar, RabbitMQ, NATS, MQTT), tables kept current by key after a first copy, positions committed with events, guarantees stated per kind, live recipes with four window kinds, watermarks, lateness and exactly-once state (`live/windows.py`, `live_recipes.py`), `platform-live-runner`, migration 0062, a `live` CI job against every server |
 | 21 | Collaboration | **done** | 3/3 | Comments with @mentions (P8). **C2 (2026-10-15)**: recipes co-edited in a shared copy merged by a CRDT (`service_transformations/coedit.py` + `studio/coedit.ts`, shared fixtures, selective per-person undo), revisions refusing stale saves, presence with step focus, suggestions any viewer can make and editors accept step by step, threads with replies on dataset cells, a per-dataset change feed (migration 0061) |
 | 22 | Optimizer | **partial** | 1/4 | `ir/rewrites.py`: predicate/limit pushdown through row-wise nodes, filter and limit merging, proven by a four-way differential test and reported in every plan. No statistics, cost model, caching or federation |
 | 23 | Extensibility | not started | 0/3 | Needs most |
@@ -302,17 +312,39 @@ increments without declaring P2 complete; later development is outside that snap
 
 ### Recommended next action
 
-**The last plan was `docs/plans/contracts-and-collaboration.md`**: two
-roadmap v2 phases left partial, finished one after the other. **C1 (Phase
-19's data contracts) and C2 (Phase 21, working together) are done as of
-2026-10-15.** Next in roadmap order: Phase 20 (more change-data capture and
-queues), 22 (statistics and a cost model) and 23 (extensibility); each
-needs its own measured plan first. Rules for anyone touching where data
-lands, or the Studio:
+**The current plan is `docs/plans/live-data-and-performance.md`**: D1
+(roadmap Phase 20, live data) is done as of 2026-10-15; D2 (Phase 22,
+statistics, a cost model, queries across sources, caching, incremental runs
+and resource limits) is next. Before it, `docs/plans/contracts-and-collaboration.md`
+finished C1 (Phase 19's data contracts) and C2 (Phase 21, working together).
+Phase 23 (extensibility) still needs its own measured plan. Rules for
+anyone touching live feeds:
+
+- **A live feed kind is one class in `service_extraction/live/`** with the
+  surface `live/base.py` describes (declare settings and a guarantee, test,
+  read a batch from a saved position, and for change capture take a
+  position, read a table whole and name its key). Register it in
+  `live/__init__.py` and give it a round trip in `test_live_queues.py` or
+  `test_live_change_capture.py` against a server in `docker-compose.live.yml`;
+  its tier 2 rests on the `live` CI job, which `scripts/check-live-servers.py`
+  fails rather than letting a test skip.
+- **A batch's position is committed with its events** (`streams.read_source`),
+  and acknowledgements happen only after the commit (`Batch.finish`). Never
+  acknowledge first. A kind that cannot recognise a redelivery says
+  `at_least_once`, honestly.
+- **A live recipe commits its window state, results and `processed_seq`
+  together** (`live_recipes.process_recipe`); the window engine
+  (`live/windows.py`) is pure and checked against a brute-force reference.
+- Feeds and their followed tables are separate rows with no ORM
+  relationship: flush the feed before adding its tables (PostgreSQL refuses
+  otherwise; SQLite does not enforce foreign keys, so test on both).
+
+Rules for anyone touching where data lands, or the Studio:
 
 - **Every producer of a dataset version checks its contract before storing
   anything** (`service_quality.data_contracts.check_new_data`, called from
-  recipe runs, imports, stream saves, rollback and both erasures) and hands
+  recipe runs, imports, live feed saves (`streams.publish_frame`), rollback
+  and both erasures) and hands
   the verdict to the version seam (`contract_verdict=` on
   `apply_dataset_materialization_success` and its wrappers), which records
   the outcome in the version's transaction. A new producer must do both; an
@@ -1029,3 +1061,4 @@ Report honestly. If something is unverified, say so and add it to §7.
 | 2026-10-15 | `75332b59` | **Adoption-readiness A9 (launch gate) complete, except the owner's steps.** Spec Z1–Z7 measured first. Z1 demo runs its recipe and check, chart on the cleaned orders. Z2 `e2e/screenshots.mjs` → 8 pictures in `docs/user/images`, help shows images; found Title Case on Data health, "metric" wording, Checks default dataset, project making missing from its activity, alert form order. Z3 static docs site (`apps/web/scripts/build-docs-site.mjs`, tested), `docs-site.yml` manual, release notes 1.0.0, `docs/api/openapi.json`. Z4 following the documents on a clean machine found seven install faults, all fixed: no first administrator (now `first_run.py`), migration hook reading resources Helm makes later, no encryption key in the chart Secret, web image calling localhost:8000 (now `/api/v1`), API reference outside `/api` (now `/api/docs`), ingress 1MB body limit, Compose web without the gateway address and no root production settings file; release images now `v1.0.0` and `1.0.0`. CI `helm` job installs on kind by the guide's own commands (green); Compose rehearsed locally with Caddy. Z5 1.0.0 everywhere (`test_one_version.py`), `docs/positioning.md`, README opening. Z6 `docs/cold-user-sessions.md` + files. Z7 76 pages × 2 widths clean; verify green with no .env (6,553 Python / 598 skipped, 831 web); CI all green. **Waiting on the owner:** tag v1.0.0 (publishes images), set Pages to GitHub Actions and run docs-site.yml, run the five cold-user sessions. |
 | 2026-10-15 | `75332b59` | **Phase 19 complete: data contracts (C1).** Plan `docs/plans/contracts-and-collaboration.md`, measured first (a recipe dropping a column others use ran and silently lost it, no schema change, no message; two saves of one recipe silently overwrote each other, kept for C2). `service_quality/data_contracts.py`, migration 0060: promises per column and per dataset, drafted from the data, versioned in words; enforced before storing by recipe runs, imports and stream saves (409 with the reasons, head kept), refused on rollback, recorded on erasure; problems once per source; overdue from the freshness promise; owner and followers told by the worker after commit; what relies on a dataset; Trust → Contracts, the dataset's contract page and editor, a chip, a Studio notice and a restore warning; activity kind, bundles, audit phrases, client, help. Found and fixed: every failed recipe run and import kept only "Waiting to start." in its log (a shared list never seen as changed); a PostgreSQL-only failure in the consumers query (contract tests now run on PostgreSQL too); six run-log and warning strings with retired words, now tested. Rehearsed live on the dev stack: the baseline recipe stopped and then resolved by a good run, an import from PostgreSQL stopped when its table lost a column, overdue opened and closed by the worker, the restore dialog refusing. 77 pages walked at 1280 and 1024, no problem; `npm run verify` green with no `.env`, 6,573 Python passed / 613 skipped, 837 web |
 | 2026-10-15 | `75332b59` | **Phase 21 complete: working together (C2).** Measured first: two saves of one recipe silently overwrote each other; no presence; viewers could neither comment nor propose; recipe change requests had no "before" and could never be applied; "Changes need approval" could not be switched on; comments were flat; a dataset had no history of what happened. Shipped: recipe revisions with stale saves refused (409 naming who); a shared copy per recipe merged by a CRDT twinned in Python and TypeScript with shared fixtures and a three-person convergence test; per-person selective undo; presence with step focus; suggestions from any viewer, reviewed step by step in the Studio and Approvals (Accept/Decline), authors and reviewers told; the approval setting; threads with replies and cell anchors on dataset rows; a per-dataset feed on History (migration 0061). Found and fixed: key-order comparisons calling equal settings different (Bob's Studio stuck on "Unsaved changes"), a presence and shared-copy insert race (test fails 3/3 on old code), an endless Studio preview loop (found by the accessibility suite), a first save reopening as an empty recipe (found by the golden path), and CI's verify failing after C1 because create_all on PostgreSQL altered shared table definitions (fixed and pushed separately). Rehearsed live with three browsers: rename propagated in 842 ms, undo left the other's change, both showed Saved, a viewer's suggestion declined with a note that reached him. `npm run verify` green with no `.env`, 6,608 Python passed / 628 skipped, 848 web; golden path and accessibility suites green against the dev stack; every page walked at 1280 and 1024 with no problem |
+| 2026-10-15 | `75332b59` | **Phase 20 complete: live data (D1).** Plan `docs/plans/live-data-and-performance.md`, measured first (a change committed during a poll was lost every time; no snapshot, no table "as it is now"; 20,000 changes took 41 polls, 20 minutes; saving rewrote every event; webhook retries stored twice; two kinds; the CDC test skipped on CI). Shipped `service_extraction/live/` (13 kinds: PostgreSQL, MySQL, MongoDB and SQL Server change capture; Kafka, Event Hubs, Kinesis, Pub/Sub, Pulsar, RabbitMQ, NATS, MQTT; webhooks), tables kept current by key after a first copy, positions committed with events and acknowledgements after, guarantees per kind, live recipes (`live/windows.py`: four window kinds, watermark, drop or restate; `live_recipes.py`: steps, lookup, exactly-once state), `platform-live-runner`, migration 0062, a Live feeds tab and page per feed, `docker-compose.live.yml`, `scripts/check-live-servers.py` and a `live` CI job. Faults found: the ::1 outbound refusal, sums counted once per measure, mixed lowest/highest, PostgreSQL deletes skipped, a foreign key broken on PostgreSQL (SQLite hid it), the Kinesis test server's repeats. Rehearsed live: first copy of 1,000 rows in 1s, changes in 6s, 20,000 in 8s, 120 Kafka messages summarised by minute, a webhook retry saved once, the add-feed and live-recipe forms in a browser. 76 pages walked at 1280 and 1024 with no problem. 6,684 Python passed, 667 skipped; 854 web. |

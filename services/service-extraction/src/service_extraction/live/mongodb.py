@@ -131,7 +131,7 @@ class MongoChangeCapture(ChangeCaptureKind):
         elif cursor.get("start_at"):
             options["start_at_operation_time"] = Timestamp(*cursor["start_at"])
         else:
-            raise LiveError("This source has no place in the change log yet; it takes one before its snapshot.")
+            raise LiveError("This feed has no place in the change log yet; it takes one before its first copy of each table.")
         collections = list(settings.get("tables") or [])
         client = self._client(settings)
         messages: list[Message] = []
@@ -171,8 +171,8 @@ class MongoChangeCapture(ChangeCaptureKind):
         except Exception as exc:  # noqa: BLE001 - say what the server said
             detail = str(exc)
             if "resume" in detail.lower() and ("not found" in detail.lower() or "history" in detail.lower()):
-                raise LiveError("The change log no longer goes back to where this source stopped (the oplog moved "
-                                "on). Start the source again to take a new snapshot.") from exc
+                raise LiveError("The change log no longer goes back to where this feed stopped (the oplog moved "
+                                "on). Start the feed again to take a fresh copy of each collection.") from exc
             raise LiveError(f"Reading the change stream failed: {detail[:300]}") from exc
         finally:
             client.close()

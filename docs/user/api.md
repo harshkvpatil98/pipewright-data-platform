@@ -181,6 +181,38 @@ curl -s -X PUT "$PIPEWRIGHT/api/v1/projects/$PROJECT/datasets/$DATASET/contract"
 EOF
 ```
 
+## Example 5: receive events as they happen
+
+A [live feed](data.md#live-feeds) takes data as it arrives. The simplest is a webhook: an address your systems post to. Its `token` comes back once, here, and is never shown again:
+
+```bash
+HOOK=$(curl -s -X POST "$PIPEWRIGHT/api/v1/projects/$PROJECT/streams" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d @- <<EOF | jq -r .token
+{"name": "Order events", "kind": "webhook"}
+EOF
+)
+```
+
+Post an event to it. No sign-in: the address is the permission. An `Idempotency-Key` makes a post sent twice count once:
+
+```bash
+curl -s -X POST "$PIPEWRIGHT/api/v1/hooks/$HOOK" \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: order-1001" \
+  -d '{"order": 1001, "region": "north", "amount": 12.5}'
+```
+
+Each feed lists how many events it holds, when it last saved, and how sure it is that each event is saved once (`guarantee`):
+
+```bash
+curl -s "$PIPEWRIGHT/api/v1/projects/$PROJECT/streams" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Database changes and queues are made the same way, with a `kind` and its `settings`; `GET /api/v1/projects/$PROJECT/live/kinds` lists every kind with the settings it needs, and `POST /api/v1/projects/$PROJECT/streams/try` checks settings before you save them. A change-capture feed also names a `connection_id` and its `tables`. Add a live recipe, for example orders per minute by region, with `POST /api/v1/projects/$PROJECT/streams/$FEED/recipes`, and read its windows with `GET /api/v1/projects/$PROJECT/streams/$FEED/recipes/$LIVE_RECIPE/results`.
+
 ## Saving without replacing someone else's work
 
 A recipe has a `revision`, which goes up with every save. Send the one you started from as `expected_revision` when you change a recipe (`PATCH /api/v1/projects/$PROJECT/pipelines/$RECIPE`), and a save made since by someone else is not replaced: the answer is `409`, saying who saved and when. Read the recipe again, then save. Without `expected_revision` a save replaces whatever is there.

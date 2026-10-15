@@ -25,7 +25,7 @@ dataset with the last event in it, also in one transaction.
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pandas as pd
@@ -53,6 +53,9 @@ logger = get_logger(__name__)
 
 #: Events one batch takes.
 BATCH = 5_000
+#: Windows an output keeps: older final ones leave the output (they stay in its
+#: earlier versions), so a save never grows with every window there ever was.
+KEEP_WINDOWS = timedelta(days=30)
 #: Step types that work one row at a time, whatever the other rows are.
 ROW_WISE_STEPS = frozenset({
     "rename_columns", "select_columns", "drop_columns", "cast_column_types", "derive_column", "filter_rows",
@@ -60,7 +63,6 @@ ROW_WISE_STEPS = frozenset({
 })
 #: The one fill that does not look at other rows.
 ROW_WISE_FILL = "constant"
-WINDOW_WORDS = {"tumbling": "back-to-back", "hopping": "overlapping", "sliding": "sliding", "session": "session"}
 OP_WORDS = {"count": "count", "sum": "sum", "average": "average", "lowest": "lowest", "highest": "highest",
             "first": "first", "last": "last"}
 
@@ -179,11 +181,18 @@ def _describe(recipe: LiveRecipe) -> str:
         parts.append("looks up a dataset")
     window = recipe.window_json
     if window:
-        size = window.get("gap_seconds") if window.get("kind") == "session" else window.get("size_seconds")
-        measures = ", ".join(OP_WORDS.get(m["op"], m["op"]) for m in recipe.measures_json or [])
+        measures = ", ".join(f"{m['name']} ({OP_WORDS.get(m['op'], m['op'])})" for m in recipe.measures_json or [])
         by = f" by {', '.join(recipe.group_by_json)}" if recipe.group_by_json else ""
-        parts.append(f"summarises ({measures}){by} in {WINDOW_WORDS.get(window.get('kind'), '')} windows of "
-                     f"{_duration(float(size or 0))}")
+        if window.get("kind") == "session":
+            span = f"sessions that end after {_duration(float(window.get('gap_seconds') or 0))} of quiet"
+        elif window.get("kind") == "hopping":
+            span = (f"windows of {_duration(float(window.get('size_seconds') or 0))}, a new one every "
+                    f"{_duration(float(window.get('advance_seconds') or 0))}")
+        elif window.get("kind") == "sliding":
+            span = f"the last {_duration(float(window.get('size_seconds') or 0))} at every change"
+        else:
+            span = f"back-to-back windows of {_duration(float(window.get('size_seconds') or 0))}"
+        parts.append(f"summarises{by} over {span}: {measures}")
     if not parts:
         return "Keeps the events as they arrive."
     sentence = ", then ".join(parts)
@@ -637,6 +646,11 @@ def save_outputs(db: Session, source: StreamSource, *, storage_backend, settings
         try:
             name = f"{recipe.name} (live)"
             if recipe.window_json:
+                old = db.execute(sa_delete(LiveRecipeResult).where(
+                    LiveRecipeResult.live_recipe_id == recipe.id, LiveRecipeResult.final.is_(True),
+                    LiveRecipeResult.window_end < _now() - KEEP_WINDOWS)).rowcount
+                if old:
+                    recipe.results_changed_at = _now()
                 changed, saved = recipe.results_changed_at, recipe.last_saved_at
                 if changed is None or (saved is not None and _aware(changed) <= _aware(saved)):
                     continue

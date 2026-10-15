@@ -14,7 +14,7 @@ is tested at, are in [positioning.md](positioning.md).
 | Worker | Workflows and long work: uploads over 25MB, large deliveries, database copies |
 | Ticker | Starts schedules when they are due; one only, unless each has its own `SCHEDULER_RUNTIME_ID` |
 | PostgreSQL 14 or newer | Everything Pipewright records |
-| Stored files | A volume every gateway, worker and ticker shares, or an S3-compatible bucket |
+| Stored files | A volume every gateway, worker, ticker and live runner shares, or an S3-compatible bucket |
 
 People reach one address. A proxy in front sends `/api` to the gateway and
 everything else to the web, so the sign-in cookie is shared by both: Caddy
@@ -109,7 +109,7 @@ certificate's Secret as `ingress.tls.secretName`; to try it on a laptop, add
 
 **4. Check it.** `https://pipewright.example.com/login` shows the sign-in
 page; sign in with the bootstrap account, and **System status** says
-whether the worker and the ticker are running. From a terminal:
+whether the worker, the ticker and the live runner are running. From a terminal:
 
 ```bash
 curl -s https://pipewright.example.com/api/v1/health/ready
@@ -128,7 +128,7 @@ only written.
 
 - `/api/v1/health/live` and `/api/v1/health/ready` answer `200`.
 - `/login` loads, and the bootstrap account signs in.
-- **System status** shows the worker and the ticker, and lists the limits
+- **System status** shows the worker, the ticker and the live runner, and lists the limits
   this server enforces.
 - **Help** opens without signing in, and **Help → API reference** opens the
   interactive API reference (`/api/docs`).

@@ -192,7 +192,7 @@ class MySqlChangeCapture(ChangeCaptureKind):
         from pymysqlreplication.row_event import DeleteRowsEvent, UpdateRowsEvent, WriteRowsEvent
 
         if not cursor or "file" not in cursor:
-            raise LiveError("This source has no position in the binary log yet; it takes one before its snapshot.")
+            raise LiveError("This feed has no position in the binary log yet; it takes one before its first copy of each table.")
         database = self._database(settings)
         wanted = {_split(t, database) for t in settings.get("tables") or []}
         stream = BinLogStreamReader(
@@ -257,7 +257,7 @@ class MySqlChangeCapture(ChangeCaptureKind):
             if "purged" in detail.lower() or "could not find first log file" in detail.lower():
                 raise LiveError(
                     f"The binary log file {cursor['file']} has been removed from the server, so the changes "
-                    "since this source last read are gone. Start the source again to take a new snapshot."
+                    "since this feed last read are gone. Start the feed again to take a fresh copy of each table."
                 ) from exc
             raise LiveError(f"Reading the binary log failed: {detail[:300]}") from exc
         finally:

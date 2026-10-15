@@ -1,6 +1,6 @@
 /** What happened in a project, in one stream (A8, Y6). */
 
-export const ACTIVITY_KINDS = ["changes", "runs", "incidents", "comments", "alerts", "contracts"] as const;
+export const ACTIVITY_KINDS = ["changes", "runs", "incidents", "comments", "alerts", "contracts", "live"] as const;
 export type ActivityKind = (typeof ACTIVITY_KINDS)[number];
 
 export type ActivityItem = {

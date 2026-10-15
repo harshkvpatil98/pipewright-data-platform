@@ -9,7 +9,7 @@ import { Icon } from "@platform/shared-ui";
 
 type RuntimeComponent = { component: string; healthy?: boolean; status?: string };
 
-type StatusPayload = {
+export type StatusPayload = {
   services: { name: string; details?: Record<string, unknown> }[];
   scheduler?: { due_now_count?: number };
   runtime?: { components?: RuntimeComponent[] };
@@ -20,7 +20,7 @@ type StatusPayload = {
  * down (a beat exists but is stale, or the component is expected and absent),
  * `null` = no runtime data at all, so the caller falls back to inference.
  */
-function componentAlive(status: StatusPayload, name: string): boolean | null {
+export function componentAlive(status: StatusPayload, name: string): boolean | null {
   const components = status.runtime?.components;
   if (!Array.isArray(components) || components.length === 0) return null;
   const matches = components.filter((c) => c.component === name);

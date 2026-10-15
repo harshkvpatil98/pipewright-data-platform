@@ -7,7 +7,7 @@ shipped webhooks and a first PostgreSQL change reader) and **Phase 22, the
 cost-based optimiser** (P9 shipped five rewrites). Phase 16's missing tool
 families and Phase 23 stay where `docs/HANDOFF.md` §8 says they are.
 
-**Status:** D1 (live data) and D2 (performance) not started.
+**Status:** D1 (live data) done 2026-10-15; D2 (performance) next.
 
 Each phase measures first, says what it will deliver and when it is done,
 then records what shipped. The rules in `AGENTS.md` and the A0 vocabulary
@@ -21,7 +21,7 @@ answers the way the vendor documents"), which is what that tier says.
 
 ---
 
-## D1 — Live data (roadmap Phase 20)
+## D1 — Live data (roadmap Phase 20) *(done 2026-10-15)*
 
 **Why.** Batch is not enough for "the dashboard should be current". The
 roadmap asks for change capture from four databases' own change logs, an
@@ -154,6 +154,73 @@ sliding and session windows match the reference, survive a crash mid-batch
 without double counting and handle late events both ways; the Live tab,
 source page and live recipe form work at 1280 and 1024; `npm run verify` is
 green with no `.env`; CI green.
+
+### What shipped
+
+- **L1, tables kept current.** A change-capture feed takes its position in
+  the change log, then reads each followed table whole ("a first copy";
+  "snapshot" is a retired word on screen), then applies every change by key
+  (`streams.apply_changes`: an insert or update replaces the row, a column a
+  change does not carry keeps its value, a changed key moves the row, a
+  delete removes it; rows in key order). A table without a primary key is
+  followed as a log only and says so. The consume race is fixed (its own
+  commit, `ccd56d9`), with a test that failed on the old code.
+- **L2, four databases.** `live/postgres.py` (logical decoding, snapshot
+  read through PostgreSQL's own text so a copied row and a changed one look
+  the same), `live/mysql.py` (the row-based binary log, positions only at
+  commit boundaries, columns named from the table when
+  `binlog_row_metadata` is MINIMAL), `live/mongodb.py` (change streams with
+  `updateLookup`, resume tokens), `live/sqlserver.py` (CDC tables read a
+  whole number of transactions at a time). Each checks its requirements and
+  names the fix.
+- **L3, eight queues.** `live/kafka.py` (Kafka, and Event Hubs through its
+  Kafka endpoint; partitions assigned from Pipewright's own offsets),
+  `kinesis.py`, `pubsub.py` (REST, service-account JWT exchange),
+  `pulsar.py` (reader from a saved message id), `rabbitmq.py`, `nats.py`
+  (JetStream sequence), `mqtt.py` (persistent session, manual
+  acknowledgement); every address checked by the outbound guard first.
+  Guarantees: by position (Kafka, Event Hubs, Kinesis, Pulsar, NATS, the
+  MySQL, MongoDB and SQL Server logs), by message id (PostgreSQL, Pub/Sub),
+  at least once (MQTT; RabbitMQ and webhooks without ids, once with them).
+- **L4, live recipes.** `live/windows.py` (pure: tumbling, hopping, sliding
+  in the Azure Stream Analytics sense, session; watermark, lateness, drop or
+  restate within a horizon) checked against a brute-force reference over
+  random batches and arrival orders; `live_recipes.py` (row-by-row steps from
+  a saved recipe, refused by name otherwise; a lookup through the maker's
+  column policies; state, results and position in one transaction, proven
+  by crashing a batch; outputs keep 30 days of windows).
+- **L5, the runner.** `platform-live-runner` (`api_gateway/scripts/live_runner.py`)
+  in `worker.sh`, both compose files and the Helm chart; a lease per feed;
+  backoff to five minutes; the owner told once after five failures; events
+  forgotten after `keep_events_hours` once every output has them; the log
+  appended to, never rewritten. The ticker no longer reads feeds.
+- **L6, in the product.** **Data → Live feeds**: the list, an add flow from
+  each kind's declared settings with **Try these settings**, a page per feed
+  (state, waiting events, throughput, guarantee and tier, what it keeps,
+  live recipes with their latest windows, latest events, settings, start
+  again, delete), the runner's heartbeat on System status and a warning on
+  the live pages when it is down, a "live" activity kind, `live_source_failed`
+  alerts, audit words, help (Data, glossary, API guide Example 5, What's
+  new), the Python client and `docs/api/openapi.json`; migration 0062.
+- **L7, proven.** `docker-compose.live.yml` and `scripts/check-live-servers.py`;
+  a `live` CI job. 6 change-capture and 10 queue round trips; 36 lifecycle
+  tests on SQLite and PostgreSQL; 39 window tests.
+
+**Measured after** (same baseline, dev stack): the 1,000 rows are in the
+table's dataset 1.0s after the feed is made; the raced change is stored;
+insert, update and delete leave the dataset right (6.1s with saves every
+10s); 20,000 changes are caught up in one pass in 8s (was 41 polls, 20
+minutes); 120 Kafka messages read in 2s and summarised by minute; a webhook
+post sent twice with one key is saved once.
+
+**Faults found and fixed on the way** (each with a test that failed first):
+the outbound guard refused `::1` with loopback allowed (Python counts it as
+reserved); the window engine added a column's sum once per measure reading
+it; lowest and highest mixed numbers and text; a PostgreSQL delete names its
+key in the row, so deletes were skipped; a feed made with its tables broke a
+foreign key on PostgreSQL (SQLite does not enforce them; the lifecycle tests
+now run on both); the Kinesis test server repeats a record when the page
+size shrinks, now never relied on.
 
 ---
 

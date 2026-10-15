@@ -110,7 +110,7 @@ class KinesisKind(LiveKind):
                 iterator = client.get_shard_iterator(StreamName=settings["stream"], ShardId=shard_id, **request)["ShardIterator"]
             except client.exceptions.InvalidArgumentException as exc:
                 raise LiveError(f"Shard {shard_id} no longer has the records after the saved position ({exc}). "
-                                "Start the source again.") from exc
+                                "Start the feed again.") from exc
             page_size = min(10_000, limit)
             for _ in range(20):  # empty pages are normal near the end of a shard
                 if iterator is None or len(messages) >= limit:

@@ -17,6 +17,8 @@ type DeleteRowButtonProps = {
   requireTypedName?: boolean;
   onDeleted?: () => void;
   className?: string;
+  /** Words beside the icon, for a page's own delete rather than a row's. */
+  label?: string;
 };
 
 /**
@@ -35,6 +37,7 @@ export function DeleteRowButton({
   requireTypedName,
   onDeleted,
   className,
+  label,
 }: DeleteRowButtonProps) {
   const [confirming, setConfirming] = useState(false);
 
@@ -43,13 +46,16 @@ export function DeleteRowButton({
       <button
         type="button"
         onClick={() => setConfirming(true)}
-        aria-label={`Delete ${name}`}
+        aria-label={label ? undefined : `Delete ${name}`}
         className={
           className ??
-          "rounded-lg border border-line p-1.5 text-muted transition hover:border-danger-line hover:text-danger"
+          (label
+            ? "inline-flex items-center gap-2 rounded-xl border border-line px-3 py-2 text-[14px] text-ink-2 transition hover:border-danger-line hover:text-danger"
+            : "rounded-lg border border-line p-1.5 text-muted transition hover:border-danger-line hover:text-danger")
         }
       >
-        <Icon name="trash" size={12} />
+        <Icon name="trash" size={label ? 14 : 12} />
+        {label}
       </button>
 
       <ConfirmDeleteDialog

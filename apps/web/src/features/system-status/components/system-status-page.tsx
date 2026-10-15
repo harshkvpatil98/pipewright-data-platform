@@ -171,6 +171,7 @@ function formatAge(seconds: number | null): string {
 const COMPONENT_LABELS: Record<string, string> = {
   "workflow-worker": "Workflow worker",
   "schedule-ticker": "Schedule ticker",
+  "live-runner": "Live feed runner",
 };
 
 /**

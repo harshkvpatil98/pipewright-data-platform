@@ -39,7 +39,7 @@ export function originHints(runs: PipelineRunRecord[], feeds: StreamSource[] = [
   return {
     runTypeById: new Map(runs.map((run) => [run.id, run.run_type])),
     feedDatasetIds: new Set(
-      feeds.map((feed) => feed.dataset_id).filter((id): id is string => Boolean(id)),
+      feeds.flatMap((feed) => feed.dataset_ids ?? [feed.dataset_id]).filter((id): id is string => Boolean(id)),
     ),
   };
 }

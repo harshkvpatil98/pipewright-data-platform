@@ -151,32 +151,114 @@ export type ExtractionShapingPlan = {
   rewrites?: string[];
 };
 
-// ------------------------------------------------------------ stream sources
+// ------------------------------------------------------------- live feeds
 
-export type StreamKind = "webhook" | "postgres_cdc";
+export type StreamKind =
+  | "webhook"
+  | "postgres_cdc"
+  | "mysql_cdc"
+  | "mongodb_cdc"
+  | "sqlserver_cdc"
+  | "kafka"
+  | "event_hubs"
+  | "kinesis"
+  | "pubsub"
+  | "pulsar"
+  | "rabbitmq"
+  | "nats"
+  | "mqtt";
 
-/** A source that delivers rows instead of being polled for them: a
- * token-keyed webhook endpoint, or a PostgreSQL change log followed through a
- * logical replication slot. Both materialise into one append-only dataset. */
+export type LiveFamily = "webhook" | "change_capture" | "queue";
+
+/** How sure a kind is that each event is saved once (D1). */
+export type LiveGuarantee = "position" | "message_id" | "at_least_once";
+
+export type LiveKindField = {
+  key: string;
+  label: string;
+  kind: "string" | "secret" | "number" | "boolean" | "select" | "text";
+  required: boolean;
+  default: unknown;
+  help: string;
+  placeholder: string;
+  options: string[];
+};
+
+export type LiveKind = {
+  key: StreamKind;
+  label: string;
+  family: LiveFamily;
+  description: string;
+  fields: LiveKindField[];
+  connection_types: string[];
+  guarantee: LiveGuarantee;
+  guarantee_title: string;
+  guarantee_detail: string;
+  tier: number;
+  tier_label: string;
+  tier_badge: string;
+  tier_explanation: string;
+  verified_by: string;
+  available: boolean;
+  unavailable_reason: string | null;
+};
+
+export type LiveKindListResponse = { items: LiveKind[] };
+
+/** A table a change-capture feed keeps current as a dataset. */
+export type LiveTable = {
+  id: string;
+  table_name: string;
+  key_columns: string[];
+  dataset_id: string | null;
+  state: "waiting" | "snapshot" | "following" | "log_only" | "failed";
+  snapshot_rows: number | null;
+  rows_now: number | null;
+  applied_seq: number;
+  last_saved_at: string | null;
+  last_error: string | null;
+};
+
+/** A live feed: rows that arrive instead of being asked for. */
 export type StreamSource = {
   id: string;
   project_id: string;
   name: string;
   kind: StreamKind;
-  status: string;
+  kind_label: string;
+  family: LiveFamily;
+  guarantee: LiveGuarantee;
+  guarantee_title: string;
+  guarantee_detail: string;
+  tier: number;
+  tier_label: string;
+  status: "active" | "paused" | "failing" | string;
   connection_id: string | null;
   connection_name: string | null;
   tables: string[];
   slot_name: string | null;
+  /** The kind's settings; a secret shows only whether it is set. */
+  settings: Record<string, unknown>;
   webhook_path: string | null;
   cursor: string | null;
   dataset_id: string | null;
   dataset_name: string | null;
   events_count: number;
+  behind: number | null;
+  read_every_seconds: number;
+  save_every_seconds: number;
+  keep_events_hours: number;
+  failures: number;
+  next_read_at: string | null;
+  last_read_count: number;
   last_event_at: string | null;
   last_polled_at: string | null;
   last_materialised_at: string | null;
   last_error: string | null;
+  live_tables: LiveTable[];
+  live_recipe_count: number;
+  /** Every dataset this feed keeps: its log, its tables, its live recipes' outputs. */
+  dataset_ids: string[];
   created_at: string;
   updated_at: string;
 };
@@ -188,6 +270,28 @@ export type StreamSourceCreated = StreamSource & {
 };
 
 export type StreamSourceListResponse = { items: StreamSource[] };
+
+export type StreamSourceCreate = {
+  name: string;
+  kind: StreamKind;
+  connection_id?: string | null;
+  tables?: string[];
+  settings?: Record<string, unknown>;
+  read_every_seconds?: number;
+  save_every_seconds?: number;
+};
+
+export type StreamSourceUpdate = {
+  name?: string;
+  status?: "active" | "paused";
+  tables?: string[];
+  settings?: Record<string, unknown>;
+  read_every_seconds?: number;
+  save_every_seconds?: number;
+  keep_events_hours?: number;
+};
+
+export type LiveTestResult = { ok: boolean; message: string; details: string[] };
 
 export type StreamEvent = {
   id: string;
@@ -202,20 +306,109 @@ export type StreamEvent = {
 
 export type StreamPollResponse = {
   source: StreamSource;
-  slot_created: boolean;
-  changes_read: number;
-  events_stored: number;
-  lines_consumed: number;
-  upto_lsn: string | null;
-  note: string;
+  read: number;
+  stored: number;
+  rounds: number;
+  notes: string[];
+  guarantee: string;
 };
 
 export type StreamMaterialiseResponse = {
   source: StreamSource;
-  dataset_id: string;
+  dataset_id: string | null;
   version_number: number;
-  rows: number;
+  events_saved: number;
+  changes_applied: number;
+  recipe_outputs: number;
+};
+
+export type ThroughputPoint = { minute: string; events: number };
+export type ThroughputResponse = { items: ThroughputPoint[] };
+
+export type LiveWindowKind = "tumbling" | "hopping" | "sliding" | "session";
+export type LiveMeasureOp = "count" | "sum" | "average" | "lowest" | "highest" | "first" | "last";
+
+export type LiveWindow = {
+  kind: LiveWindowKind;
+  size_seconds?: number | null;
+  advance_seconds?: number | null;
+  gap_seconds?: number | null;
+  time_column: string;
+  lateness_seconds: number;
+  late: "drop" | "restate";
+  restate_for_seconds: number;
+};
+
+export type LiveMeasure = { name: string; op: LiveMeasureOp; column?: string | null };
+
+export type LiveLookup = {
+  dataset_id: string;
+  on: { event: string; dataset: string }[];
   columns: string[];
+  keep_unmatched: boolean;
+};
+
+export type LiveRecipeCreate = {
+  name: string;
+  recipe_id?: string | null;
+  lookup?: LiveLookup | null;
+  window?: LiveWindow | null;
+  group_by?: string[];
+  measures?: LiveMeasure[];
+};
+
+export type LiveRecipeUpdate = Partial<LiveRecipeCreate> & {
+  status?: "active" | "paused";
+  clear_recipe?: boolean;
+  clear_lookup?: boolean;
+};
+
+export type LiveRecipe = {
+  id: string;
+  source_id: string;
+  name: string;
+  recipe_id: string | null;
+  lookup: LiveLookup | null;
+  window: LiveWindow | null;
+  group_by: string[];
+  measures: LiveMeasure[];
+  output_dataset_id: string | null;
+  output_dataset_name: string | null;
+  status: "active" | "paused" | "failed" | string;
+  last_error: string | null;
+  processed_seq: number;
+  events_in: number;
+  late_dropped: number;
+  late_restated: number;
+  without_time: number;
+  unmatched: number;
+  open_windows: number;
+  /** The watermark: every window ending by then is final. */
+  complete_up_to: string | null;
+  description: string;
+  last_processed_at: string | null;
+  last_saved_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type LiveRecipeListResponse = { items: LiveRecipe[] };
+
+export type LiveRecipeResult = {
+  window_start: string;
+  window_end: string;
+  group: unknown[];
+  values: Record<string, unknown>;
+  events: number;
+  final: boolean;
+  restated: number;
+};
+
+export type LiveRecipeResultsResponse = {
+  recipe: LiveRecipe;
+  group_by: string[];
+  measures: string[];
+  items: LiveRecipeResult[];
 };
 
 // --------------------------------------------------------------- data quality

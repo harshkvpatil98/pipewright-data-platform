@@ -1812,7 +1812,7 @@ detection turned from a warning into an agreement with two sides.
 
 ---
 
-## Phase 20 — Streaming & change data capture ⚠ PARTIAL (2026-09-23: PostgreSQL CDC + inbound webhooks shipped as P9, micro-batch, at-least-once; everything else below not started)
+## Phase 20 — Streaming & change data capture ✅ COMPLETE (2026-10-15, as D1 in `docs/plans/live-data-and-performance.md`)
 
 Batch is not enough for "the dashboard should be current". Two additions:
 
@@ -1828,6 +1828,15 @@ the sink supports it, **at-least-once with the duplicate risk stated where it do
 Sources: Kafka, Kinesis, Pub/Sub, Event Hubs, Pulsar, RabbitMQ, NATS, MQTT, and inbound
 webhooks. Micro-batch first (seconds of latency, far simpler to reason about), with true
 continuous execution behind it only where the latency requirement justifies the complexity.
+
+**What shipped (D1).** Change capture from PostgreSQL, MySQL, MongoDB and SQL Server, each
+table kept current after a first copy; Kafka, Event Hubs, Kinesis, Pub/Sub, Pulsar,
+RabbitMQ, NATS JetStream and MQTT plus webhooks, every kind round-tripped against a real
+server or the vendor's test server in CI; each kind's guarantee stated (saved once by
+position, once by message id, or at least once); live recipes with tumbling, hopping,
+sliding and session windows, watermarks, late events dropped or restated, a dataset lookup
+and row-by-row steps, their state committed with their results. Micro-batch every few
+seconds; continuous execution was not needed and not built.
 
 ---
 

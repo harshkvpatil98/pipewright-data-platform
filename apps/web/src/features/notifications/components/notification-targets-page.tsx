@@ -51,6 +51,7 @@ const EVENT_LABELS: Record<string, string> = {
   transformation_run_succeeded: "A recipe run finished",
   metric_alert: "A measure crossed its alert",
   data_contract: "A contract was broken or changed",
+  live_source_failed: "A live feed keeps failing",
   test: "A test",
 };
 

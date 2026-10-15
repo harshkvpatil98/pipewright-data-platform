@@ -29,9 +29,39 @@ On a connection, choose **See what it holds** (or **Browse tables** for a databa
 
 Each run of an import adds a version to the same dataset, so you keep one dataset with a history rather than a new one per run.
 
-### Live feeds
+## Live feeds
 
-A live feed receives events sent to a web address, or follows the changes in a PostgreSQL table. Following changes needs your database administrator to turn on change tracking; the first check says if it is off.
+Data that arrives by itself, in **Data → Live feeds**. Pipewright reads each feed every few seconds (every 5 by default) and saves it to datasets every so often (every minute by default), each save a new version.
+
+### Kinds of feed
+
+- **Database changes.** Follow tables in PostgreSQL, MySQL, MongoDB or SQL Server through the database's own change log. Each table is kept as a dataset **as it is now**: a first full copy, then every insert, update and delete applied to the row with that key. A table without a primary key keeps only its changes. Your database administrator may need to switch change tracking on; **Try these settings** says exactly what to change.
+- **Message queues.** Kafka, Azure Event Hubs, Amazon Kinesis, Google Pub/Sub, Apache Pulsar, RabbitMQ, NATS JetStream and MQTT. A feed reads from where it last stopped; the first time, from everything still kept or only from now.
+- **Webhook.** A private address a partner's system posts events to, shown once when you make it.
+
+Every feed also keeps **every event** that arrived as a dataset of its own, added to at each save.
+
+### Is each event saved once?
+
+Each feed says, where you choose it and on its page:
+
+- **Saved once.** The feed's place in the source is saved with the events, so after a restart it carries on from exactly there. Kafka, Event Hubs, Kinesis, Pulsar, NATS, and the MySQL, MongoDB and SQL Server change logs.
+- **Saved once, by its id.** Events are acknowledged after they are saved; one sent again is recognised by its id. PostgreSQL changes and Pub/Sub.
+- **Saved at least once.** If Pipewright stops between saving and acknowledging, an event can be saved twice. MQTT, and RabbitMQ messages and webhook posts without an id; a webhook post with an `Idempotency-Key` header is saved once.
+
+### Live recipes
+
+On a feed's page, **Add a live recipe** runs on every batch as it arrives:
+
+- **Steps from a recipe** that work row by row: filters, new columns, renames and clean-ups. Build the recipe in the Studio on the feed's **every event** dataset.
+- **Look up** each event in a dataset, to bring along columns such as a customer's region.
+- **Summarise by time**, in back-to-back windows, overlapping windows, the last so many minutes at every change, or sessions that end after a quiet gap, grouped by columns, with counts, sums, averages, lowest, highest, first and last.
+
+A window is final once events a set time later than its end have arrived (**Wait for late events**). An event later still is counted and left out, or updates the window it belongs to if that closed recently. Results are saved with the place in the feed they reached, so a restart never counts an event twice. A live recipe's dataset holds the last 30 days of windows; older ones stay in its earlier versions.
+
+### When a feed fails
+
+A failing feed tries again later, up to every five minutes, and its maker is told after five failures in a row. If the database no longer has the changes since the feed last read, **Start again with a fresh copy** takes each table's first copy again; what was kept stays as earlier versions.
 
 ## Datasets
 

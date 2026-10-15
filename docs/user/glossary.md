@@ -8,6 +8,9 @@ Every word Pipewright uses, with one meaning each. If a screen ever uses a word 
 | Source | Where data comes from: an uploaded file, a database, an app, an API or a live feed. |
 | Connector | A kind of source in the catalogue, such as PostgreSQL, Stripe or S3. Each says how well it is tested. |
 | Import | Bringing a table from a connected source into a dataset, once or on a schedule. |
+| Live feed | Data that arrives by itself, read every few seconds: a database's changes, a queue's messages or posts to a webhook. |
+| Live recipe | A recipe that runs on a live feed's events as they arrive, to clean, look up or summarise them by time. |
+| Window | A stretch of time a live recipe summarises over, such as each minute. A window is final once late events have had their chance. |
 | Dataset | A table of data in a project. |
 | Version | One saved state of a dataset. Every change makes a new one, and old ones stay readable. |
 | Recipe | The ordered steps that turn one dataset into another. |

@@ -197,11 +197,12 @@ At a glance, measured on `main`:
  file storage ─────────── uploads and dataset artifacts (local by default)
 
  platform-workflow-worker  drains the leased workflow queue
- platform-schedule-ticker  fires schedules, polls CDC sources, runs retention sweeps
+ platform-schedule-ticker  fires schedules, runs retention sweeps
+ platform-live-runner      reads live feeds every few seconds: change logs, queues
 ```
 
-The gateway is the only public backend; the workflow worker and the schedule
-ticker run from the gateway's image with a different command. Services reach each other through
+The gateway is the only public backend; the workflow worker, the schedule
+ticker and the live runner run from the gateway's image with a different command. Services reach each other through
 registered hooks rather than imports, and shared infrastructure (storage,
 settings, errors, secret references, the type system) lives in
 `packages/shared-python`. `packages/shared-types` mirrors the Python schemas in
@@ -232,7 +233,7 @@ Prerequisites: Node.js 22, Python 3.11 or newer (on macOS use Homebrew's
 ```bash
 make setup    # .env files from the examples, npm install, .venv, an encryption key,
               # and — with Docker running — Postgres plus the migrations
-make dev      # gateway :8000, web :3000, and the workflow worker and schedule ticker
+make dev      # gateway :8000, web :3000, and the workflow worker, schedule ticker and live runner
 ```
 
 In a second terminal, create the first admin from the credentials in `.env`:
@@ -319,8 +320,8 @@ cover, is in [CONTRIBUTING.md](CONTRIBUTING.md#what-a-local-run-does-not-cover).
 
 | Option | What it is |
 |---|---|
-| [`docker-compose.yml`](docker-compose.yml) | Development stack with profiles: `--profile app` (Postgres, gateway, web), `--profile worker` (worker and ticker). Postgres runs with `wal_level=logical` for CDC |
-| [`docker-compose.prod.yml`](docker-compose.prod.yml) | Single-host production: pre-built images from GHCR (`PIPEWRIGHT_TAG` is required), Postgres, all four runtimes, and [Caddy](deploy/Caddyfile) terminating TLS and routing `/api` to the gateway and `/` to the web |
+| [`docker-compose.yml`](docker-compose.yml) | Development stack with profiles: `--profile app` (Postgres, gateway, web), `--profile worker` (worker, ticker and live runner). Postgres runs with `wal_level=logical` for change capture |
+| [`docker-compose.prod.yml`](docker-compose.prod.yml) | Single-host production: pre-built images from GHCR (`PIPEWRIGHT_TAG` is required), Postgres, all five runtimes, and [Caddy](deploy/Caddyfile) terminating TLS and routing `/api` to the gateway and `/` to the web |
 | [`deploy/helm/pipewright`](deploy/helm/pipewright/README.md) | Kubernetes: per-component deployments, a pre-install/pre-upgrade migration Job, ingress, optional autoscaling; the chart never deploys `latest` |
 | [`release-images.yml`](.github/workflows/release-images.yml) | Builds and pushes `pipewright-gateway` and `pipewright-web` to GHCR on a `v*` tag |
 
@@ -370,7 +371,7 @@ first-time user meets soonest:
 ```
 apps/
   api-gateway/     FastAPI gateway, Alembic migrations, CLI entry points
-                   (bootstrap user, workflow worker, schedule ticker, scim-sync)
+                   (bootstrap user, workflow worker, schedule ticker, live runner, scim-sync)
   web/             Next.js web app and its Vitest suite
 services/          24 Python domain packages, service-*/src and service-*/tests
 packages/

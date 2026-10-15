@@ -13,6 +13,36 @@ the test counts at the time — is in the session log in
 
 ---
 
+## Phase 20 complete — live data, D1 (2026-10-15)
+
+Roadmap Phase 20, streaming and change data capture; the plan is
+[docs/plans/live-data-and-performance.md](docs/plans/live-data-and-performance.md).
+
+- **Database changes, kept current.** PostgreSQL (logical decoding),
+  MySQL (the row-based binary log), MongoDB (change streams) and SQL Server
+  (its CDC tables): a first full copy of each followed table, then every
+  insert, update and delete applied by key, as a dataset "as it is now",
+  plus the log of every change. Each checks its own requirements and says
+  what to change in the database's words.
+- **Eight queues.** Kafka, Azure Event Hubs (its Kafka endpoint), Amazon
+  Kinesis, Google Pub/Sub (REST, service-account sign-in), Apache Pulsar,
+  RabbitMQ, NATS JetStream and MQTT (a persistent session), plus webhooks,
+  each tested against a real server or the vendor's own test server in a
+  new `live` CI job.
+- **Saved once, and said so.** Each kind states its guarantee where it is
+  chosen: saved once by position (committed with the events), once by
+  message id (acknowledged after saving), or at least once.
+- **Live recipes.** Row-by-row steps, a lookup in a dataset, and tumbling,
+  hopping, sliding and session windows with a watermark and late events
+  dropped or restated; state, results and position commit together.
+- **A live runner** (`platform-live-runner`) reads due feeds every few
+  seconds under a lease, backs off a failing one and tells its owner. A
+  **Live feeds** tab, a page per feed, live activity, alerts and help.
+- **Fixed:** PostgreSQL change capture lost a change committed during a
+  poll; saving rewrote every event ever received; the outbound guard refused
+  `::1` even with loopback allowed.
+- Migration 0062; new routes in the Python client and the API reference.
+
 ## Phase 21 complete — working together, C2 (2026-10-15)
 
 The rest of roadmap Phase 21; the plan is

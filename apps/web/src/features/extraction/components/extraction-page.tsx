@@ -30,7 +30,6 @@ import { AddDataDialog } from "@/features/datasets/components/add-data-dialog";
 import { UploadDatasetModal } from "@/features/datasets/components/upload-dataset-modal";
 import { CopyDatabaseDialog } from "@/features/destinations/components/copy-database-dialog";
 import { ConnectSourceDialog } from "@/features/extraction/components/connect-source-dialog";
-import { LiveSourcesPanel } from "@/features/extraction/components/live-sources-panel";
 import { groupDatasets, originHints } from "@/lib/dataset-origin";
 import { apiFetch } from "@/lib/api/client";
 import { tierTone } from "@/lib/labels";
@@ -945,11 +944,27 @@ export function ExtractionPageView({
 
         {filesFirst ? null : uploadedFilesPanel}
 
-        <LiveSourcesPanel
-          projectId={projectId}
-          connections={connections}
-          initial={initialStreams}
-        />
+        <SectionPanel
+          title="Live feeds"
+          description="Database changes, queue messages and posted events, as they arrive."
+          actions={
+            <Link
+              href={`/projects/${projectId}/live`}
+              className="text-[14px] font-medium text-[color:var(--accent-muted)] hover:underline"
+            >
+              {initialStreams.length ? "Open live feeds" : "Set up a live feed"}
+            </Link>
+          }
+        >
+          <p className="text-ink-3 text-[14px]">
+            {initialStreams.length
+              ? `${countOf(initialStreams.length, "live feed")} in this project${(() => {
+                  const failing = initialStreams.filter((feed) => feed.status === "failing").length;
+                  return failing ? `, ${failing} failing` : "";
+                })()}.`
+              : "None yet. Most projects need none: files and imports cover the usual cases."}
+          </p>
+        </SectionPanel>
 
         <p className="text-ink-3 text-[14px]">
           Need a different kind of source?{" "}

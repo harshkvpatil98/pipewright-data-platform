@@ -29,6 +29,7 @@ type HomeDashboardProps = {
 const WORKER_LABELS: Record<string, string> = {
   "workflow-worker": "Worker",
   "schedule-ticker": "Ticker",
+  "live-runner": "Live feeds",
 };
 
 function detail(

@@ -188,8 +188,8 @@ class SqlServerChangeCapture(ChangeCaptureKind):
                 last = bytes.fromhex(saved[table]) if saved.get(table) else None
                 if last is not None and started is not None and last >= started and oldest and last < oldest:
                     raise LiveError(
-                        f"SQL Server has cleaned up the changes to {table} since this source last read them. "
-                        "Start the source again to take a new snapshot."
+                        f"SQL Server has cleaned up the changes to {table} since this feed last read them. "
+                        "Start the feed again to take a fresh copy of each table."
                     )
                 if last is None or (oldest and last < oldest):
                     low = oldest

@@ -58,6 +58,7 @@ and alert on failure.
 | Web | replicas / HPA | Stateless; scale on CPU. |
 | Workflow worker | replicas | The queue claim is leased, so many workers share load safely. It also does the long work the pages hand over: uploads over 25MB, deliveries over 50,000 rows and database copies. A project runs at most `WORKFLOW_MAX_RUNS_PER_PROJECT` workflow runs at once (3). |
 | Schedule ticker | **one**, usually | The lease reduces but does not eliminate double-execution across pollers. Run one replica, or give each a distinct `SCHEDULER_RUNTIME_ID`. |
+| Live runner | replicas | Reads every live feed when it is due (`platform-live-runner`, D1). Each feed is read under a lease, so replicas share feeds and never read one twice at once. A batch is at most 5,000 events; saving a table kept current reads its whole current version, so give it the memory the largest followed table needs (Helm `liveRunner.resources`, 2Gi by default). |
 | Postgres | vertical + read replicas | The single stateful tier; size it first (below). |
 
 Uploads are durable across a gateway restart (P3: the resumable session lives in

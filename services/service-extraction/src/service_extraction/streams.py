@@ -140,7 +140,7 @@ def settings_for(db: Session, source: StreamSource) -> dict[str, Any]:
     if kind.connection_types:
         connection = db.get(ExtractionConnection, source.connection_id) if source.connection_id else None
         if connection is None:
-            raise LiveError("The connection this source reads through has been deleted.")
+            raise LiveError("The connection this feed reads through has been deleted.")
         settings["connection"] = decrypt_sensitive_fields(
             dict(connection.config_json or {}), connection_secret_fields(connection.connector_type))
     return settings
@@ -155,7 +155,7 @@ def _shown_settings(source: StreamSource) -> dict[str, Any]:
 
 
 def _read(source: StreamSource, *, connection_name: str | None, dataset_name: str | None,
-          tables: list[LiveTable], recipe_count: int) -> StreamSourceRead:
+          tables: list[LiveTable], recipe_count: int, outputs: list[uuid.UUID]) -> StreamSourceRead:
     kind = KINDS.get(source.kind)
     described = kind.describe() if kind is not None else {}
     config = source.config_json or {}
@@ -195,6 +195,8 @@ def _read(source: StreamSource, *, connection_name: str | None, dataset_name: st
         last_error=source.last_error,
         live_tables=[_table_read(t) for t in tables],
         live_recipe_count=recipe_count,
+        dataset_ids=list(dict.fromkeys(
+            [d for d in [source.dataset_id, *[t.dataset_id for t in tables], *outputs] if d is not None])),
         created_at=source.created_at,
         updated_at=source.updated_at,
     )
@@ -225,12 +227,15 @@ def _reads(db: Session, sources: list[StreamSource]) -> list[StreamSourceRead]:
     tables: dict[uuid.UUID, list[LiveTable]] = {}
     for table in db.scalars(select(LiveTable).where(LiveTable.source_id.in_(ids)).order_by(LiveTable.table_name)).all():
         tables.setdefault(table.source_id, []).append(table)
-    recipes = dict(db.execute(select(LiveRecipe.source_id, func.count()).where(
-        LiveRecipe.source_id.in_(ids)).group_by(LiveRecipe.source_id)).all())
+    recipes: dict[uuid.UUID, list[uuid.UUID | None]] = {}
+    for source_id, output in db.execute(select(LiveRecipe.source_id, LiveRecipe.output_dataset_id).where(
+            LiveRecipe.source_id.in_(ids))).all():
+        recipes.setdefault(source_id, []).append(output)
     return [
         _read(s, connection_name=connections.get(s.connection_id) if s.connection_id else None,
               dataset_name=datasets.get(s.dataset_id) if s.dataset_id else None,
-              tables=tables.get(s.id, []), recipe_count=int(recipes.get(s.id, 0)))
+              tables=tables.get(s.id, []), recipe_count=len(recipes.get(s.id, [])),
+              outputs=[o for o in recipes.get(s.id, []) if o is not None])
         for s in sources
     ]
 
@@ -341,6 +346,9 @@ def create_source(db: Session, project_id: uuid.UUID, payload: StreamSourceCreat
         next_read_at=_now(),
     )
     db.add(source)
+    # The feed's row first: nothing relates the two models, so the flush does
+    # not order them, and PostgreSQL refuses a table row whose feed is not there yet.
+    db.flush()
     for table in config.get("tables") or []:
         db.add(LiveTable(source_id=source_id, table_name=table))
     db.commit()
@@ -622,7 +630,7 @@ def read_source(db: Session, source: StreamSource, *, budget_seconds: float = PA
             position = kind.start_position(live)
             source.cursor = json.dumps(position)
             if position.get("created"):
-                totals["notes"].append("Made the replication slot this source reads from.")
+                totals["notes"].append("Made the replication slot this feed reads from.")
             db.commit()
         waiting = list(db.scalars(select(LiveTable).where(LiveTable.source_id == source.id, LiveTable.state == "waiting")).all())
         for table in waiting:
@@ -665,7 +673,7 @@ def poll_source(db: Session, project_id: uuid.UUID, source_id: uuid.UUID, curren
         raise BadRequestError("A webhook is not read; events arrive at its address.")
     owner = f"request-{uuid.uuid4()}"
     if not _claim(db, source, owner):
-        raise ConflictError("This source is being read right now; try again in a moment.")
+        raise ConflictError("This feed is being read right now; try again in a moment.")
     try:
         totals = read_source(db, source, storage_backend=storage_backend, settings=settings)
         _succeeded(db, source, totals["stored"])
@@ -755,7 +763,7 @@ def _actor(db: Session, source: StreamSource) -> UserRead:
         user = db.get(User, user_id) if user_id else None
         if user is not None and user.is_active:
             return UserRead.model_validate(user)
-    raise LiveError("Nobody who can save this source's data is left: its maker and the project's owner are inactive.")
+    raise LiveError("Nobody who can save this feed's data is left: its maker and the project's owner are inactive.")
 
 
 def _snapshot(db: Session, source: StreamSource, kind: ChangeCaptureKind, live: dict[str, Any], table: LiveTable,
@@ -778,7 +786,7 @@ def _snapshot(db: Session, source: StreamSource, kind: ChangeCaptureKind, live: 
             db.commit()
             return
         if storage_backend is None or settings is None:
-            raise LiveError("Saving needs storage; the runner reads snapshots.")
+            raise LiveError("Saving needs storage; the runner takes each table's first copy.")
         dataset = publish_frame(db, source, dataset_id=table.dataset_id, name=f"{table.table_name} (live)",
                                 frame=frame, storage_backend=storage_backend, settings=settings,
                                 source_name=f"{source.name}: {table.table_name}")

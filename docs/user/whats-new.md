@@ -2,6 +2,15 @@
 
 The changes people notice, newest first. The full record is in the repository's changelog.
 
+## Live feeds
+
+- **Live feeds have their own tab.** **Data → Live feeds** reads data as it arrives, every few seconds, and saves it to datasets every so often.
+- **Tables kept current.** Follow a PostgreSQL, MySQL, MongoDB or SQL Server database's changes, and each table is a dataset as it is now: a first full copy, then every insert, update and delete.
+- **Eight queues.** Kafka, Azure Event Hubs, Amazon Kinesis, Google Pub/Sub, Apache Pulsar, RabbitMQ, NATS and MQTT, each reading from where it last stopped.
+- **Saved once, and said so.** Every feed says whether each event is saved once, or at least once, where you choose it and on its page.
+- **Live recipes.** Count, sum or average events by minute, by sessions, or over the last so many minutes, with late events left out or counted in; look each one up in a dataset; run a recipe's steps on each batch.
+- **A feed that fails** tries again later and tells its maker after five failures in a row; **Start again with a fresh copy** recovers a database feed that fell too far behind.
+
 ## Working together
 
 - **Edit a recipe together.** Everyone with a recipe open in the Studio edits the same copy; others' changes appear within a couple of seconds, and nobody's work is written over. Undo takes back only your own changes.

@@ -170,12 +170,22 @@
       "data": {
         "sources": {
           "label": "Sources",
-          "description": "Upload files, connect databases and receive live data.",
-          "keywords": "connect database connection import extraction upload file stream webhook cdc",
+          "description": "Upload files and connect databases, apps and storage.",
+          "keywords": "connect database connection import extraction upload file",
           "help": [
             "Upload a file: Pipewright shows how it will read it before anything is saved.",
             "Connect a database, browse its tables and import the ones you need.",
             "Set imports to bring in only new rows, so each run is quick."
+          ]
+        },
+        "live": {
+          "label": "Live feeds",
+          "description": "Database changes, queue messages and posted events, as they arrive.",
+          "keywords": "live stream streaming webhook cdc change capture kafka kinesis pubsub pulsar rabbitmq nats mqtt event hubs realtime window",
+          "help": [
+            "Follow a database's changes and keep each table current as a dataset.",
+            "Read Kafka, Event Hubs, Kinesis, Pub/Sub, Pulsar, RabbitMQ, NATS or MQTT.",
+            "Add a live recipe to count, sum or look up as each batch arrives."
           ]
         },
         "datasets": {

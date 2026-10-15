@@ -20,6 +20,7 @@ const KIND_WORDS: Record<ActivityKind, string> = {
   comments: "Comments",
   alerts: "Alerts",
   contracts: "Contracts",
+  live: "Live feeds",
 };
 
 const LEVEL_DOT: Record<ActivityItem["level"], string> = {
@@ -54,7 +55,7 @@ export function byDay(items: ActivityItem[], now: Date = new Date()): { day: str
 
 /**
  * What happened in a project, newest first (A8, Y6): changes, runs,
- * incidents, comments, alerts and contracts in one list, with who and when.
+ * incidents, comments, alerts, contracts and live feeds in one list, with who and when.
  */
 export function ActivityPageView({
   currentUser,
@@ -125,7 +126,7 @@ export function ActivityPageView({
       {items.length === 0 ? (
         <EmptyState
           title={kind ? `No ${KIND_WORDS[kind].toLowerCase()} yet` : "Nothing has happened yet"}
-          description="Changes, runs, incidents, comments, alerts and contracts appear here as they happen."
+          description="Changes, runs, incidents, comments, alerts, contracts and live feeds appear here as they happen."
         />
       ) : (
         byDay(items).map((group) => (

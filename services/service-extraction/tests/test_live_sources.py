@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import uuid
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
@@ -19,7 +20,7 @@ from typing import Any
 
 import pandas as pd
 import pytest
-from sqlalchemy import create_engine, func, select
+from sqlalchemy import MetaData, create_engine, func, select, text
 from sqlalchemy.orm import Session, sessionmaker
 
 import api_gateway.metadata  # noqa: F401
@@ -42,20 +43,48 @@ from shared_python.db import Base
 from shared_python.errors import BadRequestError
 from shared_python.storage.local import LocalStorageBackend
 
+import live_servers
+
 OWNER_ID = uuid.UUID("0e0e0e0e-0e0e-0e0e-0e0e-0e0e0e0e0e0e")
 SETTINGS = SimpleNamespace(max_upload_size_bytes=50 * 1024 * 1024, preview_row_limit=50, profile_sample_value_limit=5)
 
 
-@pytest.fixture()
-def db() -> Iterator[Session]:
-    engine = create_engine("sqlite://")
-    Base.metadata.create_all(engine)
+POSTGRES = os.environ.get("CONNECTORS_TEST_POSTGRES_URL") or (live_servers.POSTGRES_URL if live_servers.ENABLED else None)
+
+
+@pytest.fixture(params=["sqlite", "postgres"])
+def db(request) -> Iterator[Session]:
+    """SQLite, and PostgreSQL when one is set: SQLite does not enforce foreign
+    keys, and a feed created with its tables in one flush broke one (D1)."""
+    if request.param == "sqlite":
+        engine = create_engine("sqlite://")
+        Base.metadata.create_all(engine)
+        schema = None
+    else:
+        if not POSTGRES:
+            pytest.skip("Set CONNECTORS_TEST_POSTGRES_URL to run these on PostgreSQL too.")
+        schema = f"live_{uuid.uuid4().hex[:12]}"
+        admin = create_engine(POSTGRES)
+        with admin.begin() as connection:
+            connection.execute(text(f'CREATE SCHEMA "{schema}"'))
+        admin.dispose()
+        engine = create_engine(POSTGRES, connect_args={"options": f"-csearch_path={schema}"})
+        # A private copy: create_all on PostgreSQL changes the shared definitions (C1).
+        private = MetaData()
+        for table in Base.metadata.tables.values():
+            table.to_metadata(private)
+        private.create_all(engine)
     session = sessionmaker(bind=engine)()
     try:
         yield session
     finally:
         session.close()
         engine.dispose()
+        if schema:
+            admin = create_engine(POSTGRES)
+            with admin.begin() as connection:
+                connection.execute(text(f'DROP SCHEMA "{schema}" CASCADE'))
+            admin.dispose()
 
 
 @pytest.fixture()
@@ -486,7 +515,7 @@ def test_a_live_recipe_summarises_by_window_and_saves_its_output(db, world, stor
     assert len(output) == 4
     read = live_recipes.list_recipes(db, world["project"].id, source_id, world["user"]).items[0]
     assert read.open_windows == 2 and read.complete_up_to.strftime("%H:%M:%S") == "10:01:30"
-    assert read.description.startswith("Summarises (count, sum) by region in back-to-back windows of 1 minute")
+    assert read.description == "Summarises by region over back-to-back windows of 1 minute: orders (count), revenue (sum)."
 
 
 def test_a_batch_repeated_after_a_crash_counts_nothing_twice(db, world, storage, monkeypatch):
@@ -659,3 +688,15 @@ def test_activity_shows_a_feed_that_keeps_failing_and_a_live_recipe_that_stopped
     assert {(i.sentence, i.level) for i in items} == {("orders feed keeps failing", "error"),
                                                        ("The live recipe sales per minute stopped", "warning")}
     assert all(i.href and "/live/" in i.href for i in items)
+
+
+def test_an_output_keeps_the_last_thirty_days_of_windows(db, world, storage):
+    source_id, token = _hook(db, world)
+    recipe_id = _summary(db, world, source_id, lateness_seconds=0)
+    old_day = (datetime.now(UTC) - timedelta(days=40)).strftime("%Y-%m-%dT10:00:00Z")
+    _post(db, token, {"at": old_day, "region": "north", "amount": 1})
+    _post(db, token, {"at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"), "region": "north", "amount": 2})
+    _pass(db, source_id, storage)
+    out = _frame(storage, db, db.get(LiveRecipe, recipe_id).output_dataset_id)
+    assert len(out) == 1 and out["revenue"].tolist() == ["2.0"]  # the 40-day-old window left the output
+    assert db.scalar(select(func.count()).select_from(LiveRecipeResult)) == 1

@@ -23452,6 +23452,14 @@
       ],
       "title": "Dataset Id"
      },
+     "dataset_ids": {
+      "items": {
+       "format": "uuid",
+       "type": "string"
+      },
+      "title": "Dataset Ids",
+      "type": "array"
+     },
      "dataset_name": {
       "anyOf": [
        {
@@ -23807,6 +23815,14 @@
        }
       ],
       "title": "Dataset Id"
+     },
+     "dataset_ids": {
+      "items": {
+       "format": "uuid",
+       "type": "string"
+      },
+      "title": "Dataset Ids",
+      "type": "array"
      },
      "dataset_name": {
       "anyOf": [

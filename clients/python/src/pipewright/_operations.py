@@ -197,6 +197,13 @@ class Operations:
         """
         return self._call("POST", "/api/v1/auth/tokens", body=body)
 
+    def read_token(self, token_id: str) -> Any:
+        """One of your tokens, never its secret (X2: Terraform reads one at a time).
+
+        GET /api/v1/auth/tokens/{token_id}
+        """
+        return self._call("GET", f"/api/v1/auth/tokens/{token_id}")
+
     def revoke_token(self, token_id: str) -> Any:
         """Revoke Token
 
@@ -805,6 +812,13 @@ class Operations:
         POST /api/v1/projects/{project_id}/data-quality/rules
         """
         return self._call("POST", f"/api/v1/projects/{project_id}/data-quality/rules", body=body)
+
+    def get_rule(self, project_id: str, rule_id: str) -> Any:
+        """One check.
+
+        GET /api/v1/projects/{project_id}/data-quality/rules/{rule_id}
+        """
+        return self._call("GET", f"/api/v1/projects/{project_id}/data-quality/rules/{rule_id}")
 
     def patch_rule(self, project_id: str, rule_id: str, *, body: Any) -> Any:
         """Patch Rule
@@ -1415,6 +1429,13 @@ class Operations:
         """
         return self._call("POST", f"/api/v1/projects/{project_id}/extraction/connections", body=body)
 
+    def get_connection(self, project_id: str, connection_id: str) -> Any:
+        """One connection; its secrets read back as ***.
+
+        GET /api/v1/projects/{project_id}/extraction/connections/{connection_id}
+        """
+        return self._call("GET", f"/api/v1/projects/{project_id}/extraction/connections/{connection_id}")
+
     def patch_connection(self, project_id: str, connection_id: str, *, body: Any) -> Any:
         """Patch Connection
 
@@ -1848,6 +1869,13 @@ class Operations:
         PATCH /api/v1/projects/{project_id}/pipelines/{pipeline_id}
         """
         return self._call("PATCH", f"/api/v1/projects/{project_id}/pipelines/{pipeline_id}", body=body)
+
+    def delete_recipe(self, project_id: str, pipeline_id: str) -> Any:
+        """Delete a recipe that no schedule or workflow runs; its runs and results stay.
+
+        DELETE /api/v1/projects/{project_id}/pipelines/{pipeline_id}
+        """
+        return self._call("DELETE", f"/api/v1/projects/{project_id}/pipelines/{pipeline_id}")
 
     def branch_recipe(self, project_id: str, pipeline_id: str, *, body: Any) -> Any:
         """Branch Recipe

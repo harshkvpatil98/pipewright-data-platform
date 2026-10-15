@@ -500,6 +500,12 @@ def build_router(
         return _serialize_pipeline(manage.set_parameters(db, project_id=project_id, pipeline_id=pipeline_id,
                                                          payload=payload, current_user=current_user))
 
+    @router.delete('/projects/{project_id}/pipelines/{pipeline_id}', status_code=status.HTTP_204_NO_CONTENT)
+    def delete_recipe(project_id: uuid.UUID, pipeline_id: uuid.UUID, db: Session = Depends(get_db),
+                      current_user: UserRead = Depends(get_current_user)) -> None:
+        """Delete a recipe that no schedule or workflow runs; its runs and results stay."""
+        manage.delete_recipe(db, project_id=project_id, pipeline_id=pipeline_id, current_user=current_user)
+
     @router.get('/projects/{project_id}/recipe-templates', response_model=manage.TemplateListResponse)
     def list_recipe_templates(project_id: uuid.UUID, db: Session = Depends(get_db),
                             current_user: UserRead = Depends(get_current_user)) -> manage.TemplateListResponse:

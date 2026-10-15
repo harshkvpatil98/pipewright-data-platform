@@ -122,6 +122,8 @@ export type AuditEntry = {
   id: string;
   project_id: string | null;
   actor_user_id: string | null;
+  /** The API token it came with (X2); null for a person signed in. */
+  credential?: string | null;
   actor_username: string | null;
   method: string;
   path: string;

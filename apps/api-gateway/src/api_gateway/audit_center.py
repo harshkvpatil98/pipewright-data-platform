@@ -53,6 +53,8 @@ class AuditCenterRow(BaseModel):
     #: while that still exists ("Weekly sales").
     summary: str = ""
     object_name: str | None = None
+    #: The API token it came with, by name and prefix (X2); None for a person signed in.
+    credential: str | None = None
 
 
 class AuditCenterResponse(BaseModel):
@@ -116,6 +118,7 @@ def _row(entry: AuditEntry, project_name: str | None, object_name: str | None = 
         correlation_id=entry.correlation_id,
         summary=summarise(entry.method, entry.path),
         object_name=object_name,
+        credential=entry.credential,
     )
 
 
@@ -164,7 +167,8 @@ def export_csv(
     buffer = io.StringIO()
     writer = csv.writer(buffer)
     writer.writerow(
-        ["created_at", "actor", "project", "what", "about", "method", "path", "action", "outcome", "status_code", "correlation_id"]
+        ["created_at", "actor", "with", "project", "what", "about", "method", "path", "action", "outcome", "status_code",
+         "correlation_id"]
     )
     names = object_names(db, [entry for entry, _ in rows])
     for entry, name in rows:
@@ -172,6 +176,7 @@ def export_csv(
             [
                 entry.created_at.isoformat() if entry.created_at else "",
                 entry.actor_username or "",
+                entry.credential or "",
                 name or "",
                 summarise(entry.method, entry.path),
                 names.get(entry.id, ""),

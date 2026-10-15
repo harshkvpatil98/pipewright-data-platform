@@ -128,6 +128,9 @@ class AuditEntry(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     #: The name of what a deletion removed, read before it went (A8, Y6).
     object_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    #: The API token the request came with, by name and prefix; None for a
+    #: person signed in (X2).
+    credential: Mapped[str | None] = mapped_column(String(160), nullable=True)
 
 
 class Comment(UUIDPrimaryKeyMixin, TimestampMixin, Base):

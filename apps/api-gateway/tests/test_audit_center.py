@@ -107,7 +107,7 @@ def test_filters_narrow_the_stream(db: Session, world: dict) -> None:
 def test_export_is_csv_with_a_header(db: Session, world: dict) -> None:
     csv_text = export_csv(db, current_user=_read("admin"), settings=SETTINGS)
     lines = csv_text.strip().splitlines()
-    assert lines[0].startswith("created_at,actor,project,what,about,method")
+    assert lines[0].startswith("created_at,actor,with,project,what,about,method")
     assert len(lines) == 4  # header + 3 rows
 
 

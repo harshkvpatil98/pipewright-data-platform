@@ -317,6 +317,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
                     correlation_id=response.headers.get("x-request-id"),
                     duration_ms=duration_ms,
                     object_name=name_before[:200] if name_before else None,
+                    credential=getattr(request.state, "audit_credential", None),
                 )
             )
             session.commit()  # type: ignore[attr-defined]

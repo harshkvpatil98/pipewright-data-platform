@@ -7,7 +7,21 @@ import { Badge, Button, FormField, Icon, Input, Select, useToast } from "@platfo
 import { apiFetch } from "@/lib/api/client";
 import { extractErrorMessage } from "@/lib/api/errors";
 import { formatDate } from "@/lib/format";
-import type { ApiToken, ApiTokenCreatedResponse, ApiTokenListResponse } from "@platform/shared-types";
+import type {
+  ApiToken,
+  ApiTokenCreatedResponse,
+  ApiTokenListResponse,
+  ProjectListResponse,
+} from "@platform/shared-types";
+
+/** How long a new token lasts (X2): days, or never. */
+const LIFETIMES: { days: number | null; label: string }[] = [
+  { days: 30, label: "30 days" },
+  { days: 90, label: "90 days" },
+  { days: 365, label: "A year" },
+  { days: 7, label: "7 days" },
+  { days: null, label: "Never" },
+];
 
 const SCOPE_LABEL: Record<ApiToken["scope"], string> = {
   read: "Read only",
@@ -35,6 +49,10 @@ export function ApiTokensPanel() {
   const [scope, setScope] = useState<ApiToken["scope"]>("read");
   const [busy, setBusy] = useState(false);
   const [freshSecret, setFreshSecret] = useState<string | null>(null);
+  // Which projects a new token reaches (X2): all, or the ones chosen.
+  const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
+  const [limitTo, setLimitTo] = useState<string[] | null>(null);
+  const [lifetime, setLifetime] = useState<number | null>(90);
 
   const reload = () =>
     apiFetch<ApiTokenListResponse>("/auth/tokens")
@@ -43,17 +61,22 @@ export function ApiTokensPanel() {
 
   useEffect(() => {
     void reload();
+    apiFetch<ProjectListResponse>("/projects")
+      .then((r) => setProjects(r.items.map((item) => ({ id: item.id, name: item.name }))))
+      .catch(() => setProjects([]));
   }, []);
+  const projectName = (id: string) => projects.find((item) => item.id === id)?.name ?? "a project you cannot see";
 
   const create = async () => {
     setBusy(true);
     try {
       const created = await apiFetch<ApiTokenCreatedResponse>("/auth/tokens", {
         method: "POST",
-        body: JSON.stringify({ name: name.trim(), scope }),
+        body: JSON.stringify({ name: name.trim(), scope, project_ids: limitTo, expires_in_days: lifetime }),
       });
       setFreshSecret(created.secret);
       setName("");
+      setLimitTo(null);
       await reload();
     } catch (caught) {
       toast.error("Could not create token", extractErrorMessage(caught));
@@ -127,10 +150,67 @@ export function ApiTokensPanel() {
             </Select>
           </FormField>
         </div>
-        <Button onClick={() => void create()} disabled={busy || !name.trim()}>
+        <div className="w-[150px]">
+          <FormField label="Lasts" htmlFor="token-lifetime">
+            <Select
+              id="token-lifetime"
+              value={lifetime === null ? "never" : String(lifetime)}
+              onChange={(e) => setLifetime(e.target.value === "never" ? null : Number(e.target.value))}
+            >
+              {LIFETIMES.map((option) => (
+                <option key={option.label} value={option.days === null ? "never" : String(option.days)}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
+          </FormField>
+        </div>
+        <Button onClick={() => void create()} disabled={busy || !name.trim() || (limitTo !== null && limitTo.length === 0)}>
           {busy ? "Creating…" : "Create token"}
         </Button>
       </div>
+
+      <fieldset className="rounded-xl border border-line px-3.5 py-2.5">
+        <legend className="px-1 text-[12px] text-muted">Projects it reaches</legend>
+        <label className="flex items-center gap-2 text-[13px] text-ink">
+          <input type="radio" checked={limitTo === null} onChange={() => setLimitTo(null)} />
+          Every project you can reach
+        </label>
+        <label className="mt-1 flex items-center gap-2 text-[13px] text-ink">
+          <input type="radio" checked={limitTo !== null} onChange={() => setLimitTo([])} />
+          Only these
+        </label>
+        {limitTo !== null ? (
+          <div className="mt-2 flex flex-wrap gap-1.5 pl-5">
+            {projects.length === 0 ? <span className="text-[12px] text-muted">You have no projects yet.</span> : null}
+            {projects.map((project) => {
+              const on = limitTo.includes(project.id);
+              return (
+                <button
+                  key={project.id}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() =>
+                    setLimitTo((current) =>
+                      current === null ? [project.id] : on ? current.filter((id) => id !== project.id) : [...current, project.id],
+                    )
+                  }
+                  className={
+                    on
+                      ? "rounded-full border border-[color:var(--accent)] bg-[color:var(--accent-soft)] px-2.5 py-1 text-[12px] text-ink"
+                      : "rounded-full border border-line px-2.5 py-1 text-[12px] text-ink-3 hover:bg-sunken"
+                  }
+                >
+                  {project.name}
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
+        <p className="mt-2 text-[12px] text-muted">
+          A token limited to projects reaches nothing else, and says which projects when it is refused.
+        </p>
+      </fieldset>
 
       {tokens.length === 0 ? (
         <p className="text-[12px] text-muted">
@@ -140,11 +220,12 @@ export function ApiTokensPanel() {
         <ul className="divide-y divide-line rounded-xl border border-line">
           {tokens.map((token) => {
             const revoked = token.revoked_at !== null;
+            const expired = !revoked && token.expires_at ? new Date(token.expires_at).getTime() <= Date.now() : false;
             return (
               <li key={token.id} className="flex flex-wrap items-center gap-3 px-3.5 py-2.5">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className={`text-[13px] ${revoked ? "text-muted line-through" : "text-ink"}`}>
+                    <span className={`text-[13px] ${revoked || expired ? "text-muted line-through" : "text-ink"}`}>
                       {token.name}
                     </span>
                     <code className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[12px] text-ink-3">
@@ -157,9 +238,18 @@ export function ApiTokensPanel() {
                   <div className="mt-0.5 text-[12px] text-muted">
                     {revoked
                       ? `Revoked ${formatDate(token.revoked_at as string)}`
-                      : token.last_used_at
-                        ? `Last used ${formatDate(token.last_used_at)}`
-                        : "Never used"}
+                      : expired
+                        ? `Expired ${formatDate(token.expires_at as string)}`
+                        : token.last_used_at
+                          ? `Last used ${formatDate(token.last_used_at)}`
+                          : "Never used"}
+                    {!revoked && !expired && token.expires_at ? ` · Expires ${formatDate(token.expires_at)}` : ""}
+                    {!revoked && !expired && !token.expires_at ? " · Never expires" : ""}
+                  </div>
+                  <div className="mt-0.5 text-[12px] text-ink-3">
+                    {token.project_ids?.length
+                      ? `Only ${token.project_ids.map(projectName).join(", ")}`
+                      : "Every project you can reach"}
                   </div>
                 </div>
                 {revoked ? null : (

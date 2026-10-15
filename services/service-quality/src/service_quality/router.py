@@ -47,6 +47,7 @@ from service_quality.service import (
     evaluate_dataset,
     list_results,
     list_rules,
+    read_rule,
     update_rule,
 )
 
@@ -72,6 +73,16 @@ def build_router(
         current_user: UserRead = Depends(get_current_user),
     ) -> DataQualityRuleListResponse:
         return list_rules(db, project_id, current_user, dataset_id=dataset_id)
+
+    @router.get("/projects/{project_id}/data-quality/rules/{rule_id}", response_model=DataQualityRuleRead)
+    def get_rule(
+        project_id: uuid.UUID,
+        rule_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> DataQualityRuleRead:
+        """One check."""
+        return read_rule(db, project_id, rule_id, current_user)
 
     @router.post(
         "/projects/{project_id}/data-quality/rules",

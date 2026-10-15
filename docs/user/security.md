@@ -31,7 +31,7 @@ A session ends after 60 minutes without use and always after 12 hours, whatever 
 Changing a password, a password reset by an administrator, or **Sign out everywhere** ends every session the person has, at once.
 
 **How do scripts sign in?**
-With an API token made under **Your settings**. Each token has a name and a scope (read, write or admin), is shown once, is stored only as a hash, and can be withdrawn at any time. A read token cannot change anything, even if its owner can. See [Using the API](api.md).
+With an API token made under **Your settings**. Each token has a name and a scope (read, write or admin), is shown once, is stored only as a hash, and can be withdrawn at any time. A read token cannot change anything, even if its owner can, and every token is held to its owner's role in each project. A token can be limited to some projects and can expire; each change made with one is in the audit log, naming the token. See [Using the API](api.md#signing-in).
 
 ## Network
 

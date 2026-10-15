@@ -118,7 +118,10 @@ function AuditRow({ entry }: { entry: AuditEntry }) {
   return (
     <TableRow title={`${entry.method} ${entry.path} (${entry.status_code})`}>
       <TableCell className="whitespace-nowrap text-[13px] text-ink-3">{formatDateTime(entry.created_at)}</TableCell>
-      <TableCell className="text-[14px] text-ink">{entry.actor_username ?? "Someone who has left"}</TableCell>
+      <TableCell className="text-[14px] text-ink">
+        {entry.actor_username ?? "Someone who has left"}
+        {entry.credential ? <span className="block text-[12px] text-muted">with {entry.credential}</span> : null}
+      </TableCell>
       <TableCell>
         <div className="text-[14px] text-ink">{summary.charAt(0).toUpperCase() + summary.slice(1)}</div>
         {entry.object_name ? <div className="text-[13px] text-ink-3">{entry.object_name}</div> : null}

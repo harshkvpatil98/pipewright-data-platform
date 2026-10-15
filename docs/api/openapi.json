@@ -708,11 +708,40 @@
    },
    "ApiTokenCreate": {
     "properties": {
+     "expires_in_days": {
+      "anyOf": [
+       {
+        "maximum": 3650.0,
+        "minimum": 1.0,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Expires In Days"
+     },
      "name": {
       "maxLength": 120,
       "minLength": 1,
       "title": "Name",
       "type": "string"
+     },
+     "project_ids": {
+      "anyOf": [
+       {
+        "items": {
+         "format": "uuid",
+         "type": "string"
+        },
+        "maxItems": 100,
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Project Ids"
      },
      "scope": {
       "default": "read",
@@ -768,6 +797,18 @@
       "title": "Created At",
       "type": "string"
      },
+     "expires_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Expires At"
+     },
      "id": {
       "format": "uuid",
       "title": "Id",
@@ -792,6 +833,21 @@
      "prefix": {
       "title": "Prefix",
       "type": "string"
+     },
+     "project_ids": {
+      "anyOf": [
+       {
+        "items": {
+         "format": "uuid",
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Project Ids"
      },
      "revoked_at": {
       "anyOf": [
@@ -872,6 +928,17 @@
      "created_at": {
       "title": "Created At",
       "type": "string"
+     },
+     "credential": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Credential"
      },
      "id": {
       "title": "Id",
@@ -1004,6 +1071,17 @@
       "format": "date-time",
       "title": "Created At",
       "type": "string"
+     },
+     "credential": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Credential"
      },
      "duration_ms": {
       "anyOf": [
@@ -27484,6 +27562,21 @@
       "title": "Role",
       "type": "string"
      },
+     "token_project_ids": {
+      "anyOf": [
+       {
+        "items": {
+         "format": "uuid",
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Token Project Ids"
+     },
      "updated_at": {
       "format": "date-time",
       "title": "Updated At",
@@ -31331,6 +31424,69 @@
      }
     ],
     "summary": "Revoke Token",
+    "tags": [
+     "auth"
+    ]
+   },
+   "get": {
+    "description": "One of your tokens, never its secret (X2: Terraform reads one at a time).",
+    "operationId": "read_token_api_v1_auth_tokens__token_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "token_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Token Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ApiTokenRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Read Token",
     "tags": [
      "auth"
     ]
@@ -37285,6 +37441,79 @@
      }
     ],
     "summary": "Remove Rule",
+    "tags": [
+     "data-quality"
+    ]
+   },
+   "get": {
+    "description": "One check.",
+    "operationId": "get_rule_api_v1_projects__project_id__data_quality_rules__rule_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "rule_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Rule Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DataQualityRuleRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Get Rule",
     "tags": [
      "data-quality"
     ]
@@ -44296,6 +44525,79 @@
      "extraction"
     ]
    },
+   "get": {
+    "description": "One connection; its secrets read back as ***.",
+    "operationId": "get_connection_api_v1_projects__project_id__extraction_connections__connection_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "connection_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Connection Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ExtractionConnectionRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Get Connection",
+    "tags": [
+     "extraction"
+    ]
+   },
    "patch": {
     "operationId": "patch_connection_api_v1_projects__project_id__extraction_connections__connection_id__patch",
     "parameters": [
@@ -48843,6 +49145,72 @@
    }
   },
   "/api/v1/projects/{project_id}/pipelines/{pipeline_id}": {
+   "delete": {
+    "description": "Delete a recipe that no schedule or workflow runs; its runs and results stay.",
+    "operationId": "delete_recipe_api_v1_projects__project_id__pipelines__pipeline_id__delete",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "pipeline_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Pipeline Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Delete Recipe",
+    "tags": [
+     "transformations"
+    ]
+   },
    "get": {
     "operationId": "get_project_pipeline_api_v1_projects__project_id__pipelines__pipeline_id__get",
     "parameters": [

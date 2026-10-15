@@ -764,6 +764,8 @@ export type AuditCenterRow = {
   id: string;
   created_at: string;
   actor_username: string | null;
+  /** The API token it came with, by name and prefix (X2); null for a person signed in. */
+  credential?: string | null;
   project_id: string | null;
   project_name: string | null;
   method: string;
@@ -1170,6 +1172,10 @@ export type ApiToken = {
   last_used_at: string | null;
   revoked_at: string | null;
   created_at: string;
+  /** Only these projects (X2); null for every project its owner can reach. */
+  project_ids?: string[] | null;
+  /** When it stops working (X2); null for never. */
+  expires_at?: string | null;
 };
 
 export type ApiTokenListResponse = { items: ApiToken[] };

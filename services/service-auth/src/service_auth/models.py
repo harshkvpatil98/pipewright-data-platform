@@ -102,6 +102,11 @@ class ApiToken(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     scope: Mapped[str] = mapped_column(String(16), nullable=False, default="read")
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    #: The projects it may reach, as id strings; None reaches whatever its
+    #: owner can (X2). A limited token cannot reach anything else.
+    project_ids_json: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    #: When it stops working; None never (X2).
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     user: Mapped[User] = relationship()
 

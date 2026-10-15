@@ -11,7 +11,13 @@ from sqlalchemy.orm import Session
 from service_auth.network_gate import check_network
 from service_auth.schemas import UserRead
 from service_auth.service import get_user_by_id
-from service_auth.tokens import authenticate_api_token, looks_like_api_token, scope_allows
+from service_auth.tokens import (
+    authenticate_api_token,
+    limited_refusal,
+    looks_like_api_token,
+    scope_allows,
+    token_projects,
+)
 from shared_python.auth.security import decode_access_token
 from shared_python.errors import ForbiddenError, UnauthorizedError
 from shared_python.network import client_address
@@ -48,18 +54,27 @@ def build_current_user_dependency(get_db: Callable[..., Session], settings) -> C
         # A `pw_` credential is a long-lived API token, resolved against the
         # token table; anything else is a login JWT.
         if looks_like_api_token(token_value):
-            user, scope = authenticate_api_token(db, token_value)
+            user, api_token = authenticate_api_token(db, token_value)
+            scope = api_token.scope
+            # Who it was, for the audit log, refused or not: an API token is not
+            # a JWT the log can read for itself (A8, Y6), and which token is
+            # part of the answer (X2).
+            request.state.audit_actor = (user.id, user.username)
+            request.state.audit_credential = f"API token “{api_token.name}” ({api_token.prefix})"[:160]
             if not scope_allows(scope, request.method):
                 raise ForbiddenError(
                     f"This API token is {scope}-scoped and cannot make a "
                     f"{request.method} request."
                 )
+            projects = token_projects(api_token)
+            if projects is not None:
+                refusal = limited_refusal(projects, request.method, request.url.path)
+                if refusal:
+                    raise ForbiddenError(refusal)
             # An organisation's network list covers scripts as well as people.
             check_network(db, user, request_address(request, settings))
-            # Who it was, for the audit log: an API token is not a JWT the log
-            # can read for itself (A8, Y6: script changes were "Someone").
-            request.state.audit_actor = (user.id, user.username)
-            return UserRead.model_validate(user)
+            read = UserRead.model_validate(user)
+            return read.model_copy(update={"token_project_ids": sorted(projects)}) if projects is not None else read
 
         token = decode_access_token(
             token_value,

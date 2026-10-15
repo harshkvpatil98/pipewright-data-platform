@@ -4,7 +4,7 @@ import re
 import uuid
 from unicodedata import normalize
 
-from sqlalchemy import or_, select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
 from service_auth.schemas import UserRead
@@ -65,6 +65,9 @@ def list_projects(db: Session, current_user: UserRead) -> ProjectListResponse:
     condition = Project.owner_user_id == current_user.id
     if shared_ids:
         condition = or_(condition, Project.id.in_(shared_ids))
+    if current_user.token_project_ids is not None:
+        # An API token limited to projects lists only those (X2).
+        condition = and_(condition, Project.id.in_(current_user.token_project_ids))
 
     projects = db.scalars(
         select(Project)

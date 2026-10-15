@@ -218,6 +218,82 @@ jobs:
         if: failure()
         run: tail -100 apps/api-gateway/gateway.log
 
+  # The Terraform provider (Phase 23, X2): its unit tests, then real Terraform
+  # against a real gateway on a fresh database, applying, importing, putting
+  # back a change made in the app and destroying everything again.
+  terraform:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: terraform
+          POSTGRES_USER: platform
+          POSTGRES_PASSWORD: platform
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U platform -d terraform"
+          --health-interval 10s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://platform:platform@127.0.0.1:5432/terraform
+      AUTH_JWT_SECRET: ci-terraform-signing-secret-0123456789abcdef
+      BACKEND_CORS_ORIGINS: '["http://localhost:3000"]'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: clients/terraform/go.mod
+          cache-dependency-path: clients/terraform/go.sum
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+      - name: Vet, format and unit tests
+        working-directory: clients/terraform
+        run: |
+          test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+          go vet ./...
+          go test ./...
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Bootstrap Python venv
+        run: bash ./scripts/ci-bootstrap-python-venv.sh
+      - name: Migrate a fresh database
+        working-directory: apps/api-gateway
+        run: ../../.venv/bin/alembic -c alembic.ini upgrade head
+      - name: Start the gateway and make an API token
+        working-directory: apps/api-gateway
+        run: |
+          ../../.venv/bin/platform-bootstrap-user --username tf-admin --password tf-admin-password-0123 --role admin
+          ../../.venv/bin/platform-bootstrap-user --username tf-member --password tf-member-password-0123 --role user
+          nohup ../../.venv/bin/uvicorn api_gateway.main:app --host 127.0.0.1 --port 8000 > gateway.log 2>&1 &
+          for attempt in $(seq 1 60); do
+            curl -sf http://127.0.0.1:8000/api/v1/health/live && break
+            sleep 1
+          done
+          session=$(curl -sf -X POST http://127.0.0.1:8000/api/v1/auth/login -H 'Content-Type: application/json' \
+            -d '{"username":"tf-admin","password":"tf-admin-password-0123"}' | python3 -c 'import json,sys; print(json.load(sys.stdin)["access_token"])')
+          token=$(curl -sf -X POST http://127.0.0.1:8000/api/v1/auth/tokens -H "Authorization: Bearer $session" \
+            -H 'Content-Type: application/json' -d '{"name":"CI acceptance","scope":"admin","expires_in_days":1}' \
+            | python3 -c 'import json,sys; print(json.load(sys.stdin)["secret"])')
+          echo "::add-mask::$token"
+          echo "PIPEWRIGHT_TOKEN=$token" >> "$GITHUB_ENV"
+      - name: Acceptance tests
+        working-directory: clients/terraform
+        env:
+          TF_ACC: "1"
+          PIPEWRIGHT_URL: http://127.0.0.1:8000
+          PIPEWRIGHT_TEST_MEMBER: tf-member
+        run: go test ./internal/provider -run TestAcc -v -count=1 -timeout 20m
+      - name: Gateway log on failure
+        if: failure()
+        run: tail -100 apps/api-gateway/gateway.log
+
   # The golden path and the accessibility checks, in a real browser, against
   # the production web build and a gateway on a fresh database (A7, X8).
   browser:

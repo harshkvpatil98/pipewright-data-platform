@@ -88,6 +88,12 @@ def list_rules(
     )
 
 
+def read_rule(db: Session, project_id: uuid.UUID, rule_id: uuid.UUID, current_user: UserRead) -> DataQualityRuleRead:
+    """One check (X2: Terraform reads one at a time)."""
+    ensure_owned_project(db, project_id, current_user.id)
+    return DataQualityRuleRead.model_validate(get_rule_for_project(db, project_id, rule_id), from_attributes=True)
+
+
 def create_rule(
     db: Session, project_id: uuid.UUID, payload: DataQualityRuleCreate, current_user: UserRead
 ) -> DataQualityRuleRead:

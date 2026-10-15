@@ -134,6 +134,40 @@ def set_parameters(db: Session, *, project_id: uuid.UUID, pipeline_id: uuid.UUID
     return pipeline
 
 
+# ----------------------------------------------------------------- deleting
+
+
+def delete_recipe(db: Session, *, project_id: uuid.UUID, pipeline_id: uuid.UUID, current_user: UserRead) -> None:
+    """Delete a recipe that nothing runs (X2: Terraform destroys what it made).
+
+    A schedule or a workflow that runs it would then fail every time, so the
+    delete is refused, naming them. Its runs, its result datasets and its
+    history stay; they no longer point at it.
+    """
+    from service_schedules.models import ScheduledOperation
+    from service_workflows.models import Workflow, WorkflowNode
+
+    ensure_owned_project(db, project_id, current_user.id)
+    pipeline = get_transformation_pipeline_for_project(db, project_id, pipeline_id)
+    wanted = str(pipeline.id)
+    users = [f"the schedule “{row.name}”" for row in db.scalars(
+        select(ScheduledOperation).where(ScheduledOperation.project_id == project_id)).all()
+             if str((row.target_config_json or {}).get("pipeline_id")) == wanted]
+    users += sorted({f"the workflow “{name}”" for name, config in db.execute(
+        select(Workflow.name, WorkflowNode.config_json).join(Workflow, Workflow.id == WorkflowNode.workflow_id)
+        .where(WorkflowNode.project_id == project_id)).all()
+        if str((config or {}).get("pipeline_id")) == wanted})
+    from service_extraction.models import LiveRecipe
+
+    users += [f"the live recipe “{name}”" for name in db.scalars(
+        select(LiveRecipe.name).where(LiveRecipe.project_id == project_id, LiveRecipe.recipe_id == pipeline.id)).all()]
+    if users:
+        raise BadRequestError(f"{pipeline.name} is run by {listing(users)}. Change or delete "
+                              f"{'it' if len(users) == 1 else 'them'} first.")
+    db.delete(pipeline)
+    db.commit()
+
+
 # -------------------------------------------------------------- templates
 
 

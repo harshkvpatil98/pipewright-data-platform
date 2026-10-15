@@ -65,8 +65,8 @@ def corpus() -> list[list[dict]]:
             "tool": "date.add_months", "column": "when", "months": -3, "into": "before"
         }}],
         [{"step_type": "tool", "config": {"tool": "rows.deduplicate", "columns": [], "keep": "last"}}],
-        # A step with a name of its own.
-        [{"step_type": "trim_strings", "config": {"columns": ["a"]}, "name": "Tidy up"}],
+        # A step with a name of its own: its note.
+        [{"step_type": "trim_strings", "config": {"columns": ["a"], "_note": "Tidy up"}}],
     ]
     # A sample of the tool library, so the corpus grows with it.
     for spec in list(tools.TOOLS.values())[::17]:

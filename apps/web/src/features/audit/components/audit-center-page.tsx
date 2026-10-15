@@ -224,7 +224,10 @@ export function AuditCenterPageView({ currentUser, initial, forbidden }: AuditCe
                 {rows.map((row) => (
                   <TableRow key={row.id} title={`${row.method} ${row.path} (${row.status_code})`}>
                     <TableCell className="whitespace-nowrap text-[13px] text-ink-3">{formatDateTime(row.created_at)}</TableCell>
-                    <TableCell className="text-ink-2">{row.actor_username ?? "Someone who has left"}</TableCell>
+                    <TableCell className="text-ink-2">
+                      {row.actor_username ?? "Someone who has left"}
+                      {row.credential ? <span className="block text-[12px] text-muted">with {row.credential}</span> : null}
+                    </TableCell>
                     <TableCell className="text-ink-3">{row.project_name ?? "Whole platform"}</TableCell>
                     <TableCell>
                       <div className="text-ink">{capitalise(row.summary || row.action)}</div>

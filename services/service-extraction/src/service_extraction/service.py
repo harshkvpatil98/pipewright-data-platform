@@ -110,6 +110,14 @@ def list_connections(
     return ExtractionConnectionListResponse(items=[_to_read(row) for row in rows])
 
 
+def read_connection(
+    db: Session, project_id: uuid.UUID, connection_id: uuid.UUID, current_user: UserRead
+) -> ExtractionConnectionRead:
+    """One connection, its secrets shown as *** (X2: Terraform reads one at a time)."""
+    ensure_owned_project(db, project_id, current_user.id)
+    return _to_read(get_connection_for_project(db, project_id, connection_id))
+
+
 def create_connection(
     db: Session,
     project_id: uuid.UUID,

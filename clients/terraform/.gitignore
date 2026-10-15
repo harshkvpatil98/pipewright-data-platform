@@ -1,0 +1,6 @@
+# Terraform working files and builds, never committed
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+/terraform-provider-pipewright

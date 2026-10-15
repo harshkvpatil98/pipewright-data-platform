@@ -62,7 +62,7 @@ from service_auth.tokens import (
     revoke_api_token,
 )
 from shared_python.auth.security import create_access_token
-from shared_python.errors import ForbiddenError, UnauthorizedError
+from shared_python.errors import BadRequestError, ForbiddenError, UnauthorizedError
 
 
 def build_router(get_db: Callable[..., Session], settings, email_sender=None) -> APIRouter:
@@ -278,9 +278,25 @@ def build_router(get_db: Callable[..., Session], settings, email_sender=None) ->
     def list_tokens(
         db: Session = Depends(get_db), user: UserRead = Depends(current_user)
     ) -> ApiTokenListResponse:
-        return ApiTokenListResponse(
-            items=[ApiTokenRead.model_validate(t) for t in list_api_tokens(db, user_id=user.id)]
-        )
+        tokens = list_api_tokens(db, user_id=user.id)
+        if user.token_project_ids is not None:
+            # A limited token sees the tokens within its own projects (X2).
+            tokens = [token for token in tokens if _within(token, user.token_project_ids)]
+        return ApiTokenListResponse(items=[ApiTokenRead.model_validate(t) for t in tokens])
+
+    @router.get("/tokens/{token_id}", response_model=ApiTokenRead)
+    def read_token(
+        token_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        user: UserRead = Depends(current_user),
+    ) -> ApiTokenRead:
+        """One of your tokens, never its secret (X2: Terraform reads one at a time)."""
+        from shared_python.errors import NotFoundError
+
+        found = next((token for token in list_api_tokens(db, user_id=user.id) if token.id == token_id), None)
+        if found is None or (user.token_project_ids is not None and not _within(found, user.token_project_ids)):
+            raise NotFoundError("Token not found.")
+        return ApiTokenRead.model_validate(found)
 
     @router.post("/tokens", response_model=ApiTokenCreatedResponse, status_code=status.HTTP_201_CREATED)
     def create_token(
@@ -288,8 +304,21 @@ def build_router(get_db: Callable[..., Session], settings, email_sender=None) ->
         db: Session = Depends(get_db),
         user: UserRead = Depends(current_user),
     ) -> ApiTokenCreatedResponse:
+        if payload.project_ids:
+            # A token reaches no further than the person who made it (X2).
+            from service_projects.contracts import project_role
+
+            if user.token_project_ids is not None and not set(payload.project_ids) <= set(user.token_project_ids):
+                raise ForbiddenError("A limited API token cannot make a token for projects it does not reach.")
+            unknown = [str(item) for item in payload.project_ids if project_role(db, item, user.id) is None]
+            if unknown:
+                raise BadRequestError(f"You cannot reach {'this project' if len(unknown) == 1 else 'these projects'}: "
+                                      f"{', '.join(unknown)}.")
+        elif user.token_project_ids is not None:
+            raise ForbiddenError("A limited API token can only make tokens limited to its own projects.")
         record, secret = create_api_token(
-            db, user_id=user.id, name=payload.name, scope=payload.scope
+            db, user_id=user.id, name=payload.name, scope=payload.scope,
+            project_ids=payload.project_ids, expires_in_days=payload.expires_in_days,
         )
         return ApiTokenCreatedResponse(token=ApiTokenRead.model_validate(record), secret=secret)
 
@@ -299,6 +328,10 @@ def build_router(get_db: Callable[..., Session], settings, email_sender=None) ->
         db: Session = Depends(get_db),
         user: UserRead = Depends(current_user),
     ) -> None:
+        if user.token_project_ids is not None:
+            found = next((t for t in list_api_tokens(db, user_id=user.id) if t.id == token_id), None)
+            if found is None or not _within(found, user.token_project_ids):
+                raise ForbiddenError("A limited API token can revoke only tokens within its own projects.")
         revoke_api_token(db, user_id=user.id, token_id=token_id)
 
     # ---- account administration (platform admins) ----
@@ -399,3 +432,8 @@ def build_router(get_db: Callable[..., Session], settings, email_sender=None) ->
         return {"message": f"Authenticated as {user.username}."}
 
     return router
+
+
+def _within(token, projects: list[uuid.UUID]) -> bool:
+    """Whether a token reaches no more than these projects."""
+    return bool(token.project_ids_json) and {uuid.UUID(item) for item in token.project_ids_json} <= set(projects)

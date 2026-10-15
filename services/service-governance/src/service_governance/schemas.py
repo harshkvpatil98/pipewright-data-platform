@@ -130,6 +130,8 @@ class AuditEntryRead(BaseModel):
     #: What it did, in words, and the name of what it touched while that still exists.
     summary: str = ""
     object_name: str | None = None
+    #: The API token it came with (X2); None for a person signed in.
+    credential: str | None = None
 
 
 class AuditListResponse(BaseModel):

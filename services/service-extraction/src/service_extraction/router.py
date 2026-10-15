@@ -71,6 +71,7 @@ from service_extraction.service import (
     discover_columns,
     discover_tables,
     list_connections,
+    read_connection,
     list_jobs,
     preview_extraction,
     reset_job_watermark,
@@ -113,6 +114,19 @@ def build_router(
         current_user: UserRead = Depends(get_current_user),
     ) -> ExtractionConnectionRead:
         return create_connection(db, project_id, payload, current_user)
+
+    @router.get(
+        "/projects/{project_id}/extraction/connections/{connection_id}",
+        response_model=ExtractionConnectionRead,
+    )
+    def get_connection(
+        project_id: uuid.UUID,
+        connection_id: uuid.UUID,
+        db: Session = Depends(get_db),
+        current_user: UserRead = Depends(get_current_user),
+    ) -> ExtractionConnectionRead:
+        """One connection; its secrets read back as ***."""
+        return read_connection(db, project_id, connection_id, current_user)
 
     @router.patch(
         "/projects/{project_id}/extraction/connections/{connection_id}",

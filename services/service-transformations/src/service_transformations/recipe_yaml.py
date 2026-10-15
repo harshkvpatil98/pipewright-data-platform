@@ -155,8 +155,10 @@ def _step_out(step: dict[str, Any], index: int) -> dict[str, Any]:
     remaining = dict(config)
     if step_type == "tool" and isinstance(remaining.get("tool"), str):
         rendered["tool"] = remaining.pop("tool")
-    if step.get("name"):
-        rendered["name"] = str(step["name"])
+    # A step's note is its name in the file (X2), so a note and a name are one thing.
+    note = remaining.pop("_note", None) or step.get("name")
+    if note:
+        rendered["name"] = str(note)
     if remaining:
         rendered["with"] = _plain(remaining, index)
     return rendered
@@ -203,10 +205,10 @@ def _step_in(step: Any, index: int) -> dict[str, Any]:
     elif step_type == "tool":
         raise BadRequestError(f"Step {index} is a tool step but does not say which tool.")
 
-    result: dict[str, Any] = {"step_type": step_type, "config": config}
     if step.get("name"):
-        result["name"] = str(step["name"])
-    return result
+        # Saved as the step's note, which a recipe keeps (X2); a step has no other name.
+        config["_note"] = str(step["name"])
+    return {"step_type": step_type, "config": config}
 
 
 #: What YAML can carry without changing. `to_yaml` refuses anything else rather

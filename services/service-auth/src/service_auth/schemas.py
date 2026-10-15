@@ -29,6 +29,9 @@ class UserRead(BaseModel):
     # Included here so the shell can render the right theme on first paint
     # rather than fetching it and flashing the wrong one.
     preferences: "PreferencesRead" = Field(default_factory=lambda: PreferencesRead())
+    #: Signed in with an API token limited to these projects (X2); None
+    #: otherwise. Listings that span projects keep to them.
+    token_project_ids: list[uuid.UUID] | None = None
 
 
 class TokenResponse(BaseModel):
@@ -203,6 +206,10 @@ class OneTimeCodeResponse(BaseModel):
 class ApiTokenCreate(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     scope: str = Field(default="read", pattern=r"^(read|write|admin)$")
+    #: Only these projects (X2); leave out for every project the person can reach.
+    project_ids: list[uuid.UUID] | None = Field(default=None, max_length=100)
+    #: It stops working this many days from now (X2); leave out for never.
+    expires_in_days: int | None = Field(default=None, ge=1, le=3650)
 
 
 class ApiTokenRead(BaseModel):
@@ -215,6 +222,8 @@ class ApiTokenRead(BaseModel):
     last_used_at: datetime | None = None
     revoked_at: datetime | None = None
     created_at: datetime
+    project_ids: list[uuid.UUID] | None = Field(default=None, validation_alias="project_ids_json")
+    expires_at: datetime | None = None
 
 
 class ApiTokenListResponse(BaseModel):

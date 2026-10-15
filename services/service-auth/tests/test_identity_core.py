@@ -178,9 +178,9 @@ def test_a_token_is_shown_once_and_stored_as_a_hash(db: Session) -> None:
 def test_a_token_authenticates_as_its_owner(db: Session) -> None:
     u = _user(db)
     _, secret = tokens.create_api_token(db, user_id=u.id, name="ci", scope="read")
-    user, scope = tokens.authenticate_api_token(db, secret)
+    user, token = tokens.authenticate_api_token(db, secret)
     assert user.id == u.id
-    assert scope == "read"
+    assert token.scope == "read"
     # last_used_at is stamped so a stale token is visible in the list.
     assert db.query(ApiToken).one().last_used_at is not None
 

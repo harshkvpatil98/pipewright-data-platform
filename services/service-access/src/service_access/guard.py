@@ -30,6 +30,7 @@ from shared_python.logging import get_logger
 
 from service_access.permissions import evaluate, review_refusal
 from service_access.resolver import role_for
+from service_auth.tokens import looks_like_api_token, token_owner
 
 logger = get_logger(__name__)
 
@@ -54,14 +55,22 @@ def build_project_guard(get_db: Callable[..., Session], settings) -> Callable[..
             return  # Let the route's own auth dependency answer with a 401.
 
         try:
-            token = decode_access_token(
-                token_value,
-                secret_key=settings.auth_jwt_secret,
-                issuer=settings.auth_jwt_issuer,
-                audience=settings.auth_jwt_audience,
-            )
-            user_id = uuid.UUID(token.sub)
             project_id = uuid.UUID(str(raw_project_id))
+            if looks_like_api_token(token_value):
+                # An API token is held to its owner's role in the project like a
+                # session is (X2); before, it was not a JWT, so this check let it by.
+                owner = token_owner(db, token_value)
+                if owner is None:
+                    return  # unknown, revoked or expired: the auth layer says which
+                user_id = owner
+            else:
+                token = decode_access_token(
+                    token_value,
+                    secret_key=settings.auth_jwt_secret,
+                    issuer=settings.auth_jwt_issuer,
+                    audience=settings.auth_jwt_audience,
+                )
+                user_id = uuid.UUID(token.sub)
         except Exception:  # noqa: BLE001 - a bad token is the auth layer's problem
             return
 

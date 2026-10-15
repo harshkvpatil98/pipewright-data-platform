@@ -24,7 +24,9 @@ Scripts use an **API token** rather than a password. Make one in the app under *
 | `write` | Also create, change and run things its owner may |
 | `admin` | Also manage accounts, if its owner is an administrator |
 
-A token never does more than the person who made it, and is held to the same organisation network list.
+A token never does more than the person who made it: its owner's role in each project holds for it, and so does the organisation's network list.
+
+A token can also be **limited to projects** and given an **expiry** (`project_ids` and `expires_in_days` when it is made, or the choices under **Your settings**). A limited token reaches only those projects; outside them it reads only what is the same for everyone (the connector and tool catalogues, who it is), and it can make, see and revoke only tokens limited to its own projects. A refused request says so. An expired token is refused, saying when it expired. Every change made with a token is in the audit log beside the person, as "with API token “Nightly sync” (pw_ab12cd34)".
 
 To make one with the API, sign in with your password to get a short session:
 
@@ -317,6 +319,25 @@ pipewright run workflow "Regional sales" Nightly --wait
 ```
 
 Its README lists every command; in Python, `from pipewright import Client`. The methods are generated from this API's own reference, so they cannot fall behind it.
+
+## Terraform
+
+The Terraform provider (`clients/terraform` in the repository) manages projects, members, connections, datasets from files, recipes (as recipe YAML), schedules, checks, workflows and API tokens, with data sources for projects, datasets and connections. Each is read back on every plan, so a change made in the app shows in `terraform plan`, and applying puts it back; each can be imported. A connection's secrets are written and never read back.
+
+```hcl
+provider "pipewright" {
+  url = "https://pipewright.example.com"   # the token from PIPEWRIGHT_TOKEN
+}
+
+resource "pipewright_recipe" "shipped" {
+  project_id = pipewright_project.sales.id
+  dataset_id = pipewright_file_dataset.orders.id
+  name       = "Shipped orders"
+  yaml       = file("recipes/shipped.yaml")
+}
+```
+
+The provider's README lists every resource and setting. It is built from the repository and is not on the Terraform Registry.
 
 ## Writing a plugin
 

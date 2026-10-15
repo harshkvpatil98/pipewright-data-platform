@@ -78,10 +78,15 @@ def provenance(node: Node) -> Origins:
                 for name, other in zip(left, right)}
     if isinstance(node, Extension):
         below = provenance(node.input)
-        named = _named_in(node.config_dict(), set(node.input.schema()))
+        config = node.config_dict()
+        named = _named_in(config, set(node.input.schema()))
+        # A tool that writes a column says so in "into"; that column is new, or
+        # is the one it read, changed.
+        into = config.get("into")
+        written = {into} if isinstance(into, str) else set(into) if isinstance(into, (list, tuple)) else set()
         out: Origins = {}
         for name in node.schema():
-            if name in below and (node.output_schema is None or name in node.input.schema()):
+            if name in below and name not in written and (node.output_schema is None or name in node.input.schema()):
                 out[name] = below[name]
             else:
                 out[name] = Origin(_sources(named, below), False)

@@ -120,6 +120,9 @@ export function rankTools(tools: Tool[], query: string): Tool[] {
       }
       total += best;
     }
+    // The whole query is the tool's name: "moving average" is Moving average,
+    // ahead of Exponential moving average. Mirrors the server.
+    if (total > 0 && words.join(" ") === queryWords(tool.title).join(" ")) total += 200;
     if (total > 0) scored.push({ tool, score: total });
   }
 

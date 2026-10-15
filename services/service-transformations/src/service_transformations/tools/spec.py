@@ -223,6 +223,13 @@ class ToolSpec:
     #: (and the other dataset), so an incremental run may apply it to new rows
     #: alone. Tools that are IR projections and filters need not say so.
     row_wise: bool = False
+    #: Which columns it gives depends on the values (headers from the first
+    #: row, a column per distinct value), so lineage says it cannot know them
+    #: before a run, rather than guessing.
+    dynamic_columns: bool = False
+    #: Its job is to add rows (insert a row, a calendar of dates), so an empty
+    #: input need not give an empty output.
+    adds_rows: bool = False
 
     def resolve(self, config: dict[str, Any]) -> dict[str, Any]:
         """Validate a supplied config into the parameters ``build`` expects."""

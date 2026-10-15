@@ -636,6 +636,12 @@ def _handle_tool(lineage: StepLineage, config: dict[str, Any], _resolve: SchemaR
         return
 
     lineage.output_columns = list(node.schema())
+    from service_transformations.tools import TOOLS
+
+    spec = TOOLS.get(name)
+    if spec is not None and spec.dynamic_columns:
+        lineage.dynamic = True
+        lineage.notes.append(f"'{spec.title}' takes its columns from the data, so they are known only after a run.")
 
     # Traced through the whole tree, so a tool that builds a window and then
     # computes over it (a percent change is a lag and a division) still says

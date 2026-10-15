@@ -41,6 +41,14 @@ def apply_tool(frame: pd.DataFrame, config: dict):
     finally:
         ACTIVE_CONTEXT.reset(token)
 
+@pytest.fixture(autouse=True)
+def _token_key(monkeypatch):
+    """The reversible-token tool needs the deployment's key; CI has no .env, so the tests bring one."""
+    from cryptography.fernet import Fernet
+
+    monkeypatch.setenv("APP_SECRET_ENCRYPTION_KEY", Fernet.generate_key().decode())
+
+
 ALL = sorted(tools.TOOLS)
 
 
@@ -157,6 +165,11 @@ class TestEdgeCases:
         spec = tools.TOOLS[name]
         frame = frame_for(spec).iloc[0:0]
         result = run(spec, frame)
+        if spec.adds_rows:
+            # Inserting a row or making a calendar is the tool's job; it still
+            # must not fail on nothing.
+            assert isinstance(result, pd.DataFrame)
+            return
         assert len(result) == 0, f"{name} invented rows from an empty frame"
 
     @pytest.mark.parametrize("name", ALL)
@@ -310,6 +323,8 @@ class TestCompilesToIR:
         spec = tools.TOOLS[name]
         frame = frame_for(spec)
         config = config_for(spec, frame)
+        if spec.dynamic_columns:
+            pytest.skip(f"{name}'s columns come from its values, which lineage says it cannot know")
         predicted = list(build(frame, config).schema())
         actual = list(apply_tool(frame, config)[0].columns)
         assert predicted == actual, f"{name}: lineage would report {predicted}, got {actual}"
@@ -330,6 +345,9 @@ class TestLineageMatchesTheEngine:
         config = config_for(spec, frame)
 
         predicted = predict(frame, config)
+        if spec.dynamic_columns:
+            assert predicted.dynamic, f"{name} gives columns from its values; lineage must say it cannot know them"
+            return
         actual = list(apply_tool(frame, config)[0].columns)
         assert predicted.output_columns == actual, (
             f"{name}: lineage says {predicted.output_columns}, engine produced {actual}"

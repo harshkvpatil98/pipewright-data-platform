@@ -125,6 +125,11 @@ def search(query: str, limit: int = 25) -> list[ToolSpec]:
                 total = 0
                 break
             total += best
+        title_words = [word for word in re.split(r"[^a-z0-9]+", spec.title.lower()) if word and word not in _STOPWORDS]
+        if total and words == title_words:
+            # The whole query is the tool's name: "moving average" is Moving
+            # average, ahead of Exponential moving average.
+            total += 200
         if total:
             scored.append((total, spec))
 
@@ -137,6 +142,7 @@ def _load() -> None:
     # discovered so the order -- and therefore the catalogue order -- is
     # something somebody chose.
     from service_transformations.tools.catalogue import (  # noqa: F401
+        calendar,
         cleansing,
         columns,
         combine,
@@ -147,8 +153,10 @@ def _load() -> None:
         nulls,
         numeric,
         rows,
+        structure,
         text,
         validation,
+        values,
         windows,
     )
 

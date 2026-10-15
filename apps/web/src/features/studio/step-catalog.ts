@@ -287,7 +287,7 @@ export const STEP_CATALOG: StepDefinition[] = [
     icon: "refresh",
     group: "Rows",
     summary: "Remove repeated rows.",
-    keywords: "dedupe unique distinct repeated",
+    keywords: "dedupe unique distinct repeated keep first keep last remove duplicates by columns",
     fields: [
       { key: "subset", label: "Match on columns", kind: "columns", optional: true },
       {
@@ -309,7 +309,7 @@ export const STEP_CATALOG: StepDefinition[] = [
     icon: "check",
     group: "Clean",
     summary: "Replace missing values.",
-    keywords: "missing blank null default",
+    keywords: "missing blank null default fill with mean median mode",
     fields: [
       { key: "columns", label: "Columns", kind: "columns" },
       {
@@ -449,7 +449,7 @@ export const STEP_CATALOG: StepDefinition[] = [
     icon: "plus",
     group: "Combine",
     summary: "Stack another dataset's rows underneath.",
-    keywords: "stack union combine add rows",
+    keywords: "append union union all combine add rows append datasets concatenate",
     fields: [
       { key: "other_dataset_id", label: "Dataset to append", kind: "dataset" },
       { key: "deduplicate", label: "Remove duplicate rows", kind: "boolean", optional: true },
@@ -476,7 +476,7 @@ export const STEP_CATALOG: StepDefinition[] = [
     icon: "sigma",
     group: "Reshape",
     summary: "Summarise rows into totals per group.",
-    keywords: "group by summarise sum count average aggregate",
+    keywords: "group by summarise sum count average aggregate median percentile quartile mode weighted average correlation",
     fields: [
       { key: "group_by", label: "Group by", kind: "columns", optional: true },
       { key: "aggregations", label: "Totals to work out", kind: "aggregations" },
@@ -489,7 +489,7 @@ export const STEP_CATALOG: StepDefinition[] = [
     icon: "grid",
     group: "Reshape",
     summary: "Turn row values into columns.",
-    keywords: "wide crosstab columns from values",
+    keywords: "wide wider pivot wider long to wide unstack crosstab columns from values",
     fields: [
       { key: "index", label: "Rows", kind: "columns" },
       { key: "columns", label: "Column to fan out", kind: "column" },
@@ -511,7 +511,7 @@ export const STEP_CATALOG: StepDefinition[] = [
     icon: "grid",
     group: "Reshape",
     summary: "Turn columns into rows.",
-    keywords: "long melt rows from columns",
+    keywords: "long longer pivot longer wide to long stack melt rows from columns",
     fields: [
       { key: "id_columns", label: "Keep as identifiers", kind: "columns" },
       { key: "value_columns", label: "Columns to unpivot", kind: "columns", optional: true },

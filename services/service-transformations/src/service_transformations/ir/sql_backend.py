@@ -418,6 +418,11 @@ def _call_sql(expr: Call, d: Dialect, recurse) -> str:
     if expr.name == "count" and not rendered:
         return "COUNT(*)"
 
+    if expr.name == "substring" and len(rendered) == 2:
+        # To the end of the text. Padding the template's third placeholder
+        # wrote `SUBSTR(x, 3, )`, which no database parses.
+        return f"SUBSTR({rendered[0]}, {rendered[1]})"
+
     # Templates may reference fewer placeholders than there are arguments
     # (SUBSTR with two args), so pad rather than fail.
     padded = rendered + [""] * 3

@@ -20,6 +20,14 @@ from service_transformations.ir.nodes import Node, Project, Scan
 from service_transformations.ir.sql_backend import to_sql
 from service_transformations.tools.apply import SOURCE, build
 
+@pytest.fixture(autouse=True)
+def _token_key(monkeypatch):
+    """The reversible-token tool needs the deployment's key; CI has no .env, so the tests bring one."""
+    from cryptography.fernet import Fernet
+
+    monkeypatch.setenv("APP_SECRET_ENCRYPTION_KEY", Fernet.generate_key().decode())
+
+
 SCAN = Scan(
     source="orders",
     columns=(("sku", STRING), ("amount", FLOAT64), ("placed_at", timestamp())),

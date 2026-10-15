@@ -91,3 +91,49 @@ def brought(node: Node, bring: list[str], *, suffix: str = "_right", extra: dict
 
 def rename_brought(frame: pd.DataFrame, left: pd.DataFrame, bring: list[str], suffix: str) -> pd.DataFrame:
     return frame.rename(columns={name: f"{name}{suffix}" for name in bring if name in left.columns})
+
+
+def column_extension(name: str, result_type: PWType | None, values: Callable[[pd.Series, dict[str, Any]], Any],
+                     *, keys: tuple[str, ...] = (), frame_aware: bool = False, fills: bool = False):
+    """A column tool that runs here: one input column to one output column.
+
+    ``values(series, config)`` gives the new values (or, with ``frame_aware``,
+    ``values(frame, config)``). An empty value in stays empty out without the
+    function seeing it, the rule every tool keeps. ``result_type`` None keeps
+    the column's own type.
+    """
+    from service_transformations.tools.builders import require_column
+
+    def build(node: Node, params: dict[str, Any]) -> Node:
+        column = require_column(node, params.get("column"))
+        into = (params.get("into") or "").strip() or column
+        schema = dict(node.schema())
+        if into != column and into in schema:
+            raise BadRequestError(f"Column {into!r} already exists. Choose another name, or leave the "
+                                  "destination empty to replace the original.")
+        schema[into] = result_type if result_type is not None else schema[column]
+        config = {"column": column, "into": into, **{key: params.get(key) for key in keys}}
+        return extension(node, name, config, schema)
+
+    def handler(frame: pd.DataFrame, config: dict[str, Any]) -> pd.DataFrame:
+        out = frame.copy()
+        source = frame[config["column"]]
+        produced = values(frame if frame_aware else source, config)
+        produced = pd.Series(list(produced) if not isinstance(produced, pd.Series) else produced.tolist(),
+                             index=frame.index, dtype=object)
+        if not fills:
+            produced[source.isna().to_numpy()] = None
+        out[config["into"]] = produced.infer_objects()
+        return out
+
+    register_extension(name, handler)
+    return build
+
+
+def each(fn: Callable[[Any], Any]) -> Callable[[pd.Series, dict[str, Any]], list[Any]]:
+    """Apply ``fn`` to each present value; empty stays empty."""
+
+    def run(series: pd.Series, _config: dict[str, Any]) -> list[Any]:
+        return [None if pd.isna(value) else fn(value) for value in series]
+
+    return run

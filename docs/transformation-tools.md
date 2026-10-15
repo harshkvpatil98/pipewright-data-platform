@@ -1,6 +1,6 @@
 # Transformation tools
 
-212 tools across 13 categories. Every one compiles to the
+264 tools across 14 categories. Every one compiles to the
 relational IR, so every one gets type inference, column lineage and
 pushdown without a second implementation.
 
@@ -9,735 +9,202 @@ test suite, so this file cannot describe behaviour the code does not have.
 
 ## Contents
 
-- [Cleansing](#cleansing) (15)
-- [Columns](#columns) (7)
+- [Date & time](#date--time) (42)
+- [Cleansing](#cleansing) (21)
+- [Columns](#columns) (13)
 - [Join & combine](#join--combine) (6)
-- [Type & conversion](#type--conversion) (10)
-- [Date & time](#date--time) (33)
-- [Encoding & privacy](#encoding--privacy) (14)
+- [Type & conversion](#type--conversion) (14)
+- [Encoding & privacy](#encoding--privacy) (17)
 - [Nested data](#nested-data) (6)
-- [Missing data](#missing-data) (8)
-- [Numeric](#numeric) (23)
-- [Rows](#rows) (7)
-- [Text](#text) (43)
+- [Missing data](#missing-data) (11)
+- [Numeric](#numeric) (30)
+- [Rows](#rows) (16)
+- [Reshape](#reshape) (3)
+- [Text](#text) (45)
 - [Validation](#validation) (9)
 - [Window & analytic](#window--analytic) (31)
 
 
-## Cleansing
-
-### Standardise an email
-
-`clean.email`
-
-Trim and lower case. Empty results become null.
-
-Also known as: _normalise email_, _lowercase email_
-
-Offered on **textual** columns.
-
-| `value` | `value` |
-|---|---|
-| ` Ada@Example.COM ` | `ada@example.com` |
-
-### Email domain
-
-`clean.email_domain`
-
-The part after the @, lower case.
-
-Also known as: _domain_, _company from email_
-
-Offered on **textual** columns.
-
-| `value` | `value` |
-|---|---|
-| `ada@Example.com` | `example.com` |
-| `not-an-email` | _(empty)_ |
-
-### Standardise a phone number
-
-`clean.phone`
-
-Best-effort E.164. Numbers that cannot be made sense of become null.
-
-Also known as: _e164_, _telephone_, _mobile_, _normalise phone_
-
-Offered on **textual** columns.
-
-| Setting | Type | Required | Default |
-|---|---|---|---|
-| Assume this country | `US` / `GB` / `CA` / `DE` / `FR` / `ES` / `IT` / `NL` / `AU` / `IN` / `BR` / `JP` | yes | `US` |
-| | Used only when the number has no + prefix of its own. | | |
-
-| `value` | `value` |
-|---|---|
-| `(555) 123-4567` | `+15551234567` |
-| `+44 20 7946 0958` | `+442079460958` |
-| `12` | _(empty)_ |
-
-### Standardise a URL
-
-`clean.url`
-
-Add a scheme where one is missing.
-
-Offered on **textual** columns.
-
-| `value` | `value` |
-|---|---|
-| `example.com/x` | `https://example.com/x` |
-| `http://a.co` | `http://a.co` |
-
-### Part of a URL
-
-`clean.url_part`
-
-Pull out the scheme, host, path, query or fragment.
-
-Also known as: _hostname_, _domain from url_, _path_
-
-Offered on **textual** columns.
-
-| Setting | Type | Required | Default |
-|---|---|---|---|
-| Part | `scheme` / `host` / `path` / `query` / `fragment` / `port` | yes | `host` |
-
-| `value` | `value` |
-|---|---|
-| `https://a.example.com/x?y=1` | `a.example.com` |
-
-### Standardise a postal code
-
-`clean.postal_code`
-
-Apply the country's usual spacing and padding.
-
-Also known as: _zip_, _postcode_
-
-Offered on **textual** columns.
-
-| Setting | Type | Required | Default |
-|---|---|---|---|
-| Country | `US` / `GB` / `CA` / `DE` / `FR` / `ES` / `IT` / `NL` / `AU` / `IN` / `BR` / `JP` | yes | `US` |
-
-| `value` | `value` |
-|---|---|
-| `1234` | `01234` |
-
-### Standardise a country
-
-`clean.country`
-
-Map country names and abbreviations to an ISO code. Unrecognised names become null.
-
-Also known as: _iso country_, _country code_, _nationality_
-
-Offered on **textual** columns.
-
-| Setting | Type | Required | Default |
-|---|---|---|---|
-| Output | `alpha2` | yes | `alpha2` |
-
-| `value` | `value` |
-|---|---|
-| `United States` | `US` |
-| `u.s.a.` | `US` |
-| `Freedonia` | _(empty)_ |
-
-### Split a full name
-
-`clean.name_part`
-
-Take the first, middle or last name. Particles stay with the surname.
-
-Also known as: _first name_, _surname_, _last name_, _split name_
-
-Offered on **textual** columns.
-
-| Setting | Type | Required | Default |
-|---|---|---|---|
-| Part | `first` / `middle` / `last` | yes | `first` |
-
-| `value` | `value` |
-|---|---|
-| `Ada Lovelace` | `Lovelace` |
-| `van der Berg, Jan` | `van der Berg` |
-| `Jan van der Berg` | `van der Berg` |
-
-### Standardise yes/no
-
-`clean.boolean_tokens`
-
-Read Y/N, yes/no, 1/0, on/off as true and false.
-
-Also known as: _yes no_, _y n_, _true false_
-
-| `value` | `value` |
-|---|---|
-| `Y` | `True` |
-| `off` | `False` |
-| `maybe` | _(empty)_ |
-
-### Standardise line endings
-
-`clean.line_endings`
-
-Turn Windows and old-Mac line endings into plain newlines.
-
-Also known as: _crlf_, _newlines_
-
-Offered on **textual** columns.
-
-| `value` | `value` |
-|---|---|
-| `a\r\nb` | `a\nb` |
-
-### Remove control characters
-
-`clean.control_characters`
-
-Strip the invisible characters that break exports.
-
-Also known as: _non printable_, _invisible_
-
-Offered on **textual** columns.
-
-| `value` | `value` |
-|---|---|
-| `a\0b` | `ab` |
-
-### Fix mangled characters
-
-`clean.mojibake`
-
-Repair text where UTF-8 was read as Latin-1 -- the Â£ and â€™ problem.
-
-Also known as: _encoding_, _garbled_, _utf8_, _latin1_
-
-Offered on **textual** columns.
-
-| `value` | `value` |
-|---|---|
-| `Â£5` | `£5` |
-
-### Trim surrounding quotes
-
-`clean.trim_quotes`
-
-Remove quote marks left by a bad export.
-
-Also known as: _unquote_, _strip quotes_
-
-Offered on **textual** columns.
-
-| `value` | `value` |
-|---|---|
-| `"hello"` | `hello` |
-
-### Unescape
-
-`clean.unescape`
-
-Turn backslash escapes back into the characters they stand for.
-
-Offered on **textual** columns.
-
-| `value` | `value` |
-|---|---|
-| `a\\tb` | `a\tb` |
-
-### Tidy up text
-
-`clean.standardise`
-
-Collapse whitespace and apply a consistent case, in one step.
-
-Also known as: _clean_, _tidy_, _normalise text_, _standardise_
-
-Offered on **textual** columns.
-
-| Setting | Type | Required | Default |
-|---|---|---|---|
-| Case | `none` / `lower` / `upper` / `title` | yes | `none` |
-
-| `value` | `value` |
-|---|---|
-| `  ADA   lovelace ` | `Ada Lovelace` |
-
-
-## Columns
-
-### Move columns
-
-`columns.move`
-
-Move columns to the start or the end, leaving the rest in order.
-
-Also known as: _reorder_, _move to front_, _move to end_, _arrange_
-
-| Setting | Type | Required | Default |
-|---|---|---|---|
-| Columns | columns | yes | none |
-| Move to | `start` / `end` | yes | `start` |
-
-| `a` | `columns` |
-|---|---|
-| `1` | `c,a,b` |
-
-### Sort columns by name
-
-`columns.sort`
-
-Put the columns in alphabetical order.
-
-Also known as: _alphabetical_, _order columns_
-
-| Setting | Type | Required | Default |
-|---|---|---|---|
-| Reverse | boolean | no | `False` |
-
-| `c` | `columns` |
-|---|---|
-| `1` | `a,b,c` |
-
-### Keep only these columns
-
-`columns.keep_only`
-
-Drop everything else, in the dataset's own order.
-
-Also known as: _select_, _subset_, _choose columns_
-
-| Setting | Type | Required | Default |
-|---|---|---|---|
-| Columns to keep | columns | yes | none |
-
-| `a` | `columns` |
-|---|---|
-| `1` | `a,c` |
-
-### Drop columns
-
-`columns.drop`
-
-Remove one or more columns.
-
-Also known as: _remove columns_, _delete columns_
-
-| Setting | Type | Required | Default |
-|---|---|---|---|
-| Columns to drop | columns | yes | none |
-
-| `a` | `columns` |
-|---|---|
-| `1` | `a` |
-
-### Duplicate a column
-
-`columns.duplicate`
-
-Add a copy, so the original survives an experiment.
-
-Also known as: _copy column_, _clone_
-
-| Setting | Type | Required | Default |
-|---|---|---|---|
-| Column | column | yes | none |
-
-| `a` | `a_copy` |
-|---|---|
-| `1` | `1` |
-
-### Rename a column
-
-`columns.rename`
-
-Give a column a new name.
-
-Also known as: _rename_
-
-| Setting | Type | Required | Default |
-|---|---|---|---|
-| Column | column | yes | none |
-| New name | text | yes | none |
-
-| `a` | `columns` |
-|---|---|
-| `1` | `b` |
-
-### Rename many columns
-
-`columns.bulk_rename`
-
-Apply one renaming rule to every column at once.
-
-Also known as: _rename all_, _clean headers_, _snake case_, _prefix_, _suffix_
-
-| Setting | Type | Required | Default |
-|---|---|---|---|
-| Rule | `snake_case` / `lower` / `upper` / `prefix` / `suffix` / `replace` / `regex` | yes | `snake_case` |
-| Find | text | no | none |
-| Replace with | text | no | none |
-
-| `Order ID` | `columns` |
-|---|---|
-| `1` | `order_id,customer_name` |
-
-
-## Join & combine
-
-### Join to the nearest earlier row
-
-`join.as_of`
-
-Bring columns from the other dataset's row that comes just before (or after, or nearest) this row's date or number, optionally matching other columns first: the exchange rate in force on the day, the price at the time of the order.
-
-Also known as: _as of join_, _asof_, _point in time join_, _temporal join_, _nearest earlier_, _rate in force_, _effective date_, _slowly changing_
-
-| Setting | Type | Required | Default |
-|---|---|---|---|
-| Other dataset | dataset | yes | none |
-| This dataset's date or number | column | yes | none |
-| The other dataset's date or number | dataset_column | yes | none |
-| Columns to bring | dataset_columns | yes | none |
-| | Columns of the other dataset to add to each row. | | |
-| Which row | `earlier` / `later` / `nearest` | no | `earlier` |
-| At most this far (days for dates) | number | no | none |
-| Match first on | columns | no | none |
-| Their columns to match | dataset_columns | no | none |
-| Ending for a name already taken | text | no | `_right` |
-
-| `day` | `rate` |
-|---|---|
-| `2026-01-03` | `1.1` |
-| `2026-01-05` | `1.2` |
-| `2025-12-30` | _(empty)_ |
-
-The other dataset in this example:
-
-| `at` | `rate` |
-|---|---|
-| `2026-01-01` | `1.1` |
-| `2026-01-05` | `1.2` |
-| `2026-01-09` | `1.15` |
-
-### Join where a value is in a range
-
-`join.range`
-
-Bring columns from the other dataset's rows whose range (from a low to a high column, both included) holds this row's value: a price band, an age group, a fiscal period, a block of IP addresses.
-
-Also known as: _range join_, _between join_, _band_, _bucket lookup_, _interval join_, _ip range_
-
-| Setting | Type | Required | Default |
-|---|---|---|---|
-| Other dataset | dataset | yes | none |
-| This dataset's value | column | yes | none |
-| Their range starts at | dataset_column | yes | none |
-| Their range ends at | dataset_column | yes | none |
-| Columns to bring | dataset_columns | yes | none |
-| | Columns of the other dataset to add to each row. | | |
-| When several ranges hold it | `every match` / `first match` | no | `every match` |
-| Rows in no range | `keep` / `drop` | no | `keep` |
-| Ending for a name already taken | text | no | `_right` |
-
-| `age` | `band` |
-|---|---|
-| `9` | `child` |
-| `40` | `adult` |
-| `70` | `senior` |
-| _(empty)_ | _(empty)_ |
-
-The other dataset in this example:
-
-| `from` | `to` | `band` |
-|---|---|---|
-| `0` | `17` | `child` |
-| `18` | `64` | `adult` |
-| `65` | `130` | `senior` |
-
-### Join on similar text
-
-`join.fuzzy`
-
-Bring columns from the other dataset's row whose text is most alike, at or above how alike you ask, with the score of the match: names typed differently, spelling mistakes, words in another order. The same matching the Assistant uses to find duplicates.
-
-Also known as: _fuzzy join_, _fuzzy match_, _approximate join_, _similar names_, _fuzzy merge_, _match names_
-
-| Setting | Type | Required | Default |
-|---|---|---|---|
-| Other dataset | dataset | yes | none |
-| Their text column | dataset_column | yes | none |
-| Columns to bring | dataset_columns | yes | none |
-| | Columns of the other dataset to add to each row. | | |
-| Alike by | `letters` / `edits` / `tokens` / `jaro_winkler` / `sound` | no | `letters` |
-| | letters: shared letters in order; edits: few typing changes apart; tokens: the same words in any order; jaro_winkler: alike from the start; sound: sounds alike (English names). | | |
-| How alike, from 0 to 1 | number | no | `0.86` |
-| Ignore company endings (Ltd, Inc) | boolean | no | `True` |
-| Rows that match nothing | `keep` / `drop` | no | `keep` |
-| Name of the score column | text | no | none |
-| Ending for a name already taken | text | no | `_right` |
-
-| `customer` | `id` |
-|---|---|
-| `ACME Ltd` | `1` |
-| `Globex Corp.` | `2` |
-| `Initech` | _(empty)_ |
-
-The other dataset in this example:
-
-| `company` | `id` |
-|---|---|
-| `Acme Limited` | `1` |
-| `Globex Corporation` | `2` |
-
-### Put columns side by side
-
-`combine.merge_by_position`
-
-Add the other dataset's columns row by row: its first row beside this one's first, and so on, as pasting columns next to each other does. This dataset keeps its rows; the run says when the other is longer or shorter.
-
-Also known as: _merge by position_, _side by side_, _paste columns_, _zip_, _horizontal concat_, _cbind_
-
-| Setting | Type | Required | Default |
-|---|---|---|---|
-| Other dataset | dataset | yes | none |
-| Columns to bring | dataset_columns | yes | none |
-| | Columns of the other dataset to add to each row. | | |
-| Ending for a name already taken | text | no | `_right` |
-
-| `name` | `score` |
-|---|---|
-| `a` | `10` |
-| `b` | `20` |
-
-The other dataset in this example:
-
-| `score` |
-|---|
-| `10` |
-| `20` |
-
-### Keep rows the other dataset also has
-
-`combine.intersect`
-
-Keep the rows whose values (in every column, or the ones chosen) the other dataset has too (INTERSECT).
-
-Also known as: _intersect_, _in both_, _common rows_, _overlap_
-
-| Setting | Type | Required | Default |
-|---|---|---|---|
-| Other dataset | dataset | yes | none |
-| Compare on | columns | no | none |
-| | Leave empty to compare every column; the other dataset must have them. | | |
-| Repeated rows | `remove` / `keep` | no | `remove` |
-| | Remove gives each row once, as SQL's INTERSECT and EXCEPT do. | | |
-
-| `id` | `id` |
-|---|---|
-| `1` | `2` |
-| `2` | `3` |
-
-The other dataset in this example:
-
-| `id` |
-|---|
-| `2` |
-| `3` |
-| `4` |
-
-### Keep rows the other dataset does not have
-
-`combine.except`
-
-Keep the rows whose values (in every column, or the ones chosen) the other dataset does not have (EXCEPT).
-
-Also known as: _except_, _minus_, _difference_, _not in_, _missing from_
-
-| Setting | Type | Required | Default |
-|---|---|---|---|
-| Other dataset | dataset | yes | none |
-| Compare on | columns | no | none |
-| | Leave empty to compare every column; the other dataset must have them. | | |
-| Repeated rows | `remove` / `keep` | no | `remove` |
-| | Remove gives each row once, as SQL's INTERSECT and EXCEPT do. | | |
-
-| `id` | `id` |
-|---|---|
-| `1` | `1` |
-
-The other dataset in this example:
-
-| `id` |
-|---|
-| `2` |
-
-
-## Type & conversion
-
-### To text
-
-`type.to_text`
-
-Render as text without inventing decimals.
-
-Also known as: _to string_, _stringify_, _as text_
-
-| `value` | `value` |
-|---|---|
-| `10` | `10` |
-| _(empty)_ | _(empty)_ |
-
-### To number
-
-`type.to_number`
-
-Read as a number. Values that will not parse become null.
-
-Also known as: _to float_, _parse number_, _numeric_
-
-| `value` | `value` |
-|---|---|
-| `12.5` | `12.5` |
-| `abc` | _(empty)_ |
-
-### To whole number
-
-`type.to_integer`
-
-Read as a whole number, dropping any fraction.
-
-Also known as: _to int_, _integer_, _whole_
-
-| `value` | `value` |
-|---|---|
-| `12.7` | `12` |
-| `abc` | _(empty)_ |
-
-### To true/false
-
-`type.to_boolean`
-
-Read yes/no/1/0/true/false. Anything else becomes null.
-
-Also known as: _to bool_, _yes no_, _flag_
-
-| `value` | `value` |
-|---|---|
-| `yes` | `True` |
-| `0` | `False` |
-| `maybe` | _(empty)_ |
-
-### Detect the type
-
-`type.detect`
-
-Report what each value looks like, without changing it.
-
-Also known as: _what type_, _guess type_, _profile_
-
-| `value` | `value` |
-|---|---|
-| `12` | `integer` |
-| `abc` | `text` |
-| `2026-01-01` | `timestamp` |
-
-### Strip currency symbols
-
-`type.strip_currency`
-
-Remove symbols and grouping, leaving text a number parser can read.
-
-Also known as: _remove dollar_, _currency_, _money_, _thousands separator_
-
-Offered on **textual** columns.
-
-| Setting | Type | Required | Default |
-|---|---|---|---|
-| Written as | `us` / `european` | yes | `us` |
-| | US: 1,234.56. European: 1.234,56. | | |
-
-| `value` | `value` |
-|---|---|
-| `$1,200.50` | `1200.50` |
-| `€1.200,50` | `1.20050` |
-
-_The second row shows why the style matters: read as US, a European amount comes out a thousand times too small._
-
-### Parse a localised number
-
-`type.parse_number_locale`
-
-Read a number written with European or US grouping.
-
-Also known as: _comma decimal_, _thousands separator_, _european number_
-
-Offered on **textual** columns.
-
-| Setting | Type | Required | Default |
-|---|---|---|---|
-| Written as | `us` / `european` | yes | `us` |
-| | US: 1,234.56. European: 1.234,56. | | |
-
-| `value` | `value` |
-|---|---|
-| `1.234,56` | `1234.56` |
-
-### Read a JSON field
-
-`type.json_path`
-
-Pull one value out of JSON by dotted path. Missing paths become null.
-
-Also known as: _json_, _extract json_, _nested field_
-
-| Setting | Type | Required | Default |
-|---|---|---|---|
-| Path | text | yes | none |
-
-| `value` | `value` |
-|---|---|
-| `{"customer": {"id": "C-1"}}` | `C-1` |
-| `{}` | _(empty)_ |
-
-### Change the type
-
-`type.cast`
-
-Declare a column's type. Values that do not fit become null.
-
-Also known as: _convert_, _retype_, _change type_
-
-| Setting | Type | Required | Default |
-|---|---|---|---|
-| New type | `text` / `int32` / `int64` / `float64` / `decimal(18,2)` / `boolean` / `date` / `timestamp` / `uuid` / `json` | yes | `text` |
-
-| `value` | `value` |
-|---|---|
-| `12` | `12` |
-| `x` | _(empty)_ |
-
-### Convert with a fallback
-
-`type.coerce_with_fallback`
-
-Read as a number, using a fixed value where it will not parse.
-
-Also known as: _default value_, _on error_, _safe convert_
-
-| Setting | Type | Required | Default |
-|---|---|---|---|
-| Use instead | text | yes | `0` |
-
-| `value` | `value` |
-|---|---|
-| `12` | `12.0` |
-| `abc` | `0` |
-
-
 ## Date & time
+
+### Add time
+
+`date.add_interval`
+
+Add an amount of seconds, minutes, hours, days, weeks, months, quarters or years (a month added to 31 January is 28 or 29 February).
+
+Also known as: _add interval_, _plus hours_, _add hours_, _date add_, _shift time_
+
+Offered on **temporal** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| How many | number | yes | `1` |
+| Of | `seconds` / `minutes` / `hours` / `days` / `weeks` / `months` / `quarters` / `years` | yes | `days` |
+
+| `when` | `when` |
+|---|---|
+| `2026-01-31 10:00` | `2026-02-28 10:00:00` |
+| _(empty)_ | _(empty)_ |
+
+### Subtract time
+
+`date.subtract_interval`
+
+Take away an amount of seconds, minutes, hours, days, weeks, months, quarters or years.
+
+Also known as: _subtract interval_, _minus days_, _go back_, _date sub_, _earlier by_
+
+Offered on **temporal** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| How many | number | yes | `1` |
+| Of | `seconds` / `minutes` / `hours` / `days` / `weeks` / `months` / `quarters` / `years` | yes | `days` |
+
+| `when` | `when` |
+|---|---|
+| `2026-03-01 00:30` | `2026-03-01 00:00:00` |
+
+### Read as a time zone
+
+`date.from_timezone`
+
+Say which time zone times without one were written in, so they become exact moments (a time that the clocks skipped, or passed twice, is empty).
+
+Also known as: _from timezone_, _localise_, _set time zone_, _assume time zone_
+
+Offered on **temporal** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Time zone | text | yes | `Europe/London` |
+
+| `when` | `when` |
+|---|---|
+| `2026-07-01 09:00` | `2026-07-01 09:00:00+01:00` |
+
+### Convert to UTC
+
+`date.to_utc`
+
+Write moments in UTC. Times without a zone are read in the zone given (or as UTC already when none is).
+
+Also known as: _to utc_, _utc_, _gmt_, _zulu_, _normalise time zone_
+
+Offered on **temporal** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Times without a zone are in | text | no | none |
+
+| `when` | `when` |
+|---|---|
+| `2026-07-01 09:00` | `2026-07-01 08:00:00+00:00` |
+
+### Is a public holiday
+
+`date.is_holiday`
+
+True on the public holidays of a country (and region), from each country's published rules.
+
+Also known as: _is holiday_, _bank holiday_, _public holiday_, _holiday calendar_
+
+Offered on **temporal** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Country | text | yes | `GB` |
+| Region | text | no | none |
+| | For countries whose holidays differ by region: ENG, SCT, WLS, NIR in GB; a state in US or DE. | | |
+
+| `when` | `when` |
+|---|---|
+| `2026-12-25` | `True` |
+| `2026-12-23` | `False` |
+
+### Name of the public holiday
+
+`date.holiday_name`
+
+The name of the public holiday on that day, or empty.
+
+Also known as: _holiday name_, _which holiday_
+
+Offered on **temporal** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Country | text | yes | `GB` |
+| Region | text | no | none |
+| | For countries whose holidays differ by region: ENG, SCT, WLS, NIR in GB; a state in US or DE. | | |
+
+| `when` | `when` |
+|---|---|
+| `2026-12-25` | `Christmas Day` |
+| `2026-12-23` | _(empty)_ |
+
+### Fiscal month
+
+`date.fiscal_period`
+
+Which month of the financial year (1 to 12), for a year starting in the month given.
+
+Also known as: _fiscal period_, _financial month_, _fiscal month_, _period number_
+
+Offered on **temporal** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Fiscal year starts in month | integer | yes | `4` |
+
+| `when` | `when` |
+|---|---|
+| `2026-04-15` | `1` |
+| `2026-03-31` | `12` |
+
+### Make a calendar of dates
+
+`date.spine`
+
+Replace the rows with one row for every day (or week, month, quarter, year) from this column's earliest date to its latest, or between dates you give: a calendar to join other data to, with no day missing.
+
+Also known as: _date spine_, _calendar table_, _all dates_, _date range_, _generate dates_, _date dimension_
+
+Offered on **temporal** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Column name | text | yes | `date` |
+| One row every | `day` / `week` / `month` / `quarter` / `year` | yes | `day` |
+| From | text | no | none |
+| To | text | no | none |
+
+| `when` | `day` |
+|---|---|
+| `2026-01-03` | `2026-01-01` |
+| `2026-01-01` | `2026-01-02` |
+
+### Add rows for missing dates
+
+`date.fill_missing`
+
+Add a row for each date a series skipped, between its first and last date (within each group), with the other columns empty; optionally a column saying which rows were added.
+
+Also known as: _fill missing dates_, _complete dates_, _gap fill dates_, _missing days_, _densify_
+
+Offered on **temporal** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| One row every | `day` / `week` / `month` / `quarter` / `year` | yes | `day` |
+| Within each | columns | no | none |
+| Mark added rows in a column | text | no | none |
+
+| `when` | `added` |
+|---|---|
+| `2026-01-01` | `False` |
+| `2026-01-03` | `True` |
 
 ### Year
 
@@ -1252,6 +719,1011 @@ Offered on **numeric** columns.
 | `1787443200` | `2026-08-23 00:00:00` |
 
 
+## Cleansing
+
+### Standardise an email
+
+`clean.email`
+
+Trim and lower case. Empty results become null.
+
+Also known as: _normalise email_, _lowercase email_
+
+Offered on **textual** columns.
+
+| `value` | `value` |
+|---|---|
+| ` Ada@Example.COM ` | `ada@example.com` |
+
+### Email domain
+
+`clean.email_domain`
+
+The part after the @, lower case.
+
+Also known as: _domain_, _company from email_
+
+Offered on **textual** columns.
+
+| `value` | `value` |
+|---|---|
+| `ada@Example.com` | `example.com` |
+| `not-an-email` | _(empty)_ |
+
+### Standardise a phone number
+
+`clean.phone`
+
+Best-effort E.164. Numbers that cannot be made sense of become null.
+
+Also known as: _e164_, _telephone_, _mobile_, _normalise phone_
+
+Offered on **textual** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Assume this country | `US` / `GB` / `CA` / `DE` / `FR` / `ES` / `IT` / `NL` / `AU` / `IN` / `BR` / `JP` | yes | `US` |
+| | Used only when the number has no + prefix of its own. | | |
+
+| `value` | `value` |
+|---|---|
+| `(555) 123-4567` | `+15551234567` |
+| `+44 20 7946 0958` | `+442079460958` |
+| `12` | _(empty)_ |
+
+### Standardise a URL
+
+`clean.url`
+
+Add a scheme where one is missing.
+
+Offered on **textual** columns.
+
+| `value` | `value` |
+|---|---|
+| `example.com/x` | `https://example.com/x` |
+| `http://a.co` | `http://a.co` |
+
+### Part of a URL
+
+`clean.url_part`
+
+Pull out the scheme, host, path, query or fragment.
+
+Also known as: _hostname_, _domain from url_, _path_
+
+Offered on **textual** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Part | `scheme` / `host` / `path` / `query` / `fragment` / `port` | yes | `host` |
+
+| `value` | `value` |
+|---|---|
+| `https://a.example.com/x?y=1` | `a.example.com` |
+
+### Standardise a postal code
+
+`clean.postal_code`
+
+Apply the country's usual spacing and padding.
+
+Also known as: _zip_, _postcode_
+
+Offered on **textual** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Country | `US` / `GB` / `CA` / `DE` / `FR` / `ES` / `IT` / `NL` / `AU` / `IN` / `BR` / `JP` | yes | `US` |
+
+| `value` | `value` |
+|---|---|
+| `1234` | `01234` |
+
+### Standardise a country
+
+`clean.country`
+
+Map country names and abbreviations to an ISO code. Unrecognised names become null.
+
+Also known as: _iso country_, _country code_, _nationality_
+
+Offered on **textual** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Output | `alpha2` | yes | `alpha2` |
+
+| `value` | `value` |
+|---|---|
+| `United States` | `US` |
+| `u.s.a.` | `US` |
+| `Freedonia` | _(empty)_ |
+
+### Split a full name
+
+`clean.name_part`
+
+Take the first, middle or last name. Particles stay with the surname.
+
+Also known as: _first name_, _surname_, _last name_, _split name_
+
+Offered on **textual** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Part | `first` / `middle` / `last` | yes | `first` |
+
+| `value` | `value` |
+|---|---|
+| `Ada Lovelace` | `Lovelace` |
+| `van der Berg, Jan` | `van der Berg` |
+| `Jan van der Berg` | `van der Berg` |
+
+### Standardise yes/no
+
+`clean.boolean_tokens`
+
+Read Y/N, yes/no, 1/0, on/off as true and false.
+
+Also known as: _yes no_, _y n_, _true false_
+
+| `value` | `value` |
+|---|---|
+| `Y` | `True` |
+| `off` | `False` |
+| `maybe` | _(empty)_ |
+
+### Standardise line endings
+
+`clean.line_endings`
+
+Turn Windows and old-Mac line endings into plain newlines.
+
+Also known as: _crlf_, _newlines_
+
+Offered on **textual** columns.
+
+| `value` | `value` |
+|---|---|
+| `a\r\nb` | `a\nb` |
+
+### Remove control characters
+
+`clean.control_characters`
+
+Strip the invisible characters that break exports.
+
+Also known as: _non printable_, _invisible_
+
+Offered on **textual** columns.
+
+| `value` | `value` |
+|---|---|
+| `a\0b` | `ab` |
+
+### Fix mangled characters
+
+`clean.mojibake`
+
+Repair text where UTF-8 was read as Latin-1 -- the Â£ and â€™ problem.
+
+Also known as: _encoding_, _garbled_, _utf8_, _latin1_
+
+Offered on **textual** columns.
+
+| `value` | `value` |
+|---|---|
+| `Â£5` | `£5` |
+
+### Trim surrounding quotes
+
+`clean.trim_quotes`
+
+Remove quote marks left by a bad export.
+
+Also known as: _unquote_, _strip quotes_
+
+Offered on **textual** columns.
+
+| `value` | `value` |
+|---|---|
+| `"hello"` | `hello` |
+
+### Unescape
+
+`clean.unescape`
+
+Turn backslash escapes back into the characters they stand for.
+
+Offered on **textual** columns.
+
+| `value` | `value` |
+|---|---|
+| `a\\tb` | `a\tb` |
+
+### Tidy up text
+
+`clean.standardise`
+
+Collapse whitespace and apply a consistent case, in one step.
+
+Also known as: _clean_, _tidy_, _normalise text_, _standardise_
+
+Offered on **textual** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Case | `none` / `lower` / `upper` / `title` | yes | `none` |
+
+| `value` | `value` |
+|---|---|
+| `  ADA   lovelace ` | `Ada Lovelace` |
+
+### Standardise an address
+
+`clean.address`
+
+Tidy spacing and capitals and write street words one way: in full (Street, Road) or abbreviated (St, Rd), as UK and US addresses use them.
+
+Also known as: _standardise address_, _normalise address_, _clean address_, _address format_
+
+Offered on **textual** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Street words | `expand` / `abbreviate` | no | `expand` |
+
+| `value` | `value` |
+|---|---|
+| `12  high st.` | `12 High Street` |
+| `4 elm AVENUE` | `4 Elm Avenue` |
+
+### Take part of an address
+
+`clean.address_part`
+
+Take the house number, street, unit, city, region, postcode or country from an address written on one line with commas, by UK and US rules (a UK postcode, a US state and ZIP code). A part it cannot find is empty; other countries' addresses mostly give the street and city only.
+
+Also known as: _parse address_, _address components_, _postcode from address_, _city from address_, _zip code_
+
+Offered on **textual** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Part | `house number` / `street` / `unit` / `city` / `region` / `postcode` / `country` | yes | `postcode` |
+
+| `value` | `value` |
+|---|---|
+| `10 Downing Street, London, SW1A 2AA` | `SW1A 2AA` |
+| `350 Fifth Avenue, New York, NY 10118` | `10118` |
+
+### Standardise a currency
+
+`clean.currency_code`
+
+Write a currency as its ISO 4217 code from a symbol or a name (£ or pounds to GBP, € to EUR); 33 currencies.
+
+Also known as: _currency code_, _iso 4217_, _standardise currency_, _currency symbol_
+
+Offered on **textual** columns.
+
+| `value` | `value` |
+|---|---|
+| `£` | `GBP` |
+| `euros` | `EUR` |
+| `US Dollars` | `USD` |
+| `Usd` | `USD` |
+| `???` | _(empty)_ |
+
+### Standardise a person's name
+
+`clean.person_name`
+
+Write a name with the capitals people expect (McDonald, O'Brien, Smith-Jones, Ludwig van Beethoven), tidy spaces, and optionally drop titles such as Mr and Dr.
+
+Also known as: _standardise name_, _proper case name_, _name case_, _clean name_
+
+Offered on **textual** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Drop titles | boolean | no | `False` |
+
+| `value` | `value` |
+|---|---|
+| `JOHN  MCDONALD` | `John McDonald` |
+| `mary o'brien` | `Mary O'Brien` |
+| `Dr. jan van der berg` | `Jan van der Berg` |
+
+### Fix values in the wrong column
+
+`clean.fix_swapped`
+
+Swap two columns' values on the rows where this one does not look like what it should hold and the other does (a phone number typed in the name box). The run says how many rows it swapped.
+
+Also known as: _swapped columns_, _wrong column_, _fix swapped values_, _misplaced values_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| The other column | column | yes | none |
+| This column should hold | `a number` / `a date` / `an email` / `text` | yes | `a number` |
+
+| `name` | `name` |
+|---|---|
+| `Ana` | `Ana` |
+| `0456` | `Ben` |
+
+### Standardise measurements
+
+`clean.units`
+
+Read measurements written with their units ("5 kg", "5000g", "11 lbs") as numbers in one unit; a value without a unit, or in another kind of unit, is empty.
+
+Also known as: _standardise units_, _parse measurements_, _units in text_, _normalise units_
+
+Offered on **textual** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| In | `mm` / `cm` / `m` / `km` / `in` / `ft` / `yd` / `mi` / `nmi` / `mg` / `g` / `kg` / `t` / `oz` / `lb` / `st` / `ml` / `cl` / `l` / `m3` / `tsp` / `tbsp` / `fl_oz_us` / `fl_oz_uk` / `cup_us` / `pint_us` / `pint_uk` / `gal_us` / `gal_uk` / `mm2` / `cm2` / `m2` / `ha` / `km2` / `ft2` / `acre` / `mi2` / `m/s` / `km/h` / `mph` / `kn` / `ms` / `s` / `min` / `h` / `day` / `week` / `bit` / `B` / `KB` / `MB` / `GB` / `TB` / `KiB` / `MiB` / `GiB` / `TiB` / `J` / `kJ` / `cal` / `kcal` / `Wh` / `kWh` / `Pa` / `kPa` / `bar` / `psi` / `atm` / `mmHg` / `C` / `F` / `K` | yes | none |
+
+| `value` | `value` |
+|---|---|
+| `5 kg` | `5.0` |
+| `5000g` | `5.0` |
+| `2.2 lbs` | `0.997903` |
+| `tall` | _(empty)_ |
+
+
+## Columns
+
+### Move columns
+
+`columns.move`
+
+Move columns to the start or the end, leaving the rest in order.
+
+Also known as: _reorder_, _move to front_, _move to end_, _arrange_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Columns | columns | yes | none |
+| Move to | `start` / `end` | yes | `start` |
+
+| `a` | `columns` |
+|---|---|
+| `1` | `c,a,b` |
+
+### Sort columns by name
+
+`columns.sort`
+
+Put the columns in alphabetical order.
+
+Also known as: _alphabetical_, _order columns_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Reverse | boolean | no | `False` |
+
+| `c` | `columns` |
+|---|---|
+| `1` | `a,b,c` |
+
+### Keep only these columns
+
+`columns.keep_only`
+
+Drop everything else, in the dataset's own order.
+
+Also known as: _select_, _subset_, _choose columns_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Columns to keep | columns | yes | none |
+
+| `a` | `columns` |
+|---|---|
+| `1` | `a,c` |
+
+### Drop columns
+
+`columns.drop`
+
+Remove one or more columns.
+
+Also known as: _remove columns_, _delete columns_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Columns to drop | columns | yes | none |
+
+| `a` | `columns` |
+|---|---|
+| `1` | `a` |
+
+### Duplicate a column
+
+`columns.duplicate`
+
+Add a copy, so the original survives an experiment.
+
+Also known as: _copy column_, _clone_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Column | column | yes | none |
+
+| `a` | `a_copy` |
+|---|---|
+| `1` | `1` |
+
+### Rename a column
+
+`columns.rename`
+
+Give a column a new name.
+
+Also known as: _rename_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Column | column | yes | none |
+| New name | text | yes | none |
+
+| `a` | `columns` |
+|---|---|
+| `1` | `b` |
+
+### Rename many columns
+
+`columns.bulk_rename`
+
+Apply one renaming rule to every column at once.
+
+Also known as: _rename all_, _clean headers_, _snake case_, _prefix_, _suffix_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Rule | `snake_case` / `lower` / `upper` / `prefix` / `suffix` / `replace` / `regex` | yes | `snake_case` |
+| Find | text | no | none |
+| Replace with | text | no | none |
+
+| `Order ID` | `columns` |
+|---|---|
+| `1` | `order_id,customer_name` |
+
+### Add a column with one value
+
+`columns.add`
+
+Add a column holding the same value on every row: a source label, a default, a flag to fill in later.
+
+Also known as: _add column_, _new column_, _constant column_, _literal column_, _insert column_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| New column | text | yes | none |
+| Value | text | no | none |
+| Kind of value | `text` / `number` / `whole number` / `true or false` / `date` | no | `text` |
+
+| `id` | `source` |
+|---|---|
+| `1` | `web` |
+| `2` | `web` |
+
+### Split at fixed positions
+
+`columns.split_by_position`
+
+Cut text into pieces after given numbers of characters (fixed-width records, codes with parts).
+
+Also known as: _split by position_, _fixed width_, _split at character_, _substring columns_
+
+Offered on **textual** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Cut after these characters | list | yes | none |
+| Drop the original | boolean | no | `False` |
+
+| `code` | `code_2` |
+|---|---|
+| `GB12345` | `12` |
+| `FR9` | `9` |
+
+### Split by a pattern
+
+`columns.split_by_pattern`
+
+Split text into columns wherever a regular expression matches: any run of spaces, a dash or a slash, a comma with or without a space.
+
+Also known as: _split by regex_, _regex split_, _split on pattern_, _tokenise_
+
+Offered on **textual** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Pattern | text | yes | none |
+| Most columns | integer | yes | `2` |
+| Drop the original | boolean | no | `False` |
+
+| `v` | `v_2` |
+|---|---|
+| `a - b/c` | `b` |
+| `d` | _(empty)_ |
+
+### Split into rows
+
+`columns.split_to_rows`
+
+Give each value in a list ("red, green, blue") its own row, repeating the other columns.
+
+Also known as: _split to rows_, _explode_, _unnest_, _one row per value_, _split rows_
+
+Offered on **textual** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Separated by | text | yes | `,` |
+| Trim spaces around each | boolean | no | `True` |
+
+| `tags` | `tags` |
+|---|---|
+| `red, green` | `red` |
+| `blue` | `green` |
+
+### Use the first row as column names
+
+`columns.promote_headers`
+
+Take the column names from the first row and drop it, for a file whose header was read as data. A blank name becomes column_N.
+
+Also known as: _promote headers_, _first row as header_, _rename from first row_, _header row_, _use row 1_
+
+| `a` | `columns` |
+|---|---|
+| `name` | `name,age` |
+
+### Turn column names into the first row
+
+`columns.demote_headers`
+
+Move the column names into a first row and name the columns column_1, column_2: for data that has to be read without a header.
+
+Also known as: _demote headers_, _header to row_, _headers as data_
+
+| `name` | `column_1` |
+|---|---|
+| `Ana` | `name` |
+
+
+## Join & combine
+
+### Join to the nearest earlier row
+
+`join.as_of`
+
+Bring columns from the other dataset's row that comes just before (or after, or nearest) this row's date or number, optionally matching other columns first: the exchange rate in force on the day, the price at the time of the order.
+
+Also known as: _as of join_, _asof_, _point in time join_, _temporal join_, _nearest earlier_, _rate in force_, _effective date_, _slowly changing_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Other dataset | dataset | yes | none |
+| This dataset's date or number | column | yes | none |
+| The other dataset's date or number | dataset_column | yes | none |
+| Columns to bring | dataset_columns | yes | none |
+| | Columns of the other dataset to add to each row. | | |
+| Which row | `earlier` / `later` / `nearest` | no | `earlier` |
+| At most this far (days for dates) | number | no | none |
+| Match first on | columns | no | none |
+| Their columns to match | dataset_columns | no | none |
+| Ending for a name already taken | text | no | `_right` |
+
+| `day` | `rate` |
+|---|---|
+| `2026-01-03` | `1.1` |
+| `2026-01-05` | `1.2` |
+| `2025-12-30` | _(empty)_ |
+
+The other dataset in this example:
+
+| `at` | `rate` |
+|---|---|
+| `2026-01-01` | `1.1` |
+| `2026-01-05` | `1.2` |
+| `2026-01-09` | `1.15` |
+
+### Join where a value is in a range
+
+`join.range`
+
+Bring columns from the other dataset's rows whose range (from a low to a high column, both included) holds this row's value: a price band, an age group, a fiscal period, a block of IP addresses.
+
+Also known as: _range join_, _between join_, _band_, _bucket lookup_, _interval join_, _ip range_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Other dataset | dataset | yes | none |
+| This dataset's value | column | yes | none |
+| Their range starts at | dataset_column | yes | none |
+| Their range ends at | dataset_column | yes | none |
+| Columns to bring | dataset_columns | yes | none |
+| | Columns of the other dataset to add to each row. | | |
+| When several ranges hold it | `every match` / `first match` | no | `every match` |
+| Rows in no range | `keep` / `drop` | no | `keep` |
+| Ending for a name already taken | text | no | `_right` |
+
+| `age` | `band` |
+|---|---|
+| `9` | `child` |
+| `40` | `adult` |
+| `70` | `senior` |
+| _(empty)_ | _(empty)_ |
+
+The other dataset in this example:
+
+| `from` | `to` | `band` |
+|---|---|---|
+| `0` | `17` | `child` |
+| `18` | `64` | `adult` |
+| `65` | `130` | `senior` |
+
+### Join on similar text
+
+`join.fuzzy`
+
+Bring columns from the other dataset's row whose text is most alike, at or above how alike you ask, with the score of the match: names typed differently, spelling mistakes, words in another order. The same matching the Assistant uses to find duplicates.
+
+Also known as: _fuzzy join_, _fuzzy match_, _approximate join_, _similar names_, _fuzzy merge_, _match names_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Other dataset | dataset | yes | none |
+| Their text column | dataset_column | yes | none |
+| Columns to bring | dataset_columns | yes | none |
+| | Columns of the other dataset to add to each row. | | |
+| Alike by | `letters` / `edits` / `tokens` / `jaro_winkler` / `sound` | no | `letters` |
+| | letters: shared letters in order; edits: few typing changes apart; tokens: the same words in any order; jaro_winkler: alike from the start; sound: sounds alike (English names). | | |
+| How alike, from 0 to 1 | number | no | `0.86` |
+| Ignore company endings (Ltd, Inc) | boolean | no | `True` |
+| Rows that match nothing | `keep` / `drop` | no | `keep` |
+| Name of the score column | text | no | none |
+| Ending for a name already taken | text | no | `_right` |
+
+| `customer` | `id` |
+|---|---|
+| `ACME Ltd` | `1` |
+| `Globex Corp.` | `2` |
+| `Initech` | _(empty)_ |
+
+The other dataset in this example:
+
+| `company` | `id` |
+|---|---|
+| `Acme Limited` | `1` |
+| `Globex Corporation` | `2` |
+
+### Put columns side by side
+
+`combine.merge_by_position`
+
+Add the other dataset's columns row by row: its first row beside this one's first, and so on, as pasting columns next to each other does. This dataset keeps its rows; the run says when the other is longer or shorter.
+
+Also known as: _merge by position_, _side by side_, _paste columns_, _zip_, _horizontal concat_, _cbind_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Other dataset | dataset | yes | none |
+| Columns to bring | dataset_columns | yes | none |
+| | Columns of the other dataset to add to each row. | | |
+| Ending for a name already taken | text | no | `_right` |
+
+| `name` | `score` |
+|---|---|
+| `a` | `10` |
+| `b` | `20` |
+
+The other dataset in this example:
+
+| `score` |
+|---|
+| `10` |
+| `20` |
+
+### Keep rows the other dataset also has
+
+`combine.intersect`
+
+Keep the rows whose values (in every column, or the ones chosen) the other dataset has too (INTERSECT).
+
+Also known as: _intersect_, _in both_, _common rows_, _overlap_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Other dataset | dataset | yes | none |
+| Compare on | columns | no | none |
+| | Leave empty to compare every column; the other dataset must have them. | | |
+| Repeated rows | `remove` / `keep` | no | `remove` |
+| | Remove gives each row once, as SQL's INTERSECT and EXCEPT do. | | |
+
+| `id` | `id` |
+|---|---|
+| `1` | `2` |
+| `2` | `3` |
+
+The other dataset in this example:
+
+| `id` |
+|---|
+| `2` |
+| `3` |
+| `4` |
+
+### Keep rows the other dataset does not have
+
+`combine.except`
+
+Keep the rows whose values (in every column, or the ones chosen) the other dataset does not have (EXCEPT).
+
+Also known as: _except_, _minus_, _difference_, _not in_, _missing from_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Other dataset | dataset | yes | none |
+| Compare on | columns | no | none |
+| | Leave empty to compare every column; the other dataset must have them. | | |
+| Repeated rows | `remove` / `keep` | no | `remove` |
+| | Remove gives each row once, as SQL's INTERSECT and EXCEPT do. | | |
+
+| `id` | `id` |
+|---|---|
+| `1` | `1` |
+
+The other dataset in this example:
+
+| `id` |
+|---|
+| `2` |
+
+
+## Type & conversion
+
+### To text
+
+`type.to_text`
+
+Render as text without inventing decimals.
+
+Also known as: _to string_, _stringify_, _as text_
+
+| `value` | `value` |
+|---|---|
+| `10` | `10` |
+| _(empty)_ | _(empty)_ |
+
+### To number
+
+`type.to_number`
+
+Read as a number. Values that will not parse become null.
+
+Also known as: _to float_, _parse number_, _numeric_
+
+| `value` | `value` |
+|---|---|
+| `12.5` | `12.5` |
+| `abc` | _(empty)_ |
+
+### To whole number
+
+`type.to_integer`
+
+Read as a whole number, dropping any fraction.
+
+Also known as: _to int_, _integer_, _whole_
+
+| `value` | `value` |
+|---|---|
+| `12.7` | `12` |
+| `abc` | _(empty)_ |
+
+### To true/false
+
+`type.to_boolean`
+
+Read yes/no/1/0/true/false. Anything else becomes null.
+
+Also known as: _to bool_, _yes no_, _flag_
+
+| `value` | `value` |
+|---|---|
+| `yes` | `True` |
+| `0` | `False` |
+| `maybe` | _(empty)_ |
+
+### Detect the type
+
+`type.detect`
+
+Report what each value looks like, without changing it.
+
+Also known as: _what type_, _guess type_, _profile_
+
+| `value` | `value` |
+|---|---|
+| `12` | `integer` |
+| `abc` | `text` |
+| `2026-01-01` | `timestamp` |
+
+### Strip currency symbols
+
+`type.strip_currency`
+
+Remove symbols and grouping, leaving text a number parser can read.
+
+Also known as: _remove dollar_, _currency_, _money_, _thousands separator_
+
+Offered on **textual** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Written as | `us` / `european` | yes | `us` |
+| | US: 1,234.56. European: 1.234,56. | | |
+
+| `value` | `value` |
+|---|---|
+| `$1,200.50` | `1200.50` |
+| `€1.200,50` | `1.20050` |
+
+_The second row shows why the style matters: read as US, a European amount comes out a thousand times too small._
+
+### Parse a localised number
+
+`type.parse_number_locale`
+
+Read a number written with European or US grouping.
+
+Also known as: _comma decimal_, _thousands separator_, _european number_
+
+Offered on **textual** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Written as | `us` / `european` | yes | `us` |
+| | US: 1,234.56. European: 1.234,56. | | |
+
+| `value` | `value` |
+|---|---|
+| `1.234,56` | `1234.56` |
+
+### Read a JSON field
+
+`type.json_path`
+
+Pull one value out of JSON by dotted path. Missing paths become null.
+
+Also known as: _json_, _extract json_, _nested field_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Path | text | yes | none |
+
+| `value` | `value` |
+|---|---|
+| `{"customer": {"id": "C-1"}}` | `C-1` |
+| `{}` | _(empty)_ |
+
+### Change the type
+
+`type.cast`
+
+Declare a column's type. Values that do not fit become null.
+
+Also known as: _convert_, _retype_, _change type_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| New type | `text` / `int32` / `int64` / `float64` / `decimal(18,2)` / `boolean` / `date` / `timestamp` / `uuid` / `json` | yes | `text` |
+
+| `value` | `value` |
+|---|---|
+| `12` | `12` |
+| `x` | _(empty)_ |
+
+### Convert with a fallback
+
+`type.coerce_with_fallback`
+
+Read as a number, using a fixed value where it will not parse.
+
+Also known as: _default value_, _on error_, _safe convert_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Use instead | text | yes | `0` |
+
+| `value` | `value` |
+|---|---|
+| `12` | `12.0` |
+| `abc` | `0` |
+
+### Change to an exact decimal
+
+`type.to_decimal`
+
+Read as a number with this many decimal places, kept exact rather than as a float and rounded half up from the value as written (1.005 is 1.01): money, quantities that must add up.
+
+Also known as: _to decimal_, _numeric_, _exact number_, _money type_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Decimal places | integer | yes | `2` |
+
+| `value` | `value` |
+|---|---|
+| `1.005` | `1.01` |
+| `2` | `2.00` |
+| `x` | _(empty)_ |
+| _(empty)_ | _(empty)_ |
+
+### Write as JSON
+
+`type.to_json`
+
+Write each value as JSON text: text quoted, numbers as numbers, JSON already there kept as it is.
+
+Also known as: _to json_, _json encode_, _serialise_, _stringify_
+
+| `value` | `value` |
+|---|---|
+| `a` | `"a"` |
+| `3` | `3` |
+| _(empty)_ | _(empty)_ |
+
+### Split into a list
+
+`type.to_list`
+
+Turn text like "red, green" into a JSON list (["red", "green"]), to explode or count later.
+
+Also known as: _to array_, _to list_, _split to array_, _make list_
+
+Offered on **textual** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Separated by | text | yes | `,` |
+
+| `value` | `value` |
+|---|---|
+| `red, green` | `["red", "green"]` |
+| _(empty)_ | _(empty)_ |
+
+### Remove thousands separators
+
+`type.strip_thousands`
+
+Read numbers written with thousands separators (1,234,567 or 1.234.567,89) as numbers.
+
+Also known as: _strip thousands_, _remove commas_, _thousands separator_, _grouping_
+
+Offered on **textual** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Thousands separator | `,` / `.` / ` ` / `'` | yes | `,` |
+
+| `value` | `value` |
+|---|---|
+| `1,234,567` | `1234567.0` |
+| `12` | `12.0` |
+| `n/a` | _(empty)_ |
+| _(empty)_ | _(empty)_ |
+
+
 ## Encoding & privacy
 
 ### MD5
@@ -1457,6 +1929,56 @@ Offered on **textual** columns.
 | `value` | `value` |
 |---|---|
 | `&amp;` | `&` |
+
+### Replace with a reversible token
+
+`privacy.tokenise`
+
+Replace each value with a token that stays the same for the same value (so it still joins and groups) and that only an administrator can turn back, in Administration, each time recorded in the audit log.
+
+Also known as: _tokenise_, _tokenize_, _reversible_, _encrypt value_, _detokenise_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Key name | text | yes | `default` |
+| | Values tokenised under one key name reveal only under it. | | |
+
+_Each value becomes a token beginning tok_, the same every run under the same key name._
+
+### Make a key from columns
+
+`key.surrogate`
+
+Make one short key from several columns that is the same whenever they are (a hash of the values): a key for a table that has none.
+
+Also known as: _surrogate key_, _hash key_, _composite key_, _row key_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| From columns | columns | yes | none |
+
+| `a` | `key` |
+|---|---|
+| `x` | `5f4c03d55ba8f40f` |
+| `x` | `5f4c03d55ba8f40f` |
+| `y` | `e2247c49f6d590a5` |
+
+### Make an ID for each row
+
+`key.uuid`
+
+Give each row a UUID: made from columns you choose (the same values always give the same ID), or random but the same every run for the same seed.
+
+Also known as: _uuid_, _guid_, _generate id_, _unique id_, _row id_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| From columns | columns | no | none |
+| Seed, when random | integer | no | `1` |
+
+| `email` | `id` |
+|---|---|
+| `a@x.com` | `f0a85006-e7b0-5ef7-82fc-c74a2f8ecb05` |
 
 
 ## Nested data
@@ -1680,6 +2202,68 @@ Also known as: _flag nulls_, _is empty_, _missing_
 | `a` | `False` |
 | _(empty)_ | `True` |
 | `  ` | `True` |
+
+### Fill gaps along a straight line
+
+`null.interpolate_linear`
+
+Fill an empty value between two known ones by drawing a straight line between them, spaced by a date or number column. Gaps before the first or after the last known value stay empty.
+
+Also known as: _interpolate_, _linear interpolation_, _fill gaps_, _estimate missing_
+
+Offered on **numeric** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| In the order of | columns | no | none |
+| | A date or number to space the points by; leave empty to take the rows as evenly spaced. | | |
+| Within each | columns | no | none |
+
+| `value` | `value` |
+|---|---|
+| `1` | `1.0` |
+| _(empty)_ | `2.0` |
+| `3` | `3.0` |
+| _(empty)_ | _(empty)_ |
+
+### Fill gaps along a smooth curve
+
+`null.interpolate_spline`
+
+Fill an empty value between known ones with a smooth curve through them (a cubic spline), needing at least three known values.
+
+Also known as: _spline_, _cubic interpolation_, _smooth fill_, _curve fill_
+
+Offered on **numeric** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| In the order of | columns | no | none |
+| | A date or number to space the points by; leave empty to take the rows as evenly spaced. | | |
+| Within each | columns | no | none |
+
+| `value` | `value` |
+|---|---|
+| `1` | `1.0` |
+| `4` | `4.0` |
+| _(empty)_ | `9.0` |
+| `16` | `16.0` |
+
+### Drop mostly empty columns
+
+`null.drop_mostly_empty`
+
+Drop every column whose share of empty values is above this (0.5 drops columns more than half empty). The first column stays if every one would go.
+
+Also known as: _drop empty columns_, _remove sparse columns_, _mostly null_, _drop null columns_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Drop when more than this share is empty | number | yes | `0.5` |
+
+| `a` | `columns` |
+|---|---|
+| `1` | `a` |
 
 ### Fill down
 
@@ -2108,6 +2692,151 @@ Offered on **numeric** columns.
 | `15` | `10 to 20` |
 | `95` | `50+` |
 
+### Flip the sign
+
+`numeric.negate`
+
+Turn positive into negative and back (credits into debits).
+
+Also known as: _negate_, _minus_, _flip sign_, _invert sign_, _opposite_
+
+Offered on **numeric** columns.
+
+| `value` | `value` |
+|---|---|
+| `5` | `-5` |
+| `-2.5` | `2.5` |
+| _(empty)_ | _(empty)_ |
+
+### Divide by another column
+
+`numeric.ratio`
+
+This column divided by another, row by row (empty where the other is 0 or empty): a conversion rate, a share, a margin.
+
+Also known as: _ratio_, _divide by column_, _per_, _rate_, _share of_
+
+Offered on **numeric** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Divided by | column | yes | none |
+
+| `a` | `r` |
+|---|---|
+| `6` | `2.0` |
+| `1` | _(empty)_ |
+| `2` | _(empty)_ |
+
+### Convert at a fixed rate
+
+`numeric.convert_currency`
+
+Multiply by an exchange rate you give (for a rate that changes by day, join to a table of rates with Join to the nearest earlier row).
+
+Also known as: _currency convert_, _exchange rate_, _fx_, _convert money_
+
+Offered on **numeric** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Rate | number | yes | none |
+
+| `value` | `value` |
+|---|---|
+| `100` | `125.0` |
+| _(empty)_ | _(empty)_ |
+
+### Convert units
+
+`numeric.convert_units`
+
+Convert between units of length, mass, volume, area, speed, time, data, energy, pressure and temperature (kilometres to miles, °F to °C, MiB to GB).
+
+Also known as: _unit convert_, _units_, _metric to imperial_, _celsius_, _fahrenheit_, _miles_, _kilograms_
+
+Offered on **numeric** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| From | `mm` / `cm` / `m` / `km` / `in` / `ft` / `yd` / `mi` / `nmi` / `mg` / `g` / `kg` / `t` / `oz` / `lb` / `st` / `ml` / `cl` / `l` / `m3` / `tsp` / `tbsp` / `fl_oz_us` / `fl_oz_uk` / `cup_us` / `pint_us` / `pint_uk` / `gal_us` / `gal_uk` / `mm2` / `cm2` / `m2` / `ha` / `km2` / `ft2` / `acre` / `mi2` / `m/s` / `km/h` / `mph` / `kn` / `ms` / `s` / `min` / `h` / `day` / `week` / `bit` / `B` / `KB` / `MB` / `GB` / `TB` / `KiB` / `MiB` / `GiB` / `TiB` / `J` / `kJ` / `cal` / `kcal` / `Wh` / `kWh` / `Pa` / `kPa` / `bar` / `psi` / `atm` / `mmHg` / `C` / `F` / `K` | yes | none |
+| To | `mm` / `cm` / `m` / `km` / `in` / `ft` / `yd` / `mi` / `nmi` / `mg` / `g` / `kg` / `t` / `oz` / `lb` / `st` / `ml` / `cl` / `l` / `m3` / `tsp` / `tbsp` / `fl_oz_us` / `fl_oz_uk` / `cup_us` / `pint_us` / `pint_uk` / `gal_us` / `gal_uk` / `mm2` / `cm2` / `m2` / `ha` / `km2` / `ft2` / `acre` / `mi2` / `m/s` / `km/h` / `mph` / `kn` / `ms` / `s` / `min` / `h` / `day` / `week` / `bit` / `B` / `KB` / `MB` / `GB` / `TB` / `KiB` / `MiB` / `GiB` / `TiB` / `J` / `kJ` / `cal` / `kcal` / `Wh` / `kWh` / `Pa` / `kPa` / `bar` / `psi` / `atm` / `mmHg` / `C` / `F` / `K` | yes | none |
+
+| `value` | `value` |
+|---|---|
+| `10` | `6.213712` |
+| `0` | `0.0` |
+| _(empty)_ | _(empty)_ |
+
+### Group into chosen ranges
+
+`numeric.bin_custom`
+
+Label each value by the range it falls in, from edges you choose (0, 18, 65, 120 gives 0 to 18, 18 to 65, 65 to 120), with your own labels if you like. A value outside every range is empty.
+
+Also known as: _custom bins_, _bands_, _ranges_, _age groups_, _bucket by edges_
+
+Offered on **numeric** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Edges | list | yes | none |
+| Labels | list | no | none |
+
+| `value` | `value` |
+|---|---|
+| `5` | `child` |
+| `30` | `adult` |
+| `70` | `senior` |
+| `200` | _(empty)_ |
+| _(empty)_ | _(empty)_ |
+
+### Scale by the median and spread
+
+`numeric.robust_scale`
+
+Subtract the median and divide by the spread of the middle half (the interquartile range), so outliers do not stretch the scale.
+
+Also known as: _robust scale_, _robust scaling_, _median scale_, _iqr scale_
+
+Offered on **numeric** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Within each | columns | no | none |
+
+| `value` | `value` |
+|---|---|
+| `1` | `-1.0` |
+| `2` | `-0.5` |
+| `3` | `0.0` |
+| `4` | `0.5` |
+| `100` | `48.5` |
+
+### Group into equal-size groups
+
+`numeric.bin_equal_frequency`
+
+Split the values into this many groups holding about the same number of rows each, labelled by the range each covers.
+
+Also known as: _equal frequency bins_, _quantile bins_, _quantiles_, _equal size buckets_
+
+Offered on **numeric** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Groups | integer | yes | `4` |
+| Within each | columns | no | none |
+
+| `value` | `value` |
+|---|---|
+| `1` | `1 to 2` |
+| `2` | `1 to 2` |
+| `3` | `3 to 4` |
+| `4` | `3 to 4` |
+| `5` | `5 to 6` |
+| `6` | `5 to 6` |
+
 
 ## Rows
 
@@ -2240,6 +2969,223 @@ Also known as: _remove empty_, _drop nulls_, _blank rows_
 |---|---|
 | `x` | `x` |
 | _(empty)_ | `z` |
+
+### Keep the last rows
+
+`rows.keep_last`
+
+Keep this many rows from the end, in their order.
+
+Also known as: _tail_, _last n_, _keep bottom_, _bottom rows_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| How many | integer | yes | `10` |
+
+| `n` | `n` |
+|---|---|
+| `1` | `4` |
+| `2` | `5` |
+
+### Skip the last rows
+
+`rows.skip_last`
+
+Drop this many rows from the end (a totals line, a footer).
+
+Also known as: _drop last_, _remove footer_, _skip bottom_, _drop trailing rows_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| How many | integer | yes | `10` |
+
+| `n` | `n` |
+|---|---|
+| `1` | `1` |
+| `2` | `2` |
+| `3` | `3` |
+
+### Reverse the rows
+
+`rows.reverse`
+
+Put the rows in the opposite order.
+
+Also known as: _reverse order_, _flip_, _upside down_, _invert rows_
+
+| `n` | `n` |
+|---|---|
+| `1` | `3` |
+| `2` | `2` |
+| `3` | `1` |
+
+### Shuffle the rows
+
+`rows.shuffle`
+
+Put the rows in a random order that is the same every run for the same seed.
+
+Also known as: _shuffle_, _randomise order_, _random order_, _permute_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Seed | integer | no | `1` |
+
+| `n` | `n` |
+|---|---|
+| `1` | `5` |
+| `2` | `1` |
+| `3` | `2` |
+| `4` | `3` |
+| `5` | `4` |
+
+### Delete rows by number
+
+`rows.delete`
+
+Delete the rows at these positions, counted from 1 in the order the rows are in.
+
+Also known as: _delete row_, _remove row_, _drop row number_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Row numbers | list | yes | none |
+
+| `n` | `n` |
+|---|---|
+| `1` | `1` |
+| `2` | `3` |
+| `3` | `5` |
+
+### Add a row
+
+`rows.insert`
+
+Add one row with the values given, at the start or the end; columns not named are empty.
+
+Also known as: _insert row_, _add row_, _append row_, _new row_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Values | list | yes | none |
+| Where | `at the end` / `at the start` | no | `at the end` |
+
+| `item` | `item` |
+|---|---|
+| `tea` | `tea` |
+
+### Sort in a chosen order
+
+`rows.custom_order`
+
+Put rows in the order of a list of values (Low, Medium, High; Mon to Sun); values not in the list come after.
+
+Also known as: _custom sort_, _sort by list_, _manual order_, _ordinal sort_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Column | column | yes | none |
+| Values in order | list | yes | none |
+
+| `size` | `size` |
+|---|---|
+| `M` | `S` |
+| `XL` | `M` |
+| `S` | `L` |
+| `L` | `XL` |
+
+### Keep rows that do not convert
+
+`rows.keep_errors`
+
+Keep only the rows whose value cannot be read as a number, a date or true or false, to see what is wrong.
+
+Also known as: _keep errors_, _show bad values_, _invalid rows_, _rows that fail_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Column | column | yes | none |
+| Should be | `a number` / `a whole number` / `a date` / `true or false` | no | `a number` |
+
+| `v` | `v` |
+|---|---|
+| `12` | `twelve` |
+
+### Drop rows that do not convert
+
+`rows.remove_errors`
+
+Drop the rows whose value cannot be read as a number, a date or true or false; empty values stay.
+
+Also known as: _remove errors_, _drop bad values_, _drop invalid rows_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Column | column | yes | none |
+| Should be | `a number` / `a whole number` / `a date` / `true or false` | no | `a number` |
+
+| `v` | `v` |
+|---|---|
+| `12` | `12` |
+| `twelve` | _(empty)_ |
+
+
+## Reshape
+
+### Swap rows and columns
+
+`reshape.transpose`
+
+Turn each column into a row and each row into a column, naming the new columns from a column of your choice (or row_1, row_2).
+
+Also known as: _transpose_, _flip rows and columns_, _rotate_, _swap axes_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Name the new columns from | column | no | none |
+
+| `metric` | `sales` |
+|---|---|
+| `sales` | `10` |
+| `costs` | `12` |
+
+### Combine columns into one
+
+`reshape.nest`
+
+Put several columns into one JSON column, for an API that wants an object or a document store.
+
+Also known as: _nest columns_, _to struct_, _combine into json_, _pack columns_, _object column_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Columns | columns | yes | none |
+| New column | text | yes | `details` |
+| Drop the originals | boolean | no | `True` |
+
+| `id` | `address` |
+|---|---|
+| `1` | `{"city": "Leeds", "zip": "LS1"}` |
+
+### Cross-tab two columns
+
+`reshape.crosstab`
+
+Count (or total) rows by two columns at once: one row per value of the first, one column per value of the second.
+
+Also known as: _cross tab_, _crosstab_, _contingency table_, _two way table_, _matrix count_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| One row per | column | yes | none |
+| One column per | column | yes | none |
+| Show | `count` / `sum` / `average` / `lowest` / `highest` | no | `count` |
+| Of column | column | no | none |
+
+| `shop` | `mon` |
+|---|---|
+| `a` | `1` |
+| `a` | `1` |
 
 
 ## Text
@@ -2951,6 +3897,44 @@ Offered on **textual** columns.
 |---|---|
 | `Ada` | `Ada Lovelace` |
 | `Alan` | `Alan` |
+
+### Write in Latin letters
+
+`text.transliterate`
+
+Write Cyrillic and Greek in Latin letters and drop accents (Москва to Moskva, Αθήνα to Athina, Øresund to Oresund), for matching and for systems that take plain letters only.
+
+Also known as: _transliterate_, _romanise_, _romanize_, _latinise_, _to ascii_, _cyrillic to latin_
+
+Offered on **textual** columns.
+
+| `value` | `value` |
+|---|---|
+| `Москва` | `Moskva` |
+| `Αθήνα` | `Athina` |
+| `Straße` | `Strasse` |
+| _(empty)_ | _(empty)_ |
+
+### Detect the language
+
+`text.detect_language`
+
+Say which language text is written in, as a two-letter code: by its alphabet where that settles it, otherwise by which of 17 languages' commonest words it uses. Texts under three words are not guessed; with confidence on, a second column says how sure (0 to 1).
+
+Also known as: _detect language_, _language detection_, _which language_, _identify language_
+
+Offered on **textual** columns.
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Add how sure | boolean | no | `False` |
+
+| `v` | `v_language` |
+|---|---|
+| `the cat is on the mat` | `en` |
+| `le chat est sur le tapis` | `fr` |
+| `Привет, мир` | `ru` |
+| `ok` | _(empty)_ |
 
 
 ## Validation

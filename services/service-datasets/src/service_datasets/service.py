@@ -747,9 +747,10 @@ def apply_dataset_materialization_success(
     dataset.last_profiled_at = datetime.now(UTC)
     # How the head file is read, kept with the dataset and its version:
     # re-reading the same file needs the same answers rather than a fresh
-    # inference. Set every time, to null for a file Pipewright wrote itself:
-    # keeping an earlier upload's settings once a recipe's output became the
-    # head would read that output wrongly (A8).
+    # inference. Set every time: keeping an earlier upload's settings once a
+    # recipe's output became the head would read that output wrongly (A8),
+    # and a file Pipewright wrote itself is read back as it was written
+    # (`service_ingestion.written`, E2).
     dataset.ingest_spec_json = ingest_spec_json
 
     version = DatasetVersion(

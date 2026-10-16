@@ -22,6 +22,7 @@ from service_datasets.service import (
 )
 from service_ingestion.contracts import build_derived_dataset_path
 from service_ingestion.read_copy import frame_of
+from service_ingestion.written import written_spec
 from service_ingestion.profiling import build_preview, build_profile, infer_schema
 from service_notifications.outcomes import notify_manual_transformation_run
 from service_pipeline_runs.service import (
@@ -478,6 +479,8 @@ def run_saved_transformation_pipeline(
             row_count=profile_json["row_count"],
             column_count=profile_json["column_count"],
             content_hash=content_digest(csv_bytes),
+            # Read back as written: each column as the run held it (E2).
+            ingest_spec_json=written_spec(csv_bytes, working),
             pipeline_run_id=run.id,
             created_by_user_id=current_user.id,
             contract_verdict=contract_verdict,

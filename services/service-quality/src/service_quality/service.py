@@ -18,6 +18,7 @@ from service_datasets.service import (
     get_dataset_model_for_project,
 )
 from service_ingestion.contracts import build_derived_dataset_path
+from service_ingestion.written import written_spec
 from service_ingestion.read_copy import frame_of
 from service_ingestion.profiling import build_preview, build_profile, infer_schema
 from service_projects.contracts import ensure_owned_project
@@ -242,6 +243,8 @@ def _materialise_quarantine_dataset(
         row_count=int(len(frame)),
         column_count=int(len(frame.columns)),
         content_hash=content_digest(csv_bytes),
+        # Read back as written (E2).
+        ingest_spec_json=written_spec(csv_bytes, frame),
         created_by_user_id=current_user.id,
     )
     return detail.id

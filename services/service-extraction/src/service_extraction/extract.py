@@ -31,6 +31,7 @@ from service_extraction.models import ExtractionJob
 from service_extraction.schemas import ExtractionJobRead, ExtractionRunResponse
 from service_extraction.service import get_connection_for_project, get_job_for_project, resolve_job_query
 from service_ingestion.contracts import build_derived_dataset_path
+from service_ingestion.written import written_spec
 from service_ingestion.read_copy import frame_of
 from service_ingestion.profiling import build_preview, build_profile, infer_schema
 from service_pipeline_runs.service import (
@@ -400,6 +401,9 @@ def run_extraction_job(
             row_count=profile_json["row_count"],
             column_count=profile_json["column_count"],
             content_hash=content_digest(csv_bytes),
+            # Read back as the connection gave it: its text stays text, and
+            # only an empty value is empty (E2).
+            ingest_spec_json=written_spec(csv_bytes, working),
             pipeline_run_id=run.id,
             created_by_user_id=current_user.id,
             contract_verdict=contract_verdict,

@@ -72,6 +72,7 @@ from service_extraction.schemas import (
     ThroughputPoint,
 )
 from service_ingestion.contracts import build_derived_dataset_path
+from service_ingestion.written import written_spec
 from service_ingestion.profiling import build_preview, build_profile, infer_schema
 from service_projects.contracts import ensure_owned_project
 from shared_python.errors import BadRequestError, ConflictError, NotFoundError
@@ -862,6 +863,7 @@ def publish_frame(db: Session, source: StreamSource, *, dataset_id: uuid.UUID | 
                                    file_size_bytes=len(data)),
         row_count=int(len(judged)), column_count=int(len(judged.columns)),
         content_hash=content_digest(data), created_by_user_id=actor.id, contract_verdict=verdict,
+        ingest_spec_json=written_spec(data, judged),
     )
     return dataset
 

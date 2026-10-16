@@ -37,6 +37,10 @@ from shared_python.words import count_of
 SPEC_VERSION = 1
 
 
+#: `IngestSpec.derived_from` of a file Pipewright wrote itself, read back exactly as written (E2).
+WRITTEN_BY_PIPEWRIGHT = "written by Pipewright"
+
+
 @dataclass
 class ColumnSpec:
     """How one column is read."""
@@ -195,7 +199,7 @@ def apply(frame: pd.DataFrame, spec: IngestSpec) -> tuple[pd.DataFrame, list[str
             continue
 
         series = frame[column_spec.name]
-        converted, failures = _convert(series, column_spec)
+        converted, failures = _convert(series, column_spec, exact=spec.derived_from == WRITTEN_BY_PIPEWRIGHT)
         if failures:
             notes.append(
                 f"'{column_spec.name}': {count_of(len(failures), 'value')} did not read as "
@@ -213,11 +217,19 @@ def apply(frame: pd.DataFrame, spec: IngestSpec) -> tuple[pd.DataFrame, list[str
     return out, notes
 
 
-def _convert(series: pd.Series, column_spec: ColumnSpec) -> tuple[pd.Series, list[str]]:
-    """One column's values, in the type the spec says."""
+def _convert(series: pd.Series, column_spec: ColumnSpec, *, exact: bool = False) -> tuple[pd.Series, list[str]]:
+    """One column's values, in the type the spec says.
+
+    Empty is a missing value, or a word the spec says means one. An upload's
+    "none" and "nan" are empty too, wherever they are in the file; a file
+    Pipewright wrote (``exact``) keeps them as the text it wrote (E2).
+    """
     tokens = {token.lower() for token in column_spec.null_tokens} | {""}
+    if not exact:
+        tokens |= {"nan", "none"}
     text = series.astype(str)
-    blank = text.str.strip().str.lower().isin(tokens | {"nan", "none"})
+    blank = series.isna().to_numpy() | text.str.strip().str.lower().isin(tokens).to_numpy()
+    blank = pd.Series(blank, index=series.index)
     errors = text.str.strip().str.upper().isin(EXCEL_ERRORS)
     usable = ~(blank | errors)
 

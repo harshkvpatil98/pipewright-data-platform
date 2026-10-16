@@ -72,6 +72,21 @@ def test_the_sql_step_reads_only_input() -> None:
         run(ORDERS, "code.sql", sql="SELECT * FROM orders")
 
 
+@pytest.mark.parametrize(("query", "named"), [
+    ("SELECT * FROM input QUALIFY ROW_NUMBER() OVER (ORDER BY amount) = 1", "QUALIFY"),
+    ("SELECT DISTINCT ON (region) region, amount FROM input", "DISTINCT ON"),
+    ("SELECT region FROM input WINDOW w AS (PARTITION BY region)", "A named WINDOW"),
+    ("SELECT region FROM input TABLESAMPLE (50 PERCENT)", "TABLESAMPLE"),
+    ("SELECT * FROM input FOR UPDATE", "FOR UPDATE"),
+    ("SELECT a.region FROM input a NATURAL JOIN input b", "NATURAL"),
+])
+def test_a_clause_it_does_not_read_is_refused_not_passed_over(query: str, named: str) -> None:
+    # Passed over, each of these gave every row (E2 found it): QUALIFY kept
+    # all three orders where SQL keeps one.
+    with pytest.raises(BadRequestError, match=named):
+        run(ORDERS, "code.sql", sql=query)
+
+
 # ------------------------------------------------------- JSON, text, lookups
 
 

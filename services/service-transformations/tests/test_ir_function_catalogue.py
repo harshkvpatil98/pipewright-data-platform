@@ -337,3 +337,13 @@ def _argument_for(name: str, index: int):
     if name in {"left", "right", "repeat"}:
         return [TEXT, Literal(2, INT64)][index]
     return [NUM, Literal(2, INT64), Literal(3, INT64)][index]
+
+
+def test_mod_keeps_the_sign_of_what_is_divided_as_sql_does() -> None:
+    # Python's % keeps the divisor's sign: MOD(-7, 3) was 2 here and -1 once
+    # pushed down to a database, so a recipe's answer depended on where it ran.
+    frame = pd.DataFrame({"a": [-7, 7, -6, 7, -7], "b": [3, -3, 3, 0, None]})
+    result = evaluate(Call("mod", (Column("a"), Column("b"))), frame)
+    assert [None if pd.isna(v) else int(v) for v in result] == [-1, 1, 0, None, None]
+    decimals = evaluate(Call("mod", (Column("a"), Literal(2, INT64))), pd.DataFrame({"a": [-7.5, 7.5]}))
+    assert decimals.tolist() == [-1.5, 1.5]

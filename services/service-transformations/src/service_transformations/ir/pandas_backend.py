@@ -351,8 +351,22 @@ _ARITHMETIC = {
     # Dividing by zero has no answer here either: SQL gives none (or stops),
     # where pandas would give infinity, a number that then sums and averages.
     "div": lambda a, b: a / b.where(b != 0),
-    "mod": lambda a, b: a % b,
+    "mod": lambda a, b: _remainder(a, b),
 }
+
+
+def _remainder(a: pd.Series, b: pd.Series) -> pd.Series:
+    """SQL's MOD: the remainder keeps the sign of what is divided, MOD(-7, 3) is
+    -1, where Python's % keeps the divisor's and gave 2 (so a recipe's answer
+    changed when the step was pushed down; found in E2). Zero has no remainder,
+    as it has no quotient."""
+    whole = pd.api.types.is_integer_dtype(a) and pd.api.types.is_integer_dtype(b)
+    divisor = b.where(b != 0)
+    result = a % divisor
+    differs = (result != 0) & ((a < 0) != (divisor < 0))
+    result = result.where(~differs.fillna(False).astype(bool), result - divisor)
+    # Whole numbers stay whole: the empty value a zero divisor gives made them decimal.
+    return result.astype("Int64") if whole else result
 
 
 def _three_valued(result: pd.Series, *operands: pd.Series) -> pd.Series:

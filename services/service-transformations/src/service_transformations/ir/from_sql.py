@@ -85,7 +85,46 @@ def parse(sql: str):
                                (exp.Union, "UNION"), (exp.Lateral, "LATERAL")):
         if select.find(unsupported) is not None:
             raise BadRequestError(f"Across sources does not handle {words} yet; run it in one connection.")
+    _refuse_unread_clauses(select)
     return select
+
+
+#: The parts of a SELECT the translator reads. Anything else in it is refused by
+#: name, not left out: a QUALIFY or DISTINCT ON passed over gave every row (E2).
+_READ_CLAUSES = {"expressions", "from_", "from", "joins", "where", "group", "having", "order", "limit", "offset",
+                 "distinct"}
+_READ_TABLE_PARTS = {"this", "db", "catalog", "alias"}
+_READ_JOIN_PARTS = {"this", "on", "using", "side", "kind"}
+_CLAUSE_WORDS = {"qualify": "QUALIFY", "windows": "a named WINDOW", "sample": "TABLESAMPLE", "pivots": "PIVOT",
+                 "laterals": "LATERAL", "locks": "FOR UPDATE", "into": "INTO", "hint": "a hint", "hints": "a hint",
+                 "prewhere": "PREWHERE", "connect": "CONNECT BY", "kind": "SELECT AS", "version": "a version of "
+                 "a table", "system_time": "a time of a table", "method": "NATURAL or another kind of join",
+                 "match": "MATCH_RECOGNIZE", "settings": "SETTINGS", "format": "FORMAT", "options": "OPTIONS",
+                 "exclude": "EXCLUDE", "cluster": "CLUSTER BY", "distribute": "DISTRIBUTE BY", "sort": "SORT BY"}
+
+
+def _refuse_unread_clauses(select) -> None:
+    _, exp = _sqlglot()
+
+    def refuse(part: str) -> None:
+        words = _CLAUSE_WORDS.get(part, part.upper())
+        raise BadRequestError(f"{words[0].upper()}{words[1:]} is not something this can run yet.")
+
+    for part, value in select.args.items():
+        if value and part not in _READ_CLAUSES:
+            refuse(part)
+    distinct = select.args.get("distinct")
+    if distinct is not None and distinct.args.get("on") is not None:
+        raise BadRequestError("DISTINCT ON is not something this can run yet; rank the rows with ROW_NUMBER() "
+                              "in one query and keep the first in another.")
+    for table in select.find_all(exp.Table):
+        for part, value in table.args.items():
+            if value and part not in _READ_TABLE_PARTS:
+                refuse(part)
+    for join in select.args.get("joins") or []:
+        for part, value in join.args.items():
+            if value and part not in _READ_JOIN_PARTS:
+                refuse(part)
 
 
 @dataclass

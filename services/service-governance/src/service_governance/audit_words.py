@@ -124,6 +124,8 @@ _RULES: list[tuple[str, str, str]] = [
     ("POST", r"/notification-targets/{id}/test", "sent a test alert"),
     ("POST", r"/notification-targets/{id}/rotate-secret", "made a new signing secret for a webhook"),
     ("POST", r"/bundle/import", "imported a bundle of recipes, checks and dashboards"),
+    ("POST", r"/conversions/preview", "read work from another tool, to see what it would make"),
+    ("POST", r"/conversions", "converted work from another tool into recipes, checks and workflows"),
     ("POST", r"/writeback/change-sets", "started editing a live table"),
     ("POST", r"/writeback/change-sets/{id}/edits", "edited a live table"),
     ("DELETE", r"/writeback/change-sets/{id}/edits/{id}", "undid an edit to a live table"),

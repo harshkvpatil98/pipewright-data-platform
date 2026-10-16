@@ -1,0 +1,191 @@
+<?xml version="1.0"?>
+<AlteryxDocument yxmdVer="2023.1">
+  <Nodes>
+    <Node ToolID="1">
+      <GuiSettings Plugin="AlteryxBasePluginsGui.DbFileInput.DbFileInput"><Position x="54" y="114" /></GuiSettings>
+      <Properties>
+        <Configuration>
+          <Passwords />
+          <File OutputFileName="" FileFormat="0">C:\data\orders.csv</File>
+          <FormatSpecificOptions><HeaderRow>True</HeaderRow><Delimeter>,</Delimeter></FormatSpecificOptions>
+        </Configuration>
+        <Annotation DisplayMode="0"><Name /><DefaultAnnotationText>orders.csv</DefaultAnnotationText></Annotation>
+        <MetaInfo connection="Output">
+          <RecordInfo>
+            <Field name="order_id" type="Int32" size="4" />
+            <Field name="customer" type="V_String" size="254" />
+            <Field name="region" type="V_String" size="254" />
+            <Field name="amount" type="Double" size="8" />
+            <Field name="status" type="V_String" size="254" />
+            <Field name="order_date" type="Date" size="10" />
+          </RecordInfo>
+        </MetaInfo>
+      </Properties>
+      <EngineSettings EngineDll="AlteryxBasePluginsEngine.dll" EngineDllEntryPoint="AlteryxDbFileInput" />
+    </Node>
+    <Node ToolID="2">
+      <GuiSettings Plugin="AlteryxBasePluginsGui.TextInput.TextInput"><Position x="54" y="246" /></GuiSettings>
+      <Properties>
+        <Configuration>
+          <NumRows value="3" />
+          <Fields><Field name="region" /><Field name="manager" /></Fields>
+          <Data>
+            <r><c>North</c><c>Nia</c></r>
+            <r><c>South</c><c>Sol</c></r>
+            <r><c>East</c><c>Eve</c></r>
+          </Data>
+        </Configuration>
+        <MetaInfo connection="Output">
+          <RecordInfo><Field name="region" type="V_String" size="5" /><Field name="manager" type="V_String" size="3" /></RecordInfo>
+        </MetaInfo>
+      </Properties>
+      <EngineSettings EngineDll="AlteryxBasePluginsEngine.dll" EngineDllEntryPoint="AlteryxTextInput" />
+    </Node>
+    <Node ToolID="3">
+      <GuiSettings Plugin="AlteryxBasePluginsGui.Filter.Filter"><Position x="150" y="114" /></GuiSettings>
+      <Properties>
+        <Configuration>
+          <Expression>[status] != "test" AND [amount] &gt; 0</Expression>
+          <Mode>Custom</Mode>
+        </Configuration>
+      </Properties>
+    </Node>
+    <Node ToolID="4">
+      <GuiSettings Plugin="AlteryxBasePluginsGui.Formula.Formula"><Position x="246" y="114" /></GuiSettings>
+      <Properties>
+        <Configuration>
+          <FormulaFields>
+            <FormulaField expression="Uppercase(Trim([customer]))" field="customer" size="254" type="V_String" />
+            <FormulaField expression="[amount] * 1.2" field="amount_with_tax" size="8" type="Double" />
+            <FormulaField expression="[region] + &quot;/&quot; + [customer]" field="label" size="254" type="V_String" />
+            <FormulaField expression="IIF([amount] &gt;= 100, &quot;large&quot;, &quot;small&quot;)" field="size" size="5" type="V_String" />
+            <FormulaField expression="IF [status] = &quot;refund&quot; THEN -[amount] ELSEIF IsNull([region]) THEN 0 ELSE [amount] ENDIF" field="net" size="8" type="Double" />
+            <FormulaField expression="Contains([customer], &quot;AN&quot;)" field="named_an" size="1" type="Bool" />
+          </FormulaFields>
+        </Configuration>
+      </Properties>
+    </Node>
+    <Node ToolID="5">
+      <GuiSettings Plugin="AlteryxBasePluginsGui.Join.Join"><Position x="342" y="174" /></GuiSettings>
+      <Properties>
+        <Configuration joinByRecordPos="False">
+          <JoinInfo connection="Left"><Field field="region" /></JoinInfo>
+          <JoinInfo connection="Right"><Field field="region" /></JoinInfo>
+          <SelectConfiguration>
+            <Configuration outputConnection="Join">
+              <OrderChanged value="False" />
+              <SelectFields>
+                <SelectField field="Right_region" selected="False" input="Right_" />
+                <SelectField field="manager" selected="True" rename="region_manager" input="Right_" />
+                <SelectField field="*Unknown" selected="True" />
+              </SelectFields>
+            </Configuration>
+          </SelectConfiguration>
+        </Configuration>
+      </Properties>
+    </Node>
+    <Node ToolID="6">
+      <GuiSettings Plugin="AlteryxBasePluginsGui.Summarize.Summarize"><Position x="438" y="114" /></GuiSettings>
+      <Properties>
+        <Configuration>
+          <SummarizeFields>
+            <SummarizeField field="region" action="GroupBy" rename="region" />
+            <SummarizeField field="net" action="Sum" rename="total" />
+            <SummarizeField field="order_id" action="Count" rename="orders" />
+            <SummarizeField field="customer" action="CountDistinct" rename="customers" />
+            <SummarizeField field="amount" action="Avg" rename="average" />
+          </SummarizeFields>
+        </Configuration>
+      </Properties>
+    </Node>
+    <Node ToolID="7">
+      <GuiSettings Plugin="AlteryxBasePluginsGui.Sort.Sort"><Position x="534" y="114" /></GuiSettings>
+      <Properties><Configuration><SortInfo locale="0"><Field field="total" order="Descending" /></SortInfo></Configuration></Properties>
+    </Node>
+    <Node ToolID="8">
+      <GuiSettings Plugin="AlteryxBasePluginsGui.RecordID.RecordID"><Position x="630" y="114" /></GuiSettings>
+      <Properties>
+        <Configuration><FieldName>place</FieldName><StartValue>1</StartValue><FieldType>Int32</FieldType><FieldSize>4</FieldSize><Position>0</Position></Configuration>
+      </Properties>
+    </Node>
+    <Node ToolID="9">
+      <GuiSettings Plugin="AlteryxBasePluginsGui.DbFileOutput.DbFileOutput"><Position x="726" y="114" /></GuiSettings>
+      <Properties><Configuration><File MaxRecords="" FileFormat="0">C:\out\region_totals.csv</File></Configuration></Properties>
+    </Node>
+    <Node ToolID="10">
+      <GuiSettings Plugin="AlteryxBasePluginsGui.DbFileOutput.DbFileOutput"><Position x="438" y="234" /></GuiSettings>
+      <Properties><Configuration><File MaxRecords="" FileFormat="0">C:\out\orders_enriched.csv</File></Configuration></Properties>
+    </Node>
+    <Node ToolID="11">
+      <GuiSettings Plugin="AlteryxBasePluginsGui.DbFileOutput.DbFileOutput"><Position x="438" y="294" /></GuiSettings>
+      <Properties><Configuration><File MaxRecords="" FileFormat="0">C:\out\orders_without_region.csv</File></Configuration></Properties>
+    </Node>
+    <Node ToolID="12">
+      <GuiSettings Plugin="AlteryxBasePluginsGui.DbFileOutput.DbFileOutput"><Position x="246" y="234" /></GuiSettings>
+      <Properties><Configuration><File MaxRecords="" FileFormat="0">C:\out\excluded_orders.csv</File></Configuration></Properties>
+    </Node>
+    <Node ToolID="13">
+      <GuiSettings Plugin="AlteryxBasePluginsGui.Unique.Unique"><Position x="342" y="54" /></GuiSettings>
+      <Properties><Configuration><UniqueFields><Field field="customer" /></UniqueFields></Configuration></Properties>
+    </Node>
+    <Node ToolID="14">
+      <GuiSettings Plugin="AlteryxBasePluginsGui.Sample.Sample"><Position x="438" y="54" /></GuiSettings>
+      <Properties><Configuration><Mode>First</Mode><N>3</N></Configuration></Properties>
+    </Node>
+    <Node ToolID="15">
+      <GuiSettings Plugin="AlteryxBasePluginsGui.DbFileOutput.DbFileOutput"><Position x="534" y="54" /></GuiSettings>
+      <Properties><Configuration><File MaxRecords="" FileFormat="0">C:\out\first_customers.csv</File></Configuration></Properties>
+    </Node>
+    <Node ToolID="16">
+      <GuiSettings Plugin="AlteryxBasePluginsGui.BrowseV2.BrowseV2"><Position x="534" y="174" /></GuiSettings>
+      <Properties><Configuration /></Properties>
+    </Node>
+    <Node ToolID="17">
+      <GuiSettings Plugin="JupyterCode"><Position x="342" y="354" /></GuiSettings>
+      <Properties><Configuration><Notebook>print(1)</Notebook></Configuration></Properties>
+    </Node>
+    <Node ToolID="18">
+      <GuiSettings Plugin="AlteryxBasePluginsGui.Formula.Formula"><Position x="246" y="354" /></GuiSettings>
+      <Properties>
+        <Configuration>
+          <FormulaFields>
+            <FormulaField expression="[amount] * 100" field="cents" size="8" type="Double" />
+            <FormulaField expression="Round([amount], 1)" field="rounded" size="8" type="Double" />
+          </FormulaFields>
+        </Configuration>
+      </Properties>
+    </Node>
+    <Node ToolID="19">
+      <GuiSettings Plugin="AlteryxBasePluginsGui.DbFileOutput.DbFileOutput"><Position x="438" y="354" /></GuiSettings>
+      <Properties><Configuration><File MaxRecords="" FileFormat="0">C:\out\rounded.csv</File></Configuration></Properties>
+    </Node>
+    <Node ToolID="20">
+      <GuiSettings Plugin="AlteryxBasePluginsGui.DbFileOutput.DbFileOutput"><Position x="438" y="414" /></GuiSettings>
+      <Properties><Configuration><File MaxRecords="" FileFormat="0">C:\out\scored.csv</File></Configuration></Properties>
+    </Node>
+  </Nodes>
+  <Connections>
+    <Connection><Origin ToolID="1" Connection="Output" /><Destination ToolID="3" Connection="Input" /></Connection>
+    <Connection><Origin ToolID="3" Connection="True" /><Destination ToolID="4" Connection="Input" /></Connection>
+    <Connection><Origin ToolID="3" Connection="False" /><Destination ToolID="12" Connection="Input" /></Connection>
+    <Connection><Origin ToolID="4" Connection="Output" /><Destination ToolID="5" Connection="Left" /></Connection>
+    <Connection><Origin ToolID="2" Connection="Output" /><Destination ToolID="5" Connection="Right" /></Connection>
+    <Connection><Origin ToolID="5" Connection="Join" /><Destination ToolID="6" Connection="Input" /></Connection>
+    <Connection><Origin ToolID="5" Connection="Join" /><Destination ToolID="10" Connection="Input" /></Connection>
+    <Connection><Origin ToolID="5" Connection="Left" /><Destination ToolID="11" Connection="Input" /></Connection>
+    <Connection><Origin ToolID="6" Connection="Output" /><Destination ToolID="7" Connection="Input" /></Connection>
+    <Connection><Origin ToolID="7" Connection="Output" /><Destination ToolID="8" Connection="Input" /></Connection>
+    <Connection><Origin ToolID="8" Connection="Output" /><Destination ToolID="9" Connection="Input" /></Connection>
+    <Connection><Origin ToolID="8" Connection="Output" /><Destination ToolID="16" Connection="Input" /></Connection>
+    <Connection><Origin ToolID="4" Connection="Output" /><Destination ToolID="13" Connection="Input" /></Connection>
+    <Connection><Origin ToolID="13" Connection="Unique" /><Destination ToolID="14" Connection="Input" /></Connection>
+    <Connection><Origin ToolID="14" Connection="Output" /><Destination ToolID="15" Connection="Input" /></Connection>
+    <Connection><Origin ToolID="4" Connection="Output" /><Destination ToolID="18" Connection="Input" /></Connection>
+    <Connection><Origin ToolID="18" Connection="Output" /><Destination ToolID="19" Connection="Input" /></Connection>
+    <Connection><Origin ToolID="4" Connection="Output" /><Destination ToolID="17" Connection="Input" /></Connection>
+    <Connection><Origin ToolID="17" Connection="Output" /><Destination ToolID="20" Connection="Input" /></Connection>
+  </Connections>
+  <Properties>
+    <Metadata><Name>region_totals</Name><Description>Regional order totals.</Description></Metadata>
+  </Properties>
+</AlteryxDocument>

@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<talendfile:ProcessType xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:TalendMapper="http://www.talend.org/mapper" xmlns:talendfile="platform:/resource/org.talend.model/model/TalendFile.xsd" defaultContext="Default" jobType="Standard">
+  <!-- Written for Pipewright's tests from Talend's published job format; not taken from any example. -->
+  <context confirmationNeeded="false" name="Default"/>
+  <node componentName="tFileInputDelimited" componentVersion="0.102" offsetLabelX="0" offsetLabelY="0" posX="0" posY="0">
+    <elementParameter field="TEXT" name="UNIQUE_NAME" value="tFileInputDelimited_1"/>
+    <elementParameter field="FILE" name="FILENAME" value='"C:/data/orders.csv"'/><elementParameter field="TEXT" name="FIELDSEPARATOR" value='","'/><elementParameter field="TEXT" name="HEADER" value="1"/><metadata connector="FLOW" name="tFileInputDelimited_1"><column key="false" length="20" name="order_id" nullable="true" pattern="" precision="0" sourceType="" type="id_Integer" usefulColumn="true"/><column key="false" length="20" name="customer_id" nullable="true" pattern="" precision="0" sourceType="" type="id_Integer" usefulColumn="true"/><column key="false" length="20" name="amount" nullable="true" pattern="" precision="0" sourceType="" type="id_Double" usefulColumn="true"/><column key="false" length="20" name="status" nullable="true" pattern="" precision="0" sourceType="" type="id_String" usefulColumn="true"/><column key="false" length="20" name="region" nullable="true" pattern="" precision="0" sourceType="" type="id_String" usefulColumn="true"/></metadata>
+  </node>
+  <node componentName="tFileInputDelimited" componentVersion="0.102" offsetLabelX="0" offsetLabelY="0" posX="0" posY="0">
+    <elementParameter field="TEXT" name="UNIQUE_NAME" value="tFileInputDelimited_2"/>
+    <elementParameter field="FILE" name="FILENAME" value='"C:/data/customers.csv"'/><elementParameter field="TEXT" name="HEADER" value="1"/><metadata connector="FLOW" name="tFileInputDelimited_2"><column key="false" length="20" name="customer_id" nullable="true" pattern="" precision="0" sourceType="" type="id_Integer" usefulColumn="true"/><column key="false" length="20" name="name" nullable="true" pattern="" precision="0" sourceType="" type="id_String" usefulColumn="true"/></metadata>
+  </node>
+  <node componentName="tMap" componentVersion="0.102" offsetLabelX="0" offsetLabelY="0" posX="0" posY="0">
+    <elementParameter field="TEXT" name="UNIQUE_NAME" value="tMap_1"/>
+    <metadata connector="FLOW" name="out1"><column key="false" length="20" name="order_id" nullable="true" pattern="" precision="0" sourceType="" type="id_Integer" usefulColumn="true"/><column key="false" length="20" name="customer" nullable="true" pattern="" precision="0" sourceType="" type="id_String" usefulColumn="true"/><column key="false" length="20" name="label" nullable="true" pattern="" precision="0" sourceType="" type="id_String" usefulColumn="true"/><column key="false" length="20" name="amount_with_tax" nullable="true" pattern="" precision="0" sourceType="" type="id_Double" usefulColumn="true"/><column key="false" length="20" name="upper_status" nullable="true" pattern="" precision="0" sourceType="" type="id_String" usefulColumn="true"/><column key="false" length="20" name="half" nullable="true" pattern="" precision="0" sourceType="" type="id_Integer" usefulColumn="true"/></metadata><metadata connector="FLOW" name="big"><column key="false" length="20" name="order_id" nullable="true" pattern="" precision="0" sourceType="" type="id_Integer" usefulColumn="true"/><column key="false" length="20" name="amount" nullable="true" pattern="" precision="0" sourceType="" type="id_Double" usefulColumn="true"/></metadata><nodeData xsi:type="TalendMapper:MapperData">
+      <varTables name="Var" sizeState="INTERMEDIATE"><mapperTableEntries name="tax" expression="row1.amount * 0.2" type="id_Double" nullable="true"/></varTables>
+      <outputTables name="out1" sizeState="INTERMEDIATE" activateExpressionFilter="true" expressionFilter="row1.amount &gt; 0 &amp;&amp; !row1.status.equals(&quot;test&quot;)">
+        <mapperTableEntries name="order_id" expression="row1.order_id" type="id_Integer" nullable="true"/>
+        <mapperTableEntries name="customer" expression="row2.name" type="id_String" nullable="true"/>
+        <mapperTableEntries name="label" expression="row1.region + &quot;/&quot; + row1.status" type="id_String" nullable="true"/>
+        <mapperTableEntries name="amount_with_tax" expression="row1.amount + Var.tax" type="id_Double" nullable="true"/>
+        <mapperTableEntries name="upper_status" expression="row1.status.toUpperCase()" type="id_String" nullable="true"/>
+        <mapperTableEntries name="half" expression="row1.order_id / 2" type="id_Integer" nullable="true"/>
+      </outputTables>
+      <outputTables name="big" sizeState="INTERMEDIATE" activateExpressionFilter="true" expressionFilter="row1.amount &gt; 100">
+        <mapperTableEntries name="order_id" expression="row1.order_id" type="id_Integer" nullable="true"/>
+        <mapperTableEntries name="amount" expression="row1.amount" type="id_Double" nullable="true"/>
+      </outputTables>
+      <inputTables name="row1" sizeState="INTERMEDIATE" lookupMode="LOAD_ONCE" matchingMode="UNIQUE_MATCH"><mapperTableEntries name="order_id" type="id_Integer" nullable="true"/><mapperTableEntries name="customer_id" type="id_Integer" nullable="true"/><mapperTableEntries name="amount" type="id_Double" nullable="true"/><mapperTableEntries name="status" type="id_String" nullable="true"/><mapperTableEntries name="region" type="id_String" nullable="true"/></inputTables>
+      <inputTables name="row2" sizeState="INTERMEDIATE" lookupMode="LOAD_ONCE" matchingMode="UNIQUE_MATCH" innerJoin="false">
+        <mapperTableEntries name="customer_id" expression="row1.customer_id" type="id_Integer" nullable="true"/>
+        <mapperTableEntries name="name" type="id_String" nullable="true"/>
+      </inputTables>
+    </nodeData>
+  </node>
+  <node componentName="tSortRow" componentVersion="0.102" offsetLabelX="0" offsetLabelY="0" posX="0" posY="0">
+    <elementParameter field="TEXT" name="UNIQUE_NAME" value="tSortRow_1"/>
+    <elementParameter field="TABLE" name="CRITERIA"><elementValue elementRef="COLNAME" value="amount_with_tax"/><elementValue elementRef="SORT" value="num"/><elementValue elementRef="ORDER" value="desc"/></elementParameter><metadata connector="FLOW" name="tSortRow_1"></metadata>
+  </node>
+  <node componentName="tLogRow" componentVersion="0.102" offsetLabelX="0" offsetLabelY="0" posX="0" posY="0">
+    <elementParameter field="TEXT" name="UNIQUE_NAME" value="tLogRow_1"/>
+    <elementParameter field="RADIO" name="BASIC_MODE" value="true"/>
+  </node>
+  <node componentName="tFileOutputDelimited" componentVersion="0.102" offsetLabelX="0" offsetLabelY="0" posX="0" posY="0">
+    <elementParameter field="TEXT" name="UNIQUE_NAME" value="tFileOutputDelimited_1"/>
+    <elementParameter field="FILE" name="FILENAME" value='"C:/out/enriched_orders.csv"'/><metadata connector="FLOW" name="tFileOutputDelimited_1"><column key="false" length="20" name="order_id" nullable="true" pattern="" precision="0" sourceType="" type="id_Integer" usefulColumn="true"/><column key="false" length="20" name="customer" nullable="true" pattern="" precision="0" sourceType="" type="id_String" usefulColumn="true"/><column key="false" length="20" name="label" nullable="true" pattern="" precision="0" sourceType="" type="id_String" usefulColumn="true"/><column key="false" length="20" name="amount_with_tax" nullable="true" pattern="" precision="0" sourceType="" type="id_Double" usefulColumn="true"/><column key="false" length="20" name="upper_status" nullable="true" pattern="" precision="0" sourceType="" type="id_String" usefulColumn="true"/><column key="false" length="20" name="half" nullable="true" pattern="" precision="0" sourceType="" type="id_Integer" usefulColumn="true"/></metadata>
+  </node>
+  <node componentName="tFileOutputDelimited" componentVersion="0.102" offsetLabelX="0" offsetLabelY="0" posX="0" posY="0">
+    <elementParameter field="TEXT" name="UNIQUE_NAME" value="tFileOutputDelimited_2"/>
+    <elementParameter field="FILE" name="FILENAME" value='"C:/out/big_orders.csv"'/><metadata connector="FLOW" name="tFileOutputDelimited_2"><column key="false" length="20" name="order_id" nullable="true" pattern="" precision="0" sourceType="" type="id_Integer" usefulColumn="true"/><column key="false" length="20" name="amount" nullable="true" pattern="" precision="0" sourceType="" type="id_Double" usefulColumn="true"/></metadata>
+  </node>
+  <node componentName="tFileInputDelimited" componentVersion="0.102" offsetLabelX="0" offsetLabelY="0" posX="0" posY="0">
+    <elementParameter field="TEXT" name="UNIQUE_NAME" value="tFileInputDelimited_3"/>
+    <elementParameter field="FILE" name="FILENAME" value='"C:/data/orders.csv"'/><elementParameter field="TEXT" name="HEADER" value="1"/><metadata connector="FLOW" name="tFileInputDelimited_3"><column key="false" length="20" name="order_id" nullable="true" pattern="" precision="0" sourceType="" type="id_Integer" usefulColumn="true"/><column key="false" length="20" name="customer_id" nullable="true" pattern="" precision="0" sourceType="" type="id_Integer" usefulColumn="true"/><column key="false" length="20" name="amount" nullable="true" pattern="" precision="0" sourceType="" type="id_Double" usefulColumn="true"/><column key="false" length="20" name="status" nullable="true" pattern="" precision="0" sourceType="" type="id_String" usefulColumn="true"/><column key="false" length="20" name="region" nullable="true" pattern="" precision="0" sourceType="" type="id_String" usefulColumn="true"/></metadata>
+  </node>
+  <node componentName="tFilterRow" componentVersion="0.102" offsetLabelX="0" offsetLabelY="0" posX="0" posY="0">
+    <elementParameter field="TEXT" name="UNIQUE_NAME" value="tFilterRow_1"/>
+    <elementParameter field="CLOSED_LIST" name="LOGICAL_OP" value="&amp;&amp;"/><elementParameter field="CHECK" name="USE_ADVANCED" value="false"/><elementParameter field="TABLE" name="CONDITIONS"><elementValue elementRef="INPUT_COLUMN" value="amount"/><elementValue elementRef="FUNCTION" value=""/><elementValue elementRef="OPERATOR" value="&gt;"/><elementValue elementRef="RVALUE" value="50"/><elementValue elementRef="INPUT_COLUMN" value="status"/><elementValue elementRef="FUNCTION" value=""/><elementValue elementRef="OPERATOR" value="=="/><elementValue elementRef="RVALUE" value='"paid"'/></elementParameter>
+  </node>
+  <node componentName="tAggregateRow" componentVersion="0.102" offsetLabelX="0" offsetLabelY="0" posX="0" posY="0">
+    <elementParameter field="TEXT" name="UNIQUE_NAME" value="tAggregateRow_1"/>
+    <elementParameter field="TABLE" name="GROUPBYS"><elementValue elementRef="OUTPUT_COLUMN" value="region"/><elementValue elementRef="INPUT_COLUMN" value="region"/></elementParameter><elementParameter field="TABLE" name="OPERATIONS"><elementValue elementRef="OUTPUT_COLUMN" value="total"/><elementValue elementRef="FUNCTION" value="sum"/><elementValue elementRef="INPUT_COLUMN" value="amount"/><elementValue elementRef="IGNORE_NULL" value="true"/><elementValue elementRef="OUTPUT_COLUMN" value="orders"/><elementValue elementRef="FUNCTION" value="count"/><elementValue elementRef="INPUT_COLUMN" value="order_id"/><elementValue elementRef="IGNORE_NULL" value="false"/></elementParameter>
+  </node>
+  <node componentName="tFileOutputDelimited" componentVersion="0.102" offsetLabelX="0" offsetLabelY="0" posX="0" posY="0">
+    <elementParameter field="TEXT" name="UNIQUE_NAME" value="tFileOutputDelimited_3"/>
+    <elementParameter field="FILE" name="FILENAME" value='"C:/out/region_totals.csv"'/><metadata connector="FLOW" name="tFileOutputDelimited_3"><column key="false" length="20" name="region" nullable="true" pattern="" precision="0" sourceType="" type="id_String" usefulColumn="true"/><column key="false" length="20" name="total" nullable="true" pattern="" precision="0" sourceType="" type="id_Double" usefulColumn="true"/><column key="false" length="20" name="orders" nullable="true" pattern="" precision="0" sourceType="" type="id_Integer" usefulColumn="true"/></metadata>
+  </node>
+  <node componentName="tUniqRow" componentVersion="0.102" offsetLabelX="0" offsetLabelY="0" posX="0" posY="0">
+    <elementParameter field="TEXT" name="UNIQUE_NAME" value="tUniqRow_1"/>
+    <elementParameter field="TABLE" name="UNIQUE_KEY"><elementValue elementRef="SCHEMA_COLUMN" value="order_id"/><elementValue elementRef="KEY_ATTRIBUTE" value="false"/><elementValue elementRef="CASE_SENSITIVE" value="true"/><elementValue elementRef="SCHEMA_COLUMN" value="customer_id"/><elementValue elementRef="KEY_ATTRIBUTE" value="true"/><elementValue elementRef="CASE_SENSITIVE" value="true"/><elementValue elementRef="SCHEMA_COLUMN" value="amount"/><elementValue elementRef="KEY_ATTRIBUTE" value="false"/><elementValue elementRef="CASE_SENSITIVE" value="true"/><elementValue elementRef="SCHEMA_COLUMN" value="status"/><elementValue elementRef="KEY_ATTRIBUTE" value="false"/><elementValue elementRef="CASE_SENSITIVE" value="true"/><elementValue elementRef="SCHEMA_COLUMN" value="region"/><elementValue elementRef="KEY_ATTRIBUTE" value="false"/><elementValue elementRef="CASE_SENSITIVE" value="true"/></elementParameter>
+  </node>
+  <node componentName="tFileOutputDelimited" componentVersion="0.102" offsetLabelX="0" offsetLabelY="0" posX="0" posY="0">
+    <elementParameter field="TEXT" name="UNIQUE_NAME" value="tFileOutputDelimited_4"/>
+    <elementParameter field="FILE" name="FILENAME" value='"C:/out/rejected_customers.csv"'/><metadata connector="FLOW" name="tFileOutputDelimited_4"><column key="false" length="20" name="order_id" nullable="true" pattern="" precision="0" sourceType="" type="id_Integer" usefulColumn="true"/><column key="false" length="20" name="customer_id" nullable="true" pattern="" precision="0" sourceType="" type="id_Integer" usefulColumn="true"/></metadata>
+  </node>
+  <node componentName="tJava" componentVersion="0.102" offsetLabelX="0" offsetLabelY="0" posX="0" posY="0">
+    <elementParameter field="TEXT" name="UNIQUE_NAME" value="tJava_1"/>
+    <elementParameter field="MEMO_JAVA" name="CODE" value='System.out.println("done");'/>
+  </node>
+  <connection connectorName="FLOW" label="row1" lineStyle="0" metaname="tFileInputDelimited_1" offsetLabelX="0" offsetLabelY="0" source="tFileInputDelimited_1" target="tMap_1"><elementParameter field="TEXT" name="UNIQUE_NAME" value="row1"/></connection>
+  <connection connectorName="FLOW" label="row2" lineStyle="0" metaname="tFileInputDelimited_2" offsetLabelX="0" offsetLabelY="0" source="tFileInputDelimited_2" target="tMap_1"><elementParameter field="TEXT" name="UNIQUE_NAME" value="row2"/></connection>
+  <connection connectorName="FLOW" label="out1" lineStyle="0" metaname="tMap_1" offsetLabelX="0" offsetLabelY="0" source="tMap_1" target="tSortRow_1"><elementParameter field="TEXT" name="UNIQUE_NAME" value="out1"/></connection>
+  <connection connectorName="FLOW" label="big" lineStyle="0" metaname="tMap_1" offsetLabelX="0" offsetLabelY="0" source="tMap_1" target="tFileOutputDelimited_2"><elementParameter field="TEXT" name="UNIQUE_NAME" value="big"/></connection>
+  <connection connectorName="FLOW" label="row3" lineStyle="0" metaname="tSortRow_1" offsetLabelX="0" offsetLabelY="0" source="tSortRow_1" target="tLogRow_1"><elementParameter field="TEXT" name="UNIQUE_NAME" value="row3"/></connection>
+  <connection connectorName="FLOW" label="row4" lineStyle="0" metaname="tLogRow_1" offsetLabelX="0" offsetLabelY="0" source="tLogRow_1" target="tFileOutputDelimited_1"><elementParameter field="TEXT" name="UNIQUE_NAME" value="row4"/></connection>
+  <connection connectorName="FLOW" label="row5" lineStyle="0" metaname="tFileInputDelimited_3" offsetLabelX="0" offsetLabelY="0" source="tFileInputDelimited_3" target="tFilterRow_1"><elementParameter field="TEXT" name="UNIQUE_NAME" value="row5"/></connection>
+  <connection connectorName="FILTER" label="row6" lineStyle="0" metaname="tFilterRow_1" offsetLabelX="0" offsetLabelY="0" source="tFilterRow_1" target="tAggregateRow_1"><elementParameter field="TEXT" name="UNIQUE_NAME" value="row6"/></connection>
+  <connection connectorName="REJECT" label="row7" lineStyle="0" metaname="tFilterRow_1" offsetLabelX="0" offsetLabelY="0" source="tFilterRow_1" target="tUniqRow_1"><elementParameter field="TEXT" name="UNIQUE_NAME" value="row7"/></connection>
+  <connection connectorName="FLOW" label="row8" lineStyle="0" metaname="tAggregateRow_1" offsetLabelX="0" offsetLabelY="0" source="tAggregateRow_1" target="tFileOutputDelimited_3"><elementParameter field="TEXT" name="UNIQUE_NAME" value="row8"/></connection>
+  <connection connectorName="UNIQUE" label="row9" lineStyle="0" metaname="tUniqRow_1" offsetLabelX="0" offsetLabelY="0" source="tUniqRow_1" target="tFileOutputDelimited_4"><elementParameter field="TEXT" name="UNIQUE_NAME" value="row9"/></connection>
+  <connection connectorName="SUBJOB_OK" label="OnSubjobOk1" lineStyle="0" metaname="tFileInputDelimited_1" offsetLabelX="0" offsetLabelY="0" source="tFileInputDelimited_1" target="tFileInputDelimited_3"><elementParameter field="TEXT" name="UNIQUE_NAME" value="OnSubjobOk1"/></connection>
+  <connection connectorName="SUBJOB_OK" label="OnSubjobOk2" lineStyle="0" metaname="tFileInputDelimited_3" offsetLabelX="0" offsetLabelY="0" source="tFileInputDelimited_3" target="tJava_1"><elementParameter field="TEXT" name="UNIQUE_NAME" value="OnSubjobOk2"/></connection>
+</talendfile:ProcessType>

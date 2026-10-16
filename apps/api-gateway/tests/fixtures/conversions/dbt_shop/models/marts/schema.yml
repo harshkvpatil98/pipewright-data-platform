@@ -1,0 +1,22 @@
+version: 2
+
+models:
+  - name: customers
+    description: One row per customer, with their orders and what they have paid.
+    columns:
+      - name: customer_id
+        data_tests: [unique, not_null]
+      - name: customer_lifetime_value
+        data_tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+  - name: orders
+    description: One row per order, with what was paid by each method.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [order_id, customer_id]
+    columns:
+      - name: amount
+        data_tests:
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"

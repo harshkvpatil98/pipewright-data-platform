@@ -1,0 +1,12 @@
+version: 2
+
+sources:
+  - name: crm
+    tables:
+      - name: segments
+        identifier: crm_segments
+        columns:
+          - name: customer_id
+            data_tests:
+              - not_null
+          - name: segment

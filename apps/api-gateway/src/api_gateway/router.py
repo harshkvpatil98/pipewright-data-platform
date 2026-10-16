@@ -13,6 +13,7 @@ from api_gateway.audit_center import build_audit_center_router
 from api_gateway.plugins import build_plugins_router
 from api_gateway.activity import build_activity_router
 from api_gateway.bundles import build_bundles_router
+from api_gateway.conversions.router import build_conversions_router
 from api_gateway.demo import build_demo_router
 from api_gateway.operator_views import build_operator_router
 from api_gateway.samples import build_samples_router
@@ -59,6 +60,7 @@ def build_api_router(settings) -> APIRouter:
     api_router.include_router(build_demo_router(get_db, current_user, get_storage_backend, settings))
     api_router.include_router(build_samples_router(get_db, current_user, get_storage_backend, settings))
     api_router.include_router(build_bundles_router(get_db, current_user))
+    api_router.include_router(build_conversions_router(get_db, current_user, get_storage_backend, settings))
     api_router.include_router(build_activity_router(get_db, current_user))
     api_router.include_router(build_access_router(get_db, current_user))
     api_router.include_router(

@@ -1,0 +1,20 @@
+name: shop
+version: "1.0.0"
+config-version: 2
+profile: shop
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+vars:
+  min_order_amount: 15
+
+models:
+  shop:
+    staging:
+      +materialized: view
+    marts:
+      +materialized: table

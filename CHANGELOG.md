@@ -13,6 +13,39 @@ the test counts at the time — is in the session log in
 
 ---
 
+## Phase 23 in progress: extensibility, E2 (2026-10-16)
+
+Roadmap Phase 23; the plan is
+[docs/plans/tools-and-extensibility.md](docs/plans/tools-and-extensibility.md).
+
+- **Plugins (X1).** `pipewright-plugin-sdk` (SDK 1): a plugin adds tools,
+  formula functions, chart types and connectors, loaded only when named in
+  `PLUGINS_ENABLED` and refused whole, with the reason, unless everything it
+  adds passes the suite Pipewright's own of that kind passes. **Admin →
+  Plugins**; `pipewright plugin new` and `check`.
+- **The API as code (X2).** API tokens limited to projects and expiring,
+  named in the audit log (migration 0067); a Terraform provider in
+  `clients/terraform` with acceptance tests against a real gateway in CI.
+  Fault fixed: an API token skipped the project role guard, so a viewer's
+  write token could change a project they could only read.
+- **Bringing work in (X3).** **Bring work in** on the Recipes page,
+  `POST /projects/{id}/conversions[/preview]` and `pipewright convert` turn
+  a dbt project, an Airflow workflow, an Alteryx workflow, an Informatica
+  PowerCenter mapping, an SSIS package, a Talend job or a Power Query into
+  recipes, checks and workflows, with a report part by part. Each tool's
+  rules for empty values are kept; what its documentation does not pin down
+  is refused with the reason, never approximated. A new **Join as SQL
+  does** tool (`join.sql`), and the unique check can let empty values
+  repeat.
+- **Faults found and fixed on the way.** The SQL step ran a query with
+  `QUALIFY`, `DISTINCT ON`, a named `WINDOW`, `TABLESAMPLE` or a `NATURAL`
+  join as if they were not there; it now refuses each by name. A recipe's result read back lost values: "NA",
+  "unknown" and -99 became empty and text that looked like numbers became
+  numbers; files Pipewright writes are now read with the types they were
+  written with. `MOD` with a negative side gave Python's answer locally and
+  SQL's when pushed down; both give SQL's now. The Terraform CI job made its
+  member with a role that does not exist and gave the gateway no storage key.
+
 ## Phase 16 complete: the tool library, E1 (2026-10-16)
 
 Roadmap Phase 16, the transformation tool library; the plan is

@@ -122,7 +122,7 @@ Phases **08, 09, 10, 11, 12, 13, 14, 15, 17, 18** and, since 2026-10-15,
 **19 and 21** (as C1 and C2 in `docs/plans/contracts-and-collaboration.md`)
 and **20** and **22** (as D1 and D2 in `docs/plans/live-data-and-performance.md`)
 and, since 2026-10-16, **16** (as E1 in `docs/plans/tools-and-extensibility.md`: 379 tools, all 447
-roadmap entries accounted for) are done; **23** is E2 in the same plan. The progress ledger in §8
+roadmap entries accounted for) are done; **23** is E2 in the same plan, with X1–X3 done. The progress ledger in §8
 tracks the rest.
 
 ---
@@ -299,7 +299,7 @@ honesty; if you verify one, update its status here.
 | Temporal SQL runs in SQLite over a copy | `AS OF` queries load the version's artifact into an in-memory SQLite table named `dataset`; the dialect is SQLite's, not the source's, and results are capped at 1,000 rows. Customer SQL sent to customer databases is never rewritten (settled decision #8) |
 | No pagination on version history or diff samples | Listings return every version; diff samples are capped at a declared 20 while counts stay exact. A dataset with thousands of versions would want cursors, which do not exist yet |
 | `today()` is the UTC date of the frozen instant | Before P7 it was the host's local date. Recorded in the run's execution context (`timezone: UTC`); a deliberate semantic change, stated rather than hidden |
-| The custom plugin entry of the tool list waits on E2 | E1: `tools/coverage.py` accounts for 446 of the roadmap's 447 entries by a tool, a step setting it runs or a feature with its test; "custom-plugin (Phase 23)" is marked `later` until E2's plugin SDK, and `test_tool_coverage.py` allows only that one |
+| The importers were checked on files written here | X3: each of the seven formats is held to fixtures written from the vendor's documented format (each fixture's README says so), not to files from the tools themselves or from a customer; a real export may use parts or settings these did not, and each such part is reported as not converted with its reason rather than guessed. The parts each converter reads are listed in the help (Build → Bringing work in); everything else, such as dbt macros, Airflow Python tasks, an SSIS Lookup or Talend's `Math.round`, is refused by name |
 | A group of steps is a name, not a link | E1: steps next to each other with one `_group` name show, turn off and save as a template together. A template is a copy: changing it later does not change recipes it was added to. Nothing calls a template by reference at run time |
 | Web-service steps need the administrator's word | E1: `code.http_enrich` calls only hosts in `ENRICHMENT_ALLOWED_HOSTS`, with secrets from `ENRICHMENT_SECRETS`, at most 10,000 different values a step (`escape.MAX_DISTINCT`); geocoding needs `GEOCODER_URL`, its host allowed too (OpenStreetMap's own server is paced to one call a second). With neither set, each says so. Such a recipe is never kept or run incrementally |
 | Metadata steps write over a person's edits on each run | E1: a recipe's describe, tag, classify, owner and glossary steps write the output's catalogue entry every time it runs, so the recipe is the documentation; an edit made by hand to the same field lasts until the next run |
@@ -329,7 +329,7 @@ honesty; if you verify one, update its status here.
 | 20 | Streaming & CDC | **done** | 4/4 | P9's webhooks and PostgreSQL CDC, then **D1 (2026-10-15)**: `service_extraction/live/` (PostgreSQL, MySQL binlog, MongoDB change streams, SQL Server CDC; Kafka, Event Hubs, Kinesis, Pub/Sub, Pulsar, RabbitMQ, NATS, MQTT), tables kept current by key after a first copy, positions committed with events, guarantees stated per kind, live recipes with four window kinds, watermarks, lateness and exactly-once state (`live/windows.py`, `live_recipes.py`), `platform-live-runner`, migration 0062, a `live` CI job against every server |
 | 21 | Collaboration | **done** | 3/3 | Comments with @mentions (P8). **C2 (2026-10-15)**: recipes co-edited in a shared copy merged by a CRDT (`service_transformations/coedit.py` + `studio/coedit.ts`, shared fixtures, selective per-person undo), revisions refusing stale saves, presence with step focus, suggestions any viewer can make and editors accept step by step, threads with replies on dataset cells, a per-dataset change feed (migration 0061) |
 | 22 | Optimizer | **done** | 4/4 | P9's five rewrites, then **D2 (2026-10-15)**: statistics per dataset version and per imported database table (`shared_python/statistics.py`, `service_extraction/table_statistics.py`, migration 0063), estimates for every node (`ir/estimate.py`) shown beside counted rows in the Studio, the remaining rewrites and join order by cost (`ir/reorder.py`), queries across sources with IN lists and re-planning (`service_workbench/across.py`), kept results (`prefix_cache.py`), incremental runs (`incremental.py`, migration 0065), runs at once, priorities and a memory ceiling (`service_pipeline_runs/limits.py`, `shared_python/memory.py`, migration 0064) |
-| 23 | Extensibility | in progress | 0/3 | E2 in `docs/plans/tools-and-extensibility.md` |
+| 23 | Extensibility | in progress | 3/5 | E2 in `docs/plans/tools-and-extensibility.md`: X1 plugins (`packages/plugin-sdk`, `PLUGINS_ENABLED`), X2 scoped tokens (migration 0067) and the Terraform provider (`clients/terraform`), X3 importers from seven tools (`api_gateway/conversions/`) done; X4 the Library and X5 the embedded Studio to do |
 
 **Business documentation (2026-09-23):** [Business requirements](business-requirements.md)
 and its [40-page PDF](../output/pdf/Pipewright_Business_Requirements_Document.pdf)
@@ -341,11 +341,36 @@ increments without declaring P2 complete; later development is outside that snap
 
 **The current plan is `docs/plans/tools-and-extensibility.md`.** E1
 (roadmap Phase 16, the tool library) is done as of 2026-10-16; E2 (Phase 23,
-extensibility: plugins, scoped tokens and Terraform, importers from other
-tools, a library of shared work, the embedded Studio) is next and the last
-roadmap phase. Owner-only items still wait: tagging v1.0.0, publishing the
+extensibility, the last roadmap phase) is under way: X1 plugins, X2 scoped
+tokens and Terraform and X3 importers from other tools are done; X4 a
+library of shared work and X5 the embedded Studio are next. Owner-only items still wait: tagging v1.0.0, publishing the
 docs site and images, publishing a Terraform provider, and the cold-user
 sessions.
+
+Rules for anyone touching the importers (E2, X3):
+
+- **A converter only describes; `conversions/apply.py` makes.** A converter
+  turns a file into a `Conversion` (`conversions/model.py`) whose recipes,
+  checks and workflows refer to each other by key (`{"$dataset": key}`,
+  `{"$recipe": key}`); `apply.py` previews it or makes it through each
+  service's own create functions. A converter never writes to the database.
+- **Never approximate.** A part converts only when what Pipewright runs
+  gives the source tool's answer for every value, empty ones included. Where
+  the vendor's documentation does not say, refuse with the reason
+  (`NotConverted`); if a part still converts on an assumption, the report
+  and the help say so under that part. Each language's rules live in its
+  `Language` (`conversions/expressions.py`) and are tested against values.
+- **Each flow step is proven as it is added.** `flows.Stream.then` compiles
+  the step and runs it on an empty frame of the stream's columns, so a step
+  that would fail at run time is a reason in the report, not a broken
+  recipe. A recipe whose part did not convert is a draft and is never run.
+- **SQL goes through the SQL step's translator** (`conversions/sql.py`
+  over `ir/from_sql.py`); a new clause the translator does not run must be
+  refused there (`_refuse_unread_clauses`), never dropped.
+- **A fixture is written from the vendor's documented format** and its
+  README says so; the outputs are held to an independent answer (SQLite for
+  SQL, results worked by hand from the documented rules otherwise), and
+  `test_conversions_api.py` makes every format through the API.
 
 Rules for anyone touching the tool library and recipes (E1):
 

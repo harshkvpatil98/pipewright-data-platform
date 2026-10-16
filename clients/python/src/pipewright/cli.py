@@ -10,6 +10,7 @@
     pipewright runs "Regional sales"
     pipewright bundle export "Regional sales" -o sales.json
     pipewright bundle import "Another project" sales.json [--preview]
+    pipewright convert "Regional sales" shop.zip [--preview] [--choose source:crm.segments=Segments]
     pipewright api GET /api/v1/projects
 
 Projects, datasets, recipes and workflows can be named or given by id. Add
@@ -114,6 +115,14 @@ def main(argv: list[str] | None = None, *, client: Client | None = None) -> int:
     bring.add_argument("project")
     bring.add_argument("file")
     bring.add_argument("--preview", action="store_true", help="say what would happen, change nothing")
+
+    convert = commands.add_parser("convert", help="convert another tool's work into recipes, checks and workflows")
+    convert.add_argument("project")
+    convert.add_argument("file", help="a dbt project's .zip, an Airflow .py, .yxmd, a PowerCenter .xml, .dtsx, "
+                                      "a Talend .item or a Power Query .pq")
+    convert.add_argument("--preview", action="store_true", help="say what it would make, change nothing")
+    convert.add_argument("--choose", action="append", default=[], metavar="WHAT=DATASET",
+                         help="the dataset (name or id) for something it reads, as the preview names it")
 
     plugin = commands.add_parser("plugin", help="write or check a plugin (pipewright-plugin-sdk)")
     plugin_commands = plugin.add_subparsers(dest="plugin_command", required=True)
@@ -250,6 +259,8 @@ def _run(api: Client, args: argparse.Namespace) -> int:
         ]
         show(items, _table(rows, [("what", "What"), ("result", "Result"), ("when", "When"), ("id", "Id")]))
         return 0
+    if args.command == "convert":
+        return _convert(api, project, args, show)
     if args.command == "bundle":
         if args.bundle_command == "export":
             Path(args.output).write_text(json.dumps(api.get_bundle(project), indent=2))
@@ -271,3 +282,32 @@ def _run(api: Client, args: argparse.Namespace) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
+def _convert(api: Client, project: str, args: argparse.Namespace, show) -> int:
+    mapping = {}
+    for choice in args.choose:
+        what, _, dataset = choice.partition("=")
+        if not what or not dataset:
+            print(f"Refused: --choose takes WHAT=DATASET, not {choice!r}.", file=sys.stderr)
+            return 1
+        mapping[what] = api.dataset_id(project, dataset)
+    answer = api.convert(project, args.file, preview=args.preview, mapping=mapping)
+    counts = answer["counts"]
+    lines = [f"{answer['title'][0].upper()}{answer['title'][1:]}: {counts['converted']} converted, "
+             f"{counts['not_converted']} not, {counts['nothing_to_do']} with nothing to do."]
+    for need in answer["needs"]:
+        found = need["dataset_name"] or "choose one with --choose " + f"{need['key']}=DATASET"
+        lines.append(f"  reads {need['what']}: {found}")
+    for section in answer["sections"]:
+        for entry in section["entries"]:
+            if entry["status"] == "not converted":
+                lines.append(f"  not converted: {section['title']}: {entry['subject']}: {entry['reason']}")
+    for item in answer.get("made", []):
+        lines.append(f"  {item['status']}: {item['kind']} “{item['name']}”" + (f": {item['detail']}" if item["detail"] else ""))
+    if args.preview:
+        lines.append(f"Would make {len(answer['recipes'])} recipes, {len(answer['checks'])} checks and "
+                     f"{len(answer['workflows'])} workflows. Nothing has changed.")
+    show(answer, "\n".join(lines))
+    failed = [item for item in answer.get("made", []) if item["status"] == "failed"]
+    return 2 if failed else 0

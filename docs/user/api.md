@@ -310,12 +310,13 @@ Add `?title=0` to leave the dashboard's name off, and `?theme=light` or `?theme=
 
 ## The Python client and command line
 
-The repository's `clients/python` is a Python package with every API operation as a method and a `pipewright` command for the jobs people do most: list projects and datasets, upload and download, run a recipe or a workflow and wait for it, move a bundle, or call any operation.
+The repository's `clients/python` is a Python package with every API operation as a method and a `pipewright` command for the jobs people do most: list projects and datasets, upload and download, run a recipe or a workflow and wait for it, move a bundle, [bring in another tool's work](/help/build#bringing-work-in-from-another-tool), or call any operation.
 
 ```text
 pip install -e clients/python
 pipewright login https://pipewright.example.com --token pw_...
 pipewright run workflow "Regional sales" Nightly --wait
+pipewright convert "Regional sales" shop.zip --preview
 ```
 
 Its README lists every command; in Python, `from pipewright import Client`. The methods are generated from this API's own reference, so they cannot fall behind it.

@@ -39,9 +39,14 @@ export function PipelineListPageView({ currentUser, project, pipelines, datasets
       title="Recipes"
       subtitle="Saved recipes: the steps that turn one dataset into another."
       actions={
-        <Link href={studioHref} className={buttonClassName("primary")}>
-          New recipe
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href={`/projects/${project.id}/pipelines/convert`} className={buttonClassName("secondary")}>
+            Bring work in
+          </Link>
+          <Link href={studioHref} className={buttonClassName("primary")}>
+            New recipe
+          </Link>
+        </div>
       }
       meta={
         activeDatasetId ? (

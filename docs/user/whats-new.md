@@ -2,6 +2,15 @@
 
 The changes people notice, newest first. The full record is in the repository's changelog.
 
+## Bring work in, and add your own
+
+- **Bring work in from another tool.** **Bring work in**, on the Recipes page, reads a dbt project, an Airflow workflow, an Alteryx workflow, an Informatica PowerCenter mapping, an SSIS package, a Talend job or a Power Query, and makes it here as recipes, checks and workflows you can open and change. You see what each part would become before anything is made, and why anything would not; nothing is converted approximately. See [Bringing work in](build.md#bringing-work-in-from-another-tool).
+- **Plugins.** An administrator can add tools, formula functions, chart types and connectors from a plugin; each is checked as Pipewright's own are before it loads, and **Admin → Plugins** lists what each added.
+- **Tokens for one project, for a while.** An API token can be limited to some projects and given an expiry, and the audit log names the token behind each change.
+- **Projects as code.** A Terraform provider manages projects, members, connections, datasets, recipes, schedules, checks, workflows and tokens.
+- **Empty values can repeat** in a check that a column's values are unique, when you tick **Empty values may repeat**.
+- **Results keep their values.** A recipe's result now reads back exactly as written: values such as "NA", "unknown" or -99 stay as they were, and text that looks like a number stays text.
+
 ## Nearly 400 tools, and recipes you can manage
 
 - **The whole tool library.** Running totals, ranks and moving averages; percentiles, mode and correlation in a summary; semi, anti, cross, as-of, range and similar-text joins; statistics with what they mean; clustering, forecasts and encodings; samples and splits; distances and areas; checks that stop a run; golden records; lookups with a default; SQL, Python and templates. **Add a step** finds each by the words people use.

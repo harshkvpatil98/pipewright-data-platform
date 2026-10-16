@@ -132,3 +132,28 @@ def test_the_command_line_does_what_its_help_says(gateway, tmp_path, capsys) -> 
 
     assert run("datasets", "No such project") == 1
     assert "No project called" in capsys.readouterr().err
+
+
+def test_convert_previews_then_makes_another_tool_s_work(gateway, tmp_path, capsys) -> None:
+    run = lambda *argv: cli.main(list(argv), client=gateway)  # noqa: E731
+
+    gateway.post_project(body={"name": "Convert"})
+    raw = tmp_path / "raw_orders.csv"
+    raw.write_text("id,amount\n1,10\n2,30\n")
+    assert run("upload", "Convert", str(raw), "--name", "Raw orders", "--wait") == 0
+    dag = tmp_path / "dag.py"
+    dag.write_text(
+        "from airflow import DAG\n"
+        "from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator\n"
+        "with DAG('big_orders', schedule='@daily'):\n"
+        "    SQLExecuteQueryOperator(task_id='big', sql='CREATE TABLE big AS SELECT id FROM raw.orders "
+        "WHERE amount > 20')\n")
+    capsys.readouterr()
+    assert run("convert", "Convert", str(dag), "--preview") == 0
+    out = capsys.readouterr().out
+    assert "reads the table raw.orders: choose one with --choose table:raw.orders=DATASET" in out
+    assert "Nothing has changed" in out
+    assert run("convert", "Convert", str(dag), "--choose", "table:raw.orders=Raw orders") == 0
+    out = capsys.readouterr().out
+    assert "made: recipe “big”: Made and run" in out and "made: workflow “big_orders”" in out
+    assert run("convert", "Convert", str(dag), "--choose", "nonsense") == 1

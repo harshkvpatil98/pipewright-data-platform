@@ -309,6 +309,13 @@ class Operations:
         """
         return self._call("POST", f"/api/v1/connectors/{connector_type}/streams", body=body)
 
+    def list_conversion_formats(self) -> Any:
+        """The formats work can be converted from, and what to upload for each.
+
+        GET /api/v1/conversions/formats
+        """
+        return self._call("GET", "/api/v1/conversions/formats")
+
     def get_rule_catalog(self) -> Any:
         """Describe every supported rule type and its configuration keys.
 
@@ -714,6 +721,20 @@ class Operations:
         GET /api/v1/projects/{project_id}/contracts
         """
         return self._call("GET", f"/api/v1/projects/{project_id}/contracts")
+
+    def make_conversion(self, project_id: str, *, files: dict[str, Any], data: dict[str, Any] | None = None) -> Any:
+        """Make what the preview showed: datasets from its data, recipes (run), checks (run) and workflows.
+
+        POST /api/v1/projects/{project_id}/conversions
+        """
+        return self._call("POST", f"/api/v1/projects/{project_id}/conversions", files=files, data=data)
+
+    def preview_conversion(self, project_id: str, *, files: dict[str, Any], data: dict[str, Any] | None = None) -> Any:
+        """What converting the file would make and read, part by part. Changes nothing.
+
+        POST /api/v1/projects/{project_id}/conversions/preview
+        """
+        return self._call("POST", f"/api/v1/projects/{project_id}/conversions/preview", files=files, data=data)
 
     def read_dashboards(self, project_id: str) -> Any:
         """Read Dashboards

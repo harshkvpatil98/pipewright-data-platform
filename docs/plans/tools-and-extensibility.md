@@ -371,3 +371,60 @@ package, and a tampered package is refused; a partner page embeds the
 Studio, edits and runs a recipe as a guest, and cannot reach anything else;
 `npm run verify` and the CI-environment suite pass; every page is walked at
 two widths; and each part is rehearsed on the dev stack.
+
+### E2: what shipped (in progress)
+
+| | Before | After |
+|---|---|---|
+| Adding a connector, tool, formula function or chart type | Only by editing this repository | A plugin (SDK 1) adds any of them, held to the suite Pipewright's own pass (X1) |
+| API tokens | For everything the person can reach, never expiring | Limited to projects and expiring, named in the audit log, held to the owner's role (X2) |
+| Terraform | None | `clients/terraform`, acceptance tests against a real gateway in CI (X2) |
+| Work from another tool | None of the seven formats is read | All seven, with a report part by part, each checked against the source's own answer (X3) |
+
+By part:
+
+- **X1, plugins.** `packages/plugin-sdk`, `PLUGINS_ENABLED`, the suites as
+  functions (`tools/conformance.py`), **Admin → Plugins**, `pipewright
+  plugin new` and `check`. The roadmap's custom-plugin entry has its test.
+- **X2, the API as code.** Tokens limited to projects and expiring
+  (migration 0067); the Terraform provider for projects, members,
+  connections, datasets, recipes, schedules, checks, workflows and tokens,
+  with import and data sources; a `terraform` CI job. Fault fixed: an API
+  token skipped the project role guard.
+- **X3, bringing work in.** `apps/api-gateway/src/api_gateway/conversions/`:
+  a converter per format makes a `Conversion` (what it reads, datasets
+  from its data, recipes, checks, workflows and a report), and
+  `apply.py` previews it or makes it through each service's own create
+  functions, by key, skipping names already used and what reads them.
+  SQL (dbt models, Airflow SQL tasks) goes through the SQL step's
+  translator: the first table is what the recipe reads, each join a
+  **Join as SQL does** step (`join.sql`, new), the rest one SQL step, a
+  CTE another part joins a recipe of its own; set operations use the
+  combine tools. The flow formats (Alteryx, Informatica, SSIS, Talend,
+  Power Query) build a stream of steps, each compiled and run on an empty
+  frame before it is accepted, with each tool's own expression language
+  parsed to the formula language (`expressions.py`, printed by
+  `formula/printer.py`) and its rules for empty values written in.
+  Anything the vendor's documentation does not pin down is refused with
+  the reason; the three places it is silent and a part still converts
+  (an all-empty Alteryx Sum, where SSIS Sort and tSortRow put an empty
+  value) are said in the report and the help. **Bring work in** on the
+  Recipes page, `POST /projects/{id}/conversions[/preview]`, and
+  `pipewright convert`.
+
+  Proof: each fixture (written here from the vendor's documented format,
+  as each fixture's README says) converts and runs; the dbt project's
+  every model equals SQLite running the model's SQL, its checks pass as
+  its dbt tests do and a broken one fails; the others equal results
+  worked by hand from the documented rules; through the API, every
+  format's made recipes give the same rows as the in-memory run, and the
+  dbt workflow runs to the end. 179 importer tests, 408 printer tests.
+
+  Faults found on the way and fixed in the platform: the SQL step ignored
+  `QUALIFY`, `DISTINCT ON`, a named `WINDOW`, `TABLESAMPLE`, a `NATURAL`
+  join and the other clauses it does not run, and now refuses them by name; a recipe's result read back lost values ("NA",
+  "unknown", -99 became empty, text that looked like numbers became
+  numbers), so files Pipewright writes are now read with the types they
+  were written with (`service_ingestion/written.py`); `MOD` with a
+  negative side differed between a local run and a pushed-down one; the
+  unique check had no way to let empty values repeat, as dbt's does.

@@ -24,13 +24,15 @@ const RECIPE_ADDRESSES = [
     permanent: false,
   },
   { source: "/projects/:projectId/pipelines/new", destination: "/projects/:projectId/studio", permanent: false },
+  // Only a recipe's id (a UUID): other pages under /pipelines, such as
+  // /pipelines/convert, are pages of their own (E2, X3).
   {
-    source: "/projects/:projectId/pipelines/:pipelineId",
+    source: "/projects/:projectId/pipelines/:pipelineId([0-9a-fA-F-]{36})",
     destination: "/projects/:projectId/studio?recipe=:pipelineId",
     permanent: false,
   },
   {
-    source: "/projects/:projectId/datasets/:datasetId/pipelines/:pipelineId",
+    source: "/projects/:projectId/datasets/:datasetId/pipelines/:pipelineId([0-9a-fA-F-]{36})",
     destination: "/projects/:projectId/studio?recipe=:pipelineId",
     permanent: false,
   },

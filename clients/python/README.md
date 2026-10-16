@@ -11,6 +11,7 @@ pipewright upload "Regional sales" orders.csv --name Orders --wait
 pipewright run workflow "Regional sales" Nightly --wait
 pipewright download "Regional sales" Orders -o orders.csv
 pipewright bundle export "Regional sales" -o sales.json
+pipewright convert "Regional sales" shop.zip --preview   # a dbt project, an Airflow workflow, a .yxmd ...
 pipewright api GET /api/v1/projects
 ```
 

@@ -1607,6 +1607,78 @@
     "title": "Body_complete_upload_api_v1_projects__project_id__datasets_uploads__upload_id__complete_post",
     "type": "object"
    },
+   "Body_make_conversion_api_v1_projects__project_id__conversions_post": {
+    "properties": {
+     "file": {
+      "contentMediaType": "application/octet-stream",
+      "title": "File",
+      "type": "string"
+     },
+     "format": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Format"
+     },
+     "mapping": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Mapping"
+     }
+    },
+    "required": [
+     "file"
+    ],
+    "title": "Body_make_conversion_api_v1_projects__project_id__conversions_post",
+    "type": "object"
+   },
+   "Body_preview_conversion_api_v1_projects__project_id__conversions_preview_post": {
+    "properties": {
+     "file": {
+      "contentMediaType": "application/octet-stream",
+      "title": "File",
+      "type": "string"
+     },
+     "format": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Format"
+     },
+     "mapping": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Mapping"
+     }
+    },
+    "required": [
+     "file"
+    ],
+    "title": "Body_preview_conversion_api_v1_projects__project_id__conversions_preview_post",
+    "type": "object"
+   },
    "Body_put_chunk_api_v1_projects__project_id__datasets_uploads__upload_id__chunks__index__put": {
     "properties": {
      "chunk": {
@@ -5272,6 +5344,579 @@
      "created_at"
     ],
     "title": "ContractVersionRead",
+    "type": "object"
+   },
+   "ConversionCheck": {
+    "properties": {
+     "key": {
+      "title": "Key",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "reads": {
+      "title": "Reads",
+      "type": "string"
+     },
+     "rule_type": {
+      "title": "Rule Type",
+      "type": "string"
+     }
+    },
+    "required": [
+     "key",
+     "name",
+     "rule_type",
+     "reads"
+    ],
+    "title": "ConversionCheck",
+    "type": "object"
+   },
+   "ConversionChoice": {
+    "properties": {
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "name"
+    ],
+    "title": "ConversionChoice",
+    "type": "object"
+   },
+   "ConversionCounts": {
+    "properties": {
+     "converted": {
+      "title": "Converted",
+      "type": "integer"
+     },
+     "not_converted": {
+      "title": "Not Converted",
+      "type": "integer"
+     },
+     "nothing_to_do": {
+      "title": "Nothing To Do",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "converted",
+     "not_converted",
+     "nothing_to_do"
+    ],
+    "title": "ConversionCounts",
+    "type": "object"
+   },
+   "ConversionEntry": {
+    "properties": {
+     "became": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Became",
+      "type": "array"
+     },
+     "notes": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Notes",
+      "type": "array"
+     },
+     "reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reason"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     },
+     "subject": {
+      "title": "Subject",
+      "type": "string"
+     }
+    },
+    "required": [
+     "subject",
+     "status",
+     "became",
+     "notes"
+    ],
+    "title": "ConversionEntry",
+    "type": "object"
+   },
+   "ConversionFormat": {
+    "properties": {
+     "extensions": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Extensions",
+      "type": "array"
+     },
+     "key": {
+      "title": "Key",
+      "type": "string"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     },
+     "upload": {
+      "title": "Upload",
+      "type": "string"
+     }
+    },
+    "required": [
+     "key",
+     "title",
+     "upload",
+     "extensions"
+    ],
+    "title": "ConversionFormat",
+    "type": "object"
+   },
+   "ConversionMade": {
+    "properties": {
+     "detail": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Detail"
+     },
+     "id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Id"
+     },
+     "key": {
+      "title": "Key",
+      "type": "string"
+     },
+     "kind": {
+      "title": "Kind",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "kind",
+     "key",
+     "name",
+     "status"
+    ],
+    "title": "ConversionMade",
+    "type": "object"
+   },
+   "ConversionNeed": {
+    "properties": {
+     "columns": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Columns",
+      "type": "array"
+     },
+     "dataset_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Dataset Id"
+     },
+     "dataset_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Dataset Name"
+     },
+     "key": {
+      "title": "Key",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reason"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     },
+     "what": {
+      "title": "What",
+      "type": "string"
+     }
+    },
+    "required": [
+     "key",
+     "name",
+     "what",
+     "columns",
+     "status"
+    ],
+    "title": "ConversionNeed",
+    "type": "object"
+   },
+   "ConversionPreview": {
+    "properties": {
+     "checks": {
+      "items": {
+       "$ref": "#/components/schemas/ConversionCheck"
+      },
+      "title": "Checks",
+      "type": "array"
+     },
+     "choices": {
+      "items": {
+       "$ref": "#/components/schemas/ConversionChoice"
+      },
+      "title": "Choices",
+      "type": "array"
+     },
+     "counts": {
+      "$ref": "#/components/schemas/ConversionCounts"
+     },
+     "format": {
+      "title": "Format",
+      "type": "string"
+     },
+     "needs": {
+      "items": {
+       "$ref": "#/components/schemas/ConversionNeed"
+      },
+      "title": "Needs",
+      "type": "array"
+     },
+     "notes": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Notes",
+      "type": "array"
+     },
+     "recipes": {
+      "items": {
+       "$ref": "#/components/schemas/ConversionRecipe"
+      },
+      "title": "Recipes",
+      "type": "array"
+     },
+     "sections": {
+      "items": {
+       "$ref": "#/components/schemas/ConversionSection"
+      },
+      "title": "Sections",
+      "type": "array"
+     },
+     "seeds": {
+      "items": {
+       "$ref": "#/components/schemas/ConversionSeed"
+      },
+      "title": "Seeds",
+      "type": "array"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     },
+     "workflows": {
+      "items": {
+       "$ref": "#/components/schemas/ConversionWorkflow"
+      },
+      "title": "Workflows",
+      "type": "array"
+     }
+    },
+    "required": [
+     "format",
+     "title",
+     "needs",
+     "seeds",
+     "recipes",
+     "checks",
+     "workflows",
+     "sections",
+     "counts",
+     "notes",
+     "choices"
+    ],
+    "title": "ConversionPreview",
+    "type": "object"
+   },
+   "ConversionRecipe": {
+    "properties": {
+     "complete": {
+      "title": "Complete",
+      "type": "boolean"
+     },
+     "key": {
+      "title": "Key",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "parameters": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Parameters",
+      "type": "array"
+     },
+     "reads": {
+      "title": "Reads",
+      "type": "string"
+     },
+     "steps": {
+      "title": "Steps",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "key",
+     "name",
+     "steps",
+     "complete",
+     "reads",
+     "parameters"
+    ],
+    "title": "ConversionRecipe",
+    "type": "object"
+   },
+   "ConversionResult": {
+    "properties": {
+     "checks": {
+      "items": {
+       "$ref": "#/components/schemas/ConversionCheck"
+      },
+      "title": "Checks",
+      "type": "array"
+     },
+     "choices": {
+      "items": {
+       "$ref": "#/components/schemas/ConversionChoice"
+      },
+      "title": "Choices",
+      "type": "array"
+     },
+     "counts": {
+      "$ref": "#/components/schemas/ConversionCounts"
+     },
+     "format": {
+      "title": "Format",
+      "type": "string"
+     },
+     "made": {
+      "items": {
+       "$ref": "#/components/schemas/ConversionMade"
+      },
+      "title": "Made",
+      "type": "array"
+     },
+     "needs": {
+      "items": {
+       "$ref": "#/components/schemas/ConversionNeed"
+      },
+      "title": "Needs",
+      "type": "array"
+     },
+     "notes": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Notes",
+      "type": "array"
+     },
+     "recipes": {
+      "items": {
+       "$ref": "#/components/schemas/ConversionRecipe"
+      },
+      "title": "Recipes",
+      "type": "array"
+     },
+     "sections": {
+      "items": {
+       "$ref": "#/components/schemas/ConversionSection"
+      },
+      "title": "Sections",
+      "type": "array"
+     },
+     "seeds": {
+      "items": {
+       "$ref": "#/components/schemas/ConversionSeed"
+      },
+      "title": "Seeds",
+      "type": "array"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     },
+     "workflows": {
+      "items": {
+       "$ref": "#/components/schemas/ConversionWorkflow"
+      },
+      "title": "Workflows",
+      "type": "array"
+     }
+    },
+    "required": [
+     "format",
+     "title",
+     "needs",
+     "seeds",
+     "recipes",
+     "checks",
+     "workflows",
+     "sections",
+     "counts",
+     "notes",
+     "choices",
+     "made"
+    ],
+    "title": "ConversionResult",
+    "type": "object"
+   },
+   "ConversionSection": {
+    "properties": {
+     "entries": {
+      "items": {
+       "$ref": "#/components/schemas/ConversionEntry"
+      },
+      "title": "Entries",
+      "type": "array"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "title",
+     "entries"
+    ],
+    "title": "ConversionSection",
+    "type": "object"
+   },
+   "ConversionSeed": {
+    "properties": {
+     "file_name": {
+      "title": "File Name",
+      "type": "string"
+     },
+     "key": {
+      "title": "Key",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "what": {
+      "title": "What",
+      "type": "string"
+     }
+    },
+    "required": [
+     "key",
+     "name",
+     "what",
+     "file_name"
+    ],
+    "title": "ConversionSeed",
+    "type": "object"
+   },
+   "ConversionWorkflow": {
+    "properties": {
+     "cron_expression": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cron Expression"
+     },
+     "key": {
+      "title": "Key",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "tasks": {
+      "title": "Tasks",
+      "type": "integer"
+     },
+     "trigger_type": {
+      "title": "Trigger Type",
+      "type": "string"
+     }
+    },
+    "required": [
+     "key",
+     "name",
+     "tasks",
+     "trigger_type"
+    ],
+    "title": "ConversionWorkflow",
     "type": "object"
    },
    "CopyColumnPlan": {
@@ -32344,6 +32989,65 @@
     ]
    }
   },
+  "/api/v1/conversions/formats": {
+   "get": {
+    "description": "The formats work can be converted from, and what to upload for each.",
+    "operationId": "list_conversion_formats_api_v1_conversions_formats_get",
+    "parameters": [
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/ConversionFormat"
+         },
+         "title": "Response List Conversion Formats Api V1 Conversions Formats Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "List Conversion Formats",
+    "tags": [
+     "conversions"
+    ]
+   }
+  },
   "/api/v1/data-quality/rule-types": {
    "get": {
     "description": "Describe every supported rule type and its configuration keys.",
@@ -36292,6 +36996,156 @@
     "summary": "List Project Contracts",
     "tags": [
      "data-quality"
+    ]
+   }
+  },
+  "/api/v1/projects/{project_id}/conversions": {
+   "post": {
+    "description": "Make what the preview showed: datasets from its data, recipes (run), checks (run) and workflows.",
+    "operationId": "make_conversion_api_v1_projects__project_id__conversions_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "$ref": "#/components/schemas/Body_make_conversion_api_v1_projects__project_id__conversions_post"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ConversionResult"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Make Conversion",
+    "tags": [
+     "conversions"
+    ]
+   }
+  },
+  "/api/v1/projects/{project_id}/conversions/preview": {
+   "post": {
+    "description": "What converting the file would make and read, part by part. Changes nothing.",
+    "operationId": "preview_conversion_api_v1_projects__project_id__conversions_preview_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "cookie",
+      "name": "idp_access_token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Idp Access Token"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "$ref": "#/components/schemas/Body_preview_conversion_api_v1_projects__project_id__conversions_preview_post"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ConversionPreview"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Preview Conversion",
+    "tags": [
+     "conversions"
     ]
    }
   },

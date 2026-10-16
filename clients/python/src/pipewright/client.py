@@ -106,6 +106,16 @@ class Client(Operations):
                 query={"dataset_name": name or path.stem}, files={"file": (path.name, handle)},
             )
 
+    def convert(self, project_id: str, file: str | Path, *, preview: bool = False,
+                mapping: dict[str, str] | None = None) -> dict[str, Any]:
+        """Convert another tool's work (a dbt project's .zip, an Airflow workflow, a .yxmd, ...) into this project.
+        With preview, say what it would make and change nothing."""
+        path = Path(file)
+        with path.open("rb") as handle:
+            return self._call("POST", f"/api/v1/projects/{project_id}/conversions" + ("/preview" if preview else ""),
+                              files={"file": (path.name, handle)},
+                              data={"mapping": json.dumps(mapping)} if mapping else None)
+
     def download(self, project_id: str, dataset_id: str, to: str | Path, *, file_format: str = "csv",
                  version: int | None = None) -> Path:
         content = self._call(

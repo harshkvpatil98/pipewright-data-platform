@@ -31,13 +31,30 @@ describe("old recipe addresses", () => {
     const rules = (await nextConfig.redirects?.()) ?? [];
     const sources = rules.map((rule) => rule.source);
     const newRecipe = sources.indexOf("/projects/:projectId/pipelines/new");
-    const recipe = sources.indexOf("/projects/:projectId/pipelines/:pipelineId");
+    const recipeSource = "/projects/:projectId/pipelines/:pipelineId([0-9a-fA-F-]{36})";
+    const recipe = sources.indexOf(recipeSource);
     expect(newRecipe).toBeGreaterThan(-1);
     expect(newRecipe).toBeLessThan(recipe);
-    const byDataset = rules.find((rule) => rule.source === "/projects/:projectId/datasets/:datasetId/pipelines/:pipelineId");
+    const byDataset = rules.find(
+      (rule) => rule.source === "/projects/:projectId/datasets/:datasetId/pipelines/:pipelineId([0-9a-fA-F-]{36})",
+    );
     expect(byDataset?.destination).toBe("/projects/:projectId/studio?recipe=:pipelineId");
-    expect(rules.find((rule) => rule.source === "/projects/:projectId/pipelines/:pipelineId")?.destination).toBe(
+    expect(rules.find((rule) => rule.source === recipeSource)?.destination).toBe(
       "/projects/:projectId/studio?recipe=:pipelineId",
     );
+  });
+
+  it("leave the pages under /pipelines that are not a recipe, such as Bring work in (E2)", async () => {
+    // The matcher Next.js itself reads a redirect's source with.
+    // @ts-expect-error -- Next's own copy has no declarations.
+    const { pathToRegexp } = (await import("next/dist/compiled/path-to-regexp")) as {
+      pathToRegexp: (source: string) => RegExp;
+    };
+    const rules = (await nextConfig.redirects?.()) ?? [];
+    const recipe = rules.find((rule) => rule.destination === "/projects/:projectId/studio?recipe=:pipelineId" &&
+      !rule.source.includes("datasets"));
+    const matches = pathToRegexp(recipe?.source ?? "");
+    expect(matches.test("/projects/p1/pipelines/3f2a6c1e-9b7d-4e2f-8a1c-0d5e6f7a8b9c")).toBe(true);
+    expect(matches.test("/projects/p1/pipelines/convert")).toBe(false);
   });
 });

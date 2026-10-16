@@ -57,6 +57,10 @@ def evaluate_unique(dataframe: pd.DataFrame, config: dict[str, Any]) -> RuleEval
     # Every member of a duplicated group is flagged, so quarantine removes the
     # whole collision rather than arbitrarily keeping one row.
     mask = dataframe.duplicated(subset=columns, keep=False)
+    if config.get("ignore_empty"):
+        # As a SQL UNIQUE constraint and dbt's unique test: a row with an empty
+        # value repeats nothing, however many there are (E2).
+        mask &= dataframe[columns].notna().all(axis=1)
     label = ", ".join(columns)
     return from_mask(
         mask,

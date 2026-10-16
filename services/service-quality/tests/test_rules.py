@@ -57,6 +57,14 @@ def test_unique_flags_every_member_of_a_duplicate_group() -> None:
     assert result.failed_rows == 2
 
 
+def test_unique_can_let_empty_values_repeat_as_sql_does() -> None:
+    frame = pd.DataFrame({"id": [1, None, None, 2]})
+    assert evaluate_rule(frame, rule_type="unique", config={"column": "id"}).failed_rows == 2
+    assert evaluate_rule(frame, rule_type="unique", config={"column": "id", "ignore_empty": True}).status == "passed"
+    repeated = pd.DataFrame({"id": [1, 1, None, None]})
+    assert evaluate_rule(repeated, rule_type="unique", config={"column": "id", "ignore_empty": True}).failed_rows == 2
+
+
 def test_unique_supports_composite_key() -> None:
     frame = pd.DataFrame({"a": [1, 1, 2], "b": ["x", "y", "x"]})
     assert evaluate_rule(frame, rule_type="unique", config={"columns": ["a", "b"]}).status == "passed"

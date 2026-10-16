@@ -20,7 +20,7 @@ _CATALOG: tuple[tuple[str, str, list[str], list[str]], ...] = (
         "unique",
         "Values in the column (or combination of columns) must not repeat.",
         ["column"],
-        ["columns"],
+        ["columns", "ignore_empty"],
     ),
     (
         "allowed_values",

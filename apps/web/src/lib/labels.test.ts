@@ -77,6 +77,10 @@ describe("describeCheckSettings", () => {
     expect(describeCheckSettings({ column: "status", allowed_values: ["new", "paid"] })).toBe(
       "Column status · one of new, paid",
     );
+    expect(describeCheckSettings({ column: "id", ignore_empty: true })).toBe(
+      "Column id · empty values may repeat",
+    );
+    expect(describeCheckSettings({ column: "id", ignore_empty: false })).toBe("Column id");
   });
 
   it("is empty when there is nothing to say", () => {

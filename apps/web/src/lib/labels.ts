@@ -105,6 +105,7 @@ export function describeCheckSettings(config: Record<string, unknown> | null | u
   const allowed = config.allowed_values ?? config.values;
   ["allowed_values", "values"].forEach((key) => used.add(key));
   if (allowed !== undefined) parts.push(`one of ${value(allowed)}`);
+  if (take("ignore_empty") === true) parts.push("empty values may repeat");
   for (const [key, raw] of Object.entries(config)) {
     if (used.has(key) || raw === null || raw === undefined || typeof raw === "object" && !Array.isArray(raw)) {
       continue;

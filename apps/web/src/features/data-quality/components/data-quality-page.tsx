@@ -40,10 +40,14 @@ type DataQualityPageProps = {
  */
 const CONFIG_FIELDS: Record<
   string,
-  { key: string; label: string; placeholder: string }[]
+  { key: string; label: string; placeholder: string; tick?: boolean }[]
 > = {
   not_null: [{ key: "column", label: "Column", placeholder: "email" }],
-  unique: [{ key: "column", label: "Column", placeholder: "id" }],
+  unique: [
+    { key: "column", label: "Column", placeholder: "id" },
+    // As a SQL UNIQUE constraint and dbt's unique test count them (E2).
+    { key: "ignore_empty", label: "Empty values may repeat", placeholder: "", tick: true },
+  ],
   allowed_values: [
     { key: "column", label: "Column", placeholder: "status" },
     {
@@ -92,7 +96,9 @@ function buildConfig(
   for (const field of CONFIG_FIELDS[ruleType] ?? []) {
     const raw = (values[field.key] ?? "").trim();
     if (!raw) continue;
-    if (field.key === "allowed_values") {
+    if (field.tick) {
+      if (raw === "true") config[field.key] = true;
+    } else if (field.key === "allowed_values") {
       config[field.key] = raw
         .split(",")
         .map((value) => value.trim())
@@ -572,45 +578,65 @@ export function DataQualityPageView({
             </Select>
           </FormField>
 
-          {(CONFIG_FIELDS[ruleType] ?? []).map((field) => (
-            <FormField
-              key={field.key}
-              label={field.label}
-              htmlFor={`${fieldPrefix}-${field.key}`}
-            >
-              {field.key === "column" && datasetColumns.length > 0 ? (
-                <Select
-                  id={`${fieldPrefix}-${field.key}`}
-                  value={configValues[field.key] ?? ""}
+          {(CONFIG_FIELDS[ruleType] ?? []).map((field) =>
+            field.tick ? (
+              <label
+                key={field.key}
+                className="text-ink-2 flex items-center gap-2 text-[13px]"
+              >
+                <input
+                  type="checkbox"
+                  checked={configValues[field.key] === "true"}
                   onChange={(event) =>
                     setConfigValues((values) => ({
                       ...values,
-                      [field.key]: event.target.value,
+                      [field.key]: event.target.checked ? "true" : "",
                     }))
                   }
-                >
-                  <option value="">Choose a column…</option>
-                  {datasetColumns.map((column) => (
-                    <option key={column} value={column}>
-                      {column}
-                    </option>
-                  ))}
-                </Select>
-              ) : (
-                <Input
-                  id={`${fieldPrefix}-${field.key}`}
-                  value={configValues[field.key] ?? ""}
-                  onChange={(event) =>
-                    setConfigValues((values) => ({
-                      ...values,
-                      [field.key]: event.target.value,
-                    }))
-                  }
-                  placeholder={field.placeholder}
+                  className="border-line-strong bg-sunken h-4 w-4 rounded"
                 />
-              )}
-            </FormField>
-          ))}
+                {field.label}
+              </label>
+            ) : (
+              <FormField
+                key={field.key}
+                label={field.label}
+                htmlFor={`${fieldPrefix}-${field.key}`}
+              >
+                {field.key === "column" && datasetColumns.length > 0 ? (
+                  <Select
+                    id={`${fieldPrefix}-${field.key}`}
+                    value={configValues[field.key] ?? ""}
+                    onChange={(event) =>
+                      setConfigValues((values) => ({
+                        ...values,
+                        [field.key]: event.target.value,
+                      }))
+                    }
+                  >
+                    <option value="">Choose a column…</option>
+                    {datasetColumns.map((column) => (
+                      <option key={column} value={column}>
+                        {column}
+                      </option>
+                    ))}
+                  </Select>
+                ) : (
+                  <Input
+                    id={`${fieldPrefix}-${field.key}`}
+                    value={configValues[field.key] ?? ""}
+                    onChange={(event) =>
+                      setConfigValues((values) => ({
+                        ...values,
+                        [field.key]: event.target.value,
+                      }))
+                    }
+                    placeholder={field.placeholder}
+                  />
+                )}
+              </FormField>
+            ),
+          )}
         </div>
       </Modal>
     </AppShell>

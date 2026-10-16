@@ -1,9 +1,11 @@
 """Join and combine tools that read another dataset (E1).
 
 The join step does the equal-key joins (inner, left, right, full, cross, semi,
-anti) and the union step adds rows. These are the rest: matching the nearest
-earlier row, a value inside a range, similar text, side by side by position,
-and keeping the rows another dataset also has, or does not.
+anti) and the union step adds rows. These are the rest: a join exactly as SQL
+joins (E2, X3: what a converted SQL model's joins become, since the join step
+matches two empty keys and merges same-named keys, as pandas does), matching
+the nearest earlier row, a value inside a range, similar text, side by side
+by position, and keeping the rows another dataset also has, or does not.
 
 Each saves the other dataset as `right_dataset_id`, reads it under the
 reader's policies, and runs here: none of them has an exact SQL form the
@@ -20,6 +22,7 @@ import pandas as pd
 from shared_python.errors import BadRequestError
 from shared_python.matching import DEFAULT_THRESHOLD, METHODS, best_matches, normalise
 from shared_python.types import FLOAT64
+from shared_python.types.lattice import UNKNOWN
 
 from service_transformations.ir.nodes import Node
 from service_transformations.tools import register
@@ -99,6 +102,114 @@ def _keys(frame: pd.DataFrame, other: pd.DataFrame, left_on: list[str], right_on
     for index, (a, b) in enumerate(zip(left_on, right_on)):
         left_keys[f"__k{index}"], right_keys[f"__k{index}"], _ = comparable(frame[a], other[b])
     return left_keys, right_keys
+
+
+# ------------------------------------------------------------ as SQL does
+
+_HOW = ("inner", "left", "right", "full", "semi", "anti")
+#: SQL's rule, and the one Alteryx's Join and pandas follow, for an empty key.
+_EMPTY_KEYS = ("never match", "match each other")
+
+
+def _brought_names(left: list[str], bring: list[str], suffix: str) -> dict[str, str]:
+    """Each brought column's name here: its own, or with the ending when this dataset has it."""
+    names = {name: name if name not in left else f"{name}{suffix}" for name in bring}
+    taken = [out for out in names.values() if out in left]
+    if taken or len(set(names.values())) < len(names):
+        clash = taken[0] if taken else next(out for out in names.values() if list(names.values()).count(out) > 1)
+        raise BadRequestError(f"{clash!r} would be two columns. Choose another ending for names already taken.")
+    return names
+
+
+def _sql_join_build(node: Node, params: dict[str, Any]) -> Node:
+    on = columns_of(node, params.get("on"), "Match on")
+    right_on = list(params.get("right_on") or [])
+    if not on or len(on) != len(right_on):
+        raise BadRequestError("Match on and their columns need the same number of columns, at least one.")
+    how = params.get("how") or "inner"
+    if how not in _HOW:
+        raise BadRequestError(f"A join here is {', '.join(_HOW[:-1])} or {_HOW[-1]}.")
+    empty_keys = params.get("empty_keys") or "never match"
+    if empty_keys not in _EMPTY_KEYS:
+        raise BadRequestError("Empty keys either never match or match each other.")
+    # Keeping the rows that match (semi) or do not (anti) brings nothing.
+    bring = [] if how in ("semi", "anti") else list(params.get("bring") or [])
+    suffix = params.get("suffix") or "_right"
+    names = _brought_names(list(node.schema()), bring, suffix)
+    schema = {name: (type_.with_nullable(True) if how in ("right", "full") else type_)
+              for name, type_ in node.schema().items()}
+    schema.update({out: UNKNOWN for out in names.values()})
+    config = {**_settings(params, "right_on", "suffix"), "bring": bring, "on": on, "how": how,
+              "empty_keys": empty_keys}
+    return extension(node, "join.sql", config, schema)
+
+
+@handles("join.sql")
+def _sql_join(frame: pd.DataFrame, config: dict[str, Any]) -> pd.DataFrame:
+    from service_transformations.ir import pandas_backend
+    from service_transformations.ir.expressions import Call, Column
+    from service_transformations.ir.nodes import IRError, Join, Scan
+
+    other = other_dataset(config)
+    on, right_on, bring = list(config["on"]), list(config["right_on"]), list(config.get("bring") or [])
+    require_other_columns(other, [*right_on, *bring], "Join as SQL does", config)
+    left = frame.reset_index(drop=True)
+    names = _brought_names(list(left.columns), bring, config.get("suffix") or "_right")
+    # The other side's keys under names nothing else has, so they never clash
+    # and never stay: SQL keeps both sides' columns, here the brought ones.
+    marker = "__join_key"
+    while any(str(column).startswith(marker) for column in [*left.columns, *names.values()]):
+        marker += "_"
+    probe, right = left.copy(), pd.DataFrame(index=other.reset_index(drop=True).index)
+    left_keys, right_keys = [], []
+    matching = (config.get("empty_keys") or "never match") == "match each other"
+    for index, (a, b) in enumerate(zip(on, right_on)):
+        # Each pair compared in one kind (times, numbers or text), as the other joins here do.
+        mine, theirs, kind = comparable(left[a].reset_index(drop=True), other[b].reset_index(drop=True))
+        if matching:
+            # Two empty keys equal each other: match on "is it empty" and on the
+            # value with every empty one filled the same way.
+            filler = {"number": 0, "time": pd.Timestamp(0)}.get(kind, "")
+            probe[f"{marker}e{index}"], right[f"{marker}f{index}"] = mine.isna().to_numpy(), theirs.isna().to_numpy()
+            left_keys.append(f"{marker}e{index}")
+            right_keys.append(f"{marker}f{index}")
+            mine, theirs = mine.where(mine.notna(), filler), theirs.where(theirs.notna(), filler)
+        probe[f"{marker}l{index}"], right[f"{marker}r{index}"] = mine.to_numpy(), theirs.to_numpy()
+        left_keys.append(f"{marker}l{index}")
+        right_keys.append(f"{marker}r{index}")
+    right = right.reset_index(drop=True)
+    for name, out in names.items():
+        right[out] = other[name].to_numpy()
+    condition = [Call("eq", (Column(a), Column(b))) for a, b in zip(left_keys, right_keys)]
+    # The IR's join is SQL's: an empty key matches nothing, on either side.
+    tree = Join(Scan("left", tuple((str(c), UNKNOWN) for c in probe.columns)),
+                Scan("right", tuple((str(c), UNKNOWN) for c in right.columns)),
+                on=condition[0] if len(condition) == 1 else Call("and", tuple(condition)), how=config["how"])
+    try:
+        joined = pandas_backend.execute(tree, {"left": probe, "right": right})
+    except (ValueError, IRError) as exc:
+        raise BadRequestError(f"Those columns cannot be matched: {exc}") from exc
+    return joined.drop(columns=[c for c in [*left_keys, *right_keys] if c in joined.columns])
+
+
+_CUSTOMERS = ({"id": 1, "name": "Ann"}, {"id": 2, "name": "Bo"}, {"id": None, "name": "Nobody"})
+_declare("join.sql", "Join as SQL does", "Bring the columns of every row of the other dataset whose key columns "
+         "equal this row's, exactly as a SQL join: inner, left, right or full, or keep only the rows that match "
+         "(semi) or do not (anti). An empty key matches nothing, even another empty key, unless asked to match "
+         "each other (as Alteryx's Join does), and the other side's key columns stay as columns of their own.",
+         _sql_join_build,
+         Example(rows=({"customer": 1}, {"customer": 3}, {"customer": None}),
+                 params={"right_dataset_id": EXAMPLE_DATASET, "how": "left", "on": ["customer"],
+                         "right_on": ["id"], "bring": ["name"]},
+                 column="customer", output="name", expect=("Ann", None, None), other=_CUSTOMERS),
+         params=(DATASET, Param("how", "Join", ParamKind.SELECT, required=False, default="inner", options=_HOW),
+                 Param("on", "Match on", ParamKind.COLUMNS),
+                 Param("right_on", "Their columns", ParamKind.DATASET_COLUMNS),
+                 Param("bring", "Columns to bring", ParamKind.DATASET_COLUMNS, required=False, default=[],
+                       help="Columns of the other dataset to add to each row; none for semi and anti."),
+                 Param("empty_keys", "Empty keys", ParamKind.SELECT, required=False, default="never match",
+                       options=_EMPTY_KEYS), SUFFIX),
+         synonyms=("sql join", "standard join", "ansi join", "join with nulls", "left outer join", "full outer join"))
 
 
 # ------------------------------------------------------------------ as of

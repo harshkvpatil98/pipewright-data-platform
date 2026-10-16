@@ -1,6 +1,6 @@
 # Transformation tools
 
-379 tools across 22 categories. Every one compiles to the
+380 tools across 22 categories. Every one compiles to the
 relational IR, so every one gets type inference, column lineage and
 pushdown without a second implementation.
 
@@ -13,7 +13,7 @@ test suite, so this file cannot describe behaviour the code does not have.
 - [Validation](#validation) (24)
 - [Cleansing](#cleansing) (21)
 - [Columns](#columns) (13)
-- [Join & combine](#join--combine) (6)
+- [Join & combine](#join--combine) (7)
 - [Type & conversion](#type--conversion) (14)
 - [Encoding & privacy](#encoding--privacy) (17)
 - [Code & escape hatches](#code--escape-hatches) (6)
@@ -1816,6 +1816,39 @@ Also known as: _demote headers_, _header to row_, _headers as data_
 
 
 ## Join & combine
+
+### Join as SQL does
+
+`join.sql`
+
+Bring the columns of every row of the other dataset whose key columns equal this row's, exactly as a SQL join: inner, left, right or full, or keep only the rows that match (semi) or do not (anti). An empty key matches nothing, even another empty key, unless asked to match each other (as Alteryx's Join does), and the other side's key columns stay as columns of their own.
+
+Also known as: _sql join_, _standard join_, _ansi join_, _join with nulls_, _left outer join_, _full outer join_
+
+| Setting | Type | Required | Default |
+|---|---|---|---|
+| Other dataset | dataset | yes | none |
+| Join | `inner` / `left` / `right` / `full` / `semi` / `anti` | no | `inner` |
+| Match on | columns | yes | none |
+| Their columns | dataset_columns | yes | none |
+| Columns to bring | dataset_columns | no | none |
+| | Columns of the other dataset to add to each row; none for semi and anti. | | |
+| Empty keys | `never match` / `match each other` | no | `never match` |
+| Ending for a name already taken | text | no | `_right` |
+
+| `customer` | `name` |
+|---|---|
+| `1` | `Ann` |
+| `3` | _(empty)_ |
+| _(empty)_ | _(empty)_ |
+
+The other dataset in this example:
+
+| `id` | `name` |
+|---|---|
+| `1` | `Ann` |
+| `2` | `Bo` |
+| _(empty)_ | `Nobody` |
 
 ### Join to the nearest earlier row
 
